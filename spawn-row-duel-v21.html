@@ -1,0 +1,2131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Spawn Row Duel · v22 — Centered Square Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#ece3cf; --ink-dim:#9c9277;
+    --gold:#d9b04a; --gold-deep:#8a6d22;
+    --ember:#e0613f; --tide:#3fa3e0; --verdant:#5fc46a;
+    --spawn:#52c6ec;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;}
+  body{
+    font-family:'EB Garamond',Georgia,serif; color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #1c1726 0%, transparent 60%),
+      radial-gradient(900px 600px at 50% 120%, #1a1310 0%, transparent 55%), #08070b;
+    padding:6px 8px; -webkit-font-smoothing:antialiased;
+  }
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.04;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .wrap{width:100%;max-width:100%;height:100dvh;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;
+    --ch: clamp(50px, calc((100dvh - 70px)/6.4), 168px); --cw: calc(var(--ch)*.74);
+    --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
+    --handpad: calc(var(--hch)*.9 + 42px);}
+  @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/6.4), 168px);} }
+  .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
+  .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-bottom:var(--handpad);}
+  header{display:none!important;}
+
+  /* ===== corner player badges — vitals stored by the name (Master Duel style) ===== */
+  .pbadge{position:absolute;z-index:23;display:flex;flex-direction:column;gap:1px;padding:6px 13px;border-radius:12px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(26,23,34,.92),rgba(16,13,21,.92));border:1px solid #3a3450;box-shadow:0 6px 18px rgba(0,0,0,.55);}
+  .pbadge.foe{top:6px;right:8px;align-items:flex-end;text-align:right;}
+  .pbadge.you{bottom:6px;left:8px;align-items:flex-start;text-align:left;}
+  .who{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em;display:flex;align-items:center;gap:6px;font-weight:700;}
+  .pbadge.foe .who{flex-direction:row-reverse;}
+  .cdot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;}
+  .vit{font-size:14.5px;} .vit b{font-family:'Cinzel',serif;}
+  .heart{color:#e35b4f;} .mana{color:var(--spawn);}
+  .bct{color:#caa15a;} .wct{color:#9ad17f;} .vit .bct,.vit .wct{font-size:13px;}
+  /* ===== on-board overlay controls (Arena-style) ===== */
+  #boardBtns{position:absolute;right:8px;top:50%;transform:translateY(-50%);z-index:24;display:flex;flex-direction:column;align-items:flex-end;gap:7px;pointer-events:none;}
+  #boardBtns>*{pointer-events:auto;}
+  .turnlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;text-align:center;
+    background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:999px;padding:3px 10px;}
+  #endBtn{font-family:'Cinzel',serif;letter-spacing:.07em;font-weight:900;font-size:12.5px;padding:9px 18px;border-radius:999px;cursor:pointer;
+    color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:2px solid #f0d68a;
+    box-shadow:0 4px 0 #4d3a10,0 0 18px rgba(217,176,74,.35),0 8px 20px rgba(0,0,0,.55);}
+  #endBtn:active{transform:translatey(2px);box-shadow:0 2px 0 #4d3a10;}
+  #endBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:0 6px 16px rgba(0,0,0,.5);border-color:#555;}
+  #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
+    color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
+  #conscriptBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:default;}
+  #logBtn,#rulesBtn{font-family:'Cinzel',serif;letter-spacing:.06em;font-weight:700;font-size:10px;padding:6px 11px;border-radius:999px;cursor:pointer;
+    color:var(--ink);background:rgba(13,11,18,.88);border:1px solid #3a3450;box-shadow:0 4px 12px rgba(0,0,0,.5);}
+  #logBtn:active,#rulesBtn:active{transform:translateY(1px);}
+  #logPanel,#rulesPanel{position:fixed;inset:0;z-index:27;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
+  #logPanel .box,#rulesPanel .box{width:430px;max-width:92vw;max-height:88dvh;overflow-y:auto;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
+  #logPanel .ltitle,#rulesPanel .ltitle{font-family:'Cinzel',serif;font-weight:900;font-size:17px;color:var(--gold);text-align:center;margin-bottom:10px;}
+  #logPanel .pclose,#rulesPanel .pclose{display:block;margin:11px auto 0;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
+  #rulesPanel .cmdname{font-family:'Cinzel',serif;font-size:14px;display:flex;align-items:center;gap:7px;justify-content:center;}
+  #rulesPanel .cmdpass{font-size:12.5px;font-style:italic;color:var(--ink-dim);margin:4px 0 10px;text-align:center;}
+  #rulesPanel p{font-size:13px;line-height:1.55;color:var(--ink-dim);margin:7px 0;} #rulesPanel p b{color:var(--ink);} #rulesPanel p i{color:var(--ink-dim);}
+  .btnrow{display:flex;gap:6px;justify-content:flex-end;align-items:center;}
+
+  .mat{flex:1;min-height:0;display:flex;gap:6px;border-radius:0;padding:4px clamp(4px,1vw,12px) 4px;
+    background:repeating-linear-gradient(45deg,rgba(0,0,0,.18) 0 2px,transparent 2px 9px),linear-gradient(160deg,#3a2c12,#241a0a 55%,#1a1208);
+    border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);}
+  .rowlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;text-align:center;margin:3px 0 5px;color:var(--ink-dim);}
+  .rowlabel.spawn{color:var(--spawn);font-size:10px;text-shadow:0 0 10px rgba(82,198,236,.4);}
+  .centerwrap{flex:1.15;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;align-items:stretch;padding:0 6px;}
+  .rowlabel.vert{position:absolute;left:calc(var(--cw)*-.02);top:0;bottom:0;z-index:2;pointer-events:none;
+    writing-mode:vertical-rl;transform:rotate(180deg);margin:0;display:flex;align-items:center;justify-content:center;
+    width:var(--cw);letter-spacing:.26em;font-size:clamp(7px,calc(var(--cw)*.12),9px);opacity:.85;overflow:hidden;white-space:nowrap;}
+  .row{flex:1;min-height:0;display:flex;justify-content:center;align-items:stretch;gap:clamp(3px,.7vw,9px);}
+  .side{flex:2;min-height:0;display:flex;}
+  #youSide{flex-direction:row-reverse;}
+  .rowsbox{flex:1;min-width:0;display:flex;flex-direction:column;gap:clamp(3px,.7vw,9px);}
+  .flank{display:none;}
+  .decks{position:absolute;z-index:22;display:flex;gap:6px;pointer-events:auto;}
+  .decks.foe{top:8px;left:10px;}
+  .decks.you{bottom:8px;right:10px;}
+  .decks .zone{width:clamp(38px,5.4vw,58px);height:clamp(50px,8.4vh,80px);flex:none;}
+  .zonecol{width:var(--cw);flex:none;display:flex;flex-direction:column;gap:5px;justify-content:space-between;}
+  .zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:6px;cursor:pointer;
+    font-family:'Cinzel',serif;letter-spacing:.05em;text-transform:uppercase;text-align:center;color:var(--ink-dim);padding:2px 1px;}
+  .zone .zl{line-height:1.1;font-size:clamp(5.5px,calc(var(--cw)*.14),8px);}
+  .zone b{color:var(--ink);font-size:clamp(9px,calc(var(--cw)*.24),14px);}
+  .zone.deck{background:radial-gradient(circle at 50% 35%,#1b3a47,#0a1a22);border:1px solid #2c5a72;
+    box-shadow:2px 2px 0 #0a1a22,2px 2px 0 1px #1d4356,4px 4px 0 #07121a,4px 4px 0 1px #143140;}
+  .zone.deck b{color:#9fc0ef;}
+  .zone.grave{background:radial-gradient(circle at 50% 35%,#2c2026,#140e12);border:1px solid #5a3b3b;
+    box-shadow:2px 2px 0 #140e12,2px 2px 0 1px #43292b;}
+  .zone.grave b{color:#e0a59a;}
+  .zone:active{transform:translate(1px,1px);}
+  .matmain{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
+  /* the worker rail — off-board token wells aligned to the five rows */
+  .wrail{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;display:flex;flex-direction:column;align-items:stretch;}
+  .wrail-spacer{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;}
+  .wlab{flex:.18;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);opacity:.4;font-size:12px;min-height:0;}
+  .wgrp{flex:2;display:flex;flex-direction:column;gap:6px;justify-content:center;padding:1px 0;margin:1px 0;min-height:0;}
+  .wcen{flex:1.15;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;display:flex;min-height:0;}
+  .well{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    border:1px dashed rgba(120,110,140,.28);border-radius:9px;flex:1;min-height:0;}
+  .wcen .well{width:100%;}
+  .wtok{display:flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;cursor:default;
+    font-family:'Cinzel',serif;font-weight:900;font-size:clamp(9px,calc(var(--cw)*.18),13px);
+    background:radial-gradient(circle at 35% 30%,#3a3346,#15121d);border:2px solid #6b5d33;color:#e6cf86;
+    box-shadow:0 2px 0 #0a080f,0 3px 8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12);}
+  .wtok.foe{border-color:#5a3b3b;color:#e0a59a;}
+  .wtok .wr{font-size:.72em;font-weight:700;opacity:.75;}
+  .wtok.tappable{cursor:pointer;border-color:var(--gold);box-shadow:0 0 10px rgba(217,176,74,.45),0 2px 0 #0a080f;animation:pulse 1.6s ease-in-out infinite;}
+  .wtok.target{cursor:pointer;border-color:#e35b4f;box-shadow:0 0 12px rgba(227,91,79,.6),0 2px 0 #0a080f;animation:pulse 1.1s ease-in-out infinite;}
+  .wtok.selected{border-color:var(--gold);background:radial-gradient(circle at 35% 30%,#4d4030,#1d1812);}
+  /* command center cells read as the keep */
+  .cell .card.ccx{box-shadow:inset 0 0 0 2px var(--gold-deep),0 0 14px rgba(217,176,74,.35);}
+  .card .ccb{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-family:'Cinzel',serif;font-weight:900;
+    font-size:clamp(6px,11cqmin,12px);letter-spacing:.14em;color:var(--gold);text-shadow:0 1px 2px #000;}
+  .centerbox{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
+  #foeBack .cell:not(.mineHere):not(.foeHere),#foeFront .cell:not(.mineHere):not(.foeHere){border-color:rgba(82,160,236,.3);}
+  #youFront .cell:not(.mineHere):not(.foeHere),#youBack .cell:not(.mineHere):not(.foeHere){border-color:rgba(236,120,60,.3);}
+
+  .cell{position:relative;container-type:size;aspect-ratio:1;height:100%;width:auto;flex:none;border-radius:8px;border:1px dashed rgba(255,255,255,.12);background:rgba(0,0,0,.28);
+    display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .12s,border-color .12s;overflow:hidden;}
+  .cell.spawncell{border-style:solid;border-color:rgba(82,198,236,.22);background:rgba(82,198,236,.05);}
+  .cell.tappable{cursor:pointer;border-color:rgba(217,176,74,.7);box-shadow:0 0 0 1px rgba(217,176,74,.45),0 0 15px rgba(217,176,74,.28);}
+  .cell.target{cursor:pointer;border-color:rgba(227,91,79,.8);box-shadow:0 0 0 1px rgba(227,91,79,.6),0 0 15px rgba(227,91,79,.4);}
+  .cell.tappable:active,.cell.target:active{transform:scale(.95);}
+  .cell.selected{border:2px solid var(--gold);box-shadow:0 0 18px rgba(217,176,74,.6);}
+
+  .card{position:absolute;inset:3px;border-radius:5px;padding:5px;display:flex;flex-direction:column;justify-content:space-between;animation:pop .18s ease;}
+  @keyframes pop{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .card .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(7px,16cqmin,16px);text-align:center;text-shadow:0 1px 2px #000;line-height:1.06;}
+  .card .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(8px,21cqmin,19px);}
+  .atk{color:#ffd98a;} .hp{color:#ff9a8a;}
+  .crt{border:1px solid #888;}
+  .vil{background:linear-gradient(165deg,#3a3320,#211c10);border:1px solid #b79a4d;box-shadow:inset 0 0 12px rgba(183,154,77,.18);}
+  .vil .wk{position:absolute;top:2px;left:3px;font-size:clamp(7px,16cqmin,13px);color:#e6cf86;}
+  .vil .nm{color:#e6cf86;}
+  .bld{background:repeating-linear-gradient(90deg,rgba(0,0,0,.15) 0 3px,transparent 3px 7px),linear-gradient(165deg,#33333d,#1b1b24);border:1px solid #8a8a9a;box-shadow:inset 0 0 12px rgba(160,160,180,.15);}
+  .bld .bic{text-align:center;font-size:28cqmin;color:#cfcfe0;margin:auto;text-shadow:0 0 8px rgba(180,180,210,.5);}
+  .bld .nm{color:#d6d6e6;}
+  .bld .eff{color:var(--spawn);}
+  .backcell{border-style:solid;border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.02);}
+  .centerrow{margin:2px 0;}
+  .cell.centercell{border-style:solid;border-color:rgba(82,198,236,.28);background:rgba(82,198,236,.06);box-shadow:inset 0 0 10px rgba(82,198,236,.08);}
+  .cell.mineHere{box-shadow:inset 0 0 0 2px rgba(217,176,74,.4);}
+  .cell.foeHere{box-shadow:inset 0 0 0 2px rgba(63,163,224,.4);}
+  .cell.intercept{cursor:pointer;border-color:rgba(99,200,236,.9);box-shadow:0 0 0 1px rgba(99,200,236,.7),0 0 14px rgba(99,200,236,.45);}
+  /* command center sits in its row at normal card size, marked by its gold frame + COMMAND tag */
+  .cell.cccell .card{animation:none;}
+  .cell.cccell .card.ccx{box-shadow:inset 0 0 0 2px var(--gold-deep),0 0 12px rgba(217,176,74,.4);}
+  .hcb{background:linear-gradient(165deg,#2b2b34,#15151c)!important;border:1px solid #8a8a9a!important;}
+  .hcb .eff{color:var(--spawn);}
+  #contestPanel .cbtn.vil{color:#e6cf86;}
+  .minstrip{display:flex;gap:6px;flex-wrap:nowrap;height:0;overflow:visible;padding:0 2px;align-items:flex-start;justify-content:center;position:relative;z-index:6;}
+  .minstrip:empty{display:none;}
+  .minstrip .minpill{transform:translateY(-58%);}
+  .minpill{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 7px;border-radius:13px;font-size:12px;line-height:1;
+    background:linear-gradient(165deg,#3a3320,#211c10);border:1px solid #b79a4d;color:#e6cf86;cursor:default;position:relative;user-select:none;}
+  .minpill .mc{font-weight:700;font-size:13px;}
+  .minpill .mt{opacity:.5;font-size:10px;}
+  .minpill.foe{background:linear-gradient(165deg,#123847,#08222e);border-color:#3fa3e0;color:#bfe4ff;}
+  .minpill.tappable{cursor:pointer;box-shadow:0 0 0 1px rgba(217,176,74,.5),0 0 9px rgba(217,176,74,.3);}
+  .minpill.selected{box-shadow:0 0 0 2px var(--gold),0 0 12px rgba(217,176,74,.5);}
+  .minpill.target{cursor:pointer;border-color:#ff9a6a;box-shadow:0 0 0 1px rgba(255,120,80,.8),0 0 12px rgba(255,120,80,.5);}
+  .minpill .pin{font-size:10px;opacity:.8;margin-left:2px;cursor:pointer;}
+  .ember-c{background:linear-gradient(165deg,#451f17,#28110c);border-color:var(--ember);box-shadow:inset 0 0 13px rgba(224,97,63,.2);}
+  .tide-c{background:linear-gradient(165deg,#123847,#08222e);border-color:var(--tide);box-shadow:inset 0 0 13px rgba(63,163,224,.2);}
+  .verdant-c{background:linear-gradient(165deg,#173d1d,#0a230e);border-color:var(--verdant);box-shadow:inset 0 0 13px rgba(95,196,106,.2);}
+  .sick{filter:saturate(.5) brightness(.78);}
+  .sick::after{content:"zzz";position:absolute;top:2px;right:4px;font-size:8px;color:#fff8;font-style:italic;}
+  .tapped{filter:saturate(.45) brightness(.6);}
+  .tapped::before{content:"⟳";position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:clamp(7px,14cqmin,12px);letter-spacing:.05em;color:#fffa;font-family:'Cinzel',serif;}
+  .crest-target{outline:2px solid var(--foe);outline-offset:3px;border-radius:8px;animation:gleam 1.1s ease-in-out infinite;}
+  #contestPanel .cbtn.bon{outline:2px solid var(--gold);box-shadow:0 0 12px rgba(217,176,74,.55);}
+
+  .charge{background:radial-gradient(circle at 50% 35%,#2b2330,#140f1a);border:1px solid #6a4fa0;box-shadow:inset 0 0 14px rgba(150,110,220,.25);}
+  .charge .q{font-family:'Cinzel',serif;font-size:30cqmin;color:#b79be8;text-shadow:0 0 12px #8a6fd0;}
+  .charge .inv{font-family:'Cinzel',serif;font-size:clamp(6px,calc(var(--cw)*.16),10px);color:#cdbcf2;text-align:center;}
+  .charge.mine{border-color:var(--gold);box-shadow:inset 0 0 14px rgba(217,176,74,.22);}
+  .charge.ready{animation:gleam 1.1s ease-in-out infinite;}
+  .charge.trap{background:radial-gradient(circle at 50% 35%,#3a1810,#160a08);border:1px solid #9a3a24;box-shadow:inset 0 0 14px rgba(200,90,50,.22);}
+  .charge.trap .q{color:#f0b89a;text-shadow:0 0 10px #b8502e;}
+  .charge.trap .inv{color:#e6b09a;}
+  .charge.trap.mine{border-color:#d9b04a;}
+  .hcs{background:linear-gradient(165deg,#2e1f4e,#160f28)!important;border:1px solid #9a78d8!important;}
+  .hcs .eff{color:#c9a0ff;}
+  .spl .eff{color:#c9a0ff;}
+  @keyframes gleam{0%,100%{box-shadow:inset 0 0 14px rgba(217,176,74,.22),0 0 6px rgba(217,176,74,.3);}50%{box-shadow:inset 0 0 18px rgba(217,176,74,.5),0 0 18px rgba(217,176,74,.7);}}
+
+  .resnode{background:radial-gradient(circle at 50% 36%,#15485c,#0a2330);border:1px solid var(--spawn);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 14px rgba(82,198,236,.3);}
+  .resnode .ric{font-size:22px;color:var(--spawn);text-shadow:0 0 12px var(--spawn);line-height:1;animation:pulse 2.4s ease-in-out infinite;}
+  .resnode .rlbl{font-family:'Cinzel',serif;font-weight:700;font-size:10px;color:#bfe6f3;margin-top:2px;}
+  @keyframes pulse{0%,100%{opacity:.75;}50%{opacity:1;}}
+  .facedown{background:radial-gradient(circle at 50% 40%,#1b3a47,#0a1a22);border:1px solid #1d5f78;}
+  .facedown .rune{font-family:'Cinzel',serif;font-size:17px;color:var(--spawn);text-shadow:0 0 12px var(--spawn);animation:spin 14s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .resface{background:linear-gradient(165deg,#15394a,#0a2330);border:1px solid var(--spawn);}
+  .resface .nm{color:var(--spawn);} .resface .ic{text-align:center;font-size:16px;margin:auto;}
+  .resface .ds{font-size:8px;text-align:center;color:#bfe6f3;font-style:italic;}
+
+  .cmdbar{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:9px 11px;border-radius:11px;background:#15131c;border:1px solid #2a2433;}
+  .cmdname{font-family:'Cinzel',serif;font-size:13px;display:flex;align-items:center;gap:7px;}
+  .cmdpass{font-size:11px;font-style:italic;color:var(--ink-dim);margin-top:3px;max-width:none;}
+
+
+  .actionrow{display:flex;justify-content:center;margin:0;}
+  #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.04em;font-weight:700;font-size:11px;padding:8px 15px;border-radius:999px;cursor:pointer;color:#06231c;background:linear-gradient(180deg,var(--verdant),#2f7a3a);border:1px solid #4fae5e;box-shadow:0 3px 0 #19401f,0 4px 12px rgba(0,0,0,.45);}
+  #conscriptBtn:active:not(:disabled){transform:translatey(2px);box-shadow:0 1px 0 #19401f;}
+  #conscriptBtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  .handwrap{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:20;margin:0;}
+  .handhint{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);text-align:center;z-index:22;
+    width:max-content;max-width:min(78vw,500px);font-style:italic;color:var(--ink-dim);font-size:11px;min-height:0;
+    background:rgba(13,11,18,.62);border:1px solid rgba(58,52,80,.6);border-radius:9px;padding:4px 12px;box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:auto;}
+  .handhint button{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.04em;margin:0 3px;padding:5px 11px;border-radius:8px;cursor:pointer;
+    color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:none;box-shadow:0 2px 0 #4d3a10;}
+  .handhint button.set{background:linear-gradient(180deg,#b79bе8,#6a4fa0);color:#150f1f;box-shadow:0 2px 0 #3a2960;}
+  .hand{display:flex;justify-content:center;align-items:flex-end;padding:0 24px;min-height:0;}
+  .hc{position:relative;width:var(--hcw);height:var(--hch);flex:none;border-radius:10px;padding:7px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;
+    margin:0 calc(var(--hcw)*-.04);transform:translateY(9%) rotate(var(--rot,0deg)) translateY(var(--lift,0px));transform-origin:50% 120%;
+    transition:transform .16s ease,margin .16s ease;box-shadow:0 6px 18px rgba(0,0,0,.6);}
+  .hc:hover{transform:translateY(-14%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:55!important;overflow:visible;}
+  .hc.selected{transform:translateY(-14%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
+  .hc .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(9px,calc(var(--hcw)*.108),14px);text-align:center;line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .hc:hover .nm,.hc.selected .nm{white-space:normal;overflow:visible;}
+  .hc .cost{align-self:center;font-family:'Cinzel',serif;font-weight:900;font-size:clamp(14px,calc(var(--hcw)*.165),21px);color:var(--spawn);}
+  .hc .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(10px,calc(var(--hcw)*.125),16px);}
+
+  .log{height:min(56vh,420px);overflow-y:auto;padding:7px 11px;border-radius:10px;background:#0d0b12;border:1px solid #241f2d;font-size:12.5px;line-height:1.5;text-align:left;}
+  .log p{margin:0 0 3px;} .log .e{color:#e35b4f;} .log .y{color:var(--gold);} .log .s{color:var(--spawn);} .log .p{color:#b79bе8;}
+  details{background:#0d0b12;border:1px solid #241f2d;border-radius:10px;padding:3px 12px;}
+  details[open]{max-height:300px;overflow-y:auto;}
+  summary{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.07em;color:var(--gold);cursor:pointer;padding:6px 0;}
+  details p{font-size:12.5px;line-height:1.5;color:var(--ink-dim);margin:5px 0;} details b{color:var(--ink);}
+  .bank{position:absolute;top:2px;left:3px;font-size:clamp(6px,calc(var(--cw)*.13),8px);font-family:'Cinzel',serif;font-weight:700;color:#1a140a;background:var(--gold);border-radius:4px;padding:0 3px;box-shadow:0 0 6px rgba(217,176,74,.7);}
+  .fsbadge{position:absolute;top:2px;right:3px;font-size:clamp(6px,calc(var(--cw)*.13),8px);font-family:'Cinzel',serif;font-weight:900;color:#1a140a;background:#ffd98a;border-radius:4px;padding:0 3px;z-index:3;box-shadow:0 0 6px rgba(255,217,138,.7);}
+  .upk{position:absolute;top:2px;left:3px;font-size:clamp(6px,calc(var(--cw)*.13),8px);font-weight:700;color:#f2d2b0;background:#5a2e1c;border:1px solid #9a5a38;border-radius:4px;padding:0 3px;z-index:3;}
+  .supb{position:absolute;top:2px;left:3px;font-size:clamp(6px,calc(var(--cw)*.13),8px);font-weight:700;color:#10240f;background:#9ad17f;border-radius:4px;padding:0 3px;z-index:3;}
+  .stats .cap{font-size:9px;color:#9ad17f;font-weight:700;margin:0 2px;}
+  #cardActions{position:fixed;z-index:22;display:none;background:linear-gradient(180deg,#171120,#0d0a15);border:1px solid var(--gold-deep);border-radius:11px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.62);white-space:nowrap;text-align:center;}
+  #cardActions::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;border:8px solid transparent;border-top-color:var(--gold-deep);}
+  #cardActions.below::after{bottom:auto;top:-8px;border-top-color:transparent;border-bottom-color:var(--gold-deep);}
+  #cardActions button{font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.04em;margin:0 2px;padding:7px 13px;border-radius:8px;cursor:pointer;border:none;background:linear-gradient(180deg,#ecc96e,#bb9436);color:#1a140a;box-shadow:0 2px 0 #6e5320;}
+  #cardActions button:active{transform:translateY(1px);box-shadow:0 1px 0 #6e5320;}
+  #cardActions .cant{font-style:italic;color:var(--ink-dim);font-size:11px;margin-left:5px;}
+  #cardActions .taphint{display:block;font-style:italic;color:var(--ink-dim);font-size:10.5px;margin-top:5px;}
+  #cpanel,#contestPanel{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
+  #cpanel .box,#contestPanel .box{width:300px;max-width:90vw;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold);border-radius:14px;padding:16px 16px 12px;box-shadow:0 18px 50px rgba(0,0,0,.6);text-align:center;}
+  #contestPanel .box{border-color:var(--tide);width:330px;}
+  #contestPanel .cgrid{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:10px;}
+  #contestPanel .cbtn{width:66px;height:60px;border-radius:7px;padding:5px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;color:var(--ink);}
+  #contestPanel .cbtn:active{transform:scale(.95);}
+  #contestPanel .cbtn .nm{font-family:'Cinzel',serif;font-weight:700;font-size:8px;text-align:center;}
+  #contestPanel .cbtn .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:10px;}
+  #cpanel .ptitle,#contestPanel .ptitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);}
+  #cpanel .pmeta{font-size:11.5px;color:var(--ink-dim);margin-top:3px;}
+  #cpanel .pinv{font-size:14px;margin:9px 0 3px;}
+  #cpanel .stepper{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 6px;}
+  #cpanel .stepper button{width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;font-size:24px;line-height:1;font-family:'Cinzel',serif;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 3px 0 #4d3a10;}
+  #cpanel .stepper button:active{transform:translatey(2px);box-shadow:0 1px 0 #4d3a10;}
+  #cpanel .amt{font-family:'Cinzel',serif;font-weight:900;font-size:26px;color:var(--spawn);min-width:70px;}
+  #cpanel .quick{display:flex;gap:8px;justify-content:center;margin-bottom:13px;}
+  #cpanel .quick button{font-family:'EB Garamond',serif;font-size:12.5px;padding:6px 12px;border-radius:8px;cursor:pointer;color:var(--ink);background:#2a2336;border:1px solid #3d3450;}
+  #cpanel .pacts{display:flex;gap:8px;justify-content:center;margin-bottom:6px;}
+  #cpanel .pacts button{font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.03em;padding:11px 10px;border-radius:9px;cursor:pointer;border:none;flex:1;}
+  #cpanel .pacts .pour{color:#150f1f;background:linear-gradient(180deg,#b79be8,#6a4fa0);box-shadow:0 3px 0 #3a2960;}
+  #cpanel .pacts .flip{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 3px 0 #4d3a10;}
+  #cpanel .pacts button:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  #cpanel .pacts button:active:not(:disabled){transform:translatey(2px);}
+  #cpanel .pclose{margin-top:4px;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
+  .banner{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.86);backdrop-filter:blur(3px);}
+  #charsel{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.96);backdrop-filter:blur(3px);padding:18px;overflow-y:auto;}
+  #charsel .csbox{max-width:560px;width:100%;text-align:center;}
+  #charsel h1{font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--gold);margin:4px 0 4px;}
+  #charsel .cssub{font-size:12.5px;color:var(--ink-dim);margin-bottom:16px;}
+  #charsel .csrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 14px;}
+  .cschar{flex:1 1 0;min-width:150px;max-width:230px;text-align:left;padding:12px 13px;border-radius:13px;border:2px solid #2a2433;background:#15131c;cursor:pointer;transition:transform .1s,border-color .12s,box-shadow .12s;}
+  .cschar:active{transform:translateY(1px);}
+  .cschar.on,.cschar:hover{border-color:var(--gold);box-shadow:0 0 20px rgba(217,176,74,.4);background:#1c1826;}
+  .cschar .cn{font-family:'Cinzel',serif;font-weight:700;font-size:16px;display:flex;align-items:center;gap:7px;}
+  .cschar .cp{font-size:11px;color:var(--ink-dim);font-style:italic;margin-top:6px;line-height:1.4;}
+  .cschar .cpow{font-size:11px;color:#d9b8ff;margin-top:6px;line-height:1.4;}
+  #charsel .csback{margin-top:4px;background:none;border:none;color:var(--ink-dim);font-size:13px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.05em;}
+  #charsel .csback:active{color:var(--ink);}
+  .banner .msg{font-family:'Cinzel',serif;font-size:clamp(28px,9vw,56px);font-weight:900;letter-spacing:.1em;text-align:center;}
+  .banner button{margin-top:22px;display:block;font-family:'Cinzel',serif;letter-spacing:.1em;font-size:14px;padding:11px 26px;border-radius:10px;border:none;cursor:pointer;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 4px 0 #4d3a10;}
+
+  #viewerPanel{position:fixed;inset:0;z-index:26;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
+  /* left-anchored card-info mode (Master-Duel style detail panel) */
+  #viewerPanel.left{justify-content:flex-start;align-items:center;background:rgba(4,3,8,.38);backdrop-filter:blur(1px);}
+  #viewerPanel.left .box{margin:8px 0 8px clamp(6px,1.4vw,22px);width:clamp(244px,25vw,328px);max-width:46vw;max-height:calc(100dvh - 16px);overflow-y:auto;
+    text-align:left;border-color:var(--gold-deep);padding:0;display:flex;flex-direction:column;}
+  #viewerPanel.left .ihead{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(13px,1.4vw,17px);color:#1a140a;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep));padding:9px 13px;border-radius:12px 12px 0 0;line-height:1.15;}
+  #viewerPanel.left .ihead .isub{display:block;font-family:'EB Garamond',serif;font-weight:600;font-style:italic;font-size:11px;color:#3a2c0c;margin-top:1px;letter-spacing:.02em;}
+  #viewerPanel.left .iart{margin:0;padding:11px 13px 0;text-align:center;}
+  #viewerPanel.left .iart img{width:min(82%,210px);aspect-ratio:1;object-fit:cover;border:2px solid var(--gold-deep);border-radius:9px;box-shadow:inset 0 0 0 1px rgba(217,176,74,.35),0 5px 16px rgba(0,0,0,.55);}
+  #viewerPanel.left .istat{font-family:'Cinzel',serif;font-size:13px;color:var(--ink);padding:9px 13px 0;display:flex;flex-wrap:wrap;gap:4px 11px;}
+  #viewerPanel.left .istat .h{color:#ff9a8a;} #viewerPanel.left .istat .a{color:#ffd98a;} #viewerPanel.left .istat .m{color:var(--spawn);}
+  #viewerPanel.left .ibody{font-size:13px;line-height:1.5;color:var(--ink);margin:9px 13px 0;padding:9px 11px;background:rgba(0,0,0,.28);border:1px solid #2a2433;border-radius:9px;}
+  #viewerPanel.left .ibody b{color:var(--gold);} #viewerPanel.left .ibody i{color:var(--ink-dim);}
+  #viewerPanel.left .pclose{margin:11px 13px 13px;align-self:flex-start;}
+  #viewerPanel .box{width:344px;max-width:92vw;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold);border-radius:14px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);text-align:center;}
+  #viewerPanel .vtitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);}
+  #viewerPanel .vmeta{font-size:11.5px;color:var(--ink-dim);margin:3px 0 9px;}
+  #viewerPanel .vgrid{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:48vh;overflow-y:auto;margin-bottom:11px;}
+  #viewerPanel .vcard{position:relative;width:66px;min-height:64px;border-radius:7px;padding:5px;display:flex;flex-direction:column;justify-content:space-between;}
+  #viewerPanel .vcard .nm{font-family:'Cinzel',serif;font-weight:700;font-size:8px;line-height:1.05;text-align:center;}
+  #viewerPanel .vcard .vc{align-self:center;font-family:'Cinzel',serif;font-weight:900;font-size:12px;color:var(--spawn);}
+  #viewerPanel .vcard .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:9px;}
+  #viewerPanel .xn{position:absolute;top:2px;right:3px;font-family:'Cinzel',serif;font-weight:900;font-size:9px;color:#1a140a;background:var(--gold);border-radius:4px;padding:0 3px;}
+  #viewerPanel .pclose{background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
+  #viewerPanel .imeta{font-size:13px;line-height:1.55;color:var(--ink);margin:11px 4px 14px;text-align:left;}
+  #viewerPanel .imeta b{color:var(--gold);} #viewerPanel .imeta i{color:var(--ink-dim);}
+  .inspect{position:absolute;top:1px;right:2px;width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:11px;line-height:1;font-family:'EB Garamond',serif;color:#d3ecf7;background:rgba(8,16,22,.78);border:1px solid rgba(120,180,210,.55);cursor:pointer;z-index:4;}
+  .inspect:active{transform:scale(.88);}
+  .hc{position:relative;}
+  .artwin{flex:1;margin:2px 1px;border:1px solid rgba(0,0,0,.55);border-radius:2px;overflow:hidden;background:#0a0a0f;box-shadow:inset 0 0 0 1px rgba(217,176,74,.25);min-height:0;}
+  .artwin img{width:100%;height:100%;object-fit:cover;display:block;}
+  .hc .cost-badge{position:absolute;top:3px;left:4px;font-family:'Cinzel',serif;font-weight:900;font-size:clamp(11px,calc(var(--hcw)*.135),17px);color:var(--spawn);background:rgba(6,12,18,.72);border-radius:4px;padding:0 3px;z-index:2;}
+
+  /* ===== v16 presentation layer (FX / SFX / menus) — purely cosmetic ===== */
+  #fxLayer{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;}
+  #fxLayer svg{position:absolute;inset:0;}
+  .fx-arrow{fill:none;stroke:var(--gold);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:7 9;
+    filter:drop-shadow(0 0 6px rgba(217,176,74,.85));animation:fxdash .42s linear forwards;}
+  .fx-arrow.aim{stroke:#e35b4f;filter:drop-shadow(0 0 6px rgba(227,91,79,.85));animation:fxaim .7s linear infinite;}
+  @keyframes fxdash{from{stroke-dashoffset:200;opacity:1;}to{stroke-dashoffset:40;opacity:0;}}
+  @keyframes fxaim{from{stroke-dashoffset:32;}to{stroke-dashoffset:0;}}
+  .fx-fly{position:absolute;border-radius:7px;overflow:hidden;z-index:61;will-change:transform;
+    box-shadow:0 10px 28px rgba(0,0,0,.65),0 0 16px rgba(217,176,74,.25);}
+  .fx-pop{position:absolute;transform:translate(-50%,-50%);font-family:'Cinzel',serif;font-weight:900;font-size:20px;z-index:62;
+    text-shadow:0 0 10px currentColor,0 2px 4px #000;animation:fxrise .95s ease-out forwards;pointer-events:none;}
+  .fx-pop.dmg{color:#ff6a55;} .fx-pop.heal{color:#7fe08a;} .fx-pop.mana{color:var(--spawn);font-size:16px;}
+  @keyframes fxrise{0%{opacity:0;transform:translate(-50%,-30%) scale(.55);}16%{opacity:1;transform:translate(-50%,-65%) scale(1.2);}100%{opacity:0;transform:translate(-50%,-200%) scale(.95);}}
+  .fx-slash{position:absolute;width:72px;height:72px;border-radius:50%;z-index:61;mix-blend-mode:screen;
+    background:radial-gradient(circle,#fff7e0 0%,#ffae5e 32%,rgba(224,97,63,0) 70%);animation:fxflash .34s ease-out forwards;}
+  @keyframes fxflash{0%{opacity:0;transform:scale(.3);}22%{opacity:1;}100%{opacity:0;transform:scale(1.55);}}
+  .fx-ring{position:absolute;width:62px;height:62px;border-radius:50%;border:2px solid var(--gold);z-index:61;
+    box-shadow:0 0 18px rgba(217,176,74,.75),inset 0 0 10px rgba(217,176,74,.4);animation:fxring .6s ease-out forwards;}
+  @keyframes fxring{0%{opacity:1;transform:scale(.32);}100%{opacity:0;transform:scale(1.65);}}
+  .fx-spark{position:absolute;width:5px;height:5px;border-radius:50%;z-index:61;box-shadow:0 0 6px currentColor;animation:fxspark .62s ease-out forwards;}
+  @keyframes fxspark{0%{opacity:1;transform:translate(0,0) scale(1);}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.25);}}
+  .fx-shake{animation:fxshake .3s linear;}
+  @keyframes fxshake{0%,100%{transform:translate(0,0);}20%{transform:translate(-4px,2px);}40%{transform:translate(4px,-2px);}60%{transform:translate(-3px,-2px);}80%{transform:translate(3px,1px);}}
+  #hurtVig{position:fixed;inset:0;pointer-events:none;z-index:58;opacity:0;
+    background:radial-gradient(ellipse at center,transparent 52%,rgba(190,30,20,.55) 100%);}
+  #hurtVig.on{animation:fxhurt .55s ease-out;}
+  @keyframes fxhurt{0%{opacity:0;}22%{opacity:1;}100%{opacity:0;}}
+  #turnRibbon{position:fixed;left:0;right:0;top:37%;z-index:59;pointer-events:none;display:flex;justify-content:center;opacity:0;}
+  #turnRibbon span{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(21px,7vw,40px);letter-spacing:.22em;
+    color:var(--rc,var(--gold));text-shadow:0 0 26px currentColor,0 2px 4px #000;padding:10px 30px;
+    background:linear-gradient(90deg,transparent,rgba(4,3,8,.88) 16%,rgba(4,3,8,.88) 84%,transparent);}
+  #turnRibbon.on{animation:fxrib 1.5s cubic-bezier(.2,.7,.3,1) forwards;}
+  @keyframes fxrib{0%{opacity:0;transform:translateX(-48px);}14%{opacity:1;transform:translateX(0);}76%{opacity:1;transform:translateX(0);}100%{opacity:0;transform:translateX(48px);}}
+  #splashFx{position:fixed;inset:0;z-index:57;pointer-events:none;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,3,8,.55);backdrop-filter:blur(1.5px);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;}
+  #splashFx.on{opacity:1;visibility:visible;}
+  #splashFx .spbox{text-align:center;animation:fxsplash 1.1s cubic-bezier(.2,.8,.3,1);}
+  #splashFx img{width:min(46vw,205px);height:min(46vw,205px);object-fit:cover;border:3px solid var(--sc,var(--gold));border-radius:12px;
+    box-shadow:0 0 55px var(--sc,var(--gold)),0 18px 50px rgba(0,0,0,.7);}
+  #splashFx .spname{font-family:'Cinzel',serif;font-weight:900;font-size:24px;letter-spacing:.12em;color:var(--sc,var(--gold));text-shadow:0 0 18px currentColor;margin-top:10px;}
+  #splashFx .spstats{font-family:'Cinzel',serif;font-size:14px;color:var(--ink);margin-top:3px;}
+  @keyframes fxsplash{0%{transform:scale(.6);opacity:0;}22%{transform:scale(1.06);opacity:1;}34%{transform:scale(1);}100%{transform:scale(1);}}
+  .fx-conf{position:absolute;top:-14px;width:8px;height:13px;z-index:62;animation:fxconf 2.4s linear forwards;}
+  @keyframes fxconf{0%{transform:translateY(0) rotate(0);}100%{transform:translateY(112vh) rotate(720deg);opacity:.5;}}
+  #sndBtn{position:fixed;top:8px;right:8px;z-index:65;width:34px;height:34px;border-radius:50%;
+    border:1px solid #3d3450;background:rgba(13,11,18,.85);color:var(--ink);font-size:15px;cursor:pointer;line-height:1;}
+  #sndBtn:active{transform:scale(.92);}
+  .cell.selected .card::after{content:"⚔";position:absolute;top:1px;left:50%;transform:translateX(-50%);font-size:12px;z-index:5;
+    color:var(--gold);text-shadow:0 0 8px var(--gold),0 1px 2px #000;animation:pulse 1.2s ease-in-out infinite;}
+  .fxtitle{margin-bottom:14px;}
+  .fxtitle .t1{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(26px,8vw,42px);letter-spacing:.16em;color:var(--gold);
+    text-shadow:0 0 28px rgba(217,176,74,.5),0 2px 4px #000;animation:pulse 3.2s ease-in-out infinite;}
+  .fxtitle .t2{font-style:italic;color:var(--ink-dim);font-size:12.5px;margin-top:4px;letter-spacing:.04em;}
+  @media (prefers-reduced-motion: reduce){
+    .fx-fly,.fx-slash,.fx-ring,.fx-spark,.fx-conf{display:none;}
+    .fx-shake,#hurtVig.on,#turnRibbon.on,#splashFx .spbox{animation:none;}
+    #turnRibbon.on{opacity:1;transition:opacity .2s;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="main">
+  <div class="boardcol">
+  <div class="mat">
+    <div class="wrail">
+      <div class="wlab">⚒</div>
+      <div class="wgrp"><div class="well" id="wellFoeBack"></div><div class="well" id="wellFoeFront"></div></div>
+      <div class="wcen"><div class="well" id="wellCenter"></div></div>
+      <div class="wgrp"><div class="well" id="wellYouFront"></div><div class="well" id="wellYouBack"></div></div>
+      <div class="wlab">⚒</div>
+    </div>
+    <div class="matmain">
+    <div class="side" id="foeSide">
+      <div class="rowsbox">
+        <div class="row" id="foeBack"></div>
+        <div class="row" id="foeFront"></div>
+      </div>
+    </div>
+    <div class="centerwrap">
+      <div class="rowlabel spawn vert">⚔ CONTESTED CENTER ⚔</div>
+      <div class="centerbox">
+        <div class="row centerrow" id="center"></div>
+      </div>
+    </div>
+    <div class="side" id="youSide">
+      <div class="rowsbox">
+        <div class="row" id="youFront"></div>
+        <div class="row" id="youBack"></div>
+      </div>
+    </div>
+    </div><!-- /matmain -->
+    <div class="wrail-spacer"></div>
+  </div>
+
+  <!-- deck + graveyard tucked into the corners (Master Duel style) -->
+  <div class="decks foe" id="foeDecks">
+    <div class="zone deck" onclick="openViewer('deck','foe')"><span class="zl">🂠 Deck</span><b id="foeDeckN">0</b></div>
+    <div class="zone grave" onclick="openViewer('grave','foe')"><span class="zl">⚰ Grave</span><b id="foeGraveN">0</b></div>
+  </div>
+  <div class="decks you" id="youDecks">
+    <div class="zone grave" onclick="openViewer('grave','you')"><span class="zl">⚰ Grave</span><b id="youGraveN">0</b></div>
+    <div class="zone deck" onclick="openViewer('deck','you')"><span class="zl">🂠 Deck</span><b id="youDeckN">0</b></div>
+  </div>
+
+  <!-- player badges in the corners, vitals stored by the name (Master Duel style) -->
+  <div class="pbadge foe" id="foeBadge">
+    <div class="who" id="foeName" style="color:var(--tide)"><span class="cdot" style="background:var(--tide)"></span>The Tide Spire</div>
+    <div class="vit"><span class="heart">♥</span><b id="foeLife">22</b> &nbsp;<span id="foeManaStr"></span> &nbsp;<span class="bct">⌂</span><b id="foeStruct">0</b> &nbsp;<span class="wct">⚒</span><b id="foeCap">0/2</b></div>
+  </div>
+  <div class="pbadge you" id="youBadge">
+    <div class="who" id="youName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
+    <div class="vit"><span class="heart">♥</span><b id="youLife">26</b> &nbsp;<span id="youManaStr"></span> &nbsp;<span class="bct">⌂</span><b id="youStruct">0</b> &nbsp;<span class="wct">⚒</span><b id="youCap">0/2</b></div>
+  </div>
+
+  <div id="cardActions"></div>
+
+  <div id="boardBtns">
+    <div class="turnlabel" id="turnLabel">Your Turn</div>
+    <button id="endBtn">End Turn</button>
+    <button id="conscriptBtn">⚒ Train</button>
+    <div class="btnrow">
+      <button id="logBtn" onclick="toggleLog(true)">📜 Log</button>
+      <button id="rulesBtn" onclick="toggleRules(true)">❔ Rules</button>
+    </div>
+  </div>
+
+  <div class="handwrap">
+    <div class="handhint" id="hint">Tap a card to deploy · tap a creature to attack · ⚒ to train</div>
+    <div class="hand" id="hand"></div>
+  </div>
+  </div><!-- /boardcol -->
+  </div><!-- /main -->
+
+  <!-- rules / command-center reference, on demand -->
+  <div id="rulesPanel" onclick="if(event.target===this)toggleRules(false)">
+    <div class="box">
+      <div class="ltitle">How to Play</div>
+      <div class="cmdname" id="cmdName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
+      <div class="cmdpass" id="cmdPass">Your command center holds the base — it cannot move or attack. If it falls, you lose.</div>
+      <p><b>Win — raze the command center.</b> Each side anchors its base with a <b>command center</b>: the structure you chose at the start. It sets your starting health, your starting workers, and your <b>mana colors</b>. It cannot move or attack — and the moment it is destroyed, its owner <b>loses</b>. Everything else on the field exists to protect yours and reach theirs.</p>
+      <p><b>The board.</b> Five rows stack between the two keeps: the enemy base and front line up top, your front line and base below, and a single <b>contested center</b> that belongs to no one. You may place into any of your three rows. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
+      <p><b>Workers &amp; the rail.</b> Workers are <b>tokens on the rail</b> beside the field, not board cards — one well per row. Tap your token to <b>Extract</b> (◆1 at the base, ◆2 at the front or center), <b>Advance</b>, or <b>Retreat</b>. Once per turn, <b>Train Worker</b> adds one at your base for free, up to your worker cap (structure support − monster upkeep; your command center supplies the base amount). Workers can intercept, and can be raided.</p>
+      <p><b>Colored mana.</b> Extraction yields <b>generic ◆</b> — or mana of <b>any color among your units in that row</b> (a red dragon on the front line lets front workers pull red; your command center counts for its own colors in its row). A colored creature or spell needs <b>1 mana of its color</b> in its cost; the rest takes any mix. Structures take anything. <i>Mana of every kind drains at end of turn — bank it on face-downs to keep it.</i></p>
+      <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Flips from a funded face-down <b>waive the color pip</b> — secrecy's discount. Face-down a full turn? It flips with haste.</p>
+      <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group), then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
+      <p><b>Note:</b> a prototype. Open questions, deliberately parked: the exact colored-cost rule (currently 1 pip + any remainder), storage structures that convert colors, a <i>Ranged</i> keyword, and the soldier-production model.</p>
+      <button class="pclose" onclick="toggleRules(false)">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="contestPanel"><div class="box"></div></div>
+<div id="logPanel" onclick="if(event.target===this)toggleLog(false)"><div class="box">
+  <div class="ltitle">📜 Battle Log</div>
+  <div class="log" id="log"></div>
+  <button class="pclose" onclick="toggleLog(false)">close</button>
+</div></div>
+<div id="cpanel"><div class="box"></div></div>
+<div id="viewerPanel" onclick="if(event.target===this)closeViewer()"><div class="box"></div></div>
+<div class="banner" id="banner"><div><div class="msg" id="bannerMsg"></div><button onclick="location.reload()">Duel Again</button></div></div>
+<div id="charsel"><div class="csbox"></div></div>
+
+<script>
+const C=5, SLOTS=5;
+let uid=1;
+const clsOf={ember:'ember-c',tide:'tide-c',verdant:'verdant-c'};
+
+/* Original placeholder art (hand-authored, not derived from any existing card). Swap for licensed/custom art at release via each template's `art` field. */
+const A_BG={
+ ember:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#5e1d10"/><stop offset=".55" stop-color="#2a0f08"/><stop offset="1" stop-color="#080403"/></radialGradient>',
+ tide:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#0f3a52"/><stop offset=".55" stop-color="#0a2230"/><stop offset="1" stop-color="#03090f"/></radialGradient>',
+ wood:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#3a2c14"/><stop offset=".55" stop-color="#241a0a"/><stop offset="1" stop-color="#0a0704"/></radialGradient>',
+ arc:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#3a1f5e"/><stop offset=".55" stop-color="#1d1030"/><stop offset="1" stop-color="#080510"/></radialGradient>',
+ snare:'<radialGradient id="bg" cx="50%" cy="40%" r="82%"><stop offset="0" stop-color="#3a1410"/><stop offset=".55" stop-color="#1a0a08"/><stop offset="1" stop-color="#060303"/></radialGradient>'
+};
+const frame=(bg,inner)=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs>'+A_BG[bg]+'</defs><rect width="120" height="120" fill="url(#bg)"/>'+inner+'</svg>';
+const artURI=s=>'data:image/svg+xml,'+encodeURIComponent(s);
+const DRAGON_INNER='<defs><linearGradient id="sc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86291c"/><stop offset="1" stop-color="#360e07"/></linearGradient><linearGradient id="hn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecd09a"/><stop offset="1" stop-color="#6e4f1d"/></linearGradient><radialGradient id="ey"><stop offset="0" stop-color="#fff6cc"/><stop offset=".42" stop-color="#ffd23f"/><stop offset="1" stop-color="#bf360c"/></radialGradient><radialGradient id="fr"><stop offset="0" stop-color="#fff2ac"/><stop offset=".45" stop-color="#ff8a1f"/><stop offset="1" stop-color="#e0240c"/></radialGradient></defs><path d="M28 120 Q40 82 60 80 Q80 82 92 120 Z" fill="url(#sc)"/><path d="M60 80 l-7 -11 l11 3 z" fill="#8f2c1b"/><path d="M38 60 Q42 36 64 34 Q92 36 96 58 Q92 75 70 77 Q48 75 38 60 Z" fill="url(#sc)" stroke="#170704" stroke-width="1.6"/><path d="M44 64 Q33 70 27 83 Q42 72 51 68 Z" fill="#7c241a"/><path d="M88 51 Q109 49 111 60 Q109 71 85 69 Q83 60 88 51 Z" fill="#6c2016" stroke="#170704" stroke-width="1.2"/><path d="M85 66 Q100 71 109 64 Q104 77 87 75 Z" fill="#4a140c" stroke="#170704" stroke-width="1"/><path d="M91 67 l3 5 l3 -5 z M98 67 l3 5 l3 -5 z M105 66 l2.5 4 l2.5 -4 z" fill="#f4e8c4"/><circle cx="105" cy="57" r="2.1" fill="#170704"/><path d="M52 50 Q66 41 82 50 Q70 49 52 50 Z" fill="#8f2c1b"/><ellipse cx="68" cy="54" rx="7" ry="5.2" fill="url(#ey)"/><ellipse cx="68" cy="54" rx="2" ry="4.6" fill="#220604"/><path d="M50 40 Q39 17 21 11 Q34 26 44 45 Z" fill="url(#hn)" stroke="#352510" stroke-width="1"/><path d="M64 34 Q60 11 47 1 Q58 18 57 36 Z" fill="url(#hn)" stroke="#352510" stroke-width="1"/><path d="M111 61 Q123 57 119 66 Q125 64 119 73 Q113 70 110 66 Z" fill="url(#fr)"/>';
+const ART={
+ magmaw:artURI(frame('ember',DRAGON_INNER)),
+ sparkimp:artURI(frame('ember','<ellipse cx="60" cy="74" rx="22" ry="20" fill="#86291c"/><path d="M44 58 l-6 -16 l14 8 z" fill="#6e1f12"/><path d="M76 58 l6 -16 l-14 8 z" fill="#6e1f12"/><circle cx="52" cy="72" r="4" fill="#ffd23f"/><circle cx="68" cy="72" r="4" fill="#ffd23f"/><circle cx="52" cy="72" r="1.8" fill="#3a0d05"/><circle cx="68" cy="72" r="1.8" fill="#3a0d05"/><path d="M54 82 q6 6 12 0 q-6 7 -12 0z" fill="#3a0d05"/><path d="M60 38 q-5 9 0 13 q5 -5 0 -13z" fill="#ff8a1f"/>')),
+ cinderling:artURI(frame('ember','<circle cx="60" cy="66" r="26" fill="#2a0f08"/><path d="M44 60 l10 -4 l4 10 l-9 5z" fill="#ff8a1f"/><path d="M64 54 l12 3 l-2 11 l-11 -2z" fill="#ffd23f"/><path d="M52 74 l10 2 l-1 9 l-10 -1z" fill="#bf360c"/><path d="M70 72 l8 4 l-4 8 l-7 -3z" fill="#ff8a1f"/><circle cx="60" cy="66" r="26" fill="none" stroke="#86291c" stroke-width="2"/>')),
+ ashfang:artURI(frame('ember','<path d="M30 50 q30 -16 60 0 q-6 30 -30 34 q-24 -4 -30 -34z" fill="#86291c" stroke="#360e07" stroke-width="2"/><path d="M40 56 l6 12 l6 -12z M54 58 l6 14 l6 -14z M68 56 l6 12 l6 -12z" fill="#ecd09a"/><circle cx="46" cy="50" r="4" fill="#ffd23f"/><circle cx="74" cy="50" r="4" fill="#ffd23f"/><circle cx="46" cy="50" r="1.6" fill="#2a0805"/><circle cx="74" cy="50" r="1.6" fill="#2a0805"/>')),
+ pyrewing:artURI(frame('ember','<path d="M58 50 q-30 -6 -42 10 q26 2 42 6z" fill="#bf360c"/><path d="M62 50 q30 -6 42 10 q-26 2 -42 6z" fill="#bf360c"/><path d="M58 50 q-22 0 -34 10 q20 -2 34 2z" fill="#ffd23f"/><path d="M62 50 q22 0 34 10 q-20 -2 -34 2z" fill="#ffd23f"/><path d="M60 40 q-5 24 0 46 q5 -22 0 -46z" fill="#ff8a1f"/><circle cx="60" cy="44" r="6" fill="#ffd23f"/><circle cx="60" cy="44" r="2" fill="#3a0d05"/>')),
+ mistling:artURI(frame('tide','<path d="M40 60 q0 -22 20 -22 q20 0 20 22 q0 18 -8 24 q-3 -6 -6 0 q-3 -6 -6 0 q-3 -6 -6 0 q-8 -6 -8 -24z" fill="#7fd0f5" opacity=".88"/><circle cx="53" cy="58" r="3.5" fill="#082230"/><circle cx="67" cy="58" r="3.5" fill="#082230"/>')),
+ rippler:artURI(frame('tide','<circle cx="60" cy="64" r="40" fill="none" stroke="#3fa3e0" stroke-width="1.5" opacity=".3"/><circle cx="60" cy="64" r="30" fill="none" stroke="#3fa3e0" stroke-width="2" opacity=".5"/><circle cx="60" cy="64" r="20" fill="#3fa3e0"/><circle cx="60" cy="64" r="20" fill="none" stroke="#7fd0f5" stroke-width="2"/><circle cx="54" cy="60" r="3" fill="#082230"/><circle cx="68" cy="60" r="3" fill="#082230"/><path d="M54 70 q6 5 12 0" fill="none" stroke="#082230" stroke-width="2"/>')),
+ tidecaller:artURI(frame('tide','<path d="M44 96 q0 -40 16 -44 q16 4 16 44z" fill="#0e5a7a"/><circle cx="60" cy="44" r="10" fill="#0e5a7a"/><path d="M51 44 q9 -11 18 0 q-9 -3 -18 0z" fill="#06222e"/><circle cx="60" cy="72" r="9" fill="#7fd0f5"/><circle cx="60" cy="72" r="9" fill="none" stroke="#cfeffb" stroke-width="1.5"/><circle cx="60" cy="72" r="3" fill="#cfeffb"/>')),
+ surgeling:artURI(frame('tide','<path d="M18 88 q12 -42 42 -42 q34 0 42 28 q-16 -16 -32 -8 q10 -14 -2 -22 q-2 18 -14 14 q4 14 -8 18 q-12 4 -28 12z" fill="#3fa3e0"/><path d="M62 50 q18 -2 28 12 q-16 -6 -28 -2z" fill="#cfeffb" opacity=".8"/><circle cx="44" cy="66" r="3.5" fill="#06222e"/><circle cx="56" cy="64" r="3.5" fill="#06222e"/>')),
+ leviath:artURI(frame('tide','<path d="M30 100 q4 -30 24 -36 q-10 -10 -4 -22 q8 8 14 8 q18 0 24 16 q4 22 -16 28 q-18 4 -42 6z" fill="#0e5a7a" stroke="#03141d" stroke-width="2"/><path d="M60 38 q-6 -14 2 -24 q4 14 8 18z" fill="#3fa3e0"/><ellipse cx="74" cy="58" rx="6" ry="4.5" fill="#7fd0f5"/><ellipse cx="74" cy="58" rx="2" ry="4" fill="#03141d"/><path d="M84 64 q12 -1 16 5 q-9 -1 -16 2z" fill="#0e5a7a"/><path d="M86 67 l3 5 l3 -5z M93 67 l3 5 l3 -5z" fill="#cfeffb"/>')),
+ emberforge:artURI(frame('wood','<rect x="44" y="80" width="32" height="14" rx="2" fill="#3a3a44"/><path d="M40 56 h40 l-7 13 h-19 q-10 0 -14 -13z" fill="#8a8a9a"/><rect x="34" y="68" width="52" height="8" rx="2" fill="#5a5a66"/><path d="M60 36 q-7 12 0 20 q7 -8 0 -20z" fill="#ff8a1f"/><path d="M60 42 q-3 8 0 13 q3 -5 0 -13z" fill="#ffd23f"/>')),
+ tidewell:artURI(frame('wood','<rect x="44" y="36" width="4" height="24" fill="#6a5a46"/><rect x="72" y="36" width="4" height="24" fill="#6a5a46"/><path d="M38 40 l22 -13 l22 13z" fill="#7a3a2a"/><rect x="40" y="60" width="40" height="30" rx="2" fill="#5a4a3a"/><rect x="37" y="56" width="46" height="8" rx="2" fill="#6a5a46"/><ellipse cx="60" cy="62" rx="18" ry="5" fill="#3fa3e0"/>')),
+ longhouse:artURI(frame('wood','<rect x="34" y="58" width="52" height="34" fill="#5a4029"/><path d="M26 58 l34 -24 l34 24z" fill="#7a3a2a"/><rect x="54" y="72" width="12" height="20" fill="#241208"/><rect x="40" y="66" width="9" height="9" fill="#241208"/><rect x="71" y="66" width="9" height="9" fill="#241208"/>')),
+ villager:artURI(frame('wood','<path d="M42 96 q0 -32 18 -34 q18 2 18 34z" fill="#6a5238"/><circle cx="60" cy="46" r="11" fill="#caa178"/><path d="M49 45 q11 -13 22 0 q-11 -5 -22 0z" fill="#4a3320"/><rect x="78" y="40" width="4" height="52" rx="2" fill="#8a6a40" transform="rotate(10 80 66)"/><rect x="74" y="38" width="15" height="6" rx="1" fill="#9a9aa6" transform="rotate(10 81 41)"/>')),
+ emberbolt:artURI(frame('arc','<path d="M64 24 q-16 22 -6 42 q-10 -2 -13 -13 q-7 17 6 30 q15 13 32 0 q15 -15 4 -36 q-2 9 -11 11 q9 -19 -12 -34z" fill="#ff8a1f"/><path d="M62 52 q-6 13 0 24 q9 -7 6 -17 q6 6 2 15 q11 -9 4 -23z" fill="#ffd23f"/><circle cx="64" cy="68" r="7" fill="#fff2ac"/>')),
+ caveIn:artURI(frame('arc','<path d="M30 92 h60 l-6 -16 h-48z" fill="#5a5a66"/><path d="M40 76 h40 l-4 -22 h-32z" fill="#6a6a76"/><circle cx="42" cy="34" r="9" fill="#8a8a9a"/><circle cx="64" cy="25" r="7" fill="#9a9aa6"/><circle cx="81" cy="38" r="8" fill="#7a7a86"/><circle cx="56" cy="44" r="6" fill="#9a9aa6"/><path d="M50 54 l4 12 M67 56 l-3 12" stroke="#2a2a32" stroke-width="2"/>')),
+ snarePit:artURI(frame('snare','<ellipse cx="60" cy="48" rx="42" ry="11" fill="#160c06"/><path d="M20 48 q4 38 40 42 q36 -4 40 -42 q-11 27 -40 29 q-29 -2 -40 -29z" fill="#0a0503"/><path d="M38 62 l4 -15 l4 15z M50 66 l4 -17 l4 17z M62 66 l4 -17 l4 17z M74 62 l4 -15 l4 15z" fill="#caa178"/>')),
+ frostlance:artURI(frame('arc','<path d="M60 18 l11 30 l-7 50 l-4 9 l-4 -9 l-7 -50z" fill="#7fd0f5"/><path d="M60 18 l11 30 l-11 6 l-11 -6z" fill="#cfeffb"/><path d="M60 52 l8 4 l-8 5 l-8 -5z" fill="#3fa3e0"/><path d="M44 40 l9 11 M76 40 l-9 11" stroke="#cfeffb" stroke-width="2" fill="none"/>')),
+ dissolve:artURI(frame('arc','<path d="M40 50 h40 v30 h-40z" fill="#5a4a3a"/><path d="M36 50 h48 l-8 -12 h-32z" fill="#7a3a2a"/><path d="M44 80 q2 11 -2 17 M56 80 q-2 13 2 19 M68 80 q2 11 -2 17" stroke="#3fa3e0" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="48" cy="64" r="3" fill="#7fd0f5"/><circle cx="62" cy="60" r="2.6" fill="#7fd0f5"/><circle cx="72" cy="66" r="3" fill="#7fd0f5"/>')),
+ whirltrap:artURI(frame('snare','<circle cx="60" cy="60" r="34" fill="none" stroke="#0e5a7a" stroke-width="5"/><circle cx="60" cy="60" r="34" fill="none" stroke="#3fa3e0" stroke-width="5" stroke-dasharray="120 130"/><circle cx="60" cy="60" r="22" fill="none" stroke="#3fa3e0" stroke-width="5" stroke-dasharray="80 70" transform="rotate(40 60 60)"/><circle cx="60" cy="60" r="11" fill="none" stroke="#7fd0f5" stroke-width="4" stroke-dasharray="40 30" transform="rotate(90 60 60)"/><circle cx="60" cy="60" r="4" fill="#cfeffb"/>'))
+};
+
+const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw}];
+const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Leviath',c:6,a:5,h:6,up:3,art:ART.leviath}];
+const BUILD={
+  ember:[{nm:'Emberforge',c:3,h:5,eff:'mana',val:2,sup:4,ic:'⛭',art:ART.emberforge},{nm:'Longhouse',c:4,h:6,eff:'villager',sup:5,ic:'⌂',art:ART.longhouse}],
+  tide :[{nm:'Tidewell',c:3,h:5,eff:'mana',val:2,sup:4,ic:'⛭',art:ART.tidewell},{nm:'Longhouse',c:4,h:6,eff:'villager',sup:5,ic:'⌂',art:ART.longhouse}],
+};
+const VILL={ember:{nm:'Minion',c:0,a:0,h:2,art:ART.villager},tide:{nm:'Minion',c:0,a:0,h:2,art:ART.villager}};
+const SPELL={
+  ember:[
+    {nm:'Ember Bolt',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
+    {nm:'Cave-In',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
+    {nm:'Snare Pit',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit}
+  ],
+  tide:[
+    {nm:'Frost Lance',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.frostlance},
+    {nm:'Dissolve',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.dissolve},
+    {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap}
+  ]
+};
+
+/* ---------- Command Centers ----------
+   The commander IS a structure. Your CC choice sets starting HP, starting
+   workers (and worker support), and your mana-color identity. It cannot move
+   or attack; if it is destroyed, you lose. */
+const CC_ART={
+ emberbastion:artURI(frame('ember','<rect x="34" y="58" width="52" height="38" fill="#5a2a1a"/><rect x="30" y="50" width="60" height="10" fill="#7a3a22"/><rect x="34" y="42" width="8" height="10" fill="#7a3a22"/><rect x="56" y="42" width="8" height="10" fill="#7a3a22"/><rect x="78" y="42" width="8" height="10" fill="#7a3a22"/><rect x="54" y="74" width="12" height="22" fill="#1d0a05"/><path d="M60 20 q-6 12 0 20 q6 -8 0 -20z" fill="#ff8a1f"/><path d="M60 26 q-3 7 0 11 q3 -4 0 -11z" fill="#ffd23f"/>')),
+ tidespire:artURI(frame('tide','<path d="M48 96 l6 -58 q6 -10 12 0 l6 58z" fill="#0e5a7a" stroke="#06222e" stroke-width="2"/><circle cx="60" cy="30" r="8" fill="#3fa3e0"/><circle cx="60" cy="30" r="8" fill="none" stroke="#7fd0f5" stroke-width="2"/><ellipse cx="60" cy="98" rx="26" ry="6" fill="#0a2230"/><path d="M40 80 q20 8 40 0" fill="none" stroke="#3fa3e0" stroke-width="2" opacity=".6"/>')),
+ thornwall:artURI(frame('wood','<rect x="30" y="60" width="60" height="34" fill="#4a3a26"/><rect x="26" y="52" width="14" height="42" fill="#5a4a30"/><rect x="80" y="52" width="14" height="42" fill="#5a4a30"/><path d="M26 52 l7 -10 l7 10z M80 52 l7 -10 l7 10z" fill="#6a5a3a"/><rect x="54" y="72" width="12" height="22" fill="#170d06"/><path d="M40 36 q8 -10 12 2 M68 36 q8 -10 12 2" stroke="#86291c" stroke-width="3" fill="none"/><circle cx="46" cy="34" r="3.5" fill="#ff8a1f"/><circle cx="74" cy="34" r="3.5" fill="#3fa3e0"/>')),
+};
+const CCS={
+  emberbastion:{ id:'emberbastion', name:'The Ember Bastion', hp:26, wk:2, colors:['ember'],
+    desc:'A furnace-keep of slag and iron. Thick walls, single-minded fire.' },
+  tidespire:{ id:'tidespire', name:'The Tide Spire', hp:22, wk:3, colors:['tide'],
+    desc:'A drowned tower humming with current. A fast economy behind thinner walls.' },
+  thornwall:{ id:'thornwall', name:'The Thornwall Compact', hp:24, wk:2, colors:['ember','tide'],
+    desc:'Two banners over one keep. Dual-color reach, bought with stone.' },
+};
+function mkCC(def,owner){ return {kind:'building',cc:true,id:uid++,owner,color:def.colors[0],colors:def.colors.slice(),
+  nm:def.name,h:def.hp,maxh:def.hp,c:0,eff:'command',val:0,sup:def.wk,ic:'♜',art:CC_ART[def.id],bank:0}; }
+function findCC(o){ let r=null; ['front','back'].forEach(w=>G.P[o][w].forEach(x=>{if(x&&x.kind==='building'&&x.cc)r=x;}));
+  G.center.forEach(x=>{if(x&&x.owner===o&&x.kind==='building'&&x.cc)r=x;}); return r; }
+const poolFor=color=>color==='ember'?EMBER:TIDE;
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+const G={
+  turn:'you',busy:false,over:false,turnNo:1,
+  sel:null, atk:[], moveFrom:null, moveMana:null,
+  center:Array(SLOTS).fill(null),
+  P:{
+    you:{color:'ember',life:25,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'emberbastion'},
+    foe:{color:'tide',life:25,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'tidespire'},
+  }
+};
+
+/* ---------- board / row geometry (§2–3) ----------
+   Rows top→bottom. Distance = |rowIdx difference|. Adjacent rows are 1 apart.
+   The center is a single shared row; its cells can hold a unit owned by either side. */
+const ROWS=['foeBack','foeFront','center','youFront','youBack'];
+function rowArr(key){
+  if(key==='center')return G.center;
+  if(key==='foeBack')return G.P.foe.back;
+  if(key==='foeFront')return G.P.foe.front;
+  if(key==='youFront')return G.P.you.front;
+  if(key==='youBack')return G.P.you.back;
+  return null;
+}
+function rowIdx(key){return ROWS.indexOf(key);}
+function unitAt(key,i){return rowArr(key)[i];}
+// rows a unit of `owner` may legally deploy into (own front/base + the shared center)
+function ownRows(owner){return owner==='you'?['youFront','youBack','center']:['foeFront','foeBack','center'];}
+function rowKeyFor(owner,which){return which==='center'?'center':(owner==='you'?(which==='front'?'youFront':'youBack'):(which==='front'?'foeFront':'foeBack'));}
+// label used in logs / hints
+function rowName(key){return ({foeBack:'enemy base',foeFront:'enemy front',center:'the contested center',youFront:'your front line',youBack:'your base'})[key]||key;}
+// storage array for a (perspective-owner, which) pair; the center is shared regardless of owner
+function cellArr(owner,which){return which==='center'?G.center:(G.P[owner]?G.P[owner][which]:null);}
+function canDeploy(owner,which){return which==='center'||owner==='you';}
+// the player's own rows for selecting/deploying, in board order back→front→center
+const MINE=['youBack','youFront','center'];
+function mineKey(which){return which==='center'?'center':(which==='front'?'youFront':'youBack');}
+// ---- minion pools (workers live in a per-row pool, NOT in board slots) ----
+function minPool(owner,which){return G.P[owner].min[which];}
+// every minion logically occupying row `key`, as {owner,which,c}. Center holds both sides' minions.
+function minionsInRow(key){
+  const out=[];
+  const push=(owner,which)=>minPool(owner,which).forEach(c=>out.push({owner,which,c}));
+  if(key==='foeBack')push('foe','back');
+  else if(key==='foeFront')push('foe','front');
+  else if(key==='youFront')push('you','front');
+  else if(key==='youBack')push('you','back');
+  else if(key==='center'){push('you','center');push('foe','center');}
+  return out;
+}
+function whichForKey(owner,key){ // which pool of `owner` corresponds to row key (or null)
+  if(key==='center')return 'center';
+  if(owner==='you')return key==='youFront'?'front':(key==='youBack'?'back':null);
+  return key==='foeFront'?'front':(key==='foeBack'?'back':null);
+}
+// ---- worker capacity (structures +support, monsters -upkeep; minions live within the cap) ----
+
+function ownUnits(owner){ const out=[]; ['front','back'].forEach(w=>G.P[owner][w].forEach(o=>{if(o)out.push(o);})); G.center.forEach(o=>{if(o&&o.owner===owner)out.push(o);}); return out; }
+function structuresOf(owner){ return ownUnits(owner).filter(o=>o.kind==='building'); }
+function structSupport(owner){ return structuresOf(owner).reduce((s,b)=>s+(b.sup||0),0); }
+function monsterUpkeep(owner){ return ownUnits(owner).reduce((s,o)=>s+((o.kind==='creature'&&!o.worker)?(o.up||0):0),0); }
+function workerCap(owner){ return structSupport(owner) - monsterUpkeep(owner); } // CC supplies the base via its support
+/* ---------- colored mana ----------
+   Pools: generic (P.mana) + one pool per color (P.cmana). [PROPOSED] cost rule:
+   a colored creature/spell needs 1 mana of its color; the remainder takes any
+   mix. Structures and traps take any mana. Face-down flips pay from the bank
+   and waive the color pip (the secrecy discount). */
+const COLORS=['ember','tide'];
+function manaTotal(o){const P=G.P[o];return P.mana+COLORS.reduce((s,c)=>s+P.cmana[c],0);}
+function colorNeed(card){return (card.type==='creature'||(card.type==='spell'&&!card.trap))&&!!card.color&&card.c>0;}
+function canPay(o,card){const P=G.P[o];if(manaTotal(o)<card.c)return false;
+  if(colorNeed(card)&&P.cmana[card.color]<1)return false;return true;}
+function payAny(o,n){const P=G.P[o];let g=Math.min(P.mana,n);P.mana-=g;n-=g;
+  for(const k of COLORS){const t=Math.min(P.cmana[k],n);P.cmana[k]-=t;n-=t;}return n<=0;}
+function payCost(o,card){const P=G.P[o];let n=card.c;
+  if(colorNeed(card)){P.cmana[card.color]--;n--;}
+  payAny(o,n);}
+function manaGlyph(t){return t==='gen'?'◆':`<span style="color:var(--${t})">◆</span>`;}
+function extractColors(owner,which){
+  const key=which==='center'?'center':rowKeyFor(owner,which);
+  const set=new Set();
+  rowArr(key).forEach(x=>{ if(x&&x.owner===owner){
+    if(x.kind==='creature'&&!x.worker)set.add(x.color);
+    if(x.kind==='building'&&x.cc)(x.colors||[]).forEach(c=>set.add(c));
+  }});
+  return [...set];
+}
+function minionCount(owner){ const m=G.P[owner].min; return m.back.length+m.front.length+m.center.length; }
+function canTrain(owner){ return minionCount(owner) < workerCap(owner); }
+// cull minions down to the cap (exposed front/center first) — the army "feeds" on the workforce
+function enforceCap(owner){
+  let over=minionCount(owner)-Math.max(0,workerCap(owner));
+  if(over<=0)return;
+  for(const w of ['front','center','back']){ const pool=G.P[owner].min[w];
+    for(let i=pool.length-1;i>=0&&over>0;i--){ toGrave(owner,pool[i]); pool.splice(i,1); over--; }
+  }
+  log(`<span class="${owner==='you'?'e':'y'}">${owner==='you'?'Your':'Enemy'} workforce thins — Minions are pulled to sustain the army.</span>`);
+}
+function afterDeploy(owner){ enforceCap(owner); }
+const $=id=>document.getElementById(id);
+const rng=a=>a[Math.floor(Math.random()*a.length)];
+function deckOf(colors){ // colors: array — mono draws one pool, dual mixes both evenly
+  const d=[]; const n=colors.length;
+  colors.forEach(col=>{
+    const src=poolFor(col);
+    for(let i=0;i<Math.round(16/n);i++){const t=rng(src);d.push({type:'creature',color:col,...t});}
+    for(let i=0;i<Math.round(5/n);i++){const t=rng(BUILD[col]);d.push({type:'building',color:col,...t});}
+    for(let i=0;i<Math.round(5/n);i++){const t=rng(SPELL[col]);d.push({type:'spell',color:col,...t});}
+  });
+  for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
+  return d;}
+function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art};}
+function mkVil(owner){return mkCre({nm:'Worker',a:0,h:2,c:0,up:0,art:ART.villager},owner,true);}
+function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0};}
+function toGrave(owner,obj){
+  if(!obj)return; let rec;
+  if(obj.kind==='creature') rec={type:obj.worker?'villager':'creature',nm:obj.nm,a:obj.a,h:obj.maxh??obj.h,c:obj.c,up:obj.up,fs:obj.fs};
+  else if(obj.kind==='building') rec={type:'building',nm:obj.nm,h:obj.maxh??obj.h,c:obj.c,eff:obj.eff,val:obj.val,sup:obj.sup,ic:obj.ic};
+  else if(obj.kind==='charge') rec={type:obj.ctype||'creature',nm:obj.card.nm,a:obj.card.a,h:obj.card.h,c:obj.card.c,up:obj.card.up,sup:obj.card.sup,eff:obj.card.eff,val:obj.card.val,ic:obj.card.ic};
+  else if(obj.kind==='trap') rec={type:'spell',nm:obj.card.nm,c:obj.card.c,trap:true,effect:obj.card.effect,val:obj.card.val,ic:obj.card.ic};
+  else return;
+  G.P[owner].grave.push(rec);
+}
+
+function bootstrap(){
+  document.body.appendChild($('cardActions'));
+  window.addEventListener('scroll',()=>placeCardMenu(),true);
+  window.addEventListener('resize',()=>placeCardMenu());
+  showCharSelect();
+}
+function ccPips(def){return def.colors.map(c=>`<span class="cdot" style="background:var(--${c})"></span>`).join('');}
+function applyCharacterUI(){
+  const cy=CCS[G.P.you.cc], cf=CCS[G.P.foe.cc];
+  const fName=$('foeName'); fName.style.color=`var(--${cf.colors[0]})`;
+  fName.innerHTML=`${ccPips(cf)}${cf.name}`;
+  const yName=$('youName'); yName.style.color=`var(--${cy.colors[0]})`;
+  yName.innerHTML=`${cy.name}${ccPips(cy)}`;
+  const cn=$('cmdName'); cn.style.color=`var(--${cy.colors[0]})`;
+  cn.innerHTML=`${ccPips(cy)}${cy.name}`;
+  $('cmdPass').innerHTML=`♥${cy.hp} · ⚒${cy.wk} workers · ${cy.colors.map(cap).join(' + ')} mana. Your command center holds the base — it cannot move or attack. <b>If it falls, you lose.</b>`;
+  $('foeSide').style.borderColor=`var(--${cf.colors[0]})`;
+  $('youSide').style.borderColor=`var(--${cy.colors[0]})`;
+}
+function startGame(youId,foeId){
+  const cy=CCS[youId], cf=CCS[foeId];
+  Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
+  Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
+  G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;
+  G.center=Array(SLOTS).fill(null);
+  // command centers anchor the back row; starting workers report ready
+  G.P.you.back[2]=mkCC(cy,'you'); G.P.foe.back[2]=mkCC(cf,'foe');
+  for(let i=0;i<cy.wk;i++){const w=mkVil('you');w.sick=false;G.P.you.min.back.push(w);}
+  for(let i=0;i<cf.wk;i++){const w=mkVil('foe');w.sick=false;G.P.foe.min.back.push(w);}
+  G.P.you.deck=deckOf(cy.colors); G.P.foe.deck=deckOf(cf.colors);
+  dealOpening('you'); dealOpening('foe');
+  applyCharacterUI();
+  $('charsel').style.display='none';
+  $('log').innerHTML='';
+  log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Raze the enemy command center to win — lose yours and the duel is over.</span>`);
+  defaultHint(); render();
+}
+let selYou='emberbastion', selFoe='tidespire', csStep=1;
+function csCard(c,col,on){
+  return `<button class="cschar ${on?'on':''}" data-col="${col}" data-id="${c.id}">`+
+    `<div class="cn" style="color:var(--${c.colors[0]})">${ccPips(c)}${c.name}</div>`+
+    `<div class="cp">${c.desc}</div>`+
+    `<div class="cpow">♥ <b>${c.hp}</b> health &nbsp;·&nbsp; ⚒ <b>${c.wk}</b> workers &nbsp;·&nbsp; ${c.colors.map(cap).join(' + ')} mana</div></button>`;
+}
+function renderCharSel(){
+  const ids=Object.keys(CCS); const box=$('charsel').querySelector('.csbox');
+  if(csStep===1){
+    const cards=ids.map(id=>csCard(CCS[id],'you',false)).join('');
+    box.innerHTML=`<h1>Choose Your Command Center</h1><div class="cssub">Step 1 of 2 — your keep sets health, workers, and mana colors. Lose it and you lose.</div><div class="csrow">${cards}</div>`;
+    box.querySelectorAll('.cschar').forEach(b=>b.addEventListener('click',()=>{ selYou=b.dataset.id; csStep=2; renderCharSel(); }));
+  } else {
+    const cy=CCS[selYou];
+    const cards=ids.map(id=>csCard(CCS[id],'foe',false)).join('')+
+      `<button class="cschar" data-col="foe" data-id="__rand"><div class="cn">🎲 Random</div><div class="cp">A surprise opponent, rolled when the duel begins.</div></button>`;
+    box.innerHTML=`<h1>Choose Your Opponent</h1>`+
+      `<div class="cssub">Step 2 of 2 — same or different. You: <b style="color:var(--${cy.colors[0]})">${cy.name}</b>.</div>`+
+      `<div class="csrow">${cards}</div>`+
+      `<button class="csback" id="csBack">← back</button>`;
+    box.querySelectorAll('.cschar').forEach(b=>b.addEventListener('click',()=>{
+      let foeId=b.dataset.id; if(foeId==='__rand')foeId=ids[Math.floor(Math.random()*ids.length)];
+      startGame(selYou,foeId);
+    }));
+    $('csBack').addEventListener('click',()=>{ csStep=1; renderCharSel(); });
+  }
+}
+function showCharSelect(){ csStep=1; renderCharSel(); $('charsel').style.display='flex'; }
+function dealOpening(o){ // your command center is pre-placed, so the opening hand is simply 4 cards
+  G.P[o].hand=[]; for(let i=0;i<4;i++)drawCard(o);
+}
+function drawCard(o){if(G.P[o].deck.length){const t=G.P[o].deck.pop();G.P[o].hand.push({kind:'handcard',id:uid++,type:t.type,color:t.color||G.P[o].color,nm:t.nm,a:t.a,h:t.h,c:t.c,fs:t.fs,up:t.up,sup:t.sup,eff:t.eff,val:t.val,ic:t.ic,art:t.art,trap:t.trap,effect:t.effect,target:t.target,trigger:t.trigger});}}
+function log(html,cls=''){const p=document.createElement('p');if(cls)p.className=cls;p.innerHTML=html;$('log').prepend(p);}
+window.toggleLog=function(on){ $('logPanel').style.display=on?'flex':'none'; };
+window.toggleRules=function(on){ $('rulesPanel').style.display=on?'flex':'none'; };
+
+/* ---------- render ---------- */
+function manaStr(o){const P=G.P[o];let out=`<span class="mana">◆</span><b>${P.mana}</b>`;
+  CCS[P.cc].colors.forEach(c=>{out+=` <span class="mana" style="color:var(--${c})">◆</span><b style="color:var(--${c})">${P.cmana[c]}</b>`;});
+  return out;}
+function render(){
+  ['you','foe'].forEach(o=>{const cc=findCC(o); G.P[o].life=cc?Math.max(0,cc.h):0;});
+  $('foeLife').textContent=G.P.foe.life; $('youLife').textContent=G.P.you.life;
+  $('foeManaStr').innerHTML=manaStr('foe'); $('youManaStr').innerHTML=manaStr('you');
+  $('foeStruct').textContent=structuresOf('foe').length; $('youStruct').textContent=structuresOf('you').length;
+  $('foeCap').textContent=minionCount('foe')+'/'+Math.max(0,workerCap('foe')); $('youCap').textContent=minionCount('you')+'/'+Math.max(0,workerCap('you'));
+  $('foeDeckN').textContent=G.P.foe.deck.length; $('youDeckN').textContent=G.P.you.deck.length;
+  $('foeGraveN').textContent=G.P.foe.grave.length; $('youGraveN').textContent=G.P.you.grave.length;
+  $('turnLabel').textContent=G.turn==='you'?'Your Turn':'Opponent…';
+  $('endBtn').disabled=G.turn!=='you'||G.busy||G.over;
+  $('conscriptBtn').disabled=G.turn!=='you'||G.busy||G.over||G.P.you.villagerUsed||!canTrain('you');
+  const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
+  renderRow('foeBack','foe','back'); renderRow('foeFront','foe','front');
+  renderCenter();
+  renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderMinions(); renderHand();
+  placeCardMenu();
+}
+function renderMinions(){
+  const wells=[['wellFoeBack','foeBack'],['wellFoeFront','foeFront'],['wellCenter','center'],['wellYouFront','youFront'],['wellYouBack','youBack']];
+  const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
+  wells.forEach(([elId,key])=>{
+    const el=$(elId); if(!el)return; el.innerHTML='';
+    const groups=[];
+    if(key==='center'){ if(minPool('you','center').length)groups.push(['you','center']); if(minPool('foe','center').length)groups.push(['foe','center']); }
+    else { const owner=key.startsWith('wellFoe')||key.startsWith('foe')?'foe':'you'; const which=key.endsWith('Front')?'front':'back'; if(minPool(owner,which).length)groups.push([owner,which]); }
+    groups.forEach(([owner,which])=>el.appendChild(workerTokEl(owner,which,key,aiming)));
+  });
+}
+function workerTokEl(owner,which,key,aiming){
+  const list=minPool(owner,which); const me=owner==='you';
+  const up=list.filter(m=>!m.tapped&&!m.sick).length;
+  const tok=document.createElement('div');
+  tok.className='wtok'+(me?'':' foe');
+  tok.innerHTML=`⚒<b>${list.length}</b>`+(up<list.length?`<span class="wr">${up}✓</span>`:'');
+  tok.title=`${list.length} worker${list.length===1?'':'s'} (${up} ready) — tap for actions`;
+  const seld=G.minSel&&G.minSel.owner===owner&&G.minSel.which===which;
+  if(seld)tok.classList.add('selected');
+  if(G.turn==='you'&&!G.busy&&!G.over){
+    if(me&&!G.sel&&!G.moveFrom&&!G.moveMana){ tok.classList.add('tappable'); tok.addEventListener('click',()=>selectMinPool(which)); }
+    else if(!me&&aiming){ tok.classList.add('target'); tok.addEventListener('click',()=>attackMinionStack(key,owner,which)); }
+  }
+  tok.addEventListener('contextmenu',e=>{e.preventDefault(); inspectMinion(owner,which);});
+  return tok;
+}
+function placeCardMenu(){
+  const el=$('cardActions'); if(!el)return;
+  const m=G.cardMenu;
+  if(!m||G.turn!=='you'||G.busy||G.over){ el.style.display='none'; return; }
+  const row=m.w==='center'?$('center'):$('you'+(m.w==='front'?'Front':'Back'));
+  const cell=row&&row.children[m.i];
+  if(!cell||!cellArr('you',m.w)[m.i]){ el.style.display='none'; G.cardMenu=null; return; }
+  el.innerHTML=m.html;
+  el.style.display='block';
+  const r=cell.getBoundingClientRect();
+  const ew=el.offsetWidth, eh=el.offsetHeight;
+  let left=Math.max(6,Math.min(r.left+r.width/2-ew/2, window.innerWidth-ew-6));
+  let top=r.top-eh-10; el.classList.remove('below');
+  if(top<6){ top=r.bottom+10; el.classList.add('below'); }
+  el.style.left=left+'px'; el.style.top=top+'px';
+}
+function cardHTML(o,me){
+  if(o.kind==='building'&&o.cc){
+    const pips=(o.colors||[]).map(c=>`<span class="cdot" style="background:var(--${c});width:6px;height:6px"></span>`).join('');
+    return `<div class="card bld ccx"><div class="nm">${o.nm}</div><div class="bic">♜</div><div style="text-align:center">${pips}</div><div class="stats"><span></span><span class="hp">♥${o.h}</span></div><div class="ccb">COMMAND</div></div>`;
+  }
+  if(o.kind==='creature'){
+    const cls=o.worker?'vil':('crt '+clsOf[o.color]);
+    const art=o.art?`<div class="artwin"><img src="${o.art}" alt=""></div>`:'';
+    const up=(!o.worker&&o.up)?`<div class="upk">⚒-${o.up}</div>`:'';
+    return `<div class="card ${cls} ${o.sick?'sick':''} ${o.tapped?'tapped':''}">
+      ${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}
+      ${o.fs?'<div class="fsbadge">FS</div>':''}
+      ${o.worker?'<div class="wk">⚒</div>':up}
+      <div class="nm">${o.nm}</div>${art}<div class="stats"><span class="atk">⚔${o.a}</span><span class="hp">♥${o.h}</span></div></div>`;
+  }
+  if(o.kind==='building'){
+    const bart=o.art?`<div class="artwin"><img src="${o.art}" alt=""></div>`:`<div class="bic">${o.ic||'⌂'}</div>`;
+    const eff=o.eff==='mana'?('◆+'+o.val):(o.eff==='villager'?'⚒train':'⌂');
+    return `<div class="card bld">${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}${o.sup?`<div class="supb">⚒+${o.sup}</div>`:''}<div class="nm">${o.nm}</div>${bart}
+      <div class="stats"><span class="eff">${eff}</span><span class="hp">♥${o.h}</span></div></div>`;
+  }
+  if(o.kind==='charge'){
+    const ready=o.inv>=o.card.c;
+    return me?`<div class="card charge mine ${ready?'ready':''}"><div class="q" style="font-size:13px;text-align:center">${o.card.nm}</div><div class="inv">◆${o.inv}/${o.card.c}${ready?' ✓':''}</div></div>`
+            :`<div class="card charge"><div class="q">?</div><div class="inv">◆${o.inv}</div></div>`;
+  }
+  if(o.kind==='trap'){
+    return me?`<div class="card charge trap mine"><div class="q" style="font-size:12px">⚠ ${o.card.nm}</div><div class="inv">trap · armed</div></div>`
+            :`<div class="card charge trap"><div class="q">⚠</div><div class="inv">set</div></div>`;
+  }
+  return '';
+}
+function renderRow(elId,owner,which){
+  const el=$(elId);el.innerHTML='';const me=owner==='you';
+  for(let i=0;i<SLOTS;i++){
+    const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
+    const o=G.P[owner][which][i];
+    if(o&&o.kind==='building'&&o.cc)cell.classList.add('cccell');
+    if(o){ cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); }
+    decorate(cell,owner,which,i,o);
+    el.appendChild(cell);
+  }
+}
+function renderCenter(){
+  const el=$('center'); el.innerHTML='';
+  for(let i=0;i<SLOTS;i++){
+    const cell=document.createElement('div'); cell.className='cell centercell';
+    const o=G.center[i];
+    const persp=o?o.owner:'center';
+    if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); }
+    decorate(cell,persp,'center',i,o);
+    el.appendChild(cell);
+  }
+}
+function renderHand(){
+  const el=$('hand');el.innerHTML='';
+  G.P.you.hand.forEach((card,i)=>{
+    const d=document.createElement('div');
+    const isB=card.type==='building'; const isS=card.type==='spell';
+    d.className=`hc ${isB?'hcb':isS?'hcs':clsOf[card.color]}`+(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i?' selected':'');
+    const statLine=isS?`<span class="eff">${card.trap?'⚠ Trap':'✦ Spell'}</span>`
+                  :isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>${card.sup?`<span class="cap">⚒+${card.sup}</span>`:''}<span class="hp">♥${card.h}</span>`
+                  :`<span class="atk">⚔${card.a}</span>${card.up?`<span class="cap">⚒-${card.up}</span>`:''}<span class="hp">♥${card.h}</span>`;
+    d.innerHTML=card.art
+      ?`<div class="cost-badge">◆${card.c}</div><div class="nm">${card.nm}</div><div class="artwin"><img src="${card.art}" alt=""></div><div class="stats">${statLine}</div>`
+      :isB
+      ?`<div class="nm">${card.nm}</div><div class="cost">◆${card.c}</div><div class="stats"><span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒'}</span><span class="hp">♥${card.h}</span></div>`
+      :`<div class="nm">${card.nm}</div><div class="cost">◆${card.c}</div><div class="stats"><span class="atk">⚔${card.a}</span><span class="hp">♥${card.h}</span></div>`;
+    if(G.turn==='you'&&!G.busy&&!G.over)d.addEventListener('click',()=>onHand(i));
+    addInspect(d,()=>inspectHand(i));
+    el.appendChild(d);
+  });
+}
+function selCres(){return G.atk.map(s=>cellArr('you',s.w)[s.i]).filter(x=>x&&x.kind==='creature'&&x.owner==='you');}
+function canAttack(){const c=selCres();return c.length>0&&c.every(x=>!x.worker&&!x.sick&&!x.tapped);}
+function canExtract(){return G.atk.length===1;}
+function inAtk(w,i){return G.atk.some(s=>s.w===w&&s.i===i);}
+function decorate(cell,owner,which,i,o){
+  if(G.turn!=='you'||G.busy||G.over)return;
+  const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
+  if(G.moveFrom){
+    const mf=G.moveFrom;
+    if(mine&&which===mf.w&&i===mf.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelMove); return; }
+    if(!o&&canDeploy(owner,which)&&adjacent(mf.w,mf.i,which,i)){ cell.classList.add('tappable'); cell.addEventListener('click',()=>doMove(which,i)); }
+    return;
+  }
+  if(G.moveMana){
+    const mm=G.moveMana;
+    if(mine&&which===mm.w&&i===mm.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelSendMana); return; }
+    if(mine&&(o.kind==='creature'||o.kind==='building')){ cell.classList.add('target'); cell.addEventListener('click',()=>doSendMana(which,i)); return; }
+    cell.addEventListener('click',cancelSendMana); return;
+  }
+  const handSel=G.sel&&G.sel.kind==='hand';
+  if(mine&&o.kind==='creature'&&inAtk(which,i)) cell.classList.add('selected');
+  if(mine&&o.kind==='creature'&&!o.sick&&!o.tapped&&!handSel) cell.classList.add('tappable');
+  if(mine&&o.kind==='charge'&&G.atk.length===0&&!handSel) cell.classList.add('tappable');
+  if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&canDeploy(owner,which)) cell.classList.add('tappable');
+  if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0) cell.classList.add('target');
+  if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
+  if(G.atk.length){ if(foe&&canAttack()) cell.classList.add('target'); }
+  cell.addEventListener('click',()=>onCell(owner,which,i,o));
+}
+function setHint(html){$('hint').innerHTML=html;}
+function extractYield(which){return which==='back'?1:2;}
+function defaultHint(){setHint('Tap a card to deploy · tap a creature to attack · ⚒ to train');}
+
+/* ---------- input ---------- */
+function onHand(i){
+  if(G.powerMode)return;
+  G.atk=[]; G.moveFrom=null; G.moveMana=null; G.minSel=null;
+  if(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i){G.sel=null;defaultHint();render();return;}
+  const card=G.P.you.hand[i];
+  G.sel={kind:'hand',idx:i,mode:null};
+  if(card.type==='building'){
+    const can=card.c<=G.P.you.mana;
+    setHint(`<b style="color:var(--ink)">${card.nm}</b> (structure) &nbsp;`+
+      `<button ${can?'':'disabled style="filter:grayscale(.8) brightness(.6)"'} onclick="chooseMode('build')">Build ◆${card.c}</button>`+
+      `<button class="set" onclick="chooseMode('set')">Set ⊡ free</button>`);
+  } else if(card.type==='spell'){
+    if(card.trap){
+      setHint(`<b style="color:#c9a0ff">${card.nm}</b> (trap) &nbsp;<button class="set" onclick="chooseMode('settrap')">Set ⊡ free</button>`);
+    } else {
+      const can=card.c<=G.P.you.mana && spellHasTarget(card);
+      const why=card.c>G.P.you.mana?'not enough mana':'no legal target';
+      setHint(`<b style="color:#c9a0ff">${card.nm}</b> (spell) &nbsp;<button ${can?'':`disabled style="filter:grayscale(.8) brightness(.6)" title="${why}"`} onclick="chooseMode('cast')">Cast ◆${card.c}</button>${can?'':` <span style="font-style:italic;font-size:11px">— ${why}</span>`}`);
+    }
+  } else {
+    const can=card.c<=G.P.you.mana;
+    setHint(`<b style="color:var(--ink)">${card.nm}</b> &nbsp;`+
+      `<button ${can?'':'disabled style="filter:grayscale(.8) brightness(.6)"'} onclick="chooseMode('summon')">Summon ◆${card.c}</button>`+
+      `<button class="set" onclick="chooseMode('set')">Set ⊡ free</button>`);
+  }
+  render();
+}
+window.chooseMode=function(m){
+  if(!G.sel||G.sel.kind!=='hand')return;
+  G.sel.mode=m;
+  const msg=m==='build'?'Tap an empty slot to build — or tap one of your cards holding ◆ to raise it on top, spending that stored mana.'
+    :m==='summon'?'Tap an empty slot to summon — or tap one of your cards holding ◆ to play on top, spending that stored mana (the card beneath is lost, surplus ◆ stays).'
+    :m==='settrap'?'Tap any empty slot to set your trap face-down (it springs on your opponent\u2019s turn).'
+    :m==='cast'?'Tap a highlighted enemy target.'
+    :'Tap any empty slot to set it face-down.';
+  setHint(msg);
+  render();
+};
+function spellHasTarget(card){
+  for(const w of ['front','back']) for(let i=0;i<SLOTS;i++){ const o=G.P.foe[w][i]; if(o&&validSpellTarget(card,o)) return true; }
+  for(let i=0;i<SLOTS;i++){ const o=G.center[i]; if(o&&o.owner==='foe'&&validSpellTarget(card,o)) return true; }
+  return false;
+}
+function validSpellTarget(card,o){
+  if(!o)return false;
+  if(card.effect==='raze') return o.kind==='building';
+  if(card.effect==='burn') return o.kind==='creature'||o.kind==='building'||o.kind==='charge';
+  return false;
+}
+function spellText(card){
+  if(card.effect==='burn') return `<b>Bolt.</b> Deal <b>${card.val}</b> damage to an enemy creature, structure, or face-down card.`;
+  if(card.effect==='raze') return `<b>Sunder.</b> Destroy a target enemy <b>structure</b>.`;
+  if(card.effect==='pitfall') return `<b>Snare.</b> When your opponent <b>summons</b> a creature, destroy it.`;
+  return 'A spell.';
+}
+function spellRec(card){return {type:'spell',nm:card.nm,c:card.c,trap:!!card.trap,effect:card.effect,val:card.val,ic:card.ic};}
+function clearAtk(){G.atk=[];G.cardMenu=null;G.minSel=null;defaultHint();}
+
+function onCell(owner,which,i,o){
+  G.cardMenu=null; G.minSel=null;
+  const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
+  if(G.sel&&G.sel.kind==='hand'){
+    const sc=G.P.you.hand[G.sel.idx];
+    if(G.sel.mode==='cast'){ if(foe&&sc&&validSpellTarget(sc,o)){ castSpell(G.sel.idx,which,i); } else { G.sel=null; defaultHint(); render(); } return; }
+    if(G.sel.mode==='settrap'&&!o&&canDeploy(owner,which)){ place(G.sel.idx,'settrap',which,i); return; }
+    if((G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0){ place(G.sel.idx,G.sel.mode,which,i); return; }
+    if(G.sel.mode&&G.sel.mode!=='cast'&&!o&&canDeploy(owner,which)){ place(G.sel.idx,G.sel.mode,which,i); return; }
+    G.sel=null; defaultHint(); render(); return;
+  }
+  if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.'); return; }
+  if(mine&&o.kind==='charge'){ if(G.atk.length===0) openCharge(which,i); return; }
+  if(mine&&o.kind==='building'){
+    if(o.cc){ setHint(`<b style="color:var(--gold)">♜ ${o.nm}</b> — your command center. It cannot move or attack. <b>If it falls, you lose.</b> Its row lets workers extract ${o.colors.map(c=>manaGlyph(c)).join(' ')} mana.`); render(); return; }
+    if(o.bank>0){ G.cardMenu={w:which,i,html:`<button onclick="startSendMana('${which}',${i})">◆ Send ${o.bank}</button><span class="taphint">stored mana — move it, or play a card on top to spend it</span>`}; setHint('Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
+    else setHint('Structures hold the base — they don\u2019t move or fight.');
+    render(); return;
+  }
+  if(mine&&o.kind==='creature'){
+    const mv=moveBtn(which,i);
+    const send=o.bank>0?`<button onclick="startSendMana('${which}',${i})">◆ Send ${o.bank}</button>`:'';
+    if(o.sick){ const h=`${mv}${send}`; if(h)G.cardMenu={w:which,i,html:`${h}<span class="taphint">summoning-sick — acts next turn</span>`}; setHint('Summoning-sick — it can act next turn.'); render(); return; }
+    if(o.tapped){ const h=`${mv}${send}`; if(h)G.cardMenu={w:which,i,html:`${h}<span class="taphint">tapped until your next turn</span>`}; setHint('Tapped until your next turn.'); render(); return; }
+    // soldier
+    const k=G.atk.findIndex(s=>s.w===which&&s.i===i);
+    if(k>=0){ G.atk.splice(k,1); }
+    else {
+      if(G.atk.length&&G.atk[0].w!==which){ setHint('Group attackers must share a row.'); render(); return; }
+      G.atk.push({w:which,i});
+    }
+    if(G.atk.length===1){
+      const s=G.atk[0]; const su=cellArr('you',s.w)[s.i]; const sd=su.bank>0?`<button onclick="startSendMana('${s.w}',${s.i})">◆ Send ${su.bank}</button>`:'';
+      G.cardMenu={w:s.w,i:s.i,html:`<button onclick="extractSel()">⚒ Extract ◆${extractYield(s.w)}</button>${moveBtn(s.w,s.i)}${sd}<span class="taphint">⚔ tap an enemy unit or structure to strike</span>`};
+      setHint('<b>1</b> ready — strike a foe, or use an action above the card.');
+    } else if(G.atk.length){
+      setHint(`<b>${G.atk.length}</b> ready — tap an enemy unit or structure to strike. (Extract &amp; Move are solo only.)`);
+    } else defaultHint();
+    render(); return;
+  }
+  if(G.atk.length){
+    if(foe&&canAttack()){ doAttack(which,i); return; }
+  }
+}
+
+function place(idx,mode,which,slot){
+  const card=G.P.you.hand[idx];
+  const where=which==='center'?'the contested center':(which==='front'?'front line':'base');
+  const arr=cellArr('you',which);
+  const occ=arr[slot];
+  // play face-up ON TOP of one of your cards that holds banked ◆ (summon/build only)
+  if(occ){
+    if(occ.cc){ setHint("You can't build over your own command center."); return; }
+    if((mode!=='summon'&&mode!=='build')||!(occ.bank>0)){ setHint('That slot is taken.'); return; }
+    const fromBank=Math.min(occ.bank,card.c);
+    const need=card.c-fromBank;
+    if(need>manaTotal('you')){ setHint(`Short by ◆${need-manaTotal('you')} — the bank beneath covers ◆${fromBank}.`); return; }
+    payAny('you',need);
+    const carry=Math.max(0,occ.bank-card.c);     // surplus is stored on the newcomer
+    const oldName=occ.nm;
+    toGrave('you',occ);                            // old card is destroyed; its summon mana is gone
+    G.P.you.hand.splice(idx,1);
+    if(mode==='summon'){
+      const cr=mkCre(card,'you',false); cr.sick=true; cr.bank=carry; arr[slot]=cr;
+      log(`<span class="y">You play ${card.nm} over ${oldName} — ◆${fromBank} from its bank${need>0?` + ◆${need} mana`:''}.${carry?` ◆${carry} stored.`:''}</span>`,'y');
+      foeTrapOnSummon(cr,which,slot);
+    } else {
+      const b=mkBld(card,'you'); b.bank=carry; arr[slot]=b;
+      log(`<span class="y">You raise ${card.nm} over ${oldName} — ◆${fromBank} from its bank${need>0?` + ◆${need} mana`:''}.${carry?` ◆${carry} stored.`:''}</span>`,'y');
+    }
+    G.sel=null;defaultHint();afterDeploy('you');render();checkWin();return;
+  }
+  if(mode==='build'){
+    if(card.c>manaTotal('you')){setHint('Not enough mana.');return;}
+    payAny('you',card.c); G.P.you.hand.splice(idx,1);
+    arr[slot]=mkBld(card,'you');
+    log(`<span class="y">You build a ${card.nm} (♥${card.h}) in ${where}.</span>`,'y');
+  } else if(mode==='summon'){
+    if(manaTotal('you')<card.c){setHint('Not enough mana.');return;}
+    if(!canPay('you',card)){setHint(`${card.nm} needs ${manaGlyph(card.color)}1 ${cap(card.color)} in its cost — extract ${cap(card.color)} from a row holding a ${cap(card.color)} unit (your command center counts).`);return;}
+    payCost('you',card); G.P.you.hand.splice(idx,1);
+    const cr=mkCre(card,'you',false); cr.sick=true; arr[slot]=cr;
+    log(`<span class="y">You summon ${card.nm} (⚔${card.a}/♥${card.h}) to ${where}.</span>`,'y');
+    foeTrapOnSummon(cr,which,slot);
+  } else if(mode==='settrap'){
+    G.P.you.hand.splice(idx,1);
+    arr[slot]={kind:'trap',owner:'you',w:which,card:{nm:card.nm,c:card.c,effect:card.effect,trigger:card.trigger,val:card.val,ic:card.ic,art:card.art,trap:true},setTurn:G.turnNo};
+    log(`<span class="y">You set a face-down trap in ${where}.</span>`,'y');
+  } else { // set face-down — creature OR building
+    G.P.you.hand.splice(idx,1);
+    const ctype=card.type;
+    const cdata=ctype==='building'?{nm:card.nm,c:card.c,h:card.h,eff:card.eff,val:card.val,sup:card.sup,ic:card.ic,art:card.art}:{nm:card.nm,a:card.a,h:card.h,c:card.c,fs:card.fs,up:card.up,art:card.art};
+    arr[slot]={kind:'charge',owner:'you',w:which,ctype,card:cdata,inv:0,setTurn:G.turnNo};
+    log(`<span class="y">You set a face-down ${ctype==='building'?'structure':'card'} in ${where}.</span>`,'y');
+  }
+  G.sel=null;defaultHint();afterDeploy('you');render();checkWin();
+}
+/* ---------- spells & traps ---------- */
+function resolveSpell(card,towner,w,i){
+  const arr=cellArr(towner,w); const o=arr[i]; if(!o)return false;
+  const ownerWord=towner==='you'?'your':'the enemy';
+  if(card.effect==='burn'){
+    if(o.kind==='charge'){ log(`<span class="${towner==='you'?'e':'y'}">${card.nm} bursts ${ownerWord} face-down card!</span>`,towner==='you'?'e':'y'); toGrave(towner,o); arr[i]=null; }
+    else { o.h-=card.val; log(`<span class="${towner==='you'?'e':'y'}">${card.nm} sears ${o.nm} for ${card.val}.</span>`,towner==='you'?'e':'y'); }
+  } else if(card.effect==='raze'){
+    if(o.kind!=='building')return false;
+    log(`<span class="${towner==='you'?'e':'y'}">${card.nm} brings down ${ownerWord} ${o.nm}!</span>`,towner==='you'?'e':'y'); toGrave(towner,o); arr[i]=null;
+  } else return false;
+  cleanup(); return true;
+}
+function castSpell(idx,which,i){
+  const card=G.P.you.hand[idx]; if(!card||card.type!=='spell'||card.trap)return;
+  if(manaTotal('you')<card.c){setHint('Not enough mana.');return;}
+  if(!canPay('you',card)){setHint(`${card.nm} needs ${manaGlyph(card.color)}1 ${cap(card.color)} in its cost.`);return;}
+  if(!resolveSpell(card,'foe',which,i)){setHint('Not a legal target for that spell.');return;}
+  payCost('you',card); G.P.you.hand.splice(idx,1); G.P.you.grave.push(spellRec(card));
+  G.sel=null; defaultHint(); render(); checkWin();
+}
+function findArmedTrap(owner,trigger){
+  for(const w of ['front','back']) for(let i=0;i<SLOTS;i++){ const o=G.P[owner][w][i];
+    if(o&&o.kind==='trap'&&o.card.trigger===trigger&&G.turnNo>(o.setTurn??0)) return {o,w,i}; }
+  for(let i=0;i<SLOTS;i++){ const o=G.center[i];
+    if(o&&o.kind==='trap'&&o.owner===owner&&o.card.trigger===trigger&&G.turnNo>(o.setTurn??0)) return {o,w:'center',i}; }
+  return null;
+}
+// foe's trap auto-springs when YOU summon
+function foeTrapOnSummon(cr,w,i){
+  const t=findArmedTrap('foe','summon'); if(!t)return;
+  const arr=cellArr('you',w);
+  if(!cr||arr[i]!==cr)return;
+  log(`<span class="e">${t.o.card.nm} springs! ${cr.nm} is dragged down as it forms.</span>`,'e');
+  toGrave('you',cr); arr[i]=null;
+  G.P.foe.grave.push(spellRec(t.o.card)); cellArr('foe',t.w)[t.i]=null;
+  cleanup();
+}
+// your trap may spring when the FOE summons (during foeTurn) — you choose
+function playerTrapOnSummon(cr,w,i){
+  return new Promise(resolve=>{
+    const t=findArmedTrap('you','summon');
+    const arr=cellArr('foe',w);
+    if(!t||!cr||arr[i]!==cr){resolve();return;}
+    const box=$('contestPanel').querySelector('.box');
+    box.innerHTML=`<div class="ptitle" style="color:#f0b89a">Trap! · ${t.o.card.nm}</div>`+
+      `<div class="pmeta" style="margin-bottom:10px;color:var(--ink)">The opponent summons <b>${cr.nm}</b> (⚔${cr.a}/♥${cr.h}). ${spellText(t.o.card)} Spring it now?</div>`+
+      `<div class="pacts"><button class="flip" id="trYes">Spring it</button><button class="pour" id="trNo">Hold</button></div>`;
+    box.querySelector('#trYes').addEventListener('click',()=>{
+      $('contestPanel').style.display='none';
+      if(arr[i]===cr){ log(`<span class="y">${t.o.card.nm} springs — ${cr.nm} is destroyed!</span>`,'y'); toGrave('foe',cr); arr[i]=null; }
+      G.P.you.grave.push(spellRec(t.o.card)); cellArr('you',t.w)[t.i]=null; cleanup(); render(); resolve();
+    });
+    box.querySelector('#trNo').addEventListener('click',()=>{ $('contestPanel').style.display='none'; log('<span class="y">You hold your trap.</span>','y'); resolve(); });
+    $('contestPanel').style.display='flex';
+  });
+}
+
+/* ---------- move banked ◆ from one board card to another ---------- */
+window.startSendMana=(w,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; const c=cellArr('you',w)[i]; if(!c||!(c.bank>0))return; G.moveMana={w,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveFrom=null; setHint(`Move ◆${c.bank} — tap one of your creatures or structures to store it there (or tap this card to cancel).`); render(); };
+window.cancelSendMana=()=>{ G.moveMana=null; defaultHint(); render(); };
+function doSendMana(toW,toI){
+  if(!G.moveMana)return; const {w,i}=G.moveMana; const src=cellArr('you',w)[i]; const dst=cellArr('you',toW)[toI];
+  if(!src||!dst||(w===toW&&i===toI)||dst.owner!=='you'||!(dst.kind==='creature'||dst.kind==='building')){ G.moveMana=null; defaultHint(); render(); return; }
+  const amt=src.bank||0; dst.bank=(dst.bank||0)+amt; src.bank=0;
+  log(`<span class="y">Moved ◆${amt} of stored mana from ${src.nm} to ${dst.nm}.</span>`,'y');
+  G.moveMana=null; defaultHint(); render();
+}
+
+/* ---------- charging panel (creatures & structures, either row) ---------- */
+let cs=null, camt=0;
+function chSel(){ return cs?cellArr('you',cs.w)[cs.i]:null; }
+window.openCharge=function(which,slot){ if(G.turn!=='you'||G.busy||G.over)return; cs={w:which,i:slot}; camt=0; $('cpanel').style.display='flex'; drawPanel(); };
+function drawPanel(){
+  const ch=chSel(); if(!ch||ch.kind!=='charge'){closePanel();return;}
+  const mana=manaTotal('you'); if(camt>mana)camt=mana; if(camt<0)camt=0;
+  const ready=ch.inv>=ch.card.c; const excess=Math.max(0,ch.inv-ch.card.c);
+  const isB=ch.ctype==='building';
+  const meta=isB?`structure · raise cost ◆${ch.card.c} · ♥${ch.card.h} · ${ch.card.eff==='mana'?('yields ◆+'+ch.card.val+'/turn'):'trains a minion/turn'}`
+                :`charging spell · summon cost ◆${ch.card.c} · ⚔${ch.card.a}/♥${ch.card.h}`;
+  $('cpanel').querySelector('.box').innerHTML=`
+    <div class="ptitle">${ch.card.nm}</div>
+    <div class="pmeta">${meta}</div>
+    <div class="pinv">Invested <b style="color:var(--spawn)">◆${ch.inv}</b>${(!isB&&excess)?` <span style="color:var(--gold)">(◆${excess} would bank)</span>`:''}</div>
+    <div class="pmeta">Your mana: ◆${mana}</div>
+    <div class="stepper"><button onclick="camtAdj(-1)">−</button><div class="amt">◆${camt}</div><button onclick="camtAdj(1)">+</button></div>
+    <div class="quick"><button onclick="camtFill()">Fill to cost</button><button onclick="camtMax()">All ◆${mana}</button></div>
+    <div class="pacts"><button class="pour" ${camt<=0?'disabled':''} onclick="camtPour()">Pour ◆${camt}</button>
+      <button class="flip" ${ready?'':'disabled'} onclick="camtFlip()">${isB?'Raise':'Flip up'}${(!isB&&excess)?` (bank ◆${excess})`:''}</button></div>
+    <button class="pclose" onclick="closePanel()">Done</button>`;
+}
+window.camtAdj=d=>{camt+=d;drawPanel();};
+window.camtFill=()=>{const ch=chSel();camt=Math.max(0,Math.min(manaTotal('you'),ch.card.c-ch.inv));drawPanel();};
+window.camtMax=()=>{camt=manaTotal('you');drawPanel();};
+window.camtPour=()=>{const ch=chSel();const p=Math.min(camt,manaTotal('you'));if(p<=0)return;payAny('you',p);ch.inv+=p;log(`<span class="y">Poured ◆${p} (now ◆${ch.inv}/${ch.card.c}).</span>`,'y');camt=0;render();drawPanel();};
+window.camtFlip=()=>{const ch=chSel();if(!ch||ch.inv<ch.card.c)return;flip('you',cs.w,cs.i);closePanel();render();};
+window.closePanel=()=>{$('cpanel').style.display='none';cs=null;camt=0;};
+function flip(owner,which,slot){
+  const arr=cellArr(owner,which);
+  const ch=arr[slot];
+  if(ch.ctype==='building'){
+    const b=mkBld(ch.card,owner); b.bank=Math.max(0,ch.inv-ch.card.c);
+    arr[slot]=b;
+    log(`<span class="${owner==='you'?'y':'e'}">${owner==='you'?'Your':'Their'} ${ch.card.nm} rises — structure online (♥${ch.card.h}).${b.bank?` ◆${b.bank} banked.`:''}</span>`,owner==='you'?'y':'e');
+    return;
+  }
+  const bank=Math.max(0,ch.inv-ch.card.c);
+  const sick=G.turnNo<=(ch.setTurn??G.turnNo);
+  const cr=mkCre(ch.card,owner,false); cr.bank=bank; cr.sick=sick;
+  arr[slot]=cr;
+  log(`<span class="${owner==='you'?'y':'e'}">${owner==='you'?'Your':'Their'} ${cr.nm} surges into being! (⚔${cr.a}/♥${cr.h})${cr.fs?' First Strike.':''}${bank?` ◆${bank} banked.`:''}${sick?' Must rest this turn.':' Battle-ready!'}</span>`,owner==='you'?'y':'e');
+  
+  enforceCap(owner);
+  return cr;
+}
+function trainVillager(owner){
+  if(!canTrain(owner))return false;
+  const v=mkVil(owner); v.sick=true; minPool(owner,'back').push(v);
+  log(`<span class="${owner==='you'?'y':'e'}">${owner==='you'?'You train':'Opponent trains'} a Worker (⚒) at the base.</span>`,owner==='you'?'y':'e');
+  return true;
+}
+
+/* ---------- combat (row-distance targeting · interception · First Strike · simultaneous, no spillover) ---------- */
+function sumA(a){return a.reduce((s,c)=>s+(c.a||0),0);}
+function whichOf(key){ return key==='center'?'center':(key.slice(-5)==='Front'?'front':'back'); }
+function rowsStrictlyBetween(aIdx,tIdx){ const lo=Math.min(aIdx,tIdx),hi=Math.max(aIdx,tIdx),o=[]; for(let r=lo+1;r<hi;r++) if(r>=0&&r<ROWS.length) o.push(ROWS[r]); return o; }
+// untapped creatures in `key` NOT owned by the attacker (enemy or contesting-center units) — eligible to interpose
+function untappedInterceptors(key,attackerOwner){ const out=[];
+  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.tapped&&c.owner!==attackerOwner) out.push({key,i,c}); });
+  minionsInRow(key).forEach(g=>{ if(g.owner!==attackerOwner&&!g.c.tapped&&!g.c.sick) out.push({key,c:g.c}); });
+  return out;
+}
+function eligibleInterceptors(attackerOwner,aIdx,tIdx){ let out=[]; rowsStrictlyBetween(aIdx,tIdx).forEach(key=>{ out=out.concat(untappedInterceptors(key,attackerOwner)); }); return out; }
+
+// Assign each dealer to ONE target (no spillover). Greedy lethal-first: secure as many kills as possible,
+// then dump any leftover hitters onto the toughest target as chip damage. Returns Map<target, damage>.
+function focusFire(dealers, targets){
+  const dmg=new Map(); targets.forEach(t=>dmg.set(t,0));
+  if(!targets.length) return dmg;
+  const avail=[...dealers].filter(d=>(d.a||0)>0).sort((a,b)=>b.a-a.a);
+  const used=new Set();
+  const order=[...targets].sort((a,b)=>a.h-b.h); // kill the cheapest-to-kill first → most kills
+  for(const t of order){
+    let need=t.h-dmg.get(t);
+    if(need<=0)continue;
+    // commit the SMALLEST set of unused hitters that still finishes this target, so big hitters stay
+    // free for tougher targets (maximizes total kills); if nothing reaches lethal, commit none here.
+    const free=avail.filter(d=>!used.has(d)).sort((a,b)=>a.a-b.a); // ascending: spend just enough
+    const tryUse=[]; let n=need;
+    for(const d of free){ if(n<=0)break; tryUse.push(d); n-=d.a; }
+    if(n<=0){ tryUse.forEach(d=>{ used.add(d); dmg.set(t,dmg.get(t)+d.a); }); }
+  }
+  // leftover hitters chip the toughest target
+  const leftover=avail.filter(d=>!used.has(d));
+  if(leftover.length){ const t=[...targets].sort((a,b)=>b.h-a.h)[0]; leftover.forEach(d=>dmg.set(t,dmg.get(t)+d.a)); }
+  return dmg;
+}
+function applyDmg(map){ map.forEach((d,t)=>{ t.h-=d; }); }
+
+// Full simultaneous clash between two groups of CREATURES, honouring First Strike and one-target-per-unit.
+function resolveCombat(groupA, groupB){
+  const live=arr=>arr.filter(c=>c&&c.h>0);
+  // First Strike pre-step: FS units on both sides strike at once; anything killed here never strikes back.
+  const aFS=groupA.filter(c=>c.fs), bFS=groupB.filter(c=>c.fs);
+  if(aFS.length||bFS.length){
+    const dA=focusFire(aFS, live(groupB)); const dB=focusFire(bFS, live(groupA));
+    applyDmg(dA); applyDmg(dB);
+  }
+  // Main step: surviving NON-FS units strike simultaneously (FS units already struck and don't strike again).
+  const mainA=groupA.filter(c=>!c.fs&&c.h>0);
+  const mainB=groupB.filter(c=>!c.fs&&c.h>0);
+  const dA=focusFire(mainA, live(groupB));
+  const dB=focusFire(mainB, live(groupA));
+  applyDmg(dA); applyDmg(dB);
+  cleanup();
+}
+// thin compatibility shim
+function resolveClash(attackers,blockers){ resolveCombat(attackers,blockers); }
+
+// AI (as defender) decides whether to interpose against the player's strike.
+function aiChooseInterceptors(attackers, info){
+  const elig=info.elig||[]; if(!elig.length) return [];
+  const P=info.power!=null?info.power:sumA(attackers);
+  if(info.cc){ // defend the command center — throw bodies if the hit is real
+    if(!(P>=G.P.foe.life || P>=4)) return [];
+    const survivor=elig.filter(r=>r.c.h>P).sort((a,b)=>a.c.h-b.c.h)[0];
+    if(survivor) return [survivor];
+    return elig.sort((a,b)=>a.c.h-b.c.h).slice(0,2);
+  }
+  if(info.kind==='charge'){ // worth a body to save a funded face-down
+    const survivor=elig.filter(r=>r.c.h>P).sort((a,b)=>a.c.h-b.c.h)[0];
+    if(survivor) return [survivor];
+  }
+  return []; // otherwise let it land — don't trade to save a single creature
+}
+
+// A face-down card is ATTACKED → flips up. Under-funded = interrupted (destroyed, banked ◆ lost); funded = resolves and fights back.
+function provokeFaceDown(defOwner, key, slot, attackers){
+  const arr=rowArr(key); const o=arr[slot]; if(!o||o.kind!=='charge')return;
+  const ey=defOwner==='you'?'y':'e', them=defOwner==='you'?'e':'y';
+  if(o.inv < o.card.c){
+    log(`<span class="${them}">The strike catches a half-formed card — interrupted! ◆${o.inv} banked is lost.</span>`,them);
+    toGrave(defOwner,o); arr[slot]=null; cleanup(); return;
+  }
+  log(`<span class="${ey}">Provoked! ${defOwner==='you'?'Your':'Their'} face-down erupts to meet the attack.</span>`,ey);
+  flip(defOwner, whichOf(key), slot);          // consumes cost, banks surplus, becomes a live unit
+  const now=arr[slot];
+  if(now&&now.kind==='creature'){ resolveCombat(attackers,[now]); }      // it swings back, simultaneous
+  else if(now){ applyDmg(focusFire(attackers,[now])); cleanup(); }       // a structure just takes the hit
+}
+// A face-down TRAP is ATTACKED (or otherwise provoked) → springs on the attacking group.
+function springTrap(defOwner, key, slot, attackers){
+  const arr=rowArr(key); const t=arr[slot]; if(!t||t.kind!=='trap')return;
+  const ey=defOwner==='you'?'y':'e'; const card=t.card;
+  log(`<span class="${ey}">${card.nm} springs on the attacker${attackers.length>1?'s':''}!</span>`,ey);
+  if(card.effect==='pitfall'){ const v=[...attackers].sort((a,b)=>b.a-a.a)[0]; if(v){ log(`&nbsp;&nbsp;${v.nm} is dragged down — destroyed.`); v.h=0; } }
+  else if(card.effect==='burn'){ attackers.forEach(a=>a.h-=card.val); log(`&nbsp;&nbsp;${card.val} damage to ${attackers.length} attacker(s).`); }
+  G.P[defOwner].grave.push(spellRec(card)); arr[slot]=null; cleanup();
+}
+
+function doExtract(type){
+  if(!canExtract()){setHint('Extract with a single creature.');return;}
+  const s=G.atk[0]; const me=G.P.you[s.w][s.i];
+  if(!me||me.kind!=='creature'){clearAtk();render();return;}
+  if(me.sick){setHint('Summoning-sick — it can act next turn.');return;}
+  if(me.tapped){setHint('Already tapped this turn.');return;}
+  me.tapped=true;
+  const base=(s.w==='front')?2:1;
+  log(`<span class="s">${me.nm} extracts from the ${s.w==='front'?'front line':'base'}.</span>`,'s');
+  applyRes(base,'you',me,type);
+  clearAtk(); render(); checkWin();
+}
+function extractChoiceHTML(which,fn){
+  const cols=extractColors('you',which);
+  return ['gen',...cols].map(t=>`<button onclick="${fn}('${t}')">${manaGlyph(t)} ${t==='gen'?'Generic':cap(t)}</button>`).join(' ');
+}
+window.extractSel=()=>{ if(!(G.turn==='you'&&!G.busy&&!G.over&&canExtract()))return;
+  const s=G.atk[0]; const cols=extractColors('you',s.w);
+  if(!cols.length){doExtract('gen');return;}
+  setHint(`Extract ◆${extractYield(s.w)} as — ${extractChoiceHTML(s.w,'doExtractAs')}`);
+};
+window.doExtractAs=t=>{ if(G.turn==='you'&&!G.busy&&!G.over&&canExtract())doExtract(t); };
+
+/* ---------- minions (a per-row pool, not board cards) ---------- */
+function minYield(which){return which==='back'?1:2;}
+window.selectMinPool=(which)=>{
+  if(G.turn!=='you'||G.busy||G.over)return;
+  G.sel=null; G.atk=[]; G.moveFrom=null; G.moveMana=null; G.cardMenu=null;
+  G.minSel={owner:'you',which};
+  const list=minPool('you',which);
+  const up=list.filter(m=>!m.tapped&&!m.sick&&!m.moved).length;
+  const upE=list.filter(m=>!m.tapped&&!m.sick).length;
+  const where=which==='center'?'the contested center':(which==='front'?'your front line':'your base');
+  const ex=upE>0?`<button onclick="minExtract('${which}')">⚒ Extract ◆${minYield(which)}</button>`:'';
+  const adv=(which!=='center'&&up>0)?`<button onclick="minMove('${which}','adv')">▲ Advance</button>`:'';
+  const ret=(which!=='back'&&up>0)?`<button onclick="minMove('${which}','ret')">▼ Retreat</button>`:'';
+  const acts=`${ex}${adv}${ret}`;
+  setHint(`<b style="color:#e6cf86">⚒ Workers · ${where}</b> (${list.length}, ${upE} ready) &nbsp;${acts||'<span class="cant">none ready to act</span>'} <button class="set" onclick="clearMinSel()">Done</button>`);
+  render();
+};
+window.clearMinSel=()=>{ G.minSel=null; defaultHint(); render(); };
+window.minExtract=(which)=>{
+  if(G.turn!=='you'||G.busy||G.over)return;
+  const cols=extractColors('you',which);
+  if(!cols.length){minExtractAs(which,'gen');return;}
+  setHint(`Worker extracts ◆${minYield(which)} as — ${['gen',...cols].map(t=>`<button onclick="minExtractAs('${which}','${t}')">${manaGlyph(t)} ${t==='gen'?'Generic':cap(t)}</button>`).join(' ')} <button class="set" onclick="selectMinPool('${which}')">Back</button>`);
+};
+window.minExtractAs=(which,type)=>{
+  if(G.turn!=='you'||G.busy||G.over)return;
+  const m=minPool('you',which).find(x=>!x.tapped&&!x.sick); if(!m)return;
+  m.tapped=true;
+  log(`<span class="s">A Worker extracts from ${which==='center'?'the contested center':(which==='front'?'the front line':'the base')}.</span>`,'s');
+  applyRes(minYield(which),'you',m,type);
+  selectMinPool(which); checkWin();
+};
+window.minMove=(which,dir)=>{
+  if(G.turn!=='you'||G.busy||G.over)return;
+  const order=['back','front','center'];
+  const k=order.indexOf(which); const to=dir==='adv'?order[k+1]:order[k-1];
+  if(!to)return;
+  const src=minPool('you',which); const idx=src.findIndex(x=>!x.tapped&&!x.sick&&!x.moved);
+  if(idx<0)return;
+  const m=src.splice(idx,1)[0]; m.moved=true; m.owner='you'; minPool('you',to).push(m);
+  log(`<span class="y">A Minion ${dir==='adv'?'advances to':'falls back to'} ${to==='center'?'the contested center':(to==='front'?'the front line':'the base')}.</span>`,'y');
+  selectMinPool(to);
+};
+function inspectMinion(owner,which){
+  const list=minPool(owner,which); const up=list.filter(m=>!m.tapped&&!m.sick).length;
+  const where=which==='center'?'the contested center':(which==='front'?(owner==='you'?'your front line':'the enemy front'):(owner==='you'?'your base':'the enemy base'));
+  showInspect(`⚒ Workers · ${where}`,
+    `${list.length} Worker${list.length===1?'':'s'} here (${up} ready, ${list.length-up} tapped). Each is a <b>0/2</b> ⚒ token.<br><b>Harvester.</b> Extract — ◆1 from the base, ◆2 from the front line or the center — as <b>generic</b> mana, or as <b>any color among your units in that row</b> (your command center counts for its colors).<br><b>Cannot attack</b>, but can <b>intercept</b> a strike (it soaks the hit, dealing none back) and can be raided directly.<br><i>Workers are tokens on the rail beside the field, not board cards. Train adds one at your base; Advance/Retreat shifts one between base, front line, and center.</i>`);
+}
+// player's attackers strike an enemy minion pool (a stack of 0/2 bodies)
+const WELL2ROW={wellFoeBack:'foeBack',wellFoeFront:'foeFront',wellCenter:'center',wellYouFront:'youFront',wellYouBack:'youBack'};
+function attackMinionStack(key,owner,which){
+  if(WELL2ROW[key])key=WELL2ROW[key];
+  const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
+  if(!attackers.length){clearAtk();render();return;}
+  const list=minPool(owner,which); if(!list.length){clearAtk();render();return;}
+  const aIdx=rowIdx(attackerRowKey()), tIdx=rowIdx(key);
+  attackers.forEach(a=>a.tapped=true);
+  if(Math.abs(aIdx-tIdx)>1){
+    const elig=eligibleInterceptors('you',aIdx,tIdx);
+    const chosen=aiChooseInterceptors(attackers,{kind:'creature',elig});
+    if(chosen.length){
+      chosen.forEach(r=>r.c.tapped=true);
+      log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike is met midway.</span>`,'e');
+      resolveCombat(attackers,chosen.map(r=>r.c)); clearAtk(); render(); checkWin(); return;
+    }
+  }
+  log(`<span class="y">You strike the enemy Minions with ${attackers.length} creature(s).</span>`,'y');
+  resolveCombat(attackers, list.slice());
+  clearAtk(); render(); checkWin();
+}
+
+/* ---------- movement (once/turn; across your base ↔ front ↔ contested center) ---------- */
+const MOVEZONES=['back','front','center']; // your side, far → near → contested
+function adjacent(w1,i1,w2,i2){ if(w1===w2)return Math.abs(i1-i2)===1; const a=MOVEZONES.indexOf(w1),b=MOVEZONES.indexOf(w2); if(a<0||b<0)return false; return i1===i2&&Math.abs(a-b)===1; }
+function adjCells(w,i){ const out=[]; if(i>0)out.push([w,i-1]); if(i<SLOTS-1)out.push([w,i+1]); const k=MOVEZONES.indexOf(w); if(k>0)out.push([MOVEZONES[k-1],i]); if(k>=0&&k<MOVEZONES.length-1)out.push([MOVEZONES[k+1],i]); return out; }
+function canMoveCard(w,i){ const c=cellArr('you',w)[i]; if(!c||c.kind!=='creature'||c.moved)return false; return adjCells(w,i).some(([aw,ai])=>!cellArr('you',aw)[ai]); }
+function moveBtn(w,i){ return canMoveCard(w,i)?` <button onclick="startMove('${w}',${i})">⤧ Move</button>`:''; }
+window.startMove=(w,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(w,i))return; G.moveFrom={w,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null; setHint('Tap an open adjacent space — base, front line, or the contested center — to reposition (or tap the unit again to cancel).'); render(); };
+window.cancelMove=()=>{ G.moveFrom=null; defaultHint(); render(); };
+function doMove(toW,toI){
+  if(!G.moveFrom)return; const {w,i}=G.moveFrom; const c=cellArr('you',w)[i];
+  if(!c||c.kind!=='creature'||c.moved){ G.moveFrom=null; defaultHint(); render(); return; }
+  if(cellArr('you',toW)[toI]||!adjacent(w,i,toW,toI)){ setHint('Pick an open adjacent space.'); return; }
+  cellArr('you',w)[i]=null; c.moved=true; c.owner='you'; cellArr('you',toW)[toI]=c;
+  log(`<span class="y">${c.nm} repositions to ${toW==='center'?'the contested center':(toW==='front'?'your front line':'your base')}.</span>`,'y');
+  G.moveFrom=null; defaultHint(); render();
+}
+function attackerRowKey(){ return G.atk.length?mineKey(G.atk[0].w):'youFront'; }
+function doAttack(which,ti){
+  const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
+  if(!attackers.length){clearAtk();render();return;}
+  const tgtKey=rowKeyFor('foe',which); const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
+  const tgt=unitAt(tgtKey,ti); if(!tgt){clearAtk();render();return;}
+  attackers.forEach(a=>a.tapped=true);
+  // Not adjacent → the strike travels; the enemy may interpose units in any intervening row.
+  if(Math.abs(aIdx-tIdx)>1){
+    const elig=eligibleInterceptors('you',aIdx,tIdx);
+    const chosen=aiChooseInterceptors(attackers,{kind:tgt.kind,cc:!!tgt.cc,elig});
+    if(chosen.length){
+      chosen.forEach(r=>r.c.tapped=true);
+      log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike is met midway, the target spared.</span>`,'e');
+      resolveCombat(attackers,chosen.map(r=>r.c)); clearAtk(); render(); checkWin(); return;
+    }
+  }
+  if(tgt.kind==='charge'){ provokeFaceDown('foe',tgtKey,ti,attackers); }
+  else if(tgt.kind==='trap'){ springTrap('foe',tgtKey,ti,attackers); }
+  else if(tgt.kind==='building'){ log(`<span class="y">You strike the enemy ${tgt.nm}.</span>`,'y'); applyDmg(focusFire(attackers,[tgt])); cleanup(); }
+  else { log(`<span class="y">You attack ${tgt.nm} with ${attackers.length} creature(s).</span>`,'y'); resolveCombat(attackers,[tgt]); }
+  clearAtk(); render(); checkWin();
+}
+/* The player chooses interceptors when the AI's strike travels through rows they hold. Refs are {key,i}. */
+function askBlock(opts){
+  return new Promise(resolve=>{
+    const elig=(opts.elig||[]).map((r,idx)=>({ref:r,idx,c:r.c||unitAt(r.key,r.i)})).filter(x=>x.c);
+    if(!elig.length){resolve([]);return;}
+    const sel=new Set(); const A=opts.attacker.a;
+    const box=$('contestPanel').querySelector('.box');
+    box.innerHTML=`<div class="ptitle" style="color:var(--tide)">${opts.title||'Incoming Attack'}</div>`+
+      `<div class="pmeta" style="margin-bottom:6px;color:var(--ink)">${opts.desc||''}</div>`+
+      `<div class="pmeta" style="margin-bottom:8px;font-style:italic;opacity:.7">Interpose untapped units from a single intervening row — they clash with the attacker and the original target is spared.</div>`+
+      `<div class="pmeta" id="bkMeta"></div><div class="cgrid" id="bkGrid"></div>`+
+      `<div class="pacts"><button class="flip" id="bkGo"></button></div>`+
+      `<button class="pclose" id="bkPass">Let it through</button>`;
+    const grid=box.querySelector('#bkGrid'); const btns=[];
+    elig.forEach(e=>{
+      const c=e.c;
+      const b=document.createElement('button'); b.className='cbtn '+(c.worker?'vil':(clsOf[c.color]||'crt'));
+      b.innerHTML=`<div class="nm">${c.worker?'⚒ Minion':c.nm}</div><div class="stats"><span class="atk">⚔${c.a}</span><span class="hp">♥${c.h}</span></div><div style="font-size:9px;opacity:.55">${rowName(e.ref.key)}</div>`;
+      b.addEventListener('click',()=>{
+        if(sel.has(e.idx)){sel.delete(e.idx);b.classList.remove('bon');}
+        else{ if(sel.size){ const lockRow=elig.find(x=>x.idx===[...sel][0]).ref.key; if(e.ref.key!==lockRow)return; } sel.add(e.idx); b.classList.add('bon'); }
+        upd();
+      });
+      btns.push({b,row:e.ref.key}); grid.appendChild(b);
+    });
+    const go=box.querySelector('#bkGo'), pass=box.querySelector('#bkPass'), meta=box.querySelector('#bkMeta');
+    function chosen(){return [...sel].map(ix=>elig.find(x=>x.idx===ix));}
+    function upd(){
+      const lockRow=sel.size?elig.find(x=>x.idx===[...sel][0]).ref.key:null;
+      btns.forEach(({b,row})=>{const cross=lockRow&&row!==lockRow;b.disabled=cross;b.style.opacity=cross?'.32':'';});
+      const D=chosen().reduce((s,e)=>s+(e.c?e.c.a:0),0);
+      go.textContent='Interpose '+sel.size+(sel.size?` (deal ⚔${D})`:''); go.disabled=sel.size===0;
+      meta.textContent=`your interceptors ⚔${D} · incoming ⚔${A}`+(lockRow?` · ${rowName(lockRow)}`:'');
+    }
+    function close(){$('contestPanel').style.display='none';}
+    go.addEventListener('click',()=>{const r=chosen().map(e=>({key:e.ref.key,i:e.ref.i,c:e.c}));close();resolve(r);});
+    pass.addEventListener('click',()=>{close();resolve([]);});
+    upd(); $('contestPanel').style.display='flex';
+  });
+}
+
+function applyRes(base,owner,creature,type){
+  type=type||'gen'; const P=G.P[owner]; const v=base;
+  if(type==='gen')P.mana=Math.min(20,P.mana+v);
+  else P.cmana[type]=Math.min(20,P.cmana[type]+v);
+  log(`&nbsp;&nbsp;<span class="s">+${v} ${type==='gen'?'generic':cap(type)} ${manaGlyph(type)}.</span>`,'s'); P.firstExtract=false;
+}
+
+/* commander crest, passives, and once-per-game powers removed — the deck does the talking (v19) */
+
+function cleanup(){
+  ['you','foe'].forEach(o=>{['front','back'].forEach(w=>{const b=G.P[o][w];
+    for(let i=0;i<SLOTS;i++){const c=b[i];if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0){log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} ${c.kind==='building'?'is razed':'falls'}.`);toGrave(o,c);b[i]=null;}}});});
+  for(let i=0;i<SLOTS;i++){const c=G.center[i];if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0){const o=c.owner;log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} falls in the center.`);toGrave(o,c);G.center[i]=null;}}
+  ['you','foe'].forEach(o=>['back','front','center'].forEach(w=>{const pool=G.P[o].min[w];for(let i=pool.length-1;i>=0;i--){if(pool[i].h<=0){log(`&nbsp;&nbsp;${o==='you'?'Your':'A'} Minion falls.`);toGrave(o,pool[i]);pool.splice(i,1);}}}));
+  enforceCap('you'); enforceCap('foe');
+}
+
+/* ---------- turns ---------- */
+function buildingUpkeep(owner){
+  const P=G.P[owner];
+  const tick=o=>{ if(o&&o.kind==='building'){
+    if(o.eff==='mana'){P.mana=Math.min(20,P.mana+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ◆${o.val}.</span>`,owner==='you'?'y':'e');}
+    else if(o.eff==='villager'){trainVillager(owner);}
+  }};
+  ['front','back'].forEach(w=>P[w].forEach(tick));
+  G.center.forEach(o=>{ if(o&&o.owner===owner) tick(o); });
+}
+function startTurn(owner){
+  G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
+  P.mana=Math.min(20,P.mana+1); P.firstExtract=true; P.villagerUsed=false;
+  ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}}));
+  G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}});
+  ['back','front','center'].forEach(w=>P.min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;}));
+  buildingUpkeep(owner);
+  drawCard(owner);
+  if(owner==='you'){log(`<span class="y">— Your turn (◆${P.mana}) —</span>`);defaultHint();}
+}
+$('endBtn').addEventListener('click',endTurn);
+$('conscriptBtn').addEventListener('click',()=>{
+  if(G.turn!=='you'||G.busy||G.over||G.P.you.villagerUsed)return;
+  if(!canTrain('you')){ setHint(`Worker cap reached (${minionCount('you')}/${workerCap('you')}). Build structures for more support, or thin your monsters.`); render(); return; }
+  G.sel=null; G.atk=[]; G.moveFrom=null; G.cardMenu=null; G.moveMana=null; G.minSel=null;
+  trainVillager('you'); G.P.you.villagerUsed=true;
+  defaultHint(); render();
+});
+function endTurn(){
+  if(G.turn!=='you'||G.busy||G.over)return;
+  if(manaTotal('you')>0) log(`<span class="y">◆${manaTotal('you')} unspent mana drains away — mana doesn't carry between turns.</span>`,'y');
+  G.P.you.mana=0; COLORS.forEach(c=>G.P.you.cmana[c]=0);
+  G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.busy=true;render();
+  startTurn('foe');log('<span class="e">— Opponent\'s turn —</span>','e');render();
+  setTimeout(foeTurn,650);
+}
+/* enumerate AI attackers (foe front line + any foe units contesting the center) */
+function aiAttackers(){ const out=[];
+  G.P.foe.front.forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped) out.push({key:'foeFront',i}); });
+  G.center.forEach((c,i)=>{ if(c&&c.owner==='foe'&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped) out.push({key:'center',i}); });
+  return out;
+}
+/* everything of the player's that an attack could land on */
+function yourFieldTargets(){ const out=[];
+  ['youFront','youBack'].forEach(key=>rowArr(key).forEach((o,i)=>{ if(o) out.push({key,i,o}); }));
+  G.center.forEach((o,i)=>{ if(o&&o.owner==='you') out.push({key:'center',i,o}); });
+  return out;
+}
+function aiPickTarget(m){
+  const fld=yourFieldTargets();
+  const ch=fld.filter(t=>t.o.kind==='charge'&&t.o.inv>=2).sort((a,b)=>b.o.inv-a.o.inv)[0];
+  if(ch&&Math.random()<0.6) return ch;
+  const kill=fld.filter(t=>t.o.kind==='creature'&&m.a>=t.o.h).sort((a,b)=>a.o.h-b.o.h)[0];
+  if(kill) return kill;
+  const bld=fld.filter(t=>t.o.kind==='building').sort((a,b)=>a.o.h-b.o.h)[0];
+  if(bld&&Math.random()<0.3) return bld;
+  // otherwise march on the command center itself
+  const i=G.P.you.back.findIndex(x=>x&&x.cc);
+  return i>=0?{key:'youBack',i,o:G.P.you.back[i]}:null;
+}
+async function foeTurn(){
+  const F=G.P.foe,Y=G.P.you;
+  // fuel charges (front line + contested center)
+  for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','front',i);}}
+  for(let i=0;i<SLOTS;i++){const ch=G.center[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','center',i);}}
+  // train a minion if economy thin (minions live in the base pool)
+  const vcount=F.min.back.length+F.min.front.length+F.min.center.length;
+  if(vcount<2&&!F.villagerUsed){trainVillager('foe');F.villagerUsed=true;render();}
+  // extract positionally: minions (base ◆1, front/center ◆2), plus idle front soldiers when mana is thin
+  let harvested=0;
+  const harvesters=[];
+  F.min.back.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'back'});});
+  F.min.front.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'front'});});
+  F.min.center.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'center'});});
+  F.front.forEach((c,i)=>{if(c&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped&&F.mana<3)harvesters.push({c,w:'front'});});
+  const aiExtractType=(w)=>{
+    const opts=extractColors('foe',w);
+    if(!opts.length)return 'gen';
+    for(const card of F.hand){ if(colorNeed(card)&&F.cmana[card.color]<1&&opts.includes(card.color))return card.color; }
+    return Math.random()<.5?opts[0]:'gen';
+  };
+  for(const {c,w} of harvesters){
+    if(harvested>=3)break;
+    c.tapped=true; const base=w==='back'?1:2; const ty=aiExtractType(w);
+    log(`<span class="e">${c.worker?'A Worker':c.nm} extracts ◆${base} from ${w==='center'?'the center':('the '+w)}.</span>`,'e');
+    applyRes(base,'foe',c,ty);
+    harvested++; render();
+  }
+  cleanup();
+  // build a structure sometimes
+  if(structuresOf('foe').length===0||Math.random()<0.4){const bIdx=F.hand.findIndex(c=>c.type==='building'&&c.c<=manaTotal('foe'));const bs=F.back.findIndex(x=>!x);if(bIdx>=0&&bs>=0){const card=F.hand[bIdx];payAny('foe',card.c);F.hand.splice(bIdx,1);F.back[bs]=mkBld(card,'foe');log(`<span class="e">Opponent builds a ${card.nm}.</span>`,'e');}}
+  // cast a raze spell on one of your structures
+  let rzi=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='raze'&&canPay('foe',c));
+  if(rzi>=0){ let tk=null,ti=-1; ['youBack','youFront'].forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.kind==='building'){tk=key;ti=j;}}));
+    if(tk!==null){ const card=F.hand[rzi]; payCost('foe',card); F.hand.splice(rzi,1); resolveSpell(card,'you',whichOf(tk),ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
+  // burn your strongest soldier
+  let bni=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='burn'&&canPay('foe',c));
+  if(bni>=0){ let best=-1,tk=null,ti=-1;
+    ['youFront','youBack'].forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.kind==='creature'&&!o.worker&&o.a>best){best=o.a;tk=key;ti=j;}}));
+    G.center.forEach((o,j)=>{if(o&&o.owner==='you'&&o.kind==='creature'&&!o.worker&&o.a>best){best=o.a;tk='center';ti=j;}});
+    if(tk!==null){ const card=F.hand[bni]; payCost('foe',card); F.hand.splice(bni,1); resolveSpell(card,'you',whichOf(tk),ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
+  // arm a trap if it holds one and a slot is open
+  { const tpi=F.hand.findIndex(c=>c.type==='spell'&&c.trap);
+    if(tpi>=0){ let w='back',s=F.back.findIndex(x=>!x); if(s<0){w='front';s=F.front.findIndex(x=>!x);}
+      if(s>=0){ const card=F.hand[tpi]; F.hand.splice(tpi,1);
+        G.P.foe[w][s]={kind:'trap',owner:'foe',w,card:{nm:card.nm,c:card.c,effect:card.effect,trigger:card.trigger,val:card.val,ic:card.ic,art:card.art,trap:true},setTurn:G.turnNo};
+        log('<span class="e">Opponent sets a face-down card.</span>','e'); render(); } } }
+  // summon soldiers — sometimes pushing into the contested center to fight for it
+  let guard=0;
+  let cands=F.hand.map((c,i)=>({c,i})).filter(x=>x.c.type==='creature'&&canPay('foe',x.c)).sort((a,b)=>b.c.c-a.c.c);
+  for(const {c} of cands){ if(guard++>6)break;
+    const idx=F.hand.indexOf(c); if(idx<0||!canPay('foe',c))continue;
+    let key='foeFront', empty=F.front.findIndex(x=>!x);
+    const cEmpty=G.center.findIndex(x=>!x);
+    if(cEmpty>=0&&(empty<0||Math.random()<0.35)){ key='center'; empty=cEmpty; }
+    if(empty<0)continue;
+    payCost('foe',c);F.hand.splice(idx,1);const cr=mkCre(c,'foe',false);cr.sick=true;rowArr(key)[empty]=cr;
+    log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h})${key==='center'?' into the contested center':''}.</span>`,'e'); enforceCap('foe'); render();
+    await playerTrapOnSummon(cr,whichOf(key),empty); if(G.over)return; }
+  render();
+  // attack — strikes travel across rows; you may interpose units in any row they cross
+  for(const atk of aiAttackers()){
+    const m=unitAt(atk.key,atk.i); if(!m||m.tapped)continue;
+    const aIdx=rowIdx(atk.key);
+    const tref=aiPickTarget(m); if(!tref)continue;
+    const tIdx=rowIdx(tref.key);
+    m.tapped=true;
+    let blk=[];
+    if(Math.abs(aIdx-tIdx)>1){
+      const elig=eligibleInterceptors('foe',aIdx,tIdx);
+      if(elig.length){
+        const tgtName='your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
+        blk=await askBlock({attacker:m,elig,title:'Incoming Attack',desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${tgtName}.`});
+      }
+    }
+    if(blk.length){ const defs=blk.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean); defs.forEach(d=>d.tapped=true); log(`<span class="y">You interpose ${defs.length}!</span>`,'y'); resolveCombat([m],defs); }
+    else { const o=tref.o;
+      if(o.kind==='charge'){ provokeFaceDown('you',tref.key,tref.i,[m]); }
+      else if(o.kind==='trap'){ springTrap('you',tref.key,tref.i,[m]); }
+      else if(o.kind==='building'){ log(`<span class="e">${m.nm} raids your ${o.nm}.</span>`,'e'); applyDmg(focusFire([m],[o])); cleanup(); }
+      else { log(`<span class="e">${m.nm} attacks your ${o.nm}.</span>`,'e'); resolveCombat([m],[o]); }
+    }
+    render(); checkWin(); if(G.over)return;
+  }
+  cleanup();render();checkWin();
+  if(G.over)return;
+  if(manaTotal('foe')>0) log(`<span class="e">Opponent's ◆${manaTotal('foe')} unspent mana drains away.</span>`,'e');
+  F.mana=0; COLORS.forEach(c=>F.cmana[c]=0); render();
+  setTimeout(()=>{G.busy=false;startTurn('you');render();},650);
+}
+
+function checkWin(){
+  if(G.over)return;
+  // the duel ends the moment a command center falls
+  const youOut=!findCC('you');
+  const foeOut=!findCC('foe');
+  if(foeOut||youOut){
+    G.over=true; const win=foeOut&&!youOut;
+    $('bannerMsg').textContent=win?'VICTORY':'DEFEAT';
+    $('bannerMsg').style.color=win?'var(--gold)':'#e35b4f';
+    let sub=win?'The enemy command center is razed.':'Your command center has fallen.';
+    const bm=$('bannerMsg'); if(bm.nextElementSibling&&bm.nextElementSibling.className==='bsub')bm.nextElementSibling.remove();
+    if(sub){ const d=document.createElement('div'); d.className='bsub'; d.style.cssText='font-size:14px;color:var(--ink);margin-top:6px;font-style:italic'; d.textContent=sub; bm.after(d); }
+    $('banner').style.display='flex';
+  }
+}
+/* ---------- tap-to-inspect: every card explains itself ---------- */
+function addInspect(host,fn){
+  const b=document.createElement('div'); b.className='inspect'; b.textContent='ⓘ';
+  b.addEventListener('click',e=>{e.stopPropagation(); fn();});
+  host.appendChild(b);
+}
+function bldEffectText(eff,val,sup){
+  const supTxt=sup?` Grants <b>+${sup} worker cap</b> while it stands.`:'';
+  if(eff==='mana') return `<b>Forge.</b> Yields <b>◆${val} mana</b> at the start of its owner's turn.${supTxt}`;
+  if(eff==='villager') return `<b>Longhouse.</b> Trains a free <b>Minion</b> (0/2 ⚒) into its owner's base pool at the start of its owner's turn.${supTxt}`;
+  return `Structure with no upkeep effect.${supTxt}`;
+}
+function showInspect(title,body){
+  const box=$('viewerPanel').querySelector('.box');
+  const parts=title.split('·');
+  const name=parts.shift().trim();
+  const sub=parts.join(' · ').trim();
+  box.innerHTML=`<div class="ihead">${name}${sub?`<span class="isub">${sub}</span>`:''}</div>
+    <div class="ibody">${body}</div>
+    <button class="pclose" onclick="closeViewer()">Close</button>`;
+  $('viewerPanel').classList.add('left');
+  $('viewerPanel').style.display='flex';
+}
+function bigArt(src){return src?`<div class="iart"><img src="${src}" alt=""></div>`:'';}
+function inspectRef(owner,which,i){
+  const o=cellArr(owner,which)[i]; if(!o)return; const me=owner==='you';
+  if(o.kind==='charge'){
+    if(!me){ showInspect('Face-down · hidden',
+      `Your opponent's set card — its identity is concealed.<br>Banked so far: <b>◆${o.inv}</b> (resources are always public; the card is not).<br>It could be a creature <i>or</i> a structure. <b>Attack it to provoke it:</b> if it's under-funded it's interrupted and destroyed (banked ◆ lost); if it's fully funded it flips up and fights back.`); return; }
+    const isB=o.ctype==='building';
+    const stat=isB?`♥${o.card.h}`:`⚔${o.card.a} / ♥${o.card.h}${o.card.fs?' · First Strike':''}`;
+    const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):(o.card.fs?'<b>First Strike.</b> Strikes before the simultaneous step — a killed attacker never hits back.':'No special ability.');
+    const ready=o.inv>=o.card.c;
+    showInspect(`${o.card.nm} · face-down ${isB?'structure':'creature'}`,
+      `${bigArt(o.card.art)}Only you can see what this is.<br>${isB?'Raise':'Summon'} cost <b>◆${o.card.c}</b> · banked <b>◆${o.inv}</b>${ready?' ✓ funded':` (◆${o.card.c-o.inv} more to fund)`} · ${stat}<br>${eff}<br><i>Bank ◆ across turns. If attacked while under-funded it's interrupted (destroyed, ◆ lost); once funded it can ${isB?'raise':'flip'} (surplus ◆ banks on it). A card face-down for a full turn flips with no summoning sickness — it can strike at once.</i>`);
+    return;
+  }
+  if(o.kind==='trap'){
+    if(!me){ showInspect('Face-down · hidden', `Your opponent's set card — concealed. It may be a <b>trap</b>: attacking or summoning into it can spring it. Probe with care.`); return; }
+    showInspect(`${o.card.nm} · Trap (armed)`,
+      `${bigArt(o.card.art)}${spellText(o.card)}<br><i>Springs when provoked — when its trigger fires on your opponent's turn (you choose whether to spring it), or immediately on the attacker if this card is itself attacked — then goes to the graveyard.</i>`);
+    return;
+  }
+  if(o.kind==='building'){
+    showInspect(`${o.nm} · Structure`,
+      `${bigArt(o.art)}Cost <b>◆${o.c}</b> · ♥${o.h}/${o.maxh}${o.sup?` · <b>⚒+${o.sup} cap</b>`:''}${o.bank>0?` · <b>◆${o.bank} stored</b>`:''}<br>${bldEffectText(o.eff,o.val,o.sup)}<br><i>Doesn't move or attack and works in any row. Has HP and can be razed — <b>lose every structure and you lose the game.</b>${o.bank>0?' Holds stored ◆ — Send it elsewhere or play a card on top to spend it. Razing this structure burns the stored ◆ too.':''}</i>`);
+    return;
+  }
+  // creature
+  const role=o.worker?'Minion (⚒ worker)':'Creature';
+  const abilities=[];
+  if(o.worker) abilities.push('<b>Harvester.</b> Extract for resources (◆1 from the base, ◆2 from the front line or center). Can block but cannot attack.');
+  if(!o.worker&&o.up>0) abilities.push(`<b>Upkeep ⚒-${o.up}.</b> While it stands it consumes <b>${o.up} worker cap</b> — a bigger army leaves room for fewer harvesters.`);
+  if(o.fs) abilities.push('<b>First Strike.</b> Strikes before the simultaneous step — anything it kills never hits back. The front-line survival tool.');
+  const eff=abilities.length?abilities.join('<br>'):'No special ability.';
+  const tags=[]; if(o.sick)tags.push('summoning-sick'); if(o.tapped)tags.push('tapped'); if(o.moved)tags.push('moved this turn'); if(o.bank>0)tags.push(`◆${o.bank} banked`); if(which==='center')tags.push('contesting the center');
+  showInspect(`${o.nm} · ${role}${o.fs?' · First Strike':''}`,
+    `${bigArt(o.art)}Cost <b>◆${o.c}</b> · ⚔${o.a} / ♥${o.h}/${o.maxh}<br>${eff}<br><i>Taps when it attacks, extracts, or intercepts. May move once per turn to an open adjacent space — base, front line, or the contested center. Attacks target any row; if more than one row away, the strike can be intercepted in the rows it crosses.</i>${tags.length?`<br>Now: ${tags.join(', ')}.`:''}`);
+}
+function inspectHand(i){
+  const c=G.P.you.hand[i]; if(!c)return; const isB=c.type==='building';
+  if(c.type==='spell'){
+    if(c.trap){
+      showInspect(`${c.nm} · Trap card`,
+        `${bigArt(c.art)}This is in your hand — it has no effect here. <b>Set</b> it face-down for free into any empty slot.<br>Once it's on the field and armed (from your next turn on): ${spellText(c)}<br><i>It springs during your opponent's turn when the trigger fires — you choose whether to spring it — then goes to the graveyard.</i>`);
+    } else {
+      showInspect(`${c.nm} · Spell card`,
+        `${bigArt(c.art)}Cost <b>◆${c.c}</b>.<br>${spellText(c)}<br><i>Cast on your turn — tap a legal enemy target — then it goes to the graveyard.</i>`);
+    }
+    return;
+  }
+  const stat=isB?`♥${c.h}${c.sup?` · ⚒+${c.sup} cap`:''}`:`⚔${c.a} / ♥${c.h}${c.up?` · ⚒-${c.up} cap`:''}`;
+  const eff=isB?bldEffectText(c.eff,c.val,c.sup):(c.up?`<b>Upkeep ⚒-${c.up}.</b> Consumes ${c.up} worker cap while it stands.`:'No special ability.');
+  showInspect(`${c.nm} · ${isB?'Structure':'Creature'} (in hand)`,
+    `${bigArt(c.art)}Cost <b>◆${c.c}</b> · ${stat}<br>${eff}<br><i>${isB?'Build':'Summon'} face-up (pay now), or <b>Set</b> face-down for free, into any empty slot — front line or base.${isB?' Structures are your lifeline: lose them all and you lose.':''}</i>`);
+}
+
+/* ---------- deck / graveyard viewer ---------- */
+window.openViewer=function(zone,owner){
+  $('viewerPanel').classList.remove('left');
+  const isDeck=zone==='deck';
+  const cards=isDeck?G.P[owner].deck:G.P[owner].grave;
+  const title=(owner==='you'?'Your ':'Opponent ')+(isDeck?'Deck':'Graveyard');
+  const box=$('viewerPanel').querySelector('.box');
+  if(isDeck&&owner==='foe'){
+    box.innerHTML=`<div class="vtitle">${title}</div><div class="vmeta">Hidden — ${cards.length} card${cards.length===1?'':'s'} remaining.</div><button class="pclose" onclick="closeViewer()">Close</button>`;
+    $('viewerPanel').style.display='flex'; return;
+  }
+  const groups={};
+  cards.forEach(c=>{ const key=c.nm+'|'+c.c+'|'+(c.type||''); (groups[key]=groups[key]||{c,n:0}).n++; });
+  const items=Object.values(groups).sort((a,b)=>((a.c.c||0)-(b.c.c||0))||a.c.nm.localeCompare(b.c.nm));
+  const grid=items.map(({c,n})=>{
+    const isB=c.type==='building'; const isS=c.type==='spell';
+    const cls=isS?'hcs':isB?'hcb':(c.type==='villager'?'vil':clsOf[G.P[owner].color]||'crt');
+    const stat=isS?`<span class="eff" style="color:#c9a0ff">${c.trap?'⚠ Trap':'✦ Spell'}</span>`
+                :isB?`<span style="color:var(--spawn)">${c.eff==='mana'?('◆+'+(c.val||0)):'⚒'}</span><span class="hp">♥${c.h}</span>`
+                  :`<span class="atk">⚔${c.a||0}</span><span class="hp">♥${c.h}</span>`;
+    return `<div class="vcard ${cls}">${n>1?`<div class="xn">×${n}</div>`:''}<div class="nm">${c.nm}</div><div class="vc">◆${c.c}</div><div class="stats">${stat}</div></div>`;
+  }).join('');
+  box.innerHTML=`<div class="vtitle">${title}</div>
+    <div class="vmeta">${cards.length} card${cards.length===1?'':'s'}${isDeck?' · order hidden, grouped by type':' · everything destroyed so far'}</div>
+    <div class="vgrid">${grid||'<div class="vmeta">Empty.</div>'}</div>
+    <button class="pclose" onclick="closeViewer()">Close</button>`;
+  $('viewerPanel').style.display='flex';
+};
+window.closeViewer=()=>{$('viewerPanel').style.display='none';$('viewerPanel').classList.remove('left');};
+/* ================================================================
+   v16 PRESENTATION LAYER — sound, animation, menus. Zero rules changes.
+   Everything below wraps existing functions; delete this block and the
+   game plays identically, just silent and still.
+   ================================================================ */
+
+/* ---------- SFX: all sounds synthesized live via WebAudio (no assets) ---------- */
+const SFX=(()=>{ let ctx=null,master=null,muted=false;
+  function ac(){ const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return null;
+    if(!ctx){ ctx=new AC(); master=ctx.createGain(); master.gain.value=.5; master.connect(ctx.destination); }
+    if(ctx.state==='suspended')ctx.resume(); return ctx; }
+  function env(g,t,a,d,peak){ g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+a); g.gain.exponentialRampToValueAtTime(.0001,t+a+d); }
+  function tone(o){ const c=ac(); if(!c)return; const{f=440,f2,type='sine',a=.005,d=.2,v=.4,delay=0}=o;
+    const t=c.currentTime+delay, osc=c.createOscillator(), g=c.createGain();
+    osc.type=type; osc.frequency.setValueAtTime(f,t); if(f2)osc.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+a+d);
+    env(g,t,a,d,v); osc.connect(g); g.connect(master); osc.start(t); osc.stop(t+a+d+.06); }
+  function noise(o){ const c=ac(); if(!c)return; const{d=.2,v=.35,from=4000,to=400,type='bandpass',q=1,delay=0}=o;
+    const t=c.currentTime+delay, len=Math.ceil(c.sampleRate*(d+.05)), buf=c.createBuffer(1,len,c.sampleRate), ch=buf.getChannelData(0);
+    for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+    const src=c.createBufferSource(); src.buffer=buf;
+    const flt=c.createBiquadFilter(); flt.type=type; flt.Q.value=q;
+    flt.frequency.setValueAtTime(from,t); flt.frequency.exponentialRampToValueAtTime(Math.max(30,to),t+d);
+    const g=c.createGain(); env(g,t,.005,d,v); src.connect(flt); flt.connect(g); g.connect(master); src.start(t); src.stop(t+d+.06); }
+  const S={
+    click(){tone({f:900,type:'triangle',d:.05,v:.1});},
+    draw(){noise({d:.15,from:1200,to:5200,v:.16});},
+    place(){tone({f:160,f2:70,d:.18,v:.5}); noise({d:.07,from:900,to:200,v:.12});},
+    set(){tone({f:300,f2:120,d:.12,v:.22});},
+    summon(){tone({f:220,f2:660,type:'sawtooth',d:.3,v:.16}); tone({f:880,d:.4,v:.12,delay:.12}); tone({f:1320,d:.5,v:.07,delay:.2});},
+    raise(){tone({f:90,f2:58,d:.4,v:.55}); noise({d:.3,from:500,to:120,v:.2}); tone({f:523,type:'triangle',d:.3,v:.1,delay:.18});},
+    whoosh(){noise({d:.18,from:2600,to:300,v:.3});},
+    hit(){noise({d:.12,from:1800,to:150,v:.45}); tone({f:120,f2:48,d:.16,v:.55});},
+    clash(){S.whoosh(); tone({f:120,f2:48,d:.16,v:.55,delay:.08}); noise({d:.12,from:1800,to:150,v:.45,delay:.08});},
+    raze(){tone({f:78,f2:30,d:.7,v:.65}); noise({d:.6,from:700,to:60,v:.42,type:'lowpass'});},
+    spell(){[660,880,1100,1320].forEach((f,i)=>tone({f,d:.25,v:.11,delay:i*.05}));},
+    trap(){tone({f:1400,f2:200,type:'square',d:.2,v:.16}); noise({d:.12,from:3000,to:500,v:.18,delay:.04});},
+    mana(){tone({f:1046,d:.28,v:.1}); tone({f:1568,d:.34,v:.07,delay:.04});},
+    train(){tone({f:520,f2:380,type:'square',d:.06,v:.1}); tone({f:560,f2:400,type:'square',d:.06,v:.1,delay:.12});},
+    turnYou(){tone({f:392,type:'triangle',d:.16,v:.18}); tone({f:587,type:'triangle',d:.3,v:.18,delay:.12});},
+    turnFoe(){tone({f:330,type:'triangle',d:.16,v:.14}); tone({f:247,type:'triangle',d:.3,v:.14,delay:.12});},
+    win(){[523,659,784,1046].forEach((f,i)=>tone({f,type:'triangle',d:.45,v:.2,delay:i*.13})); tone({f:1318,type:'triangle',d:.8,v:.14,delay:.55});},
+    lose(){[392,330,262,196].forEach((f,i)=>tone({f,d:.5,v:.18,delay:i*.16}));},
+  };
+  const api={};
+  Object.keys(S).forEach(k=>api[k]=function(){ if(muted)return; try{S[k]();}catch(e){} });
+  api.toggle=()=>{ muted=!muted; return muted; };
+  api.unlock=()=>{ try{ac();}catch(e){} };
+  return api;
+})();
+document.addEventListener('pointerdown',()=>SFX.unlock(),true);
+document.addEventListener('click',e=>{ if(e.target&&e.target.closest&&e.target.closest('button'))SFX.click(); },true);
+
+/* ---------- FX: overlay engine — flights, arrows, popups, ribbons, splashes ---------- */
+const FX=(()=>{
+  const RM=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||false;
+  const layer=document.createElement('div'); layer.id='fxLayer';
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); layer.appendChild(svg);
+  const vig=document.createElement('div'); vig.id='hurtVig';
+  const rib=document.createElement('div'); rib.id='turnRibbon'; rib.innerHTML='<span></span>';
+  const spl=document.createElement('div'); spl.id='splashFx';
+  spl.innerHTML='<div class="spbox"><img alt=""><div class="spname"></div><div class="spstats"></div></div>';
+  document.body.append(layer,vig,rib,spl);
+  function svgSize(){ svg.setAttribute('width',innerWidth); svg.setAttribute('height',innerHeight); }
+  addEventListener('resize',svgSize); svgSize();
+  const mk=(cls,html)=>{ const d=document.createElement('div'); d.className=cls; if(html!=null)d.innerHTML=html; layer.appendChild(d); return d; };
+  const center=r=>({x:r.left+r.width/2, y:r.top+r.height/2});
+  function flyRect(fr,tr,html,ms=300){ if(RM||!fr||!tr)return;
+    const d=mk('fx-fly',html);
+    d.style.cssText+=`left:${fr.left}px;top:${fr.top}px;width:${fr.width}px;height:${fr.height}px;transition:transform ${ms}ms cubic-bezier(.5,-.2,.6,1.15),opacity ${ms}ms;`;
+    requestAnimationFrame(()=>{ d.style.transform=`translate(${tr.left-fr.left+(tr.width-fr.width)/2}px,${tr.top-fr.top+(tr.height-fr.height)/2}px) scale(.88)`; d.style.opacity='.15'; });
+    setTimeout(()=>d.remove(),ms+80); }
+  function pop(r,text,cls='dmg'){ if(!r)return; const c=center(r); const d=mk('fx-pop '+cls,text);
+    d.style.left=c.x+'px'; d.style.top=(c.y-6)+'px'; setTimeout(()=>d.remove(),980); }
+  function slash(r){ if(RM||!r)return; const c=center(r); const d=mk('fx-slash');
+    d.style.left=(c.x-36)+'px'; d.style.top=(c.y-36)+'px'; setTimeout(()=>d.remove(),380); }
+  function ring(r){ if(RM||!r)return; const c=center(r); const d=mk('fx-ring');
+    d.style.left=(c.x-31)+'px'; d.style.top=(c.y-31)+'px'; setTimeout(()=>d.remove(),640); }
+  function burstRect(r,color='#ffd98a',n=10){ if(RM||!r)return; const c=center(r);
+    for(let i=0;i<n;i++){ const d=mk('fx-spark'); const a=Math.random()*Math.PI*2, v=22+Math.random()*40;
+      d.style.left=c.x+'px'; d.style.top=c.y+'px'; d.style.background=color; d.style.color=color;
+      d.style.setProperty('--dx',Math.cos(a)*v+'px'); d.style.setProperty('--dy',Math.sin(a)*v+'px');
+      setTimeout(()=>d.remove(),680); } }
+  function shake(){ if(RM)return; const m=document.querySelector('.mat'); if(!m)return;
+    m.classList.remove('fx-shake'); void m.offsetWidth; m.classList.add('fx-shake'); }
+  function hurt(){ vig.classList.remove('on'); void vig.offsetWidth; vig.classList.add('on'); }
+  function ribbon(text,color){ rib.firstChild.textContent=text; rib.style.setProperty('--rc',color||'var(--gold)');
+    rib.classList.remove('on'); void rib.offsetWidth; rib.classList.add('on'); }
+  function arcPath(fr,tr){ const a=center(fr), b=center(tr);
+    return `M ${a.x} ${a.y} Q ${(a.x+b.x)/2} ${Math.min(a.y,b.y)-44} ${b.x} ${b.y}`; }
+  function arrow(fr,tr){ if(RM||!fr||!tr)return; const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d',arcPath(fr,tr)); p.setAttribute('class','fx-arrow'); svg.appendChild(p);
+    setTimeout(()=>p.remove(),440); }
+  let aimP=null;
+  function aimArrow(fr,tr){ clearAim(); if(!fr||!tr)return; aimP=document.createElementNS('http://www.w3.org/2000/svg','path');
+    aimP.setAttribute('d',arcPath(fr,tr)); aimP.setAttribute('class','fx-arrow aim'); svg.appendChild(aimP); }
+  function clearAim(){ if(aimP){aimP.remove();aimP=null;} }
+  let splT=null;
+  function splash(unit,owner){ if(RM||!unit)return;
+    spl.querySelector('img').src=unit.art||'';
+    spl.querySelector('.spname').textContent=unit.nm;
+    spl.querySelector('.spstats').textContent=unit.kind==='building'?`STRUCTURE · ♥${unit.h}`:`⚔${unit.a} / ♥${unit.h}${unit.fs?' · FIRST STRIKE':''}`;
+    spl.style.setProperty('--sc', owner==='you'?'var(--gold)':'var(--tide)');
+    spl.classList.remove('on'); void spl.offsetWidth; spl.classList.add('on');
+    clearTimeout(splT); splT=setTimeout(()=>spl.classList.remove('on'),1100); }
+  function confetti(){ if(RM)return; for(let i=0;i<26;i++){ const d=mk('fx-conf');
+    d.style.left=(8+Math.random()*84)+'vw'; d.style.background=['#d9b04a','#e0613f','#5fc46a','#52c6ec'][i%4];
+    d.style.animationDelay=(Math.random()*.6)+'s'; setTimeout(()=>d.remove(),3100); } }
+  return {flyRect,pop,slash,ring,burstRect,shake,hurt,ribbon,arrow,aimArrow,clearAim,splash,confetti};
+})();
+
+/* DOM cell for a live unit object — board slots first, then minion pill strips */
+const FX_STRIP={foeBack:'wellFoeBack',foeFront:'wellFoeFront',center:'wellCenter',youFront:'wellYouFront',youBack:'wellYouBack'};
+function cellElFor(obj){
+  if(!obj)return null;
+  for(const key of ROWS){ const i=rowArr(key).indexOf(obj); if(i>=0){ const row=$(key); return (row&&row.children[i])||null; } }
+  for(const o of ['you','foe']) for(const w of ['back','front','center']){
+    if(G.P[o].min[w].indexOf(obj)>=0){
+      const key=w==='center'?'center':(o==='you'?(w==='front'?'youFront':'youBack'):(w==='front'?'foeFront':'foeBack'));
+      const s=$(FX_STRIP[key]); return (s&&s.firstElementChild)||null; } }
+  return null;
+}
+const fxRect=el=>{ try{return el?el.getBoundingClientRect():null;}catch(e){return null;} };
+
+/* ---------- wrappers: hook the existing flow ---------- */
+// damage numbers — captured while the DOM still shows the pre-hit board
+const _applyDmg=applyDmg;
+applyDmg=function(map){
+  try{ map.forEach((d,t)=>{ if(d>0)FX.pop(fxRect(cellElFor(t)),'-'+d,'dmg'); }); }catch(e){}
+  _applyDmg(map);
+};
+// clash flash + sound at the defender's cell
+const _resolveCombat=resolveCombat;
+resolveCombat=function(A,B){
+  try{ SFX.clash(); FX.shake(); const b0=B&&B[0]&&cellElFor(B[0]); if(b0)FX.slash(fxRect(b0)); }catch(e){}
+  _resolveCombat(A,B);
+};
+// every death routes through toGrave → one place for death FX
+const _toGrave=toGrave;
+toGrave=function(owner,obj){
+  try{ if(obj){ const r=fxRect(cellElFor(obj));
+    if(obj.kind==='building'){ SFX.raze(); FX.burstRect(r,'#cfcfe0',14); FX.shake(); }
+    else if(obj.kind==='charge'){ SFX.trap(); FX.burstRect(r,'#9ad0e8'); }
+    else if(obj.kind==='creature'){ FX.burstRect(r, obj.worker?'#e6cf86':'#ff9a8a'); }
+  }}catch(e){}
+  _toGrave(owner,obj);
+};
+// player strikes: wind-up lunge + arrow, then the untouched resolution
+let _atkBusy=false;
+function fxLunge(srcEls,tEl,after){
+  const tr=fxRect(tEl);
+  if(!tr||!srcEls.length){ after(); return; }
+  _atkBusy=true;
+  srcEls.forEach((el,i)=>setTimeout(()=>FX.flyRect(fxRect(el),tr,el.innerHTML,260),i*70));
+  FX.arrow(fxRect(srcEls[0]),tr); FX.clearAim(); SFX.whoosh();
+  setTimeout(()=>{ _atkBusy=false; after(); },280);
+}
+const fxAtkSrcs=()=>G.atk.map(s=>{ const row=$(mineKey(s.w)); return row&&row.children[s.i]; }).filter(Boolean);
+const _doAttack=doAttack;
+doAttack=function(which,ti){
+  if(_atkBusy)return;
+  const row=$(rowKeyFor('foe',which)); const tEl=row&&row.children[ti];
+  fxLunge(fxAtkSrcs(),tEl,()=>_doAttack(which,ti));
+};
+const _attackMinionStack=attackMinionStack;
+attackMinionStack=function(key,owner,which){
+  if(_atkBusy)return;
+  const wellId=FX_STRIP[key]||key; const s=$(wellId); const tEl=(s&&s.firstElementChild)||s;
+  fxLunge(fxAtkSrcs(),tEl,()=>_attackMinionStack(key,owner,which));
+};
+// deploys: card flies from hand to the slot
+const _place=place;
+place=function(idx,mode,which,slot){
+  const handEl=document.querySelector('.hc.selected');
+  const row=$(mineKey(which)); const destEl=row&&row.children[slot];
+  const fr=fxRect(handEl), tr=fxRect(destEl), html=handEl?handEl.outerHTML:null;
+  const n0=G.P.you.hand.length;
+  _place(idx,mode,which,slot);
+  if(G.P.you.hand.length<n0){
+    if(fr&&tr&&html)FX.flyRect(fr,tr,html,300);
+    SFX[(mode==='set'||mode==='settrap')?'set':(mode==='build'?'raise':'place')]();
+    if(tr&&mode!=='set'&&mode!=='settrap')FX.ring(tr);
+  }
+};
+// flips: summon ring; big or First-Strike reveals get the Master-Duel splash
+const _flip=flip;
+flip=function(owner,which,slot){
+  const arr=cellArr(owner,which);
+  const r=_flip(owner,which,slot);
+  try{ const now=arr[slot]; const cellR=fxRect(cellElFor(now));
+    if(now&&now.kind==='creature'){ SFX.summon(); FX.ring(cellR); if(now.c>=4||now.fs)FX.splash(now,owner); }
+    else if(now&&now.kind==='building'){ SFX.raise(); FX.ring(cellR); if(now.c>=4)FX.splash(now,owner); }
+  }catch(e){}
+  return r;
+};
+// spells, traps, powers
+const _castSpell=castSpell;
+castSpell=function(idx,which,i){
+  const row=$(rowKeyFor('foe',which)); const tr=fxRect(row&&row.children[i]);
+  const n0=G.P.you.hand.length;
+  _castSpell(idx,which,i);
+  if(G.P.you.hand.length<n0){ SFX.spell(); FX.slash(tr); FX.burstRect(tr,'#c9a0ff'); }
+};
+const _springTrap=springTrap;
+springTrap=function(defOwner,key,slot,attackers){
+  try{ const row=$(key); FX.burstRect(fxRect(row&&row.children[slot]),'#f0b89a',12); SFX.trap(); }catch(e){}
+  _springTrap(defOwner,key,slot,attackers);
+};
+// economy beats
+const _applyRes=applyRes;
+applyRes=function(base,owner,creature,type){
+  const m0=manaTotal(owner);
+  _applyRes(base,owner,creature,type);
+  const d=manaTotal(owner)-m0;
+  if(d>0){ SFX.mana(); FX.pop(fxRect($(owner+'ManaStr')),'+'+d,'mana'); }
+};
+const _trainVillager=trainVillager;
+trainVillager=function(owner){
+  const ok=_trainVillager(owner);
+  if(ok)SFX.train();
+  return ok;
+};
+let _fxDealing=false;
+const _dealOpening=dealOpening;
+dealOpening=function(o,color){ _fxDealing=true; const r=_dealOpening(o,color); _fxDealing=false; return r; };
+const _drawCard=drawCard;
+drawCard=function(o){ _drawCard(o); if(o==='you'&&!_fxDealing)SFX.draw(); };
+// turn flow + life ticks + game over
+const _startTurn=startTurn;
+startTurn=function(owner){
+  _startTurn(owner);
+  if(owner==='you'){ FX.ribbon('YOUR TURN','var(--gold)'); SFX.turnYou(); }
+  else { FX.ribbon("OPPONENT'S TURN",'var(--tide)'); SFX.turnFoe(); }
+};
+const _fxLife={you:null,foe:null};
+const _render=render;
+render=function(){
+  _render(); FX.clearAim();
+  ['you','foe'].forEach(o=>{ const v=G.P[o].life;
+    if(_fxLife[o]!=null&&v!==_fxLife[o]){ const d=v-_fxLife[o];
+      FX.pop(fxRect($(o+'Life')),(d>0?'+':'')+d, d<0?'dmg':'heal');
+      if(o==='you'&&d<0){ FX.hurt(); SFX.hit(); } }
+    _fxLife[o]=v; });
+};
+const _startGame=startGame;
+startGame=function(youId,foeId){
+  _fxLife.you=_fxLife.foe=null;
+  _startGame(youId,foeId);
+  FX.ribbon('DUEL START','var(--gold)'); SFX.turnYou();
+  setTimeout(fitBoard,60);
+};
+const _checkWin=checkWin;
+checkWin=function(){
+  const was=G.over;
+  _checkWin();
+  if(!was&&G.over){ const win=$('bannerMsg').textContent==='VICTORY';
+    if(win){ SFX.win(); FX.confetti(); } else SFX.lose(); }
+};
+// title treatment on the character-select menu
+const _renderCharSel=renderCharSel;
+renderCharSel=function(){
+  _renderCharSel();
+  const box=$('charsel').querySelector('.csbox');
+  const t=document.createElement('div'); t.className='fxtitle';
+  t.innerHTML='<div class="t1">SPAWN ROW DUEL</div><div class="t2">raze their base · hold the center · feed the army</div>';
+  box.prepend(t);
+};
+// hover targeting arrow (pointer devices) — from the strike group to the hovered target
+document.addEventListener('mouseover',e=>{
+  if(!e.target.closest)return;
+  const tgt=e.target.closest('.cell.target,.minpill.target,.crest-target');
+  if(!tgt||!G.atk||!G.atk.length)return;
+  const row=$(mineKey(G.atk[0].w)); const src=row&&row.children[G.atk[0].i];
+  if(src)FX.aimArrow(fxRect(src),fxRect(tgt));
+});
+document.addEventListener('mouseout',e=>{
+  if(e.target.closest&&e.target.closest('.cell.target,.minpill.target,.crest-target'))FX.clearAim();
+});
+// sound toggle
+(()=>{ const b=document.createElement('button'); b.id='sndBtn'; b.title='Sound on/off'; b.textContent='🔊';
+  b.addEventListener('click',()=>{ b.textContent=SFX.toggle()?'🔇':'🔊'; });
+  document.body.appendChild(b); })();
+/* ---------- v18: fullscreen fit, hand fan, rotate prompt ---------- */
+// size cells so the entire field + fan always fits the viewport — never scroll
+function fitBoard(){
+  const root=document.querySelector('.wrap'); if(!root)return;
+  const topChrome=6;                                            // no header/status anymore
+  const handReserve=Math.min(160,Math.max(80,innerHeight*.20));  // matches --handpad (~1.44*ch)
+  const boardChrome=28;                                          // mat padding + center gap
+  let ch=Math.min(240,
+    (innerHeight-topChrome-handReserve-boardChrome)/5.05,        // 5 rows + a little center gap
+    ((innerWidth-150)/6.0)/.74);                                 // width almost never binds now
+  ch=Math.max(30,ch);
+  root.style.setProperty('--ch',ch.toFixed(1)+'px');
+  for(let i=0;i<12&&ch>30;i++){
+    const overY=document.documentElement.scrollHeight>innerHeight+1;
+    const m=document.querySelector('.main');
+    const overX=m&&m.scrollWidth>m.clientWidth+1;
+    if(!overY&&!overX)break;
+    ch-=3; root.style.setProperty('--ch',ch.toFixed(1)+'px');
+  }
+  const bc=document.querySelector('.boardcol'), hw=document.querySelector('.handwrap');
+  if(bc&&hw){ const r=bc.getBoundingClientRect(); if(r.width)hw.style.left=(r.left+r.width/2)+'px'; }
+}
+addEventListener('resize',fitBoard);
+document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
+// fan the hand: rotation + arc lift per card, applied after every hand render
+const _renderHand_v18=renderHand;
+renderHand=function(){
+  _renderHand_v18();
+  const el=$('hand'); const kids=[...el.children]; const n=kids.length;
+  kids.forEach((c,i)=>{
+    const off=i-(n-1)/2;
+    c.style.setProperty('--rot',(off*4).toFixed(1)+'deg');
+    c.style.setProperty('--lift',(Math.abs(off)*7).toFixed(1)+'px');
+    c.style.zIndex=10+i;
+  });
+};
+// first press on the start menu → fullscreen + landscape lock, like a real client
+(function(){
+  let armed=true;
+  function goFS(){
+    if(!armed)return; armed=false;
+    try{ const el=document.documentElement;
+      const req=el.requestFullscreen||el.webkitRequestFullscreen;
+      if(req){ const pr=req.call(el); if(pr&&pr.catch)pr.catch(()=>{}); }
+    }catch(e){}
+    try{ if(screen.orientation&&screen.orientation.lock){ const pr=screen.orientation.lock('landscape'); if(pr&&pr.catch)pr.catch(()=>{}); } }catch(e){}
+    setTimeout(fitBoard,360);
+  }
+  const cs=$('charsel'); if(cs)cs.addEventListener('pointerup',goFS,{capture:true});
+})();
+// portrait touch devices get a rotate prompt instead of a broken squeeze
+(function(){
+  const d=document.createElement('div'); d.id='rotateNote';
+  d.innerHTML='<div><div style="font-size:34px;margin-bottom:10px">⟳</div>ROTATE YOUR DEVICE<div style="font-family:\'EB Garamond\',serif;font-style:italic;font-size:13px;color:var(--ink-dim);letter-spacing:0;text-transform:none;margin-top:8px">Spawn Row Duel plays in landscape.</div></div>';
+  document.body.appendChild(d);
+  const css=document.createElement('style');
+  css.textContent='#rotateNote{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.96);text-align:center;font-family:\'Cinzel\',serif;color:var(--gold);font-size:17px;letter-spacing:.14em;padding:30px;}@media (orientation:portrait) and (pointer:coarse){#rotateNote{display:flex;}}';
+  document.head.appendChild(css);
+})();
+fitBoard();
+/* ============================ end v16 layer ============================ */
+
+bootstrap();
+
+</script>
+</body>
+</html>
