@@ -26,16 +26,17 @@
   body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.04;z-index:0;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
   .wrap{width:100%;max-width:100%;height:100dvh;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;
-    --ch: clamp(50px, calc((100dvh - 70px)/6.4), 168px); --cw: calc(var(--ch)*.74);
+    --ch: clamp(50px, calc((100dvh - 70px)/5.4), 196px); --cw: calc(var(--ch)*.74);
     --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
-    --handpad: calc(var(--hch)*.9 + 42px);}
-  @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/6.4), 168px);} }
+    --peek: clamp(34px, calc(var(--hch)*.27), 58px);
+    --handpad: calc(var(--peek) + 12px);}
+  @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
   .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
   .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-bottom:var(--handpad);}
   header{display:none!important;}
 
   /* ===== corner player badges — vitals stored by the name (Master Duel style) ===== */
-  .pbadge{position:absolute;z-index:23;display:flex;flex-direction:column;gap:1px;padding:6px 13px;border-radius:12px;pointer-events:none;
+  .pbadge{position:absolute;z-index:26;display:flex;flex-direction:column;gap:1px;padding:6px 13px;border-radius:12px;pointer-events:none;
     background:linear-gradient(180deg,rgba(26,23,34,.92),rgba(16,13,21,.92));border:1px solid #3a3450;box-shadow:0 6px 18px rgba(0,0,0,.55);}
   .pbadge.foe{top:6px;right:8px;align-items:flex-end;text-align:right;}
   .pbadge.you{bottom:6px;left:8px;align-items:flex-start;text-align:left;}
@@ -46,7 +47,7 @@
   .heart{color:#e35b4f;} .mana{color:var(--spawn);}
   .bct{color:#caa15a;} .wct{color:#9ad17f;} .vit .bct,.vit .wct{font-size:13px;}
   /* ===== on-board overlay controls (Arena-style) ===== */
-  #boardBtns{position:absolute;right:8px;top:50%;transform:translateY(-50%);z-index:24;display:flex;flex-direction:column;align-items:flex-end;gap:7px;pointer-events:none;}
+  #boardBtns{position:absolute;right:8px;top:auto;bottom:clamp(86px,16vh,150px);transform:none;z-index:24;display:flex;flex-direction:column;align-items:flex-end;gap:7px;pointer-events:none;}
   #boardBtns>*{pointer-events:auto;}
   .turnlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;text-align:center;
     background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:999px;padding:3px 10px;}
@@ -75,16 +76,17 @@
     border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);}
   .rowlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;text-align:center;margin:3px 0 5px;color:var(--ink-dim);}
   .rowlabel.spawn{color:var(--spawn);font-size:10px;text-shadow:0 0 10px rgba(82,198,236,.4);}
-  .centerwrap{flex:1.15;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;align-items:stretch;padding:0 6px;}
+  .centerwrap{flex:1;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;align-items:stretch;padding:0 6px;}
   .rowlabel.vert{position:absolute;left:calc(var(--cw)*-.02);top:0;bottom:0;z-index:2;pointer-events:none;
     writing-mode:vertical-rl;transform:rotate(180deg);margin:0;display:flex;align-items:center;justify-content:center;
     width:var(--cw);letter-spacing:.26em;font-size:clamp(7px,calc(var(--cw)*.12),9px);opacity:.85;overflow:hidden;white-space:nowrap;}
   .row{flex:1;min-height:0;display:flex;justify-content:center;align-items:stretch;gap:clamp(3px,.7vw,9px);}
+  .wkslot{width:clamp(40px,5vw,58px);flex:none;display:flex;align-items:center;justify-content:center;}
   .side{flex:2;min-height:0;display:flex;}
   #youSide{flex-direction:row-reverse;}
   .rowsbox{flex:1;min-width:0;display:flex;flex-direction:column;gap:clamp(3px,.7vw,9px);}
   .flank{display:none;}
-  .decks{position:absolute;z-index:22;display:flex;gap:6px;pointer-events:auto;}
+  .decks{position:absolute;z-index:26;display:flex;gap:6px;pointer-events:auto;}
   .decks.foe{top:8px;left:10px;}
   .decks.you{bottom:8px;right:10px;}
   .decks .zone{width:clamp(38px,5.4vw,58px);height:clamp(50px,8.4vh,80px);flex:none;}
@@ -99,6 +101,14 @@
   .zone.grave{background:radial-gradient(circle at 50% 35%,#2c2026,#140e12);border:1px solid #5a3b3b;
     box-shadow:2px 2px 0 #140e12,2px 2px 0 1px #43292b;}
   .zone.grave b{color:#e0a59a;}
+  /* corner command zone with commander figure standing on it (Master Duel pet style) */
+  .cmdzone{position:absolute;z-index:22;display:flex;flex-direction:column;align-items:center;pointer-events:none;width:auto;}
+  .cmdzone.foe{top:58px;right:12px;}
+  .cmdzone.you{bottom:58px;left:12px;}
+  .cmdfig{width:clamp(40px,5vw,62px);height:clamp(48px,6vw,74px);z-index:2;pointer-events:auto;cursor:pointer;
+    filter:drop-shadow(0 5px 5px rgba(0,0,0,.6));animation:bob 3.4s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  .cmdfig svg{width:100%;height:100%;display:block;overflow:visible;}
   .zone:active{transform:translate(1px,1px);}
   .matmain{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
   /* the worker rail — off-board token wells aligned to the five rows */
@@ -110,6 +120,8 @@
   .well{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
     border:1px dashed rgba(120,110,140,.28);border-radius:9px;flex:1;min-height:0;}
   .wcen .well{width:100%;}
+  .wtok.short{background:rgba(60,18,20,.92);border:1px solid #b3504a;color:#ff9a8a;animation:shortpulse 1.3s ease-in-out infinite;cursor:default;}
+  @keyframes shortpulse{0%,100%{box-shadow:0 0 0 0 rgba(227,91,79,.5)}50%{box-shadow:0 0 0 4px rgba(227,91,79,0)}}
   .wtok{display:flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;cursor:default;
     font-family:'Cinzel',serif;font-weight:900;font-size:clamp(9px,calc(var(--cw)*.18),13px);
     background:radial-gradient(circle at 35% 30%,#3a3346,#15121d);border:2px solid #6b5d33;color:#e6cf86;
@@ -216,22 +228,32 @@
   #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.04em;font-weight:700;font-size:11px;padding:8px 15px;border-radius:999px;cursor:pointer;color:#06231c;background:linear-gradient(180deg,var(--verdant),#2f7a3a);border:1px solid #4fae5e;box-shadow:0 3px 0 #19401f,0 4px 12px rgba(0,0,0,.45);}
   #conscriptBtn:active:not(:disabled){transform:translatey(2px);box-shadow:0 1px 0 #19401f;}
   #conscriptBtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
-  .handwrap{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:20;margin:0;}
-  .handhint{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);text-align:center;z-index:22;
-    width:max-content;max-width:min(78vw,500px);font-style:italic;color:var(--ink-dim);font-size:11px;min-height:0;
-    background:rgba(13,11,18,.62);border:1px solid rgba(58,52,80,.6);border-radius:9px;padding:4px 12px;box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:auto;}
+  /* ===== hand: rests off-screen showing only a name + cost peek strip; lifts to overlay the board when viewed ===== */
+  .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
+  .handhint{position:fixed;bottom:calc(var(--peek) + 12px);left:50%;transform:translateX(-50%);text-align:center;z-index:60;
+    width:max-content;max-width:min(82vw,540px);font-style:italic;color:var(--ink-dim);font-size:11px;min-height:0;
+    background:rgba(13,11,18,.85);border:1px solid rgba(58,52,80,.7);border-radius:9px;padding:5px 13px;box-shadow:0 4px 16px rgba(0,0,0,.55);pointer-events:auto;}
+  .handhint:empty{display:none;}
   .handhint button{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.04em;margin:0 3px;padding:5px 11px;border-radius:8px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:none;box-shadow:0 2px 0 #4d3a10;}
   .handhint button.set{background:linear-gradient(180deg,#b79bе8,#6a4fa0);color:#150f1f;box-shadow:0 2px 0 #3a2960;}
-  .hand{display:flex;justify-content:center;align-items:flex-end;padding:0 24px;min-height:0;}
-  .hc{position:relative;width:var(--hcw);height:var(--hch);flex:none;border-radius:10px;padding:7px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;
-    margin:0 calc(var(--hcw)*-.04);transform:translateY(9%) rotate(var(--rot,0deg)) translateY(var(--lift,0px));transform-origin:50% 120%;
-    transition:transform .16s ease,margin .16s ease;box-shadow:0 6px 18px rgba(0,0,0,.6);}
-  .hc:hover{transform:translateY(-14%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:55!important;overflow:visible;}
-  .hc.selected{transform:translateY(-14%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
-  .hc .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(9px,calc(var(--hcw)*.108),14px);text-align:center;line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
-  .hc:hover .nm,.hc.selected .nm{white-space:normal;overflow:visible;}
-  .hc .cost{align-self:center;font-family:'Cinzel',serif;font-weight:900;font-size:clamp(14px,calc(var(--hcw)*.165),21px);color:var(--spawn);}
+  .hand{position:absolute;left:50%;bottom:0;display:flex;justify-content:center;align-items:flex-end;padding:0 24px;min-height:0;pointer-events:auto;
+    transform:translateX(-50%) translateY(calc(100% - var(--peek)));transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  .hand:hover,.hand.show,.hand:focus-within,.hand:has(.hc.selected){transform:translateX(-50%) translateY(0);}
+  .hc{position:relative;width:var(--hcw);height:var(--hch);flex:none;border-radius:11px 11px 7px 7px;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
+    margin:0 calc(var(--hcw)*-.03);transform:translateY(var(--lift,0px));transform-origin:50% 120%;
+    transition:transform .16s ease,margin .16s ease;box-shadow:0 -3px 12px rgba(0,0,0,.5),0 6px 18px rgba(0,0,0,.6);}
+  .hc:hover{transform:translateY(-16%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:55!important;overflow:visible;}
+  .hc.selected{transform:translateY(-16%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
+  /* always-visible peek header: name + cost (the only thing seen when the hand rests) */
+  .hc .hchead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:6px;height:var(--peek);padding:0 8px;
+    border-bottom:1px solid rgba(0,0,0,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);background:rgba(0,0,0,.22);}
+  .hc .hchead .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(9px,calc(var(--hcw)*.115),14px);text-align:left;line-height:1.05;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;text-shadow:0 1px 2px #000;}
+  .hc:hover .hchead .nm,.hc.selected .hchead .nm{white-space:normal;overflow:visible;}
+  .hc .hchead .cost{flex:none;font-family:'Cinzel',serif;font-weight:900;font-size:clamp(12px,calc(var(--hcw)*.15),19px);color:var(--spawn);text-shadow:0 1px 2px #000;}
+  .hc .hcbody{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-between;padding:5px 7px 6px;}
+  .hc .hcbody .bic{flex:1;display:flex;align-items:center;justify-content:center;font-size:clamp(22px,calc(var(--hcw)*.42),50px);opacity:.82;text-shadow:0 2px 6px rgba(0,0,0,.6);}
   .hc .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(10px,calc(var(--hcw)*.125),16px);}
 
   .log{height:min(56vh,420px);overflow-y:auto;padding:7px 11px;border-radius:10px;background:#0d0b12;border:1px solid #241f2d;font-size:12.5px;line-height:1.5;text-align:left;}
@@ -252,8 +274,39 @@
   #cardActions button:active{transform:translateY(1px);box-shadow:0 1px 0 #6e5320;}
   #cardActions .cant{font-style:italic;color:var(--ink-dim);font-size:11px;margin-left:5px;}
   #cardActions .taphint{display:block;font-style:italic;color:var(--ink-dim);font-size:10.5px;margin-top:5px;}
-  #cpanel,#contestPanel{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
-  #cpanel .box,#contestPanel .box{width:300px;max-width:90vw;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold);border-radius:14px;padding:16px 16px 12px;box-shadow:0 18px 50px rgba(0,0,0,.6);text-align:center;}
+  #cardActions.handmenu{background:linear-gradient(180deg,rgba(23,17,32,.96),rgba(13,10,21,.96));border-color:#4a78c8;padding:9px 10px;}
+  #cardActions.handmenu::after{border-top-color:#4a78c8;}
+  #cardActions.handmenu.below::after{border-top-color:transparent;border-bottom-color:#4a78c8;}
+  #cardActions .act{display:inline-flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;box-shadow:none;
+    padding:4px 8px;margin:0 3px;cursor:pointer;border-radius:10px;color:var(--ink);}
+  #cardActions .act .ico{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;
+    background:radial-gradient(circle at 50% 38%,#ffe9a8,#e0b24a 60%,#a9801f);color:#241804;border:2px solid #fff2cf;box-shadow:0 0 14px rgba(224,178,74,.5),0 3px 8px rgba(0,0,0,.5);transition:transform .1s;}
+  #cardActions .act.set .ico{background:radial-gradient(circle at 50% 38%,#bfe0ff,#5aa0e6 60%,#2f6bb0);border-color:#dcefff;color:#08213f;box-shadow:0 0 14px rgba(90,160,230,.5),0 3px 8px rgba(0,0,0,.5);}
+  #cardActions .act .lbl{font-family:'Cinzel',serif;font-weight:700;font-size:11.5px;letter-spacing:.03em;text-shadow:0 1px 2px #000;}
+  #cardActions .act .sub{font-family:'Cinzel',serif;font-size:10px;color:var(--ink-dim);}
+  #cardActions .act:active .ico{transform:translateY(1px) scale(.96);}
+  #cardActions .act.off{cursor:default;}
+  #cardActions .act.off .ico{filter:grayscale(.85) brightness(.55);box-shadow:none;}
+  #cardActions .act.off .sub{color:#c77;}
+  #cpanel,#contestPanel,#harvestPanel{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
+  #cpanel .box,#contestPanel .box,#harvestPanel .box{width:300px;max-width:90vw;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold);border-radius:14px;padding:16px 16px 12px;box-shadow:0 18px 50px rgba(0,0,0,.6);text-align:center;}
+  #harvestPanel .box{border-color:#9ad17f;width:286px;}
+  #harvestPanel .ptitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:#bfe6a3;}
+  #harvestPanel .pmeta{font-size:11.5px;color:var(--ink-dim);margin:3px 0 11px;}
+  #harvestPanel .hvgrid{display:flex;flex-direction:column;gap:9px;margin-bottom:9px;}
+  #harvestPanel .hvrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px;border-radius:10px;background:#1a1622;border:1px solid #34304a;}
+  #harvestPanel .hvrow.gen{background:#15131c;border-style:dashed;}
+  #harvestPanel .hvlab{font-family:'Cinzel',serif;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;}
+  #harvestPanel .hvstep{display:flex;align-items:center;gap:9px;}
+  #harvestPanel .hvstep button{width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;font-size:19px;line-height:1;font-family:'Cinzel',serif;color:#10240f;background:linear-gradient(180deg,#9ad17f,#5f9a48);box-shadow:0 2px 0 #2f5320;}
+  #harvestPanel .hvstep button:active:not(:disabled){transform:translatey(2px);box-shadow:0 1px 0 #2f5320;}
+  #harvestPanel .hvstep button:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  #harvestPanel .hvval{font-family:'Cinzel',serif;font-weight:900;font-size:20px;color:var(--spawn);min-width:42px;}
+  #harvestPanel .hvrow.gen .hvval{font-size:17px;color:var(--ink);}
+  #harvestPanel .pacts{display:flex;margin-top:4px;}
+  #harvestPanel .pacts button{font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;padding:11px 10px;border-radius:9px;cursor:pointer;border:none;flex:1;color:#10240f;background:linear-gradient(180deg,#9ad17f,#5f9a48);box-shadow:0 3px 0 #2f5320;}
+  #harvestPanel .pacts button:active{transform:translatey(2px);box-shadow:0 1px 0 #2f5320;}
+  #harvestPanel .pclose{margin-top:8px;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
   #contestPanel .box{border-color:var(--tide);width:330px;}
   #contestPanel .cgrid{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:10px;}
   #contestPanel .cbtn{width:66px;height:60px;border-radius:7px;padding:5px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;color:var(--ink);}
@@ -394,13 +447,6 @@
   <div class="main">
   <div class="boardcol">
   <div class="mat">
-    <div class="wrail">
-      <div class="wlab">⚒</div>
-      <div class="wgrp"><div class="well" id="wellFoeBack"></div><div class="well" id="wellFoeFront"></div></div>
-      <div class="wcen"><div class="well" id="wellCenter"></div></div>
-      <div class="wgrp"><div class="well" id="wellYouFront"></div><div class="well" id="wellYouBack"></div></div>
-      <div class="wlab">⚒</div>
-    </div>
     <div class="matmain">
     <div class="side" id="foeSide">
       <div class="rowsbox">
@@ -421,7 +467,6 @@
       </div>
     </div>
     </div><!-- /matmain -->
-    <div class="wrail-spacer"></div>
   </div>
 
   <!-- deck + graveyard tucked into the corners (Master Duel style) -->
@@ -444,6 +489,9 @@
     <div class="vit"><span class="heart">♥</span><b id="youLife">26</b> &nbsp;<span id="youManaStr"></span> &nbsp;<span class="bct">⌂</span><b id="youStruct">0</b> &nbsp;<span class="wct">⚒</span><b id="youCap">0/2</b></div>
   </div>
 
+  <div class="cmdzone foe" id="foeCmd"></div>
+  <div class="cmdzone you" id="youCmd"></div>
+
   <div id="cardActions"></div>
 
   <div id="boardBtns">
@@ -457,7 +505,7 @@
   </div>
 
   <div class="handwrap">
-    <div class="handhint" id="hint">Tap a card to deploy · tap a creature to attack · ⚒ to train</div>
+    <div class="handhint" id="hint"></div>
     <div class="hand" id="hand"></div>
   </div>
   </div><!-- /boardcol -->
@@ -468,10 +516,10 @@
     <div class="box">
       <div class="ltitle">How to Play</div>
       <div class="cmdname" id="cmdName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
-      <div class="cmdpass" id="cmdPass">Your command center holds the base — it cannot move or attack. If it falls, you lose.</div>
+      <div class="cmdpass" id="cmdPass">Your command center holds the base — it cannot move or attack, and no spell can raze or burn it. It falls only when a strike reaches it through the rows. If it falls, you lose.</div>
       <p><b>Win — raze the command center.</b> Each side anchors its base with a <b>command center</b>: the structure you chose at the start. It sets your starting health, your starting workers, and your <b>mana colors</b>. It cannot move or attack — and the moment it is destroyed, its owner <b>loses</b>. Everything else on the field exists to protect yours and reach theirs.</p>
       <p><b>The board.</b> Five rows stack between the two keeps: the enemy base and front line up top, your front line and base below, and a single <b>contested center</b> that belongs to no one. You may place into any of your three rows. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
-      <p><b>Workers &amp; the rail.</b> Workers are <b>tokens on the rail</b> beside the field, not board cards — one well per row. Tap your token to <b>Extract</b> (◆1 at the base, ◆2 at the front or center), <b>Advance</b>, or <b>Retreat</b>. Once per turn, <b>Train Worker</b> adds one at your base for free, up to your worker cap (structure support − monster upkeep; your command center supplies the base amount). Workers can intercept, and can be raided.</p>
+      <p><b>Workers &amp; the rail.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2), so a row holding both sits at ⚒+1. Workers are not trained and never move; they simply follow the cards. Tap a row's worker on the rail to <b>Harvest</b> the whole row at once (◆1 per worker at the base, ◆2 at the front or center); a pop-up then lets you <b>distribute</b> the haul across the colors among that row's units, with the remainder kept as generic ◆. At the <b>start of your turn</b>, any row whose number has gone <b>negative</b> (for example because a supporting structure was razed) must be brought back to <b>0 or higher</b> by moving its monsters to a row that can support them, or sacrificing them — you resolve this before you can act. You may overextend on your own turn; the bill comes due at the start of the next.</p>
       <p><b>Colored mana.</b> Extraction yields <b>generic ◆</b> — or mana of <b>any color among your units in that row</b> (a red dragon on the front line lets front workers pull red; your command center counts for its own colors in its row). A colored creature or spell needs <b>1 mana of its color</b> in its cost; the rest takes any mix. Structures take anything. <i>Mana of every kind drains at end of turn — bank it on face-downs to keep it.</i></p>
       <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Flips from a funded face-down <b>waive the color pip</b> — secrecy's discount. Face-down a full turn? It flips with haste.</p>
       <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group), then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
@@ -488,6 +536,7 @@
   <button class="pclose" onclick="toggleLog(false)">close</button>
 </div></div>
 <div id="cpanel"><div class="box"></div></div>
+<div id="harvestPanel" onclick="if(event.target===this)hvCancel()"><div class="box"></div></div>
 <div id="viewerPanel" onclick="if(event.target===this)closeViewer()"><div class="box"></div></div>
 <div class="banner" id="banner"><div><div class="msg" id="bannerMsg"></div><button onclick="location.reload()">Duel Again</button></div></div>
 <div id="charsel"><div class="csbox"></div></div>
@@ -574,6 +623,49 @@ function findCC(o){ let r=null; ['front','back'].forEach(w=>G.P[o][w].forEach(x=
   G.center.forEach(x=>{if(x&&x.owner===o&&x.kind==='building'&&x.cc)r=x;}); return r; }
 const poolFor=color=>color==='ember'?EMBER:TIDE;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+/* ===========================================================================
+   CARD ART  —  edit this table + drop square images in assets/cards/
+   (see assets/cards/README.md). Each card loads assets/cards/<file>. If the
+   file isn't found, the built-in placeholder shows, so the game always works.
+   Swap art by replacing a file with the SAME name, then refresh.
+   IMPORTANT: opening this .html directly (file://) can block loading the
+   sibling image files — especially on phones — so you may see placeholders.
+   To see your art on any device, SERVE the folder instead of opening the raw
+   file: e.g.  python3 -m http.server 8000  then open localhost:8000 , or push
+   to GitHub and turn on GitHub Pages.
+=========================================================================== */
+(function(w){
+  w.ART_DIR = 'assets/cards/';
+  w.CARD_FILES = {
+    'Sparkimp':'sparkimp.png','Cinderling':'cinderling.png','Ashfang':'ashfang.png','Pyrewing':'pyrewing.png','Magmaw':'magmaw.png',
+    'Mistling':'mistling.png','Rippler':'rippler.png','Tidecaller':'tidecaller.png','Surgeling':'surgeling.png','Leviath':'leviath.png',
+    'Emberforge':'emberforge.png','Tidewell':'tidewell.png','Longhouse':'longhouse.png',
+    'Minion':'villager.png','Worker':'villager.png',
+    'Ember Bolt':'emberbolt.png','Cave-In':'cavein.png','Snare Pit':'snarepit.png',
+    'Frost Lance':'frostlance.png','Dissolve':'dissolve.png','Whirl Trap':'whirltrap.png',
+    'The Ember Bastion':'emberbastion.png','The Tide Spire':'tidespire.png','The Thornwall Compact':'thornwall.png'
+  };
+  w.slugify = function(n){ return String(n||'').toLowerCase().replace(/^the\s+/,'').replace(/[^a-z0-9]+/g,''); };
+  w.artPath = function(n){ return w.ART_DIR + (w.CARD_FILES[n] || (w.slugify(n)+'.png')); };
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  w.PLACEHOLDERS = w.PLACEHOLDERS || {};
+  w.cardArtImg = function(card, extra){
+    var nm = card && card.nm ? card.nm : '';
+    var cls = 'cardart' + (extra ? ' ' + extra : '');
+    return '<img class="'+cls+'" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" src="'+w.artPath(nm)+'" onerror="artFallback(this)">';
+  };
+  w.artFallback = function(img){
+    img.onerror = null;
+    var nm = (img.getAttribute && img.getAttribute('data-card')) || '';
+    var ph = w.PLACEHOLDERS[nm];
+    if(ph) img.src = ph; else img.removeAttribute('src');
+  };
+  /* placeholder map auto-synced from the pools above — the always-works safety net */
+  var add = function(t){ if(t && t.nm && t.art) w.PLACEHOLDERS[t.nm] = t.art; };
+  [].concat(EMBER, TIDE, BUILD.ember, BUILD.tide, SPELL.ember, SPELL.tide, VILL.ember, VILL.tide).forEach(add);
+  Object.keys(CCS).forEach(function(id){ if(CC_ART[id]) w.PLACEHOLDERS[CCS[id].name] = CC_ART[id]; });
+  w.PLACEHOLDERS['Worker'] = ART.villager;
+})(window);
 
 const G={
   turn:'you',busy:false,over:false,turnNo:1,
@@ -635,6 +727,33 @@ function structuresOf(owner){ return ownUnits(owner).filter(o=>o.kind==='buildin
 function structSupport(owner){ return structuresOf(owner).reduce((s,b)=>s+(b.sup||0),0); }
 function monsterUpkeep(owner){ return ownUnits(owner).reduce((s,o)=>s+((o.kind==='creature'&&!o.worker)?(o.up||0):0),0); }
 function workerCap(owner){ return structSupport(owner) - monsterUpkeep(owner); } // CC supplies the base via its support
+// ===== NEW MODEL: workers are a per-row figure = Σ(structure support) − Σ(monster upkeep) in that row.
+//   They are NOT trained and do NOT move; the rail pool is auto-derived from the cards in each row.
+function rowWorkers(owner,which){
+  let s=0;
+  const tally=o=>{ if(!o||o.owner&&o.owner!==owner)return; if(o.kind==='building')s+=(o.sup||0)+(o.eff==='villager'?(o.val||0):0); else if(o.kind==='creature'&&!o.worker)s-=(o.up||0); };
+  if(which==='center') G.center.forEach(o=>{if(o&&o.owner===owner)tally(o);});
+  else G.P[owner][which].forEach(tally);
+  return s;
+}
+function totalWorkers(owner){ return ['back','front','center'].reduce((s,w)=>s+Math.max(0,rowWorkers(owner,w)),0); }
+// rebuild a row's worker pool to match its derived figure (preserving tapped/extracted state on survivors)
+function syncWorkers(owner){
+  ['back','front','center'].forEach(which=>{
+    const target=Math.max(0,rowWorkers(owner,which));
+    const pool=G.P[owner].min[which];
+    while(pool.length>target) pool.pop();
+    while(pool.length<target){ const w=mkVil(owner); w.sick=false; pool.push(w); }
+  });
+}
+// rows of `owner` that are short on workers (must be fixed at the owner's turn start)
+function deficitRows(owner){ return ['back','front','center'].filter(w=>rowWorkers(owner,w)<0); }
+function creaturesInRow(owner,which){
+  const out=[];
+  if(which==='center'){ G.center.forEach((o,i)=>{if(o&&o.owner===owner&&o.kind==='creature'&&!o.worker)out.push({which:'center',i,o});}); }
+  else G.P[owner][which].forEach((o,i)=>{if(o&&o.kind==='creature'&&!o.worker)out.push({which,i,o});});
+  return out;
+}
 /* ---------- colored mana ----------
    Pools: generic (P.mana) + one pool per color (P.cmana). [PROPOSED] cost rule:
    a colored creature/spell needs 1 mana of its color; the remainder takes any
@@ -671,7 +790,7 @@ function enforceCap(owner){
   }
   log(`<span class="${owner==='you'?'e':'y'}">${owner==='you'?'Your':'Enemy'} workforce thins — Minions are pulled to sustain the army.</span>`);
 }
-function afterDeploy(owner){ enforceCap(owner); }
+function afterDeploy(owner){ syncWorkers(owner); }
 const $=id=>document.getElementById(id);
 const rng=a=>a[Math.floor(Math.random()*a.length)];
 function deckOf(colors){ // colors: array — mono draws one pool, dual mixes both evenly
@@ -724,8 +843,7 @@ function startGame(youId,foeId){
   G.center=Array(SLOTS).fill(null);
   // command centers anchor the back row; starting workers report ready
   G.P.you.back[2]=mkCC(cy,'you'); G.P.foe.back[2]=mkCC(cf,'foe');
-  for(let i=0;i<cy.wk;i++){const w=mkVil('you');w.sick=false;G.P.you.min.back.push(w);}
-  for(let i=0;i<cf.wk;i++){const w=mkVil('foe');w.sick=false;G.P.foe.min.back.push(w);}
+  syncWorkers('you'); syncWorkers('foe');
   G.P.you.deck=deckOf(cy.colors); G.P.foe.deck=deckOf(cf.colors);
   dealOpening('you'); dealOpening('foe');
   applyCharacterUI();
@@ -780,16 +898,17 @@ function render(){
   $('foeLife').textContent=G.P.foe.life; $('youLife').textContent=G.P.you.life;
   $('foeManaStr').innerHTML=manaStr('foe'); $('youManaStr').innerHTML=manaStr('you');
   $('foeStruct').textContent=structuresOf('foe').length; $('youStruct').textContent=structuresOf('you').length;
-  $('foeCap').textContent=minionCount('foe')+'/'+Math.max(0,workerCap('foe')); $('youCap').textContent=minionCount('you')+'/'+Math.max(0,workerCap('you'));
+  $('foeCap').textContent=totalWorkers('foe'); $('youCap').textContent=totalWorkers('you');
   $('foeDeckN').textContent=G.P.foe.deck.length; $('youDeckN').textContent=G.P.you.deck.length;
   $('foeGraveN').textContent=G.P.foe.grave.length; $('youGraveN').textContent=G.P.you.grave.length;
   $('turnLabel').textContent=G.turn==='you'?'Your Turn':'Opponent…';
-  $('endBtn').disabled=G.turn!=='you'||G.busy||G.over;
-  $('conscriptBtn').disabled=G.turn!=='you'||G.busy||G.over||G.P.you.villagerUsed||!canTrain('you');
+  $('endBtn').disabled=G.turn!=='you'||G.busy||G.over||G.deficit;
+  const cb=$('conscriptBtn'); if(cb)cb.style.display='none';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   renderRow('foeBack','foe','back'); renderRow('foeFront','foe','front');
   renderCenter();
-  renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderMinions(); renderHand();
+  renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderHand();
+  renderCmdZone('foe'); renderCmdZone('you');
   placeCardMenu();
 }
 function renderMinions(){
@@ -801,6 +920,14 @@ function renderMinions(){
     if(key==='center'){ if(minPool('you','center').length)groups.push(['you','center']); if(minPool('foe','center').length)groups.push(['foe','center']); }
     else { const owner=key.startsWith('wellFoe')||key.startsWith('foe')?'foe':'you'; const which=key.endsWith('Front')?'front':'back'; if(minPool(owner,which).length)groups.push([owner,which]); }
     groups.forEach(([owner,which])=>el.appendChild(workerTokEl(owner,which,key,aiming)));
+    // shortfall badge: a row whose monsters outweigh its support shows the deficit
+    ['you','foe'].forEach(owner=>{
+      const which=key==='center'?'center':(key.endsWith('Front')?'front':'back');
+      const isOwnerWell=key==='center'||(owner==='you')===key.startsWith('wellYou');
+      if(!isOwnerWell)return;
+      const n=rowWorkers(owner,which);
+      if(n<0){ const d=document.createElement('div'); d.className='wtok short'+(owner==='you'?'':' foe'); d.innerHTML=`⚒<b>${n}</b>`; d.title='worker shortfall — fix at start of your turn'; el.appendChild(d); }
+    });
   });
 }
 function workerTokEl(owner,which,key,aiming){
@@ -809,11 +936,9 @@ function workerTokEl(owner,which,key,aiming){
   const tok=document.createElement('div');
   tok.className='wtok'+(me?'':' foe');
   tok.innerHTML=`⚒<b>${list.length}</b>`+(up<list.length?`<span class="wr">${up}✓</span>`:'');
-  tok.title=`${list.length} worker${list.length===1?'':'s'} (${up} ready) — tap for actions`;
-  const seld=G.minSel&&G.minSel.owner===owner&&G.minSel.which===which;
-  if(seld)tok.classList.add('selected');
+  tok.title=`${list.length} worker${list.length===1?'':'s'} (${up} ready) — tap to harvest`;
   if(G.turn==='you'&&!G.busy&&!G.over){
-    if(me&&!G.sel&&!G.moveFrom&&!G.moveMana){ tok.classList.add('tappable'); tok.addEventListener('click',()=>selectMinPool(which)); }
+    if(me&&up>0&&!G.sel&&!G.moveFrom&&!G.moveMana){ tok.classList.add('tappable'); tok.addEventListener('click',()=>harvestRow(which)); }
     else if(!me&&aiming){ tok.classList.add('target'); tok.addEventListener('click',()=>attackMinionStack(key,owner,which)); }
   }
   tok.addEventListener('contextmenu',e=>{e.preventDefault(); inspectMinion(owner,which);});
@@ -822,17 +947,25 @@ function workerTokEl(owner,which,key,aiming){
 function placeCardMenu(){
   const el=$('cardActions'); if(!el)return;
   const m=G.cardMenu;
-  if(!m||G.turn!=='you'||G.busy||G.over){ el.style.display='none'; return; }
-  const row=m.w==='center'?$('center'):$('you'+(m.w==='front'?'Front':'Back'));
-  const cell=row&&row.children[m.i];
-  if(!cell||!cellArr('you',m.w)[m.i]){ el.style.display='none'; G.cardMenu=null; return; }
+  if(!m||G.turn!=='you'||G.busy||G.over){ el.style.display='none'; el.classList.remove('handmenu'); return; }
+  let cell;
+  if(m.hand){
+    cell=$('hand').children[m.i];
+    if(!cell||!G.P.you.hand[m.i]){ el.style.display='none'; G.cardMenu=null; return; }
+    el.classList.add('handmenu');
+  } else {
+    el.classList.remove('handmenu');
+    const row=m.w==='center'?$('center'):$('you'+(m.w==='front'?'Front':'Back'));
+    cell=row&&row.children[m.i];
+    if(!cell||!cellArr('you',m.w)[m.i]){ el.style.display='none'; G.cardMenu=null; return; }
+  }
   el.innerHTML=m.html;
   el.style.display='block';
   const r=cell.getBoundingClientRect();
   const ew=el.offsetWidth, eh=el.offsetHeight;
   let left=Math.max(6,Math.min(r.left+r.width/2-ew/2, window.innerWidth-ew-6));
-  let top=r.top-eh-10; el.classList.remove('below');
-  if(top<6){ top=r.bottom+10; el.classList.add('below'); }
+  let top=r.top-eh-12; el.classList.remove('below');
+  if(top<6){ top=r.bottom+12; el.classList.add('below'); }
   el.style.left=left+'px'; el.style.top=top+'px';
 }
 function cardHTML(o,me){
@@ -842,7 +975,7 @@ function cardHTML(o,me){
   }
   if(o.kind==='creature'){
     const cls=o.worker?'vil':('crt '+clsOf[o.color]);
-    const art=o.art?`<div class="artwin"><img src="${o.art}" alt=""></div>`:'';
+    const art=o.art?`<div class="artwin">${cardArtImg(o)}</div>`:'';
     const up=(!o.worker&&o.up)?`<div class="upk">⚒-${o.up}</div>`:'';
     return `<div class="card ${cls} ${o.sick?'sick':''} ${o.tapped?'tapped':''}">
       ${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}
@@ -851,7 +984,7 @@ function cardHTML(o,me){
       <div class="nm">${o.nm}</div>${art}<div class="stats"><span class="atk">⚔${o.a}</span><span class="hp">♥${o.h}</span></div></div>`;
   }
   if(o.kind==='building'){
-    const bart=o.art?`<div class="artwin"><img src="${o.art}" alt=""></div>`:`<div class="bic">${o.ic||'⌂'}</div>`;
+    const bart=o.art?`<div class="artwin">${cardArtImg(o)}</div>`:`<div class="bic">${o.ic||'⌂'}</div>`;
     const eff=o.eff==='mana'?('◆+'+o.val):(o.eff==='villager'?'⚒train':'⌂');
     return `<div class="card bld">${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}${o.sup?`<div class="supb">⚒+${o.sup}</div>`:''}<div class="nm">${o.nm}</div>${bart}
       <div class="stats"><span class="eff">${eff}</span><span class="hp">♥${o.h}</span></div></div>`;
@@ -867,19 +1000,61 @@ function cardHTML(o,me){
   }
   return '';
 }
+function wkSlotEl(owner,which,aiming){
+  const slot=document.createElement('div'); slot.className='wkslot';
+  if(!owner) return slot; // empty spacer keeps the card slots centered
+  const n=rowWorkers(owner,which); const me=owner==='you';
+  const pool=minPool(owner,which); const up=pool.filter(m=>!m.tapped&&!m.sick).length;
+  const tok=document.createElement('div');
+  tok.className='wtok'+(me?'':' foe')+(n<0?' short':'');
+  tok.innerHTML=`⚒<b>${n}</b>`+(n>0&&up<pool.length?`<span class="wr">${up}✓</span>`:'');
+  tok.title=me?(n<0?'worker shortfall — fix at the start of your turn':(up>0?`${n} worker${n===1?'':'s'} in this row — tap to harvest ◆${up*minYield(which)} mana`:`${n} worker${n===1?'':'s'} in this row — all harvested this turn`)):`enemy workers here: ${n}`;
+  if(G.turn==='you'&&!G.busy&&!G.over&&!G.deficit){
+    if(me&&up>0&&!G.sel&&!G.moveFrom&&!G.moveMana){ tok.classList.add('tappable'); tok.addEventListener('click',()=>harvestRow(which)); }
+    else if(!me&&aiming&&pool.length){ tok.classList.add('target'); const rowId=which==='center'?'center':(owner==='foe'?'foe':'you')+(which==='front'?'Front':'Back'); tok.addEventListener('click',()=>attackMinionStack(rowId,owner,which)); }
+  }
+  tok.addEventListener('contextmenu',e=>{e.preventDefault();inspectMinion(owner,which);});
+  slot.appendChild(tok); return slot;
+}
 function renderRow(elId,owner,which){
   const el=$(elId);el.innerHTML='';const me=owner==='you';
+  const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
+  el.appendChild(wkSlotEl(me?owner:null,which,aiming)); // your workers sit on the left of the slots
   for(let i=0;i<SLOTS;i++){
     const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
     const o=G.P[owner][which][i];
-    if(o&&o.kind==='building'&&o.cc)cell.classList.add('cccell');
+    // the command center stands on the board as a full card (its corner zone keeps only the figure)
+    if(o&&o.kind==='building'&&o.cc) cell.classList.add('cccell');
     if(o){ cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); }
     decorate(cell,owner,which,i,o);
     el.appendChild(cell);
   }
+  el.appendChild(wkSlotEl(me?null:owner,which,aiming)); // foe workers sit on the right
+}
+const GUARDIAN_SVG=`<svg viewBox="0 0 48 62" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--fc)"/><stop offset="1" stop-color="#160f22"/></linearGradient></defs>
+  <rect x="36" y="8" width="3" height="48" rx="1.5" fill="#7a663f"/>
+  <circle cx="37.5" cy="8" r="4.2" fill="var(--fc)" stroke="#fff2cf" stroke-width="1"/>
+  <path d="M24 16 C15 16 11.5 22 10.5 32 L7.5 54 C7.5 58 14 59 24 59 C34 59 40.5 58 40.5 54 L37.5 32 C36.5 22 33 16 24 16 Z" fill="url(#cg)" stroke="#090610" stroke-width="1.1"/>
+  <path d="M24 7 C17.5 7 14.5 12 15.5 18.5 C18 22.5 30 22.5 32.5 18.5 C33.5 12 30.5 7 24 7 Z" fill="var(--fc)" stroke="#090610" stroke-width="1.1"/>
+  <ellipse cx="24" cy="15.5" rx="5.2" ry="6.2" fill="#090610" opacity=".8"/>
+  <circle cx="21.6" cy="15.2" r="1.4" fill="#fff2cf"/><circle cx="26.4" cy="15.2" r="1.4" fill="#fff2cf"/>
+  <path d="M16 36 L24 33 L32 36 L24 39 Z" fill="#fff2cf" opacity=".35"/></svg>`;
+function renderCmdZone(owner){
+  const el=$(owner+'Cmd'); if(!el)return;
+  const cc=findCC(owner);
+  if(!cc){ el.innerHTML=''; el.className='cmdzone '+owner; return; }
+  const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'ember':'tide')})`;
+  el.className='cmdzone '+owner;
+  // the card itself now lives on the board (back-row center); the corner keeps only the standing figure
+  el.innerHTML=`<div class="cmdfig" style="--fc:${fc}" title="${cc.nm}">${GUARDIAN_SVG}</div>`;
+  const fig=el.querySelector('.cmdfig');
+  addInspect(fig,()=>inspectRef(owner,'back',2));
 }
 function renderCenter(){
   const el=$('center'); el.innerHTML='';
+  const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
+  el.appendChild(wkSlotEl('you','center',aiming)); // your contested-center workers on the left
   for(let i=0;i<SLOTS;i++){
     const cell=document.createElement('div'); cell.className='cell centercell';
     const o=G.center[i];
@@ -888,6 +1063,7 @@ function renderCenter(){
     decorate(cell,persp,'center',i,o);
     el.appendChild(cell);
   }
+  el.appendChild(wkSlotEl('foe','center',aiming)); // foe contested-center workers on the right
 }
 function renderHand(){
   const el=$('hand');el.innerHTML='';
@@ -898,11 +1074,11 @@ function renderHand(){
     const statLine=isS?`<span class="eff">${card.trap?'⚠ Trap':'✦ Spell'}</span>`
                   :isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>${card.sup?`<span class="cap">⚒+${card.sup}</span>`:''}<span class="hp">♥${card.h}</span>`
                   :`<span class="atk">⚔${card.a}</span>${card.up?`<span class="cap">⚒-${card.up}</span>`:''}<span class="hp">♥${card.h}</span>`;
-    d.innerHTML=card.art
-      ?`<div class="cost-badge">◆${card.c}</div><div class="nm">${card.nm}</div><div class="artwin"><img src="${card.art}" alt=""></div><div class="stats">${statLine}</div>`
-      :isB
-      ?`<div class="nm">${card.nm}</div><div class="cost">◆${card.c}</div><div class="stats"><span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒'}</span><span class="hp">♥${card.h}</span></div>`
-      :`<div class="nm">${card.nm}</div><div class="cost">◆${card.c}</div><div class="stats"><span class="atk">⚔${card.a}</span><span class="hp">♥${card.h}</span></div>`;
+    const head=`<div class="hchead"><div class="nm">${card.nm}</div><div class="cost">◆${card.c}</div></div>`;
+    const body=card.art
+      ?`<div class="artwin">${cardArtImg(card)}</div><div class="stats">${statLine}</div>`
+      :`<div class="bic">${isS?(card.trap?'⚠':'✦'):isB?(card.ic||'⌂'):'⚔'}</div><div class="stats">${statLine}</div>`;
+    d.innerHTML=`${head}<div class="hcbody">${body}</div>`;
     if(G.turn==='you'&&!G.busy&&!G.over)d.addEventListener('click',()=>onHand(i));
     addInspect(d,()=>inspectHand(i));
     el.appendChild(d);
@@ -915,6 +1091,15 @@ function inAtk(w,i){return G.atk.some(s=>s.w===w&&s.i===i);}
 function decorate(cell,owner,which,i,o){
   if(G.turn!=='you'||G.busy||G.over)return;
   const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
+  if(G.deficit){
+    const inDef=deficitRows('you').includes(which);
+    if(mine&&o.kind==='creature'&&inDef){
+      if(G.sel&&G.sel.kind==='deficit'&&G.sel.which===which&&G.sel.i===i)cell.classList.add('selected');
+      else cell.classList.add('tappable');
+      cell.addEventListener('click',()=>pickDeficit(which,i));
+    }
+    return;
+  }
   if(G.moveFrom){
     const mf=G.moveFrom;
     if(mine&&which===mf.w&&i===mf.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelMove); return; }
@@ -939,39 +1124,36 @@ function decorate(cell,owner,which,i,o){
 }
 function setHint(html){$('hint').innerHTML=html;}
 function extractYield(which){return which==='back'?1:2;}
-function defaultHint(){setHint('Tap a card to deploy · tap a creature to attack · ⚒ to train');}
+function defaultHint(){setHint('');}
 
 /* ---------- input ---------- */
 function onHand(i){
-  if(G.powerMode)return;
+  if(G.powerMode||G.deficit)return;
   G.atk=[]; G.moveFrom=null; G.moveMana=null; G.minSel=null;
-  if(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i){G.sel=null;defaultHint();render();return;}
+  if(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i){G.sel=null;G.cardMenu=null;defaultHint();render();return;}
   const card=G.P.you.hand[i];
   G.sel={kind:'hand',idx:i,mode:null};
+  const act=(mode,ico,lbl,sub,ok,why)=>`<button class="act${ok?'':' off'}" ${ok?`onclick="chooseMode('${mode}')"`:`disabled title="${why||''}"`}>`+
+    `<span class="ico">${ico}</span><span class="lbl">${lbl}</span><span class="sub">${ok?sub:(why||sub)}</span></button>`;
+  let html='';
   if(card.type==='building'){
     const can=card.c<=G.P.you.mana;
-    setHint(`<b style="color:var(--ink)">${card.nm}</b> (structure) &nbsp;`+
-      `<button ${can?'':'disabled style="filter:grayscale(.8) brightness(.6)"'} onclick="chooseMode('build')">Build ◆${card.c}</button>`+
-      `<button class="set" onclick="chooseMode('set')">Set ⊡ free</button>`);
+    html=act('build','🜂','Build','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','free',true);
   } else if(card.type==='spell'){
-    if(card.trap){
-      setHint(`<b style="color:#c9a0ff">${card.nm}</b> (trap) &nbsp;<button class="set" onclick="chooseMode('settrap')">Set ⊡ free</button>`);
-    } else {
-      const can=card.c<=G.P.you.mana && spellHasTarget(card);
-      const why=card.c>G.P.you.mana?'not enough mana':'no legal target';
-      setHint(`<b style="color:#c9a0ff">${card.nm}</b> (spell) &nbsp;<button ${can?'':`disabled style="filter:grayscale(.8) brightness(.6)" title="${why}"`} onclick="chooseMode('cast')">Cast ◆${card.c}</button>${can?'':` <span style="font-style:italic;font-size:11px">— ${why}</span>`}`);
-    }
+    if(card.trap){ html=act('settrap','⊡','Set','free',true); }
+    else { const can=card.c<=G.P.you.mana&&spellHasTarget(card); const why=card.c>G.P.you.mana?'not enough mana':'no legal target';
+      html=act('cast','✦','Cast','◆'+card.c,can,why); }
   } else {
     const can=card.c<=G.P.you.mana;
-    setHint(`<b style="color:var(--ink)">${card.nm}</b> &nbsp;`+
-      `<button ${can?'':'disabled style="filter:grayscale(.8) brightness(.6)"'} onclick="chooseMode('summon')">Summon ◆${card.c}</button>`+
-      `<button class="set" onclick="chooseMode('set')">Set ⊡ free</button>`);
+    html=act('summon','⬆','Summon','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','free',true);
   }
+  G.cardMenu={hand:true,i,html};
+  setHint(`<b style="color:var(--ink)">${card.nm}</b> — choose an action above the card.`);
   render();
 }
 window.chooseMode=function(m){
   if(!G.sel||G.sel.kind!=='hand')return;
-  G.sel.mode=m;
+  G.sel.mode=m; G.cardMenu=null;
   const msg=m==='build'?'Tap an empty slot to build — or tap one of your cards holding ◆ to raise it on top, spending that stored mana.'
     :m==='summon'?'Tap an empty slot to summon — or tap one of your cards holding ◆ to play on top, spending that stored mana (the card beneath is lost, surplus ◆ stays).'
     :m==='settrap'?'Tap any empty slot to set your trap face-down (it springs on your opponent\u2019s turn).'
@@ -987,6 +1169,7 @@ function spellHasTarget(card){
 }
 function validSpellTarget(card,o){
   if(!o)return false;
+  if(o.cc)return false; // the command center can only be felled by combat reaching it through the rows
   if(card.effect==='raze') return o.kind==='building';
   if(card.effect==='burn') return o.kind==='creature'||o.kind==='building'||o.kind==='charge';
   return false;
@@ -1014,7 +1197,7 @@ function onCell(owner,which,i,o){
   if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.'); return; }
   if(mine&&o.kind==='charge'){ if(G.atk.length===0) openCharge(which,i); return; }
   if(mine&&o.kind==='building'){
-    if(o.cc){ setHint(`<b style="color:var(--gold)">♜ ${o.nm}</b> — your command center. It cannot move or attack. <b>If it falls, you lose.</b> Its row lets workers extract ${o.colors.map(c=>manaGlyph(c)).join(' ')} mana.`); render(); return; }
+    if(o.cc){ setHint(`<b style="color:var(--gold)">♜ ${o.nm}</b> — your command center. It cannot move or attack. <b>If it falls, you lose.</b> Its row's workers harvest ${o.colors.map(c=>manaGlyph(c)).join(' ')} mana.`); render(); return; }
     if(o.bank>0){ G.cardMenu={w:which,i,html:`<button onclick="startSendMana('${which}',${i})">◆ Send ${o.bank}</button><span class="taphint">stored mana — move it, or play a card on top to spend it</span>`}; setHint('Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
     else setHint('Structures hold the base — they don\u2019t move or fight.');
     render(); return;
@@ -1209,7 +1392,7 @@ function flip(owner,which,slot){
   arr[slot]=cr;
   log(`<span class="${owner==='you'?'y':'e'}">${owner==='you'?'Your':'Their'} ${cr.nm} surges into being! (⚔${cr.a}/♥${cr.h})${cr.fs?' First Strike.':''}${bank?` ◆${bank} banked.`:''}${sick?' Must rest this turn.':' Battle-ready!'}</span>`,owner==='you'?'y':'e');
   
-  enforceCap(owner);
+  syncWorkers(owner);
   return cr;
 }
 function trainVillager(owner){
@@ -1324,8 +1507,9 @@ function doExtract(type){
   if(me.sick){setHint('Summoning-sick — it can act next turn.');return;}
   if(me.tapped){setHint('Already tapped this turn.');return;}
   me.tapped=true;
-  const base=(s.w==='front')?2:1;
-  log(`<span class="s">${me.nm} extracts from the ${s.w==='front'?'front line':'base'}.</span>`,'s');
+  const base=extractYield(s.w);
+  const where=s.w==='center'?'the contested center':(s.w==='front'?'the front line':'the base');
+  log(`<span class="s">${me.nm} extracts from ${where}.</span>`,'s');
   applyRes(base,'you',me,type);
   clearAtk(); render(); checkWin();
 }
@@ -1342,52 +1526,55 @@ window.doExtractAs=t=>{ if(G.turn==='you'&&!G.busy&&!G.over&&canExtract())doExtr
 
 /* ---------- minions (a per-row pool, not board cards) ---------- */
 function minYield(which){return which==='back'?1:2;}
-window.selectMinPool=(which)=>{
-  if(G.turn!=='you'||G.busy||G.over)return;
-  G.sel=null; G.atk=[]; G.moveFrom=null; G.moveMana=null; G.cardMenu=null;
-  G.minSel={owner:'you',which};
-  const list=minPool('you',which);
-  const up=list.filter(m=>!m.tapped&&!m.sick&&!m.moved).length;
-  const upE=list.filter(m=>!m.tapped&&!m.sick).length;
-  const where=which==='center'?'the contested center':(which==='front'?'your front line':'your base');
-  const ex=upE>0?`<button onclick="minExtract('${which}')">⚒ Extract ◆${minYield(which)}</button>`:'';
-  const adv=(which!=='center'&&up>0)?`<button onclick="minMove('${which}','adv')">▲ Advance</button>`:'';
-  const ret=(which!=='back'&&up>0)?`<button onclick="minMove('${which}','ret')">▼ Retreat</button>`:'';
-  const acts=`${ex}${adv}${ret}`;
-  setHint(`<b style="color:#e6cf86">⚒ Workers · ${where}</b> (${list.length}, ${upE} ready) &nbsp;${acts||'<span class="cant">none ready to act</span>'} <button class="set" onclick="clearMinSel()">Done</button>`);
-  render();
-};
-window.clearMinSel=()=>{ G.minSel=null; defaultHint(); render(); };
-window.minExtract=(which)=>{
-  if(G.turn!=='you'||G.busy||G.over)return;
+/* ---------- worker harvest: one tap harvests the whole row, a pop-up distributes the haul across colors ---------- */
+let hv=null;
+window.harvestRow=(which)=>{
+  if(G.turn!=='you'||G.busy||G.over||G.deficit)return;
+  const ready=minPool('you',which).filter(m=>!m.tapped&&!m.sick);
+  if(!ready.length){setHint('No ready workers in this row.');return;}
+  G.sel=null; G.atk=[]; G.moveFrom=null; G.moveMana=null; G.cardMenu=null; G.minSel=null;
+  const total=ready.length*minYield(which);
   const cols=extractColors('you',which);
-  if(!cols.length){minExtractAs(which,'gen');return;}
-  setHint(`Worker extracts ◆${minYield(which)} as — ${['gen',...cols].map(t=>`<button onclick="minExtractAs('${which}','${t}')">${manaGlyph(t)} ${t==='gen'?'Generic':cap(t)}</button>`).join(' ')} <button class="set" onclick="selectMinPool('${which}')">Back</button>`);
+  if(!cols.length){ applyHarvest(which,{},total); return; } // only generic is available — no choice to make
+  hv={which,total,cols:cols.slice(),alloc:Object.fromEntries(cols.map(c=>[c,0]))};
+  $('harvestPanel').style.display='flex'; drawHarvest(); render();
 };
-window.minExtractAs=(which,type)=>{
-  if(G.turn!=='you'||G.busy||G.over)return;
-  const m=minPool('you',which).find(x=>!x.tapped&&!x.sick); if(!m)return;
-  m.tapped=true;
-  log(`<span class="s">A Worker extracts from ${which==='center'?'the contested center':(which==='front'?'the front line':'the base')}.</span>`,'s');
-  applyRes(minYield(which),'you',m,type);
-  selectMinPool(which); checkWin();
-};
-window.minMove=(which,dir)=>{
-  if(G.turn!=='you'||G.busy||G.over)return;
-  const order=['back','front','center'];
-  const k=order.indexOf(which); const to=dir==='adv'?order[k+1]:order[k-1];
-  if(!to)return;
-  const src=minPool('you',which); const idx=src.findIndex(x=>!x.tapped&&!x.sick&&!x.moved);
-  if(idx<0)return;
-  const m=src.splice(idx,1)[0]; m.moved=true; m.owner='you'; minPool('you',to).push(m);
-  log(`<span class="y">A Minion ${dir==='adv'?'advances to':'falls back to'} ${to==='center'?'the contested center':(to==='front'?'the front line':'the base')}.</span>`,'y');
-  selectMinPool(to);
-};
+function hvGenRem(){ return hv?hv.total-hv.cols.reduce((s,c)=>s+(hv.alloc[c]||0),0):0; }
+function drawHarvest(){
+  if(!hv){ $('harvestPanel').style.display='none'; return; }
+  const rem=hvGenRem();
+  const where=hv.which==='center'?'contested center':(hv.which==='front'?'front line':'base');
+  const rows=hv.cols.map(c=>`<div class="hvrow"><span class="hvlab" style="color:var(--${c})">${manaGlyph(c)} ${cap(c)}</span>`+
+    `<span class="hvstep"><button onclick="hvAdj('${c}',-1)" ${hv.alloc[c]<=0?'disabled':''}>−</button>`+
+    `<span class="hvval">◆${hv.alloc[c]}</span>`+
+    `<button onclick="hvAdj('${c}',1)" ${rem<=0?'disabled':''}>+</button></span></div>`).join('');
+  $('harvestPanel').querySelector('.box').innerHTML=
+    `<div class="ptitle">⚒ Harvest ◆${hv.total}</div>`+
+    `<div class="pmeta">Workers of the ${where} bring in ◆${hv.total} — set how much of each color; the rest stays generic.</div>`+
+    `<div class="hvgrid">${rows}<div class="hvrow gen"><span class="hvlab">◆ Generic</span><span class="hvval">◆${rem}</span></div></div>`+
+    `<div class="pacts"><button onclick="hvConfirm()">Take the haul</button></div>`+
+    `<button class="pclose" onclick="hvCancel()">Cancel</button>`;
+}
+window.hvAdj=(c,d)=>{ if(!hv)return; if(d>0&&hvGenRem()<=0)return; if(d<0&&(hv.alloc[c]||0)<=0)return; hv.alloc[c]=(hv.alloc[c]||0)+d; drawHarvest(); };
+window.hvConfirm=()=>{ if(!hv)return; applyHarvest(hv.which,hv.alloc,hv.total); };
+window.hvCancel=()=>{ hv=null; $('harvestPanel').style.display='none'; defaultHint(); render(); };
+function applyHarvest(which,alloc,total){
+  const P=G.P.you;
+  minPool('you',which).filter(m=>!m.tapped&&!m.sick).forEach(m=>m.tapped=true);
+  let gen=total; const parts=[];
+  Object.keys(alloc||{}).forEach(c=>{ const v=alloc[c]||0; if(v>0){ P.cmana[c]=Math.min(20,P.cmana[c]+v); gen-=v; parts.push(`◆${v} ${cap(c)}`); } });
+  if(gen>0){ P.mana=Math.min(20,P.mana+gen); parts.push(`◆${gen} generic`); }
+  const where=which==='center'?'the contested center':(which==='front'?'the front line':'the base');
+  log(`<span class="s">Workers harvest ${where} — ${parts.join(', ')}.</span>`,'s');
+  P.firstExtract=false;
+  hv=null; $('harvestPanel').style.display='none'; defaultHint(); render(); checkWin();
+}
 function inspectMinion(owner,which){
   const list=minPool(owner,which); const up=list.filter(m=>!m.tapped&&!m.sick).length;
   const where=which==='center'?'the contested center':(which==='front'?(owner==='you'?'your front line':'the enemy front'):(owner==='you'?'your base':'the enemy base'));
+  const net=rowWorkers(owner,which);
   showInspect(`⚒ Workers · ${where}`,
-    `${list.length} Worker${list.length===1?'':'s'} here (${up} ready, ${list.length-up} tapped). Each is a <b>0/2</b> ⚒ token.<br><b>Harvester.</b> Extract — ◆1 from the base, ◆2 from the front line or the center — as <b>generic</b> mana, or as <b>any color among your units in that row</b> (your command center counts for its colors).<br><b>Cannot attack</b>, but can <b>intercept</b> a strike (it soaks the hit, dealing none back) and can be raided directly.<br><i>Workers are tokens on the rail beside the field, not board cards. Train adds one at your base; Advance/Retreat shifts one between base, front line, and center.</i>`);
+    `This row's workers are <b>set by its cards</b>: every structure adds its <b>⚒ support</b>, every monster subtracts its <b>⚒ upkeep</b>. Here that nets to <b>${net}</b> worker${net===1?'':'s'} (${up} ready).<br><b>Harvester.</b> Tap to harvest the <b>whole row at once</b> — ◆1 per worker at the base, ◆2 at the front line or center — then a pop-up lets you <b>split the haul</b> across <b>any colors among your units in that row</b> (your command center counts for its colors), keeping the rest as <b>generic</b> ◆.<br>Workers are <b>not trained and do not move</b> — they simply mirror the cards in the row. They still screen the line: a worker can <b>intercept</b> a strike and can be <b>raided</b>.<br><i>If a row's monsters outweigh its support and it goes <b>negative</b>, you must move or sacrifice monsters at the <b>start of your turn</b> until it is 0 or positive.</i>`);
 }
 // player's attackers strike an enemy minion pool (a stack of 0/2 bodies)
 const WELL2ROW={wellFoeBack:'foeBack',wellFoeFront:'foeFront',wellCenter:'center',wellYouFront:'youFront',wellYouBack:'youBack'};
@@ -1505,8 +1692,7 @@ function cleanup(){
   ['you','foe'].forEach(o=>{['front','back'].forEach(w=>{const b=G.P[o][w];
     for(let i=0;i<SLOTS;i++){const c=b[i];if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0){log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} ${c.kind==='building'?'is razed':'falls'}.`);toGrave(o,c);b[i]=null;}}});});
   for(let i=0;i<SLOTS;i++){const c=G.center[i];if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0){const o=c.owner;log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} falls in the center.`);toGrave(o,c);G.center[i]=null;}}
-  ['you','foe'].forEach(o=>['back','front','center'].forEach(w=>{const pool=G.P[o].min[w];for(let i=pool.length-1;i>=0;i--){if(pool[i].h<=0){log(`&nbsp;&nbsp;${o==='you'?'Your':'A'} Minion falls.`);toGrave(o,pool[i]);pool.splice(i,1);}}}));
-  enforceCap('you'); enforceCap('foe');
+  ['you','foe'].forEach(o=>['back','front','center'].forEach(w=>{const pool=G.P[o].min[w];for(let i=pool.length-1;i>=0;i--){if(pool[i].h<=0){toGrave(o,pool[i]);pool.splice(i,1);}}}));
 }
 
 /* ---------- turns ---------- */
@@ -1514,31 +1700,110 @@ function buildingUpkeep(owner){
   const P=G.P[owner];
   const tick=o=>{ if(o&&o.kind==='building'){
     if(o.eff==='mana'){P.mana=Math.min(20,P.mana+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ◆${o.val}.</span>`,owner==='you'?'y':'e');}
-    else if(o.eff==='villager'){trainVillager(owner);}
   }};
   ['front','back'].forEach(w=>P[w].forEach(tick));
   G.center.forEach(o=>{ if(o&&o.owner===owner) tick(o); });
 }
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
-  P.mana=Math.min(20,P.mana+1); P.firstExtract=true; P.villagerUsed=false;
+  P.mana=Math.min(20,P.mana+1); P.firstExtract=true;
   ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}}));
   G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}});
-  ['back','front','center'].forEach(w=>P.min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;}));
   buildingUpkeep(owner);
   drawCard(owner);
-  if(owner==='you'){log(`<span class="y">— Your turn (◆${P.mana}) —</span>`);defaultHint();}
+  syncWorkers(owner); // workers re-derived from the cards now in each row
+  ['back','front','center'].forEach(w=>P.min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;}));
+  if(owner==='you'){
+    const dr=deficitRows('you');
+    if(dr.length){ G.deficit=true; render(); promptDeficit(); return; }
+    log(`<span class="y">— Your turn (◆${P.mana}) —</span>`);defaultHint();
+  } else {
+    aiFixDeficit('foe');
+  }
+}
+// ----- start-of-turn deficit: a row's workers are negative; shed monsters until 0+ -----
+function promptDeficit(){
+  const dr=deficitRows('you');
+  if(!dr.length){ G.deficit=false; defaultHint(); render(); return; }
+  const names=dr.map(rowName).join(', ');
+  setHint(`<b style="color:#ff8a7a">Worker shortfall — ${names}.</b> Tap a monster in a short row to <b>move</b> it to a row that can support it, or <b>sacrifice</b> it. Resolve before you can act.`);
+  log(`<span class="y">A row can't sustain its monsters — move or sacrifice until it's not negative.</span>`,'y');
+}
+window.pickDeficit=function(which,i){
+  if(!G.deficit)return;
+  const o=cellArr('you',which)[i]; if(!o||o.kind!=='creature')return;
+  G.sel={kind:'deficit',which,i};
+  const order=['back','front','center'];
+  const k=order.indexOf(which);
+  const moves=[];
+  [order[k-1],order[k+1]].filter(Boolean).forEach(to=>{ if(rowHasSpace('you',to)) moves.push(to); });
+  const mv=moves.map(to=>`<button onclick="deficitMove('${which}',${i},'${to}')">▸ Move to ${rowName(to)}</button>`).join(' ');
+  setHint(`<b style="color:var(--ink)">${o.nm}</b> (⚒-${o.up||0}) &nbsp;${mv} <button class="set" onclick="deficitSac('${which}',${i})">✖ Sacrifice</button> <button class="set" onclick="promptDeficit2()">Back</button>`);
+  render();
+};
+window.promptDeficit2=()=>{ G.sel=null; promptDeficit(); render(); };
+function rowHasSpace(owner,which){ const arr=which==='center'?G.center:G.P[owner][which]; return arr.some((x,i)=>!x); }
+window.deficitMove=function(which,i,to){
+  const o=cellArr('you',which)[i]; if(!o)return;
+  const arr=which==='center'?G.center:G.P.you[which];
+  const dst=to==='center'?G.center:G.P.you[to];
+  let slot=dst.findIndex(x=>!x); if(slot<0)return;
+  arr[i]=null; o.moved=true; if(to==='center')o.owner='you'; dst[slot]=o;
+  log(`<span class="y">${o.nm} repositions to ${rowName(to)}.</span>`,'y');
+  G.sel=null; syncWorkers('you'); afterDeficitAction();
+};
+window.deficitSac=function(which,i){
+  const o=cellArr('you',which)[i]; if(!o)return;
+  const arr=which==='center'?G.center:G.P.you[which];
+  arr[i]=null; toGrave('you',o);
+  log(`<span class="y">${o.nm} is sacrificed to ease the workforce.</span>`,'y');
+  G.sel=null; syncWorkers('you'); afterDeficitAction();
+};
+function afterDeficitAction(){
+  if(deficitRows('you').length){ promptDeficit(); render(); }
+  else { G.deficit=false; log(`<span class="y">— Your turn (◆${G.P.you.mana}) —</span>`); defaultHint(); render(); }
+}
+const MOVE_ADJ={back:['front'],front:['back','center'],center:['front']};
+function aiMoveCreature(owner,which,i,to){
+  const arr=which==='center'?G.center:G.P[owner][which];
+  const dst=to==='center'?G.center:G.P[owner][to];
+  const o=arr[i]; if(!o)return false;
+  const slot=dst.findIndex(x=>!x); if(slot<0)return false;
+  arr[i]=null; o.moved=true; o.owner=owner; dst[slot]=o; return true;
+}
+function aiFixDeficit(owner){
+  let guard=0;
+  while(deficitRows(owner).length && guard++<60){
+    const which=deficitRows(owner)[0];
+    // try the highest-upkeep monster first
+    const cres=creaturesInRow(owner,which).sort((a,b)=>(b.o.up||0)-(a.o.up||0));
+    if(!cres.length)break;
+    const {i,o}=cres[0];
+    // 1) relocate one row forward/back to a row that can fully absorb its upkeep
+    let moved=false;
+    for(const to of (MOVE_ADJ[which]||[])){
+      if(!rowHasSpace(owner,to))continue;
+      if(rowWorkers(owner,to)-(o.up||0) >= 0){
+        if(aiMoveCreature(owner,which,i,to)){
+          log(`<span class="e">${o.nm} repositions to ${rowName(to)} to balance the workforce.</span>`,'e');
+          moved=true; break;
+        }
+      }
+    }
+    // 2) only sacrifice when no adjacent row can support it
+    if(!moved){
+      const arr=which==='center'?G.center:G.P[owner][which];
+      arr[i]=null; toGrave(owner,o);
+      log(`<span class="e">The enemy sacrifices ${o.nm} — no row can sustain it.</span>`,'e');
+    }
+    syncWorkers(owner);
+  }
 }
 $('endBtn').addEventListener('click',endTurn);
-$('conscriptBtn').addEventListener('click',()=>{
-  if(G.turn!=='you'||G.busy||G.over||G.P.you.villagerUsed)return;
-  if(!canTrain('you')){ setHint(`Worker cap reached (${minionCount('you')}/${workerCap('you')}). Build structures for more support, or thin your monsters.`); render(); return; }
-  G.sel=null; G.atk=[]; G.moveFrom=null; G.cardMenu=null; G.moveMana=null; G.minSel=null;
-  trainVillager('you'); G.P.you.villagerUsed=true;
-  defaultHint(); render();
-});
+// Train Worker removed — workers are now auto-derived from the cards in each row.
 function endTurn(){
   if(G.turn!=='you'||G.busy||G.over)return;
+  if(G.deficit){ promptDeficit(); render(); return; }
   if(manaTotal('you')>0) log(`<span class="y">◆${manaTotal('you')} unspent mana drains away — mana doesn't carry between turns.</span>`,'y');
   G.P.you.mana=0; COLORS.forEach(c=>G.P.you.cmana[c]=0);
   G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.busy=true;render();
@@ -1574,9 +1839,7 @@ async function foeTurn(){
   // fuel charges (front line + contested center)
   for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','front',i);}}
   for(let i=0;i<SLOTS;i++){const ch=G.center[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','center',i);}}
-  // train a minion if economy thin (minions live in the base pool)
-  const vcount=F.min.back.length+F.min.front.length+F.min.center.length;
-  if(vcount<2&&!F.villagerUsed){trainVillager('foe');F.villagerUsed=true;render();}
+  // (worker training removed — workers are auto-derived per row)
   // extract positionally: minions (base ◆1, front/center ◆2), plus idle front soldiers when mana is thin
   let harvested=0;
   const harvesters=[];
@@ -1593,7 +1856,7 @@ async function foeTurn(){
   for(const {c,w} of harvesters){
     if(harvested>=3)break;
     c.tapped=true; const base=w==='back'?1:2; const ty=aiExtractType(w);
-    log(`<span class="e">${c.worker?'A Worker':c.nm} extracts ◆${base} from ${w==='center'?'the center':('the '+w)}.</span>`,'e');
+    log(`<span class="e">${c.worker?'A worker':c.nm} harvests ◆${base} from ${w==='center'?'the center':('the '+w)}.</span>`,'e');
     applyRes(base,'foe',c,ty);
     harvested++; render();
   }
@@ -1602,7 +1865,7 @@ async function foeTurn(){
   if(structuresOf('foe').length===0||Math.random()<0.4){const bIdx=F.hand.findIndex(c=>c.type==='building'&&c.c<=manaTotal('foe'));const bs=F.back.findIndex(x=>!x);if(bIdx>=0&&bs>=0){const card=F.hand[bIdx];payAny('foe',card.c);F.hand.splice(bIdx,1);F.back[bs]=mkBld(card,'foe');log(`<span class="e">Opponent builds a ${card.nm}.</span>`,'e');}}
   // cast a raze spell on one of your structures
   let rzi=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='raze'&&canPay('foe',c));
-  if(rzi>=0){ let tk=null,ti=-1; ['youBack','youFront'].forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.kind==='building'){tk=key;ti=j;}}));
+  if(rzi>=0){ let tk=null,ti=-1; ['youBack','youFront'].forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.kind==='building'&&!o.cc){tk=key;ti=j;}}));
     if(tk!==null){ const card=F.hand[rzi]; payCost('foe',card); F.hand.splice(rzi,1); resolveSpell(card,'you',whichOf(tk),ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
   // burn your strongest soldier
   let bni=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='burn'&&canPay('foe',c));
@@ -1626,7 +1889,7 @@ async function foeTurn(){
     if(cEmpty>=0&&(empty<0||Math.random()<0.35)){ key='center'; empty=cEmpty; }
     if(empty<0)continue;
     payCost('foe',c);F.hand.splice(idx,1);const cr=mkCre(c,'foe',false);cr.sick=true;rowArr(key)[empty]=cr;
-    log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h})${key==='center'?' into the contested center':''}.</span>`,'e'); enforceCap('foe'); render();
+    log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h})${key==='center'?' into the contested center':''}.</span>`,'e'); syncWorkers('foe'); render();
     await playerTrapOnSummon(cr,whichOf(key),empty); if(G.over)return; }
   render();
   // attack — strikes travel across rows; you may interpose units in any row they cross
@@ -1698,7 +1961,7 @@ function showInspect(title,body){
   $('viewerPanel').classList.add('left');
   $('viewerPanel').style.display='flex';
 }
-function bigArt(src){return src?`<div class="iart"><img src="${src}" alt=""></div>`:'';}
+function bigArt(card){return (card&&card.nm)?`<div class="iart">${cardArtImg(card,'big')}</div>`:'';}
 function inspectRef(owner,which,i){
   const o=cellArr(owner,which)[i]; if(!o)return; const me=owner==='you';
   if(o.kind==='charge'){
@@ -1709,47 +1972,47 @@ function inspectRef(owner,which,i){
     const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):(o.card.fs?'<b>First Strike.</b> Strikes before the simultaneous step — a killed attacker never hits back.':'No special ability.');
     const ready=o.inv>=o.card.c;
     showInspect(`${o.card.nm} · face-down ${isB?'structure':'creature'}`,
-      `${bigArt(o.card.art)}Only you can see what this is.<br>${isB?'Raise':'Summon'} cost <b>◆${o.card.c}</b> · banked <b>◆${o.inv}</b>${ready?' ✓ funded':` (◆${o.card.c-o.inv} more to fund)`} · ${stat}<br>${eff}<br><i>Bank ◆ across turns. If attacked while under-funded it's interrupted (destroyed, ◆ lost); once funded it can ${isB?'raise':'flip'} (surplus ◆ banks on it). A card face-down for a full turn flips with no summoning sickness — it can strike at once.</i>`);
+      `${bigArt(o.card)}Only you can see what this is.<br>${isB?'Raise':'Summon'} cost <b>◆${o.card.c}</b> · banked <b>◆${o.inv}</b>${ready?' ✓ funded':` (◆${o.card.c-o.inv} more to fund)`} · ${stat}<br>${eff}<br><i>Bank ◆ across turns. If attacked while under-funded it's interrupted (destroyed, ◆ lost); once funded it can ${isB?'raise':'flip'} (surplus ◆ banks on it). A card face-down for a full turn flips with no summoning sickness — it can strike at once.</i>`);
     return;
   }
   if(o.kind==='trap'){
     if(!me){ showInspect('Face-down · hidden', `Your opponent's set card — concealed. It may be a <b>trap</b>: attacking or summoning into it can spring it. Probe with care.`); return; }
     showInspect(`${o.card.nm} · Trap (armed)`,
-      `${bigArt(o.card.art)}${spellText(o.card)}<br><i>Springs when provoked — when its trigger fires on your opponent's turn (you choose whether to spring it), or immediately on the attacker if this card is itself attacked — then goes to the graveyard.</i>`);
+      `${bigArt(o.card)}${spellText(o.card)}<br><i>Springs when provoked — when its trigger fires on your opponent's turn (you choose whether to spring it), or immediately on the attacker if this card is itself attacked — then goes to the graveyard.</i>`);
     return;
   }
   if(o.kind==='building'){
     showInspect(`${o.nm} · Structure`,
-      `${bigArt(o.art)}Cost <b>◆${o.c}</b> · ♥${o.h}/${o.maxh}${o.sup?` · <b>⚒+${o.sup} cap</b>`:''}${o.bank>0?` · <b>◆${o.bank} stored</b>`:''}<br>${bldEffectText(o.eff,o.val,o.sup)}<br><i>Doesn't move or attack and works in any row. Has HP and can be razed — <b>lose every structure and you lose the game.</b>${o.bank>0?' Holds stored ◆ — Send it elsewhere or play a card on top to spend it. Razing this structure burns the stored ◆ too.':''}</i>`);
+      `${bigArt(o)}Cost <b>◆${o.c}</b> · ♥${o.h}/${o.maxh}${o.sup?` · <b>⚒+${o.sup} cap</b>`:''}${o.bank>0?` · <b>◆${o.bank} stored</b>`:''}<br>${bldEffectText(o.eff,o.val,o.sup)}<br><i>Doesn't move or attack and works in any row. Has HP and can be razed — <b>lose every structure and you lose the game.</b>${o.bank>0?' Holds stored ◆ — Send it elsewhere or play a card on top to spend it. Razing this structure burns the stored ◆ too.':''}</i>`);
     return;
   }
   // creature
   const role=o.worker?'Minion (⚒ worker)':'Creature';
   const abilities=[];
-  if(o.worker) abilities.push('<b>Harvester.</b> Extract for resources (◆1 from the base, ◆2 from the front line or center). Can block but cannot attack.');
+  if(o.worker) abilities.push('<b>Harvester.</b> Tap the row to harvest all its workers at once (◆1 each at the base, ◆2 at the front or center), then distribute the haul across colors. Can block but cannot attack.');
   if(!o.worker&&o.up>0) abilities.push(`<b>Upkeep ⚒-${o.up}.</b> While it stands it consumes <b>${o.up} worker cap</b> — a bigger army leaves room for fewer harvesters.`);
   if(o.fs) abilities.push('<b>First Strike.</b> Strikes before the simultaneous step — anything it kills never hits back. The front-line survival tool.');
   const eff=abilities.length?abilities.join('<br>'):'No special ability.';
   const tags=[]; if(o.sick)tags.push('summoning-sick'); if(o.tapped)tags.push('tapped'); if(o.moved)tags.push('moved this turn'); if(o.bank>0)tags.push(`◆${o.bank} banked`); if(which==='center')tags.push('contesting the center');
   showInspect(`${o.nm} · ${role}${o.fs?' · First Strike':''}`,
-    `${bigArt(o.art)}Cost <b>◆${o.c}</b> · ⚔${o.a} / ♥${o.h}/${o.maxh}<br>${eff}<br><i>Taps when it attacks, extracts, or intercepts. May move once per turn to an open adjacent space — base, front line, or the contested center. Attacks target any row; if more than one row away, the strike can be intercepted in the rows it crosses.</i>${tags.length?`<br>Now: ${tags.join(', ')}.`:''}`);
+    `${bigArt(o)}Cost <b>◆${o.c}</b> · ⚔${o.a} / ♥${o.h}/${o.maxh}<br>${eff}<br><i>Taps when it attacks, extracts, or intercepts. May move once per turn to an open adjacent space — base, front line, or the contested center. Attacks target any row; if more than one row away, the strike can be intercepted in the rows it crosses.</i>${tags.length?`<br>Now: ${tags.join(', ')}.`:''}`);
 }
 function inspectHand(i){
   const c=G.P.you.hand[i]; if(!c)return; const isB=c.type==='building';
   if(c.type==='spell'){
     if(c.trap){
       showInspect(`${c.nm} · Trap card`,
-        `${bigArt(c.art)}This is in your hand — it has no effect here. <b>Set</b> it face-down for free into any empty slot.<br>Once it's on the field and armed (from your next turn on): ${spellText(c)}<br><i>It springs during your opponent's turn when the trigger fires — you choose whether to spring it — then goes to the graveyard.</i>`);
+        `${bigArt(c)}This is in your hand — it has no effect here. <b>Set</b> it face-down for free into any empty slot.<br>Once it's on the field and armed (from your next turn on): ${spellText(c)}<br><i>It springs during your opponent's turn when the trigger fires — you choose whether to spring it — then goes to the graveyard.</i>`);
     } else {
       showInspect(`${c.nm} · Spell card`,
-        `${bigArt(c.art)}Cost <b>◆${c.c}</b>.<br>${spellText(c)}<br><i>Cast on your turn — tap a legal enemy target — then it goes to the graveyard.</i>`);
+        `${bigArt(c)}Cost <b>◆${c.c}</b>.<br>${spellText(c)}<br><i>Cast on your turn — tap a legal enemy target — then it goes to the graveyard.</i>`);
     }
     return;
   }
   const stat=isB?`♥${c.h}${c.sup?` · ⚒+${c.sup} cap`:''}`:`⚔${c.a} / ♥${c.h}${c.up?` · ⚒-${c.up} cap`:''}`;
   const eff=isB?bldEffectText(c.eff,c.val,c.sup):(c.up?`<b>Upkeep ⚒-${c.up}.</b> Consumes ${c.up} worker cap while it stands.`:'No special ability.');
   showInspect(`${c.nm} · ${isB?'Structure':'Creature'} (in hand)`,
-    `${bigArt(c.art)}Cost <b>◆${c.c}</b> · ${stat}<br>${eff}<br><i>${isB?'Build':'Summon'} face-up (pay now), or <b>Set</b> face-down for free, into any empty slot — front line or base.${isB?' Structures are your lifeline: lose them all and you lose.':''}</i>`);
+    `${bigArt(c)}Cost <b>◆${c.c}</b> · ${stat}<br>${eff}<br><i>${isB?'Build':'Summon'} face-up (pay now), or <b>Set</b> face-down for free, into any empty slot — front line or base.${isB?' Structures are your lifeline: lose them all and you lose.':''}</i>`);
 }
 
 /* ---------- deck / graveyard viewer ---------- */
@@ -1879,7 +2142,7 @@ const FX=(()=>{
   function clearAim(){ if(aimP){aimP.remove();aimP=null;} }
   let splT=null;
   function splash(unit,owner){ if(RM||!unit)return;
-    spl.querySelector('img').src=unit.art||'';
+    (function(_i){_i.onerror=function(){_i.onerror=null;_i.src=(PLACEHOLDERS[unit.nm]||'');};_i.src=artPath(unit.nm);})(spl.querySelector('img'));
     spl.querySelector('.spname').textContent=unit.nm;
     spl.querySelector('.spstats').textContent=unit.kind==='building'?`STRUCTURE · ♥${unit.h}`:`⚔${unit.a} / ♥${unit.h}${unit.fs?' · FIRST STRIKE':''}`;
     spl.style.setProperty('--sc', owner==='you'?'var(--gold)':'var(--tide)');
@@ -2081,22 +2344,18 @@ function fitBoard(){
     if(!overY&&!overX)break;
     ch-=3; root.style.setProperty('--ch',ch.toFixed(1)+'px');
   }
-  const bc=document.querySelector('.boardcol'), hw=document.querySelector('.handwrap');
-  if(bc&&hw){ const r=bc.getBoundingClientRect(); if(r.width)hw.style.left=(r.left+r.width/2)+'px'; }
+  // the handwrap now spans the full viewport (left:0;right:0) and its .hand child self-centers,
+  // so no manual horizontal offset is needed (writing inline left here would fight the CSS right:0).
 }
 addEventListener('resize',fitBoard);
 document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
-// fan the hand: rotation + arc lift per card, applied after every hand render
+// stack the resting hand left-to-right so the peek headers overlap cleanly (the fan arc is
+// dropped — it fought the flat name+cost peek strip; per-card hover/select still pops on top)
 const _renderHand_v18=renderHand;
 renderHand=function(){
   _renderHand_v18();
-  const el=$('hand'); const kids=[...el.children]; const n=kids.length;
-  kids.forEach((c,i)=>{
-    const off=i-(n-1)/2;
-    c.style.setProperty('--rot',(off*4).toFixed(1)+'deg');
-    c.style.setProperty('--lift',(Math.abs(off)*7).toFixed(1)+'px');
-    c.style.zIndex=10+i;
-  });
+  const el=$('hand'); const kids=[...el.children];
+  kids.forEach((c,i)=>{ c.style.zIndex=10+i; });
 };
 // first press on the start menu → fullscreen + landscape lock, like a real client
 (function(){

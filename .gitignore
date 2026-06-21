@@ -1,0 +1,23 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.claude/
+
+# Node (only if you add tooling later)
+node_modules/
+npm-debug.log*
+*.log
+
+# Local builds / packaging output
+dist/
+build/
+*.app
+*.exe
+
+# Optional: keep large art masters out of git (uncomment if you store them here)
+# *.psd
+# *.xcf
+# *.kra
