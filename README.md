@@ -69,4 +69,5 @@ it to change a filename or add a brand-new card; existing cards already work.
 
 ## Art ownership
 
-All art added under `assets/` should be original or properly licensed.
+All art is placeholder.  No copyright infringement intended.  Any art that is not
+original to this project will be replaced in final release.
