@@ -63,6 +63,7 @@
     color:var(--ink);background:rgba(13,11,18,.88);border:1px solid #3a3450;box-shadow:0 4px 12px rgba(0,0,0,.5);}
   #logBtn:active,#rulesBtn:active{transform:translateY(1px);}
   #logPanel,#rulesPanel{position:fixed;inset:0;z-index:27;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
+  #rulesPanel{z-index:50;}/* above the main-menu screens (Rules is reachable from the menu) */
   #logPanel .box,#rulesPanel .box{width:430px;max-width:92vw;max-height:88dvh;overflow-y:auto;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
   #logPanel .ltitle,#rulesPanel .ltitle{font-family:'Cinzel',serif;font-weight:900;font-size:17px;color:var(--gold);text-align:center;margin-bottom:10px;}
   #logPanel .pclose,#rulesPanel .pclose{display:block;margin:11px auto 0;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
@@ -330,19 +331,28 @@
   #cpanel .pacts button:active:not(:disabled){transform:translatey(2px);}
   #cpanel .pclose{margin-top:4px;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
   .banner{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.86);backdrop-filter:blur(3px);}
-  #charsel{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.96);backdrop-filter:blur(3px);padding:18px;overflow-y:auto;}
-  #charsel .csbox{max-width:560px;width:100%;text-align:center;}
-  #charsel h1{font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--gold);margin:4px 0 4px;}
-  #charsel .cssub{font-size:12.5px;color:var(--ink-dim);margin-bottom:16px;}
-  #charsel .csrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 14px;}
+  #charsel,#soloSelect{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.96);backdrop-filter:blur(3px);padding:18px;overflow-y:auto;}
+  #soloSelect{z-index:43;}
+  #charsel .csbox,#soloSelect .csbox{max-width:560px;width:100%;text-align:center;}
+  #charsel h1,#soloSelect h1{font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--gold);margin:4px 0 4px;}
+  #charsel .cssub,#soloSelect .cssub{font-size:12.5px;color:var(--ink-dim);margin-bottom:16px;}
+  #charsel .csrow,#soloSelect .csrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 14px;}
   .cschar{flex:1 1 0;min-width:150px;max-width:230px;text-align:left;padding:12px 13px;border-radius:13px;border:2px solid #2a2433;background:#15131c;cursor:pointer;transition:transform .1s,border-color .12s,box-shadow .12s;}
   .cschar:active{transform:translateY(1px);}
   .cschar.on,.cschar:hover{border-color:var(--gold);box-shadow:0 0 20px rgba(217,176,74,.4);background:#1c1826;}
   .cschar .cn{font-family:'Cinzel',serif;font-weight:700;font-size:16px;display:flex;align-items:center;gap:7px;}
   .cschar .cp{font-size:11px;color:var(--ink-dim);font-style:italic;margin-top:6px;line-height:1.4;}
   .cschar .cpow{font-size:11px;color:#d9b8ff;margin-top:6px;line-height:1.4;}
-  #charsel .csback{margin-top:4px;background:none;border:none;color:var(--ink-dim);font-size:13px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.05em;}
-  #charsel .csback:active{color:var(--ink);}
+  .cschar.custom.invalid{border-color:#5a3b3b;opacity:.85;}
+  .cschar.custom .cn{cursor:pointer;}
+  .cschar .csmini{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;}
+  .cschar .csmini button{font-family:'Cinzel',serif;font-size:10.5px;letter-spacing:.03em;padding:4px 9px;border-radius:7px;cursor:pointer;border:1px solid #3d3450;background:#221c2e;color:var(--ink);}
+  .cschar .csmini button.go{border-color:var(--gold-deep);background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;font-weight:700;}
+  .cschar.csnew{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--gold);font-size:26px;font-family:'Cinzel',serif;min-height:78px;}
+  .cschar.csnew .cn{font-size:13px;justify-content:center;}
+  .csempty{flex:1 1 0;min-width:150px;color:var(--ink-dim);font-style:italic;font-size:12px;display:flex;align-items:center;justify-content:center;padding:18px;}
+  #charsel .csback,#soloSelect .csback{margin-top:4px;background:none;border:none;color:var(--ink-dim);font-size:13px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.05em;}
+  #charsel .csback:active,#soloSelect .csback:active{color:var(--ink);}
   .banner .msg{font-family:'Cinzel',serif;font-size:clamp(28px,9vw,56px);font-weight:900;letter-spacing:.1em;text-align:center;}
   .banner button{margin-top:22px;display:block;font-family:'Cinzel',serif;letter-spacing:.1em;font-size:14px;padding:11px 26px;border-radius:10px;border:none;cursor:pointer;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 4px 0 #4d3a10;}
 
@@ -440,6 +450,51 @@
     .fx-shake,#hurtVig.on,#turnRibbon.on,#splashFx .spbox{animation:none;}
     #turnRibbon.on{opacity:1;transition:opacity .2s;}
   }
+  /* ===== main menu ===== */
+  #mainMenu{position:fixed;inset:0;z-index:42;display:none;align-items:center;justify-content:center;
+    background:radial-gradient(1100px 700px at 50% -10%,#241a36 0%,transparent 60%),radial-gradient(900px 600px at 50% 120%,#2a1410 0%,transparent 55%),rgba(4,3,8,.98);backdrop-filter:blur(3px);padding:20px;overflow-y:auto;}
+  #mainMenu .mmbox{width:100%;max-width:430px;text-align:center;}
+  .mmtitle{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(28px,6vw,42px);letter-spacing:.06em;color:var(--gold);text-shadow:0 0 26px rgba(217,176,74,.35);}
+  .mmsub{font-family:'EB Garamond',serif;font-style:italic;font-size:13px;color:var(--ink-dim);margin:6px 0 26px;letter-spacing:.02em;}
+  .mmbtns{display:flex;flex-direction:column;gap:13px;}
+  .mmbtn{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.05em;font-size:16px;padding:15px 18px;border-radius:12px;cursor:pointer;position:relative;
+    color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:2px solid #f0d68a;box-shadow:0 4px 0 #4d3a10,0 8px 22px rgba(0,0,0,.5);}
+  .mmbtn:active{transform:translateY(2px);box-shadow:0 2px 0 #4d3a10;}
+  .mmbtn.ghost{color:var(--ink);background:rgba(13,11,18,.85);border:1px solid #3a3450;box-shadow:0 3px 10px rgba(0,0,0,.5);font-size:13.5px;padding:11px 16px;}
+  .mmbtn.off{color:var(--ink-dim);background:rgba(13,11,18,.6);border:1px dashed #3a3450;box-shadow:none;cursor:default;filter:grayscale(.4);}
+  .mmbtn .soon{display:block;font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:10.5px;letter-spacing:.04em;color:var(--ink-dim);margin-top:2px;text-transform:uppercase;}
+  /* ===== deck builder ===== */
+  #deckBuilder{position:fixed;inset:0;z-index:44;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.97);backdrop-filter:blur(3px);padding:14px;}
+  #deckBuilder .dbbox{width:660px;max-width:96vw;max-height:94dvh;display:flex;flex-direction:column;
+    background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:14px 14px 12px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
+  .dbtitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);text-align:center;}
+  #dbLeaders{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:10px 0 8px;}
+  .dbleader{display:flex;align-items:center;gap:6px;font-family:'Cinzel',serif;font-size:12px;padding:6px 11px;border-radius:999px;cursor:pointer;color:var(--ink);background:#15131c;border:2px solid #2a2433;}
+  .dbleader.on{border-color:var(--lc,var(--gold));box-shadow:0 0 14px rgba(217,176,74,.35);background:#1c1826;}
+  .dbtop{display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:9px;flex-wrap:wrap;}
+  .dbname{font-family:'EB Garamond',serif;font-size:14px;padding:8px 12px;border-radius:9px;background:#0d0b12;border:1px solid #3d3450;color:var(--ink);width:230px;max-width:60vw;}
+  .dbcounter{font-family:'Cinzel',serif;font-weight:900;font-size:17px;min-width:74px;}
+  .dbcounter.ok{color:#9ad17f;} .dbcounter.bad{color:#e0a59a;}
+  #dbList{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding:4px 2px;}
+  .dbrow{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:10px;background:#1a1622;border:1px solid #2a2433;}
+  .dbrow.has{border-color:var(--gold-deep);background:#1f1a28;}
+  .dbart{width:38px;height:38px;flex:none;border-radius:6px;overflow:hidden;border:1px solid rgba(0,0,0,.5);background:#0a0a0f;}
+  .dbart img{width:100%;height:100%;object-fit:cover;display:block;}
+  .dbinfo{flex:1;min-width:0;text-align:left;}
+  .dbnm{font-family:'Cinzel',serif;font-weight:700;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dbmeta{font-size:11px;color:var(--ink-dim);margin-top:1px;}
+  .dbrow.ember-c{box-shadow:inset 3px 0 0 var(--ember);} .dbrow.tide-c{box-shadow:inset 3px 0 0 var(--tide);}
+  .dbstep{display:flex;align-items:center;gap:9px;flex:none;}
+  .dbstep button{width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;font-size:19px;line-height:1;font-family:'Cinzel',serif;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 2px 0 #4d3a10;}
+  .dbstep button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
+  .dbstep button:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  .dbcount{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--spawn);min-width:18px;text-align:center;}
+  .dbhint{font-size:11.5px;color:var(--ink-dim);font-style:italic;text-align:center;margin:8px 0 6px;min-height:14px;}
+  .dbacts{display:flex;gap:9px;}
+  .dbacts button{flex:1;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;padding:11px;border-radius:9px;cursor:pointer;border:none;}
+  #dbSave{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 3px 0 #4d3a10;}
+  #dbSave:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  .dbcancel{color:var(--ink);background:#2a2336;border:1px solid #3d3450!important;}
 </style>
 </head>
 <body>
@@ -510,8 +565,9 @@
   </div>
   </div><!-- /boardcol -->
   </div><!-- /main -->
+  </div><!-- /wrap -->
 
-  <!-- rules / command-center reference, on demand -->
+  <!-- rules / command-center reference, on demand (body-level so it overlays the main menu too) -->
   <div id="rulesPanel" onclick="if(event.target===this)toggleRules(false)">
     <div class="box">
       <div class="ltitle">How to Play</div>
@@ -527,7 +583,6 @@
       <button class="pclose" onclick="toggleRules(false)">Close</button>
     </div>
   </div>
-</div>
 
 <div id="contestPanel"><div class="box"></div></div>
 <div id="logPanel" onclick="if(event.target===this)toggleLog(false)"><div class="box">
@@ -540,6 +595,31 @@
 <div id="viewerPanel" onclick="if(event.target===this)closeViewer()"><div class="box"></div></div>
 <div class="banner" id="banner"><div><div class="msg" id="bannerMsg"></div><button onclick="location.reload()">Duel Again</button></div></div>
 <div id="charsel"><div class="csbox"></div></div>
+<div id="mainMenu"><div class="mmbox">
+  <div class="mmtitle">SPAWN ROW DUEL</div>
+  <div class="mmsub">raze their base · hold the center · feed the army</div>
+  <div class="mmbtns">
+    <button class="mmbtn" onclick="menuPlaySolo()">Play · Solo</button>
+    <button class="mmbtn" onclick="menuDeckBuilder()">Deck Builder</button>
+    <button class="mmbtn off" disabled>Multiplayer<span class="soon">coming soon</span></button>
+    <button class="mmbtn ghost" onclick="toggleRules(true)">Rules</button>
+  </div>
+</div></div>
+<div id="soloSelect"><div class="csbox"></div></div>
+<div id="deckBuilder"><div class="dbbox">
+  <div class="dbtitle">Deck Builder</div>
+  <div id="dbLeaders"></div>
+  <div class="dbtop">
+    <input id="dbName" class="dbname" maxlength="22" placeholder="Deck name" oninput="dbNameInput(this.value)">
+    <div id="dbCounter" class="dbcounter bad">0 / 20</div>
+  </div>
+  <div id="dbList"></div>
+  <div id="dbHint" class="dbhint"></div>
+  <div class="dbacts">
+    <button class="dbcancel" onclick="dbCancel()">Cancel</button>
+    <button id="dbSave" onclick="dbSave()" disabled>Save Deck</button>
+  </div>
+</div></div>
 
 <script>
 const C=5, SLOTS=5;
@@ -812,6 +892,48 @@ function deckOf(colors){ // colors: array — mono draws one pool, dual mixes bo
   });
   for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
   return d;}
+/* ===== deck-building data: registry, saved decks (localStorage), validation, expander ===== */
+const DECK_SIZE=20, MAX_COPIES=3, MAX_DECKS=5, DECKS_KEY='srd.decks.v1';
+const CARD_REG=(function(){
+  const reg=[]; const add=(arr,type,color)=>(arr||[]).forEach(t=>reg.push({key:color+'|'+t.nm,type,color,nm:t.nm,tpl:t}));
+  add(EMBER,'creature','ember'); add(TIDE,'creature','tide');
+  add(BUILD.ember,'building','ember'); add(BUILD.tide,'building','tide');
+  add(SPELL.ember,'spell','ember'); add(SPELL.tide,'spell','tide');
+  return reg;
+})();
+const CARD_BY_KEY=Object.fromEntries(CARD_REG.map(e=>[e.key,e]));
+function ccColors(ccId){ return (CCS[ccId]&&CCS[ccId].colors)||[]; }
+function regForCC(ccId){ const cols=ccColors(ccId); return CARD_REG.filter(e=>cols.includes(e.color)); }
+function cardColorOK(key,ccId){ const e=CARD_BY_KEY[key]; return !!e&&ccColors(ccId).includes(e.color); }
+function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function isWellFormedDeck(d){ return d&&typeof d.name==='string'&&CCS[d.cc]&&d.cards&&typeof d.cards==='object'; }
+function loadDecks(){ try{ const raw=localStorage.getItem(DECKS_KEY); if(!raw)return []; const arr=JSON.parse(raw); if(!Array.isArray(arr))return []; return arr.filter(isWellFormedDeck).slice(0,MAX_DECKS); }catch(e){ return []; } }
+function saveDecks(arr){ try{ localStorage.setItem(DECKS_KEY,JSON.stringify(arr.slice(0,MAX_DECKS))); return true; }catch(e){ return false; } }
+function deleteDeck(i){ const a=loadDecks(); if(i>=0&&i<a.length){ a.splice(i,1); saveDecks(a); } }
+function deckTotal(cards){ return Object.values(cards||{}).reduce((s,n)=>s+(n|0),0); }
+function deckErrors(deck){
+  const errs=[]; const cc=CCS[deck.cc]; if(!cc) return ['Unknown leader'];
+  let total=0;
+  for(const [key,cnt] of Object.entries(deck.cards||{})){
+    const e=CARD_BY_KEY[key];
+    if(!e){ errs.push('Unknown card in deck'); continue; }
+    if(!cc.colors.includes(e.color)) errs.push(e.nm+' is off-color');
+    if(cnt<1||cnt>MAX_COPIES) errs.push(e.nm+' must be 1–'+MAX_COPIES);
+    total+=cnt;
+  }
+  if(total!==DECK_SIZE) errs.push('Need exactly '+DECK_SIZE+' cards (have '+total+')');
+  return errs;
+}
+function deckValid(deck){ return deckErrors(deck).length===0; }
+function expandDeck(deck){
+  const d=[];
+  for(const [key,cnt] of Object.entries((deck&&deck.cards)||{})){
+    const e=CARD_BY_KEY[key]; if(!e) continue;
+    for(let i=0;i<cnt;i++) d.push({type:e.type,color:e.color,...e.tpl});
+  }
+  for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
+  return d;
+}
 function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art};}
 function mkVil(owner){return mkCre({nm:'Worker',a:0,h:2,c:0,up:0,art:ART.villager},owner,true);}
 function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0};}
@@ -829,7 +951,7 @@ function bootstrap(){
   document.body.appendChild($('cardActions'));
   window.addEventListener('scroll',()=>placeCardMenu(),true);
   window.addEventListener('resize',()=>placeCardMenu());
-  showCharSelect();
+  showMainMenu();
 }
 function ccPips(def){return def.colors.map(c=>`<span class="cdot" style="background:var(--${c})"></span>`).join('');}
 function applyCharacterUI(){
@@ -844,7 +966,7 @@ function applyCharacterUI(){
   $('foeSide').style.borderColor=`var(--${cf.colors[0]})`;
   $('youSide').style.borderColor=`var(--${cy.colors[0]})`;
 }
-function startGame(youId,foeId){
+function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
   Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
   Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
@@ -853,10 +975,10 @@ function startGame(youId,foeId){
   // command centers anchor the back row; starting workers report ready
   G.P.you.back[2]=mkCC(cy,'you'); G.P.foe.back[2]=mkCC(cf,'foe');
   syncWorkers('you'); syncWorkers('foe');
-  G.P.you.deck=deckOf(cy.colors); G.P.foe.deck=deckOf(cf.colors);
+  G.P.you.deck=youDeck||deckOf(cy.colors); G.P.foe.deck=foeDeck||deckOf(cf.colors);
   dealOpening('you'); dealOpening('foe');
   applyCharacterUI();
-  $('charsel').style.display='none';
+  hideAllScreens();
   $('log').innerHTML='';
   log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Raze the enemy command center to win — lose yours and the duel is over.</span>`);
   defaultHint(); render();
@@ -890,6 +1012,101 @@ function renderCharSel(){
   }
 }
 function showCharSelect(){ csStep=1; renderCharSel(); $('charsel').style.display='flex'; }
+
+/* ===== main menu / deck builder / solo screens ===== */
+function hideAllScreens(){ ['mainMenu','charsel','soloSelect','deckBuilder'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
+function showMainMenu(){ hideAllScreens(); $('mainMenu').style.display='flex'; }
+function menuPlaySolo(){ showSoloDeckPick(); }
+function menuDeckBuilder(){ openDeckBuilder(); }
+
+/* -- deck builder -- */
+let dbState=null;
+function openDeckBuilder(editIndex,ret){
+  const decks=loadDecks();
+  // creating a new deck while at the cap would open an unsaveable builder — send to the deck list instead
+  if(editIndex==null&&decks.length>=MAX_DECKS){ showSoloDeckPick(); return; }
+  hideAllScreens();
+  const back=ret||'menu';
+  if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back};
+  else dbState={cc:'emberbastion',name:'',cards:{},editIndex:null,back};
+  renderDeckBuilder(); $('deckBuilder').style.display='flex';
+}
+function dbReturn(){ const back=dbState&&dbState.back; dbState=null; if(back==='solo')showSoloDeckPick(); else showMainMenu(); }
+function dbNameInput(v){ if(dbState){ dbState.name=v; refreshDbCounter(); } }
+function renderDeckBuilder(){ renderDbLeaders(); $('dbName').value=dbState.name; renderDbList(); refreshDbCounter(); }
+function renderDbLeaders(){
+  $('dbLeaders').innerHTML=Object.keys(CCS).map(id=>{const c=CCS[id]; const on=id===dbState.cc?' on':'';
+    return `<button class="dbleader${on}" style="--lc:var(--${c.colors[0]})" onclick="dbPickCC('${id}')">${ccPips(c)}<span>${c.name}</span></button>`;}).join('');
+}
+function renderDbList(){
+  const list=regForCC(dbState.cc);
+  const nameCount={}; list.forEach(e=>{nameCount[e.nm]=(nameCount[e.nm]||0)+1;});
+  $('dbList').innerHTML=list.map(e=>{
+    const n=dbState.cards[e.key]||0;
+    const label=nameCount[e.nm]>1?`${e.nm} (${cap(e.color)})`:e.nm; // disambiguate a name shared across colors (e.g. Longhouse on a dual leader)
+    const stat=e.type==='creature'?`⚔${e.tpl.a}/♥${e.tpl.h}`:e.type==='building'?((e.tpl.eff==='mana'?('◆+'+e.tpl.val):'⚒ train')+` · ♥${e.tpl.h}`):(e.tpl.trap?'⚠ trap':'✦ spell');
+    return `<div class="dbrow ${clsOf[e.color]}${n>0?' has':''}">`+
+      `<div class="dbart">${cardArtImg(e.tpl)}</div>`+
+      `<div class="dbinfo"><div class="dbnm">${label}</div><div class="dbmeta">${manaGlyph(e.color)}${e.tpl.c||0} · ${stat}</div></div>`+
+      `<div class="dbstep"><button onclick="dbStep('${e.key}',-1)" ${n<=0?'disabled':''}>−</button><span class="dbcount">${n}</span><button onclick="dbStep('${e.key}',1)" ${n>=MAX_COPIES?'disabled':''}>+</button></div>`+
+    `</div>`;
+  }).join('');
+}
+function currentDbDeck(){ const cards={}; for(const [k,v] of Object.entries(dbState.cards)) if(v>0) cards[k]=v; return {name:(dbState.name||'').trim(),cc:dbState.cc,cards}; }
+function refreshDbCounter(){
+  const total=deckTotal(dbState.cards); const deck=currentDbDeck(); const valid=deckValid(deck);
+  const el=$('dbCounter'); el.textContent=total+' / '+DECK_SIZE; el.className='dbcounter '+(valid?'ok':'bad');
+  const decks=loadDecks(); const room=dbState.editIndex!=null||decks.length<MAX_DECKS; const named=deck.name.length>0;
+  $('dbSave').disabled=!(valid&&room&&named);
+  $('dbHint').textContent=!named?'Name your deck.':(!room?('You have '+MAX_DECKS+' decks — edit or delete one.'):(valid?'Ready to save.':deckErrors(deck)[0]));
+}
+window.dbPickCC=(id)=>{ if(!dbState)return; dbState.cc=id; for(const k of Object.keys(dbState.cards)) if(!cardColorOK(k,id)) delete dbState.cards[k]; renderDeckBuilder(); };
+window.dbStep=(key,dir)=>{ if(!dbState)return; const n=(dbState.cards[key]||0)+(+dir); if(n<=0)delete dbState.cards[key]; else dbState.cards[key]=Math.min(MAX_COPIES,n); renderDbList(); refreshDbCounter(); };
+window.dbSave=()=>{ if(!dbState)return; const deck=currentDbDeck(); if(!deckValid(deck)||!deck.name)return; const decks=loadDecks();
+  if(dbState.editIndex!=null&&decks[dbState.editIndex]) decks[dbState.editIndex]=deck; else decks.push(deck);
+  if(saveDecks(decks)){ dbReturn(); } else $('dbHint').textContent='Could not save — browser storage is blocked.'; };
+window.dbCancel=()=>{ dbReturn(); };
+
+/* -- solo: pick your deck, then your opponent -- */
+let soloYou=null;
+function showSoloDeckPick(){ hideAllScreens(); soloYou=null; renderSoloDeckPick(); $('soloSelect').style.display='flex'; }
+function renderSoloDeckPick(){
+  const box=$('soloSelect').querySelector('.csbox'); const decks=loadDecks();
+  const premades=Object.keys(CCS).map(id=>{const c=CCS[id];
+    return `<button class="cschar" onclick='soloPickDeck({"kind":"premade","cc":"${id}"})'><div class="cn" style="color:var(--${c.colors[0]})">${ccPips(c)}${c.name}</div><div class="cp">Premade · auto-built ${c.colors.map(cap).join(' + ')}</div><div class="cpow">♥ <b>${c.hp}</b> · ⚒ <b>${c.wk}</b> workers</div></button>`;}).join('');
+  const customs=decks.map((d,i)=>{const c=CCS[d.cc]; const valid=deckValid(d); const total=deckTotal(d.cards);
+    return `<div class="cschar custom${valid?'':' invalid'}">`+
+      `<div class="cn" style="color:var(--${c.colors[0]})" ${valid?`onclick='soloPickDeck({"kind":"custom","index":${i}})'`:''}>${ccPips(c)}${escHtml(d.name||'(unnamed)')}</div>`+
+      `<div class="cp">${c.name} · ${total}/${DECK_SIZE}${valid?'':' · <b style="color:#e0a59a">invalid</b>'}</div>`+
+      `<div class="csmini"><button onclick="openDeckBuilder(${i},'solo')">Edit</button><button onclick="soloDelete(${i})">Delete</button>${valid?`<button class="go" onclick='soloPickDeck({"kind":"custom","index":${i}})'>Play ▶</button>`:''}</div>`+
+    `</div>`;}).join('');
+  const newSlot=decks.length<MAX_DECKS
+    ? `<button class="cschar csnew" onclick="openDeckBuilder(null,'solo')">＋<div class="cn">New Deck</div></button>`
+    : `<div class="csempty">Deck limit reached (${MAX_DECKS}/${MAX_DECKS}) — edit or delete one to free a slot.</div>`;
+  box.innerHTML=`<h1>Choose Your Deck</h1>`+
+    `<div class="cssub">Premades mirror the classic auto-decks. Build your own with the Deck Builder.</div>`+
+    `<div class="cssub" style="color:var(--gold);margin-bottom:4px">Premade</div><div class="csrow">${premades}</div>`+
+    `<div class="cssub" style="color:var(--gold);margin:10px 0 4px">Your decks (${decks.length}/${MAX_DECKS})</div>`+
+    `<div class="csrow">${customs}${newSlot}</div>`+
+    `<button class="csback" onclick="showMainMenu()">← menu</button>`;
+}
+window.soloDelete=(i)=>{ deleteDeck(i); renderSoloDeckPick(); };
+window.soloPickDeck=(sel)=>{ soloYou=sel; renderSoloFoePick(); };
+function renderSoloFoePick(){
+  const box=$('soloSelect').querySelector('.csbox'); const ids=Object.keys(CCS);
+  const cards=ids.map(id=>{const c=CCS[id];
+    return `<button class="cschar" onclick="soloStart('${id}')"><div class="cn" style="color:var(--${c.colors[0]})">${ccPips(c)}${c.name}</div><div class="cp">${c.desc}</div><div class="cpow">♥ <b>${c.hp}</b> · ⚒ <b>${c.wk}</b> · ${c.colors.map(cap).join(' + ')}</div></button>`;}).join('')+
+    `<button class="cschar" onclick="soloStart('__rand')"><div class="cn">🎲 Random</div><div class="cp">A surprise opponent, rolled when the duel begins.</div></button>`;
+  box.innerHTML=`<h1>Choose Your Opponent</h1><div class="cssub">Your deck is set. Pick who you face.</div><div class="csrow">${cards}</div><button class="csback" onclick="showSoloDeckPick()">← back</button>`;
+}
+window.soloStart=(foeId)=>{
+  const ids=Object.keys(CCS); if(foeId==='__rand')foeId=ids[Math.floor(Math.random()*ids.length)];
+  let youId,youDeck;
+  if(soloYou&&soloYou.kind==='custom'){ const d=loadDecks()[soloYou.index]; if(!d||!deckValid(d)){ showSoloDeckPick(); return; } youId=d.cc; youDeck=expandDeck(d); }
+  else { youId=(soloYou&&soloYou.cc)||'emberbastion'; youDeck=undefined; }
+  $('soloSelect').style.display='none';
+  startGame(youId,foeId,youDeck,undefined);
+};
 function dealOpening(o){ // your command center is pre-placed, so the opening hand is simply 4 cards
   G.P[o].hand=[]; for(let i=0;i<4;i++)drawCard(o);
 }
@@ -2297,9 +2514,9 @@ render=function(){
     _fxLife[o]=v; });
 };
 const _startGame=startGame;
-startGame=function(youId,foeId){
+startGame=function(youId,foeId,youDeck,foeDeck){
   _fxLife.you=_fxLife.foe=null;
-  _startGame(youId,foeId);
+  _startGame(youId,foeId,youDeck,foeDeck);
   FX.ribbon('DUEL START','var(--gold)'); SFX.turnYou();
   setTimeout(fitBoard,60);
 };
@@ -2378,7 +2595,7 @@ renderHand=function(){
     try{ if(screen.orientation&&screen.orientation.lock){ const pr=screen.orientation.lock('landscape'); if(pr&&pr.catch)pr.catch(()=>{}); } }catch(e){}
     setTimeout(fitBoard,360);
   }
-  const cs=$('charsel'); if(cs)cs.addEventListener('pointerup',goFS,{capture:true});
+  ['mainMenu','soloSelect','deckBuilder','charsel'].forEach(id=>{const el=$(id); if(el)el.addEventListener('pointerup',goFS,{capture:true});});
 })();
 // portrait touch devices get a rotate prompt instead of a broken squeeze
 (function(){

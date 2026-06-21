@@ -29,9 +29,24 @@ SUFFIX = "_cardart"
 MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}
 
 
-def data_uri(path, mime):
+def sniff_mime(data, fallback):
+    # trust the file's actual bytes over its extension (people mislabel webp as .png, etc.)
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return fallback
+
+
+def data_uri(path, fallback_mime):
     with open(path, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode("ascii")
+        raw = f.read()
+    mime = sniff_mime(raw, fallback_mime)
+    b64 = base64.b64encode(raw).decode("ascii")
     return "data:%s;base64,%s" % (mime, b64)
 
 
