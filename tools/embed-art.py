@@ -11,8 +11,12 @@ Run it whenever you add or change art:
 Reads : spawn-row-duel-v26.html      (the editable source, external image refs)
 Writes: spawn-row-duel-v26.portable.html   (self-contained, art embedded)
 
-The source file is never modified, so your drop-a-file / swap-by-name workflow
-stays intact — re-run this to refresh the portable build.
+Art files follow the auto-convention used by the game: a card named "Magmaw"
+loads  assets/cards/magmaw_cardart.png . This tool scans the folder for every
+"<slug>_cardart.<ext>" file and injects them into the game's `w.EMBEDDED` map
+(keyed by <slug>), which the game checks before going to the network. So the
+source file is never modified — your drop-a-file workflow stays intact; just
+re-run this to refresh the portable build.
 """
 import io, os, base64
 
@@ -20,26 +24,23 @@ HERE   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC    = os.path.join(HERE, "spawn-row-duel-v26.html")
 OUT    = os.path.join(HERE, "spawn-row-duel-v26.portable.html")
 ARTDIR = os.path.join(HERE, "assets", "cards")
+SUFFIX = "_cardart"
 
 MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}
 
-def data_uri(path):
-    ext = os.path.splitext(path)[1].lower()
-    mime = MIME.get(ext)
-    if not mime:
-        return None
+
+def data_uri(path, mime):
     with open(path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("ascii")
     return "data:%s;base64,%s" % (mime, b64)
 
+
 with io.open(SRC, "r", encoding="utf-8") as f:
     html = f.read()
 
-# Operate only inside the CARD_FILES table so nothing else is touched.
-start = html.index("w.CARD_FILES = {")
-end   = html.index("};", start) + 2
-block = html[start:end]
-
+# Scan for <slug>_cardart.<ext> images and key them by <slug> (the game derives the
+# same slug from each card's name, so they line up automatically).
+entries  = {}
 embedded = []
 skipped  = []
 for fn in sorted(os.listdir(ARTDIR)):
@@ -48,17 +49,30 @@ for fn in sorted(os.listdir(ARTDIR)):
     full = os.path.join(ARTDIR, fn)
     if not os.path.isfile(full):
         continue
-    uri = data_uri(full)
-    token = "'" + fn + "'"
-    if uri and token in block:
-        block = block.replace(token, "'" + uri + "'")
-        embedded.append(fn)
-    elif uri:
-        skipped.append(fn + " (in folder but no card maps to it)")
-    else:
+    base, ext = os.path.splitext(fn)
+    ext = ext.lower()
+    mime = MIME.get(ext)
+    if not mime:
         skipped.append(fn + " (unsupported type)")
+        continue
+    if not base.endswith(SUFFIX):
+        skipped.append(fn + " (name must end with '%s', e.g. magmaw%s.png)" % (SUFFIX, SUFFIX))
+        continue
+    slug = base[:-len(SUFFIX)]
+    if slug in entries:
+        skipped.append(fn + " (duplicate slug '%s' already embedded)" % slug)
+        continue
+    entries[slug] = data_uri(full, mime)
+    embedded.append(fn)
 
-out_html = html[:start] + block + html[end:]
+# Inject the map into the game's `w.EMBEDDED = { ... }` object (replace its braces' contents).
+key = "w.EMBEDDED ="
+i  = html.index(key)
+lb = html.index("{", i)
+rb = html.index("}", lb)
+obj = "{" + ",".join("'%s':'%s'" % (slug, uri) for slug, uri in sorted(entries.items())) + "}"
+out_html = html[:lb] + obj + html[rb + 1:]
+
 with io.open(OUT, "w", encoding="utf-8") as f:
     f.write(out_html)
 

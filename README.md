@@ -49,13 +49,21 @@ is left untouched, so your drop-a-file / swap-by-name workflow stays intact.
 
 ## Adding / swapping card art
 
-1. Make a square image (512×512+), name it to match the checklist in
-   [`assets/cards/README.md`](assets/cards/README.md), drop it in `assets/cards/`.
-2. Refresh. To swap art later, replace the file with the **same name**.
+Card art is **derived from the card name** — there is no table to edit, for any
+card, ever.
 
-The card-name → filename mapping lives in a clearly-marked **`CARD ART`** block
-near the top of `spawn-row-duel-v26.html` (search for "CARD ART"). You only edit
-it to change a filename or add a brand-new card; existing cards already work.
+1. Make a square image (512×512+) and name it `<slug>_cardart.<ext>`, where
+   `<slug>` is the card name lowercased with spaces/punctuation removed and a
+   leading "The " dropped (e.g. **Magmaw → `magmaw_cardart.png`**,
+   **The Tide Spire → `tidespire_cardart.png`**). `png`, `jpg`, `jpeg`, and
+   `webp` all work. The full checklist is in
+   [`assets/cards/README.md`](assets/cards/README.md).
+2. Drop it in `assets/cards/` and refresh. To swap art later, replace the file
+   with the **same name**. Brand-new cards need no code change — name the file to
+   match and it loads.
+
+If a card has no matching file, the game shows its built-in placeholder drawing,
+so it always runs.
 
 ## Toward release (decisions to make)
 

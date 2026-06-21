@@ -624,39 +624,48 @@ function findCC(o){ let r=null; ['front','back'].forEach(w=>G.P[o][w].forEach(x=
 const poolFor=color=>color==='ember'?EMBER:TIDE;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 /* ===========================================================================
-   CARD ART  —  edit this table + drop square images in assets/cards/
-   (see assets/cards/README.md). Each card loads assets/cards/<file>. If the
-   file isn't found, the built-in placeholder shows, so the game always works.
-   Swap art by replacing a file with the SAME name, then refresh.
+   CARD ART  —  no table to edit. Every card's art file is derived straight
+   from its NAME, so you only ever drop in a file and refresh:
+
+       <slug>_cardart.<ext>      in   assets/cards/
+
+   The <slug> is the card name lowercased with spaces/punctuation removed and a
+   leading "The " dropped; <ext> may be png, jpg, jpeg or webp (tried in that
+   order). Examples:
+       Magmaw                ->  magmaw_cardart.png
+       Snare Pit             ->  snarepit_cardart.png
+       The Tide Spire        ->  tidespire_cardart.png
+   If no matching file is found the built-in placeholder drawing shows, so the
+   game always runs. (assets/cards/README.md lists every card's exact filename.)
    IMPORTANT: opening this .html directly (file://) can block loading the
    sibling image files — especially on phones — so you may see placeholders.
    To see your art on any device, SERVE the folder instead of opening the raw
    file: e.g.  python3 -m http.server 8000  then open localhost:8000 , or push
-   to GitHub and turn on GitHub Pages.
+   to GitHub and turn on GitHub Pages. (Or run tools/embed-art.py to bake the
+   files into the portable build.)
 =========================================================================== */
 (function(w){
   w.ART_DIR = 'assets/cards/';
-  w.CARD_FILES = {
-    'Sparkimp':'sparkimp.png','Cinderling':'cinderling.png','Ashfang':'ashfang.png','Pyrewing':'pyrewing.png','Magmaw':'magmaw.png',
-    'Mistling':'mistling.png','Rippler':'rippler.png','Tidecaller':'tidecaller.png','Surgeling':'surgeling.png','Leviath':'leviath.png',
-    'Emberforge':'emberforge.png','Tidewell':'tidewell.png','Longhouse':'longhouse.png',
-    'Minion':'villager.png','Worker':'villager.png',
-    'Ember Bolt':'emberbolt.png','Cave-In':'cavein.png','Snare Pit':'snarepit.png',
-    'Frost Lance':'frostlance.png','Dissolve':'dissolve.png','Whirl Trap':'whirltrap.png',
-    'The Ember Bastion':'emberbastion.png','The Tide Spire':'tidespire.png','The Thornwall Compact':'thornwall.png'
-  };
+  w.ART_EXTS = ['png','jpg','jpeg','webp'];      // tried in order before the placeholder
+  w.EMBEDDED = {};                                // slug -> data URI; filled by tools/embed-art.py for the portable build
   w.slugify = function(n){ return String(n||'').toLowerCase().replace(/^the\s+/,'').replace(/[^a-z0-9]+/g,''); };
-  w.artPath = function(n){ return w.ART_DIR + (w.CARD_FILES[n] || (w.slugify(n)+'.png')); };
+  w.artBase = function(n){ return w.ART_DIR + w.slugify(n) + '_cardart'; };   // path without extension
+  w.artPath = function(n){ var s=w.slugify(n); return w.EMBEDDED[s] || (w.artBase(n)+'.'+w.ART_EXTS[0]); };
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   w.PLACEHOLDERS = w.PLACEHOLDERS || {};
   w.cardArtImg = function(card, extra){
     var nm = card && card.nm ? card.nm : '';
     var cls = 'cardart' + (extra ? ' ' + extra : '');
-    return '<img class="'+cls+'" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" src="'+w.artPath(nm)+'" onerror="artFallback(this)">';
+    return '<img class="'+cls+'" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" data-ext="0" src="'+w.artPath(nm)+'" onerror="artFallback(this)">';
   };
+  // on a 404, walk the remaining extensions, then fall back to the built-in placeholder
   w.artFallback = function(img){
-    img.onerror = null;
     var nm = (img.getAttribute && img.getAttribute('data-card')) || '';
+    var s = w.slugify(nm);
+    if(w.EMBEDDED[s]){ img.onerror = null; img.src = w.EMBEDDED[s]; return; }
+    var ei = (parseInt(img.getAttribute('data-ext'),10) || 0) + 1;
+    if(ei < w.ART_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.artBase(nm) + '.' + w.ART_EXTS[ei]; return; }
+    img.onerror = null;
     var ph = w.PLACEHOLDERS[nm];
     if(ph) img.src = ph; else img.removeAttribute('src');
   };
