@@ -463,38 +463,66 @@
   .mmbtn.ghost{color:var(--ink);background:rgba(13,11,18,.85);border:1px solid #3a3450;box-shadow:0 3px 10px rgba(0,0,0,.5);font-size:13.5px;padding:11px 16px;}
   .mmbtn.off{color:var(--ink-dim);background:rgba(13,11,18,.6);border:1px dashed #3a3450;box-shadow:none;cursor:default;filter:grayscale(.4);}
   .mmbtn .soon{display:block;font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:10.5px;letter-spacing:.04em;color:var(--ink-dim);margin-top:2px;text-transform:uppercase;}
-  /* ===== deck builder ===== */
-  #deckBuilder{position:fixed;inset:0;z-index:44;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.97);backdrop-filter:blur(3px);padding:14px;}
-  #deckBuilder .dbbox{width:660px;max-width:96vw;max-height:94dvh;display:flex;flex-direction:column;
-    background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:14px 14px 12px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
-  .dbtitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);text-align:center;}
-  #dbLeaders{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:10px 0 8px;}
-  .dbleader{display:flex;align-items:center;gap:6px;font-family:'Cinzel',serif;font-size:12px;padding:6px 11px;border-radius:999px;cursor:pointer;color:var(--ink);background:#15131c;border:2px solid #2a2433;}
-  .dbleader.on{border-color:var(--lc,var(--gold));box-shadow:0 0 14px rgba(217,176,74,.35);background:#1c1826;}
-  .dbtop{display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:9px;flex-wrap:wrap;}
-  .dbname{font-family:'EB Garamond',serif;font-size:14px;padding:8px 12px;border-radius:9px;background:#0d0b12;border:1px solid #3d3450;color:var(--ink);width:230px;max-width:60vw;}
-  .dbcounter{font-family:'Cinzel',serif;font-weight:900;font-size:17px;min-width:74px;}
+  /* ===== deck builder (Master-Duel-style three columns: detail · deck · pool) ===== */
+  #deckBuilder{position:fixed;inset:0;z-index:44;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.97);backdrop-filter:blur(3px);padding:12px;}
+  #deckBuilder .dbbox{width:1120px;max-width:97vw;height:94dvh;display:flex;flex-direction:column;gap:10px;
+    background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
+  .dbbar{display:flex;align-items:center;justify-content:space-between;flex:none;}
+  .dbtitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);}
+  .dbbaracts{display:flex;gap:9px;}
+  .dbbaracts button{font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;padding:8px 18px;border-radius:9px;cursor:pointer;border:none;}
+  #dbSave{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 3px 0 #4d3a10;}
+  #dbSave:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
+  #dbSave:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  .dbcancel{color:var(--ink);background:#2a2336;border:1px solid #3d3450;}
+  .dbcols{flex:1;min-height:0;display:grid;grid-template-columns:minmax(220px,1fr) 1.25fr 1.25fr;gap:12px;}
+  .dbcol{min-height:0;display:flex;flex-direction:column;background:#15121c;border:1px solid #2a2433;border-radius:10px;padding:9px;overflow:hidden;}
+  .dbcolhead,.dbpoolhead{flex:none;font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;margin-bottom:7px;}
+  /* LEFT — card detail */
+  .dbdetail{overflow-y:auto;text-align:center;}
+  .dbd-art{width:100%;aspect-ratio:1/1;border-radius:9px;overflow:hidden;background:#0a0a0f;border:1px solid rgba(0,0,0,.5);box-shadow:inset 0 0 0 1px rgba(217,176,74,.25);}
+  .dbd-art img{width:100%;height:100%;object-fit:cover;display:block;}
+  .dbd-name{font-family:'Cinzel',serif;font-weight:700;font-size:16px;color:var(--ink);margin-top:9px;line-height:1.1;}
+  .dbd-line{display:flex;gap:12px;justify-content:center;align-items:center;font-family:'Cinzel',serif;font-size:13px;margin-top:5px;}
+  .dbd-elem{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin-top:6px;}
+  .dbd-desc{font-family:'EB Garamond',serif;font-style:italic;font-size:12.5px;color:var(--ink-dim);line-height:1.45;margin-top:9px;padding:0 4px;}
+  .dbd-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--ink-dim);font-style:italic;font-size:13px;}
+  .dbd-step{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:12px;}
+  /* CENTER deck header */
+  .dbdeckhead{flex:none;}
+  #dbLeaders{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;}
+  .dbleader{display:flex;align-items:center;gap:5px;font-family:'Cinzel',serif;font-size:11px;padding:5px 9px;border-radius:999px;cursor:pointer;color:var(--ink);background:#1a1622;border:2px solid #2a2433;}
+  .dbleader.on{border-color:var(--lc,var(--gold));box-shadow:0 0 14px rgba(217,176,74,.35);background:#221c2e;}
+  .dbnamerow{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .dbname{flex:1;min-width:0;font-family:'EB Garamond',serif;font-size:14px;padding:8px 11px;border-radius:9px;background:#0d0b12;border:1px solid #3d3450;color:var(--ink);}
+  .dbcounter{flex:none;font-family:'Cinzel',serif;font-weight:900;font-size:17px;min-width:62px;text-align:right;}
   .dbcounter.ok{color:#9ad17f;} .dbcounter.bad{color:#e0a59a;}
-  #dbList{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding:4px 2px;}
-  .dbrow{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:10px;background:#1a1622;border:1px solid #2a2433;}
-  .dbrow.has{border-color:var(--gold-deep);background:#1f1a28;}
-  .dbart{width:38px;height:38px;flex:none;border-radius:6px;overflow:hidden;border:1px solid rgba(0,0,0,.5);background:#0a0a0f;}
-  .dbart img{width:100%;height:100%;object-fit:cover;display:block;}
-  .dbinfo{flex:1;min-width:0;text-align:left;}
-  .dbnm{font-family:'Cinzel',serif;font-weight:700;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .dbmeta{font-size:11px;color:var(--ink-dim);margin-top:1px;}
-  .dbrow.ember-c{box-shadow:inset 3px 0 0 var(--ember);} .dbrow.tide-c{box-shadow:inset 3px 0 0 var(--tide);}
-  .dbstep{display:flex;align-items:center;gap:9px;flex:none;}
-  .dbstep button{width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;font-size:19px;line-height:1;font-family:'Cinzel',serif;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 2px 0 #4d3a10;}
+  /* card grids (deck + pool) */
+  .dbcardgrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:7px;align-content:start;padding:2px;}
+  .dbcardgrid .dbempty{grid-column:1/-1;color:var(--ink-dim);font-style:italic;font-size:12px;text-align:center;padding:18px 6px;}
+  .dbcard{position:relative;border-radius:8px;border:1px solid #2a2433;background:#1a1622;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;transition:border-color .1s,box-shadow .1s;}
+  .dbcard:hover{border-color:#4a4360;}
+  .dbcard.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
+  .dbcard-art{width:100%;aspect-ratio:1/1;background:#0a0a0f;}
+  .dbcard-art img{width:100%;height:100%;object-fit:cover;display:block;}
+  .dbcard-nm{font-family:'Cinzel',serif;font-weight:700;font-size:9.5px;line-height:1.05;color:var(--ink);padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dbcard-cost{position:absolute;top:2px;left:3px;font-family:'Cinzel',serif;font-weight:900;font-size:11px;color:var(--spawn);text-shadow:0 1px 2px #000,0 0 3px #000;}
+  .dbcard.ember-c{box-shadow:inset 3px 0 0 var(--ember);} .dbcard.tide-c{box-shadow:inset 3px 0 0 var(--tide);} .dbcard.neutral{box-shadow:inset 3px 0 0 #6a6a76;}
+  .dbcard.ember-c.sel,.dbcard.tide-c.sel,.dbcard.neutral.sel{box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
+  .dbcount-badge{position:absolute;top:2px;right:2px;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;font-family:'Cinzel',serif;font-weight:900;font-size:11px;border-radius:6px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .dbcard-x{position:absolute;bottom:2px;right:2px;width:17px;height:17px;border-radius:50%;background:rgba(40,20,24,.92);border:1px solid #b3504a;color:#ff9a8a;font-size:11px;line-height:15px;text-align:center;cursor:pointer;}
+  .dbstep{display:flex;align-items:center;gap:10px;}
+  .dbstep button{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;font-size:21px;line-height:1;font-family:'Cinzel',serif;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 2px 0 #4d3a10;}
   .dbstep button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
   .dbstep button:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
-  .dbcount{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--spawn);min-width:18px;text-align:center;}
-  .dbhint{font-size:11.5px;color:var(--ink-dim);font-style:italic;text-align:center;margin:8px 0 6px;min-height:14px;}
-  .dbacts{display:flex;gap:9px;}
-  .dbacts button{flex:1;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;padding:11px;border-radius:9px;cursor:pointer;border:none;}
-  #dbSave{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 3px 0 #4d3a10;}
-  #dbSave:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
-  .dbcancel{color:var(--ink);background:#2a2336;border:1px solid #3d3450!important;}
+  .dbcount{font-family:'Cinzel',serif;font-weight:900;font-size:20px;color:var(--spawn);min-width:22px;text-align:center;}
+  .dbhint{flex:none;font-size:11.5px;color:var(--ink-dim);font-style:italic;text-align:center;min-height:14px;}
+  @media (max-width:860px){
+    #deckBuilder .dbbox{padding:9px;}
+    .dbcols{grid-template-columns:minmax(150px,.85fr) 1.2fr 1.2fr;gap:8px;}
+    .dbcardgrid{grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px;}
+    .dbd-name{font-size:14px;}
+  }
 </style>
 </head>
 <body>
@@ -607,18 +635,31 @@
 </div></div>
 <div id="soloSelect"><div class="csbox"></div></div>
 <div id="deckBuilder"><div class="dbbox">
-  <div class="dbtitle">Deck Builder</div>
-  <div id="dbLeaders"></div>
-  <div class="dbtop">
-    <input id="dbName" class="dbname" maxlength="22" placeholder="Deck name" oninput="dbNameInput(this.value)">
-    <div id="dbCounter" class="dbcounter bad">0 / 20</div>
+  <div class="dbbar">
+    <div class="dbtitle">Deck Builder</div>
+    <div class="dbbaracts">
+      <button class="dbcancel" onclick="dbCancel()">Cancel</button>
+      <button id="dbSave" onclick="dbSave()" disabled>Save Deck</button>
+    </div>
   </div>
-  <div id="dbList"></div>
+  <div class="dbcols">
+    <div class="dbcol dbdetail" id="dbDetail"></div>
+    <div class="dbcol dbdeck">
+      <div class="dbdeckhead">
+        <div id="dbLeaders"></div>
+        <div class="dbnamerow">
+          <input id="dbName" class="dbname" maxlength="22" placeholder="Deck name" oninput="dbNameInput(this.value)">
+          <div id="dbCounter" class="dbcounter bad">0 / 20</div>
+        </div>
+      </div>
+      <div id="dbDeckList" class="dbcardgrid"></div>
+    </div>
+    <div class="dbcol dbpool">
+      <div class="dbpoolhead">Cards</div>
+      <div id="dbPool" class="dbcardgrid"></div>
+    </div>
+  </div>
   <div id="dbHint" class="dbhint"></div>
-  <div class="dbacts">
-    <button class="dbcancel" onclick="dbCancel()">Cancel</button>
-    <button id="dbSave" onclick="dbSave()" disabled>Save Deck</button>
-  </div>
 </div></div>
 
 <script>
@@ -667,18 +708,16 @@ const BUILD={
   tide :[{nm:'Tidewell',c:3,h:5,eff:'mana',val:2,sup:4,ic:'⛭',art:ART.tidewell},{nm:'Longhouse',c:4,h:6,eff:'villager',sup:5,ic:'⌂',art:ART.longhouse}],
 };
 const VILL={ember:{nm:'Minion',c:0,a:0,h:2,art:ART.villager},tide:{nm:'Minion',c:0,a:0,h:2,art:ART.villager}};
-const SPELL={
-  ember:[
-    {nm:'Ember Bolt',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
-    {nm:'Cave-In',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
-    {nm:'Snare Pit',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit}
-  ],
-  tide:[
-    {nm:'Frost Lance',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.frostlance},
-    {nm:'Dissolve',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.dissolve},
-    {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap}
-  ]
-};
+// Spells & traps are ELEMENT-NEUTRAL — no color, generic-mana cost, legal in any deck.
+const SPELL_NEUTRAL=[
+  {nm:'Ember Bolt',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
+  {nm:'Frost Lance',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.frostlance},
+  {nm:'Cave-In',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
+  {nm:'Dissolve',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.dissolve},
+  {nm:'Snare Pit',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit},
+  {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap}
+];
+const SPELL={ember:SPELL_NEUTRAL, tide:SPELL_NEUTRAL}; // compat shim so deckOf() keeps drawing spells
 
 /* ---------- Command Centers ----------
    The commander IS a structure. Your CC choice sets starting HP, starting
@@ -888,26 +927,31 @@ function deckOf(colors){ // colors: array — mono draws one pool, dual mixes bo
     const src=poolFor(col);
     for(let i=0;i<Math.round(16/n);i++){const t=rng(src);d.push({type:'creature',color:col,...t});}
     for(let i=0;i<Math.round(5/n);i++){const t=rng(BUILD[col]);d.push({type:'building',color:col,...t});}
-    for(let i=0;i<Math.round(5/n);i++){const t=rng(SPELL[col]);d.push({type:'spell',color:col,...t});}
+    for(let i=0;i<Math.round(5/n);i++){const t=rng(SPELL[col]);d.push({type:'spell',color:null,...t});}
   });
   for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
   return d;}
 /* ===== deck-building data: registry, saved decks (localStorage), validation, expander ===== */
 const DECK_SIZE=20, MAX_COPIES=3, MAX_DECKS=5, DECKS_KEY='srd.decks.v1';
 const CARD_REG=(function(){
-  const reg=[]; const add=(arr,type,color)=>(arr||[]).forEach(t=>reg.push({key:color+'|'+t.nm,type,color,nm:t.nm,tpl:t}));
+  const reg=[]; const add=(arr,type,color)=>(arr||[]).forEach(t=>reg.push({key:(color||'neutral')+'|'+t.nm,type,color,nm:t.nm,tpl:t}));
   add(EMBER,'creature','ember'); add(TIDE,'creature','tide');
   add(BUILD.ember,'building','ember'); add(BUILD.tide,'building','tide');
-  add(SPELL.ember,'spell','ember'); add(SPELL.tide,'spell','tide');
+  add(SPELL_NEUTRAL,'spell',null); // spells & traps are neutral — keyed 'neutral|<nm>', color null
   return reg;
 })();
 const CARD_BY_KEY=Object.fromEntries(CARD_REG.map(e=>[e.key,e]));
+const SPELL_NAMES=new Set(SPELL_NEUTRAL.map(s=>s.nm));
 function ccColors(ccId){ return (CCS[ccId]&&CCS[ccId].colors)||[]; }
-function regForCC(ccId){ const cols=ccColors(ccId); return CARD_REG.filter(e=>cols.includes(e.color)); }
-function cardColorOK(key,ccId){ const e=CARD_BY_KEY[key]; return !!e&&ccColors(ccId).includes(e.color); }
+function regForCC(ccId){ const cols=ccColors(ccId); return CARD_REG.filter(e=>e.color===null||cols.includes(e.color)); }
+function cardColorOK(key,ccId){ const e=CARD_BY_KEY[key]; return !!e&&(e.color===null||ccColors(ccId).includes(e.color)); }
 function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function jsq(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); } // safe inside a single-quoted JS string in an onclick
 function isWellFormedDeck(d){ return d&&typeof d.name==='string'&&CCS[d.cc]&&d.cards&&typeof d.cards==='object'; }
-function loadDecks(){ try{ const raw=localStorage.getItem(DECKS_KEY); if(!raw)return []; const arr=JSON.parse(raw); if(!Array.isArray(arr))return []; return arr.filter(isWellFormedDeck).slice(0,MAX_DECKS); }catch(e){ return []; } }
+// spells became neutral — remap any old 'ember|Snare Pit' style key to 'neutral|Snare Pit' so saved decks survive
+function migrateKey(key){ const b=String(key).indexOf('|'); if(b<0)return key; const color=key.slice(0,b), nm=key.slice(b+1); return (color!=='neutral'&&SPELL_NAMES.has(nm))?'neutral|'+nm:key; }
+function migrateDeckCards(cards){ const out={}; for(const [k,v] of Object.entries(cards||{})){ const nk=migrateKey(k); out[nk]=Math.min(MAX_COPIES,(out[nk]||0)+(v|0)); } return out; }
+function loadDecks(){ try{ const raw=localStorage.getItem(DECKS_KEY); if(!raw)return []; const arr=JSON.parse(raw); if(!Array.isArray(arr))return []; return arr.filter(isWellFormedDeck).slice(0,MAX_DECKS).map(d=>({...d,cards:migrateDeckCards(d.cards)})); }catch(e){ return []; } }
 function saveDecks(arr){ try{ localStorage.setItem(DECKS_KEY,JSON.stringify(arr.slice(0,MAX_DECKS))); return true; }catch(e){ return false; } }
 function deleteDeck(i){ const a=loadDecks(); if(i>=0&&i<a.length){ a.splice(i,1); saveDecks(a); } }
 function deckTotal(cards){ return Object.values(cards||{}).reduce((s,n)=>s+(n|0),0); }
@@ -917,7 +961,7 @@ function deckErrors(deck){
   for(const [key,cnt] of Object.entries(deck.cards||{})){
     const e=CARD_BY_KEY[key];
     if(!e){ errs.push('Unknown card in deck'); continue; }
-    if(!cc.colors.includes(e.color)) errs.push(e.nm+' is off-color');
+    if(e.color!==null && !cc.colors.includes(e.color)) errs.push(e.nm+' is off-color');
     if(cnt<1||cnt>MAX_COPIES) errs.push(e.nm+' must be 1–'+MAX_COPIES);
     total+=cnt;
   }
@@ -1027,31 +1071,73 @@ function openDeckBuilder(editIndex,ret){
   if(editIndex==null&&decks.length>=MAX_DECKS){ showSoloDeckPick(); return; }
   hideAllScreens();
   const back=ret||'menu';
-  if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back};
-  else dbState={cc:'emberbastion',name:'',cards:{},editIndex:null,back};
+  if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back,sel:null};
+  else dbState={cc:'emberbastion',name:'',cards:{},editIndex:null,back,sel:null};
   renderDeckBuilder(); $('deckBuilder').style.display='flex';
 }
 function dbReturn(){ const back=dbState&&dbState.back; dbState=null; if(back==='solo')showSoloDeckPick(); else showMainMenu(); }
 function dbNameInput(v){ if(dbState){ dbState.name=v; refreshDbCounter(); } }
-function renderDeckBuilder(){ renderDbLeaders(); $('dbName').value=dbState.name; renderDbList(); refreshDbCounter(); }
+function renderDeckBuilder(){ renderDbLeaders(); $('dbName').value=dbState.name; renderDbPool(); renderDbDeck(); renderDbDetail(); refreshDbCounter(); }
 function renderDbLeaders(){
   $('dbLeaders').innerHTML=Object.keys(CCS).map(id=>{const c=CCS[id]; const on=id===dbState.cc?' on':'';
     return `<button class="dbleader${on}" style="--lc:var(--${c.colors[0]})" onclick="dbPickCC('${id}')">${ccPips(c)}<span>${c.name}</span></button>`;}).join('');
 }
-function renderDbList(){
-  const list=regForCC(dbState.cc);
-  const nameCount={}; list.forEach(e=>{nameCount[e.nm]=(nameCount[e.nm]||0)+1;});
-  $('dbList').innerHTML=list.map(e=>{
-    const n=dbState.cards[e.key]||0;
-    const label=nameCount[e.nm]>1?`${e.nm} (${cap(e.color)})`:e.nm; // disambiguate a name shared across colors (e.g. Longhouse on a dual leader)
-    const stat=e.type==='creature'?`⚔${e.tpl.a}/♥${e.tpl.h}`:e.type==='building'?((e.tpl.eff==='mana'?('◆+'+e.tpl.val):'⚒ train')+` · ♥${e.tpl.h}`):(e.tpl.trap?'⚠ trap':'✦ spell');
-    return `<div class="dbrow ${clsOf[e.color]}${n>0?' has':''}">`+
-      `<div class="dbart">${cardArtImg(e.tpl)}</div>`+
-      `<div class="dbinfo"><div class="dbnm">${label}</div><div class="dbmeta">${manaGlyph(e.color)}${e.tpl.c||0} · ${stat}</div></div>`+
-      `<div class="dbstep"><button onclick="dbStep('${e.key}',-1)" ${n<=0?'disabled':''}>−</button><span class="dbcount">${n}</span><button onclick="dbStep('${e.key}',1)" ${n>=MAX_COPIES?'disabled':''}>+</button></div>`+
-    `</div>`;
+const DB_TYPE_ORDER={creature:0,building:1,spell:2};
+function accentOf(color){ return color?clsOf[color]:'neutral'; } // never clsOf[null]
+function costGlyph(e){ return (e.color?manaGlyph(e.color):'◆')+(e.tpl.c||0); }
+function cardStat(e){ return e.type==='creature'?`⚔${e.tpl.a} / ♥${e.tpl.h}`
+  :e.type==='building'?((e.tpl.eff==='mana'?('◆+'+e.tpl.val+' / turn'):'⚒ trains')+` · ♥${e.tpl.h}`)
+  :(e.tpl.trap?'⚠ Trap':'✦ Spell'); }
+function cardBlurb(e){ const t=e.tpl;
+  if(e.type==='creature'){ const p=[]; if(t.fs)p.push('Strikes first (First Strike).'); if(t.up)p.push(`Upkeep ⚒-${t.up} — costs workers to field.`); return (p.join(' ')||'A line creature.')+` ⚔${t.a} / ♥${t.h}.`; }
+  if(e.type==='building'){ return (t.eff==='mana'?`Structure — yields ◆${t.val} each turn.`:'Structure — trains a worker each turn.')+` Adds ⚒+${t.sup||0} workers to its row.`; }
+  if(t.trap) return 'Trap — set face-down for free; springs when your opponent summons a creature, dragging it down.';
+  if(t.effect==='burn') return `Spell — deal ${t.val} damage to an enemy creature, structure, or face-down.`;
+  if(t.effect==='raze') return 'Spell — destroy a target enemy structure.';
+  return 'A spell.';
+}
+function dbCardLabel(e,nameCount){ return nameCount&&nameCount[e.nm]>1?`${e.nm} (${cap(e.color||'neutral')})`:e.nm; }
+function dbPoolNameCount(){ const nc={}; regForCC(dbState.cc).forEach(e=>{nc[e.nm]=(nc[e.nm]||0)+1;}); return nc; } // names shared across colors (e.g. Longhouse on a dual leader)
+function renderDbPool(){
+  const list=regForCC(dbState.cc).slice().sort((a,b)=>(DB_TYPE_ORDER[a.type]-DB_TYPE_ORDER[b.type])||((a.tpl.c||0)-(b.tpl.c||0)));
+  const nameCount=dbPoolNameCount();
+  $('dbPool').innerHTML=list.map(e=>{
+    const n=dbState.cards[e.key]||0; const sel=e.key===dbState.sel?' sel':''; const label=dbCardLabel(e,nameCount);
+    return `<div class="dbcard ${accentOf(e.color)}${sel}" onclick="dbPoolClick('${jsq(e.key)}')" title="${escHtml(label)}">`+
+      `<div class="dbcard-cost">${costGlyph(e)}</div>`+(n>0?`<div class="dbcount-badge">${n}</div>`:'')+
+      `<div class="dbcard-art">${cardArtImg(e.tpl)}</div><div class="dbcard-nm">${escHtml(label)}</div></div>`;
+  }).join('') || '<div class="dbempty">No cards available.</div>';
+}
+function renderDbDeck(){
+  const keys=Object.keys(dbState.cards).filter(k=>dbState.cards[k]>0&&CARD_BY_KEY[k])
+    .sort((a,b)=>{const ea=CARD_BY_KEY[a],eb=CARD_BY_KEY[b];return (DB_TYPE_ORDER[ea.type]-DB_TYPE_ORDER[eb.type])||((ea.tpl.c||0)-(eb.tpl.c||0));});
+  if(!keys.length){ $('dbDeckList').innerHTML='<div class="dbempty">Click cards on the right to add them here.</div>'; return; }
+  const nameCount=dbPoolNameCount();
+  $('dbDeckList').innerHTML=keys.map(k=>{const e=CARD_BY_KEY[k]; const n=dbState.cards[k]; const sel=k===dbState.sel?' sel':''; const label=dbCardLabel(e,nameCount);
+    return `<div class="dbcard ${accentOf(e.color)}${sel}" onclick="dbDeckClick('${jsq(k)}')" title="${escHtml(label)}">`+
+      `<div class="dbcard-cost">${costGlyph(e)}</div><div class="dbcount-badge">${n}</div>`+
+      `<div class="dbcard-x" onclick="event.stopPropagation();dbStep('${jsq(k)}',-1)">✕</div>`+
+      `<div class="dbcard-art">${cardArtImg(e.tpl)}</div><div class="dbcard-nm">${escHtml(label)}</div></div>`;
   }).join('');
 }
+function renderDbDetail(){
+  const el=$('dbDetail'); const e=dbState.sel&&CARD_BY_KEY[dbState.sel];
+  if(!e){ el.innerHTML='<div class="dbd-empty">Select a card to see its details.</div>'; return; }
+  const n=dbState.cards[e.key]||0; const total=deckTotal(dbState.cards);
+  const label=dbCardLabel(e,dbPoolNameCount());
+  const elem=e.color?`<span class="cdot" style="background:var(--${e.color})"></span>${cap(e.color)}`:'◇ Neutral';
+  el.innerHTML=`<div class="dbd-art">${cardArtImg(e.tpl,'big')}</div>`+
+    `<div class="dbd-name">${escHtml(label)}</div>`+
+    `<div class="dbd-line"><span style="color:var(--spawn)">${costGlyph(e)}</span><span>${cardStat(e)}</span></div>`+
+    `<div class="dbd-elem">${elem}</div>`+
+    `<div class="dbd-desc">${cardBlurb(e)}</div>`+
+    `<div class="dbd-step"><button onclick="dbStep('${jsq(e.key)}',-1)" ${n<=0?'disabled':''}>−</button><span class="dbcount">${n}</span>`+
+    `<button onclick="dbStep('${jsq(e.key)}',1)" ${(n>=MAX_COPIES||total>=DECK_SIZE)?'disabled':''}>+</button></div>`;
+}
+window.dbPoolClick=(key)=>{ if(!dbState)return; const added=dbAdd(key); dbState.sel=key; renderDeckBuilder();
+  if(!added){ const nm=CARD_BY_KEY[key]?CARD_BY_KEY[key].nm:'that card'; $('dbHint').textContent=deckTotal(dbState.cards)>=DECK_SIZE?`Deck is full — ${DECK_SIZE} cards.`:`Already at ${MAX_COPIES} copies of ${nm}.`; } };
+window.dbDeckClick=(key)=>{ if(!dbState)return; dbState.sel=key; renderDeckBuilder(); };
+function dbAdd(key){ if(!dbState)return false; const n=dbState.cards[key]||0; if(n>=MAX_COPIES||deckTotal(dbState.cards)>=DECK_SIZE)return false; dbState.cards[key]=n+1; return true; }
 function currentDbDeck(){ const cards={}; for(const [k,v] of Object.entries(dbState.cards)) if(v>0) cards[k]=v; return {name:(dbState.name||'').trim(),cc:dbState.cc,cards}; }
 function refreshDbCounter(){
   const total=deckTotal(dbState.cards); const deck=currentDbDeck(); const valid=deckValid(deck);
@@ -1060,8 +1146,8 @@ function refreshDbCounter(){
   $('dbSave').disabled=!(valid&&room&&named);
   $('dbHint').textContent=!named?'Name your deck.':(!room?('You have '+MAX_DECKS+' decks — edit or delete one.'):(valid?'Ready to save.':deckErrors(deck)[0]));
 }
-window.dbPickCC=(id)=>{ if(!dbState)return; dbState.cc=id; for(const k of Object.keys(dbState.cards)) if(!cardColorOK(k,id)) delete dbState.cards[k]; renderDeckBuilder(); };
-window.dbStep=(key,dir)=>{ if(!dbState)return; const n=(dbState.cards[key]||0)+(+dir); if(n<=0)delete dbState.cards[key]; else dbState.cards[key]=Math.min(MAX_COPIES,n); renderDbList(); refreshDbCounter(); };
+window.dbPickCC=(id)=>{ if(!dbState)return; dbState.cc=id; for(const k of Object.keys(dbState.cards)) if(!cardColorOK(k,id)) delete dbState.cards[k]; if(dbState.sel&&!cardColorOK(dbState.sel,id))dbState.sel=null; renderDeckBuilder(); };
+window.dbStep=(key,dir)=>{ if(!dbState)return; if(dir>0&&deckTotal(dbState.cards)>=DECK_SIZE)return; const n=(dbState.cards[key]||0)+(+dir); if(n<=0)delete dbState.cards[key]; else dbState.cards[key]=Math.min(MAX_COPIES,n); renderDeckBuilder(); };
 window.dbSave=()=>{ if(!dbState)return; const deck=currentDbDeck(); if(!deckValid(deck)||!deck.name)return; const decks=loadDecks();
   if(dbState.editIndex!=null&&decks[dbState.editIndex]) decks[dbState.editIndex]=deck; else decks.push(deck);
   if(saveDecks(decks)){ dbReturn(); } else $('dbHint').textContent='Could not save — browser storage is blocked.'; };
@@ -1110,7 +1196,7 @@ window.soloStart=(foeId)=>{
 function dealOpening(o){ // your command center is pre-placed, so the opening hand is simply 4 cards
   G.P[o].hand=[]; for(let i=0;i<4;i++)drawCard(o);
 }
-function drawCard(o){if(G.P[o].deck.length){const t=G.P[o].deck.pop();G.P[o].hand.push({kind:'handcard',id:uid++,type:t.type,color:t.color||G.P[o].color,nm:t.nm,a:t.a,h:t.h,c:t.c,fs:t.fs,up:t.up,sup:t.sup,eff:t.eff,val:t.val,ic:t.ic,art:t.art,trap:t.trap,effect:t.effect,target:t.target,trigger:t.trigger});}}
+function drawCard(o){if(G.P[o].deck.length){const t=G.P[o].deck.pop();G.P[o].hand.push({kind:'handcard',id:uid++,type:t.type,color:t.type==='spell'?null:(t.color||G.P[o].color),nm:t.nm,a:t.a,h:t.h,c:t.c,fs:t.fs,up:t.up,sup:t.sup,eff:t.eff,val:t.val,ic:t.ic,art:t.art,trap:t.trap,effect:t.effect,target:t.target,trigger:t.trigger});}}
 function log(html,cls=''){const p=document.createElement('p');if(cls)p.className=cls;p.innerHTML=html;$('log').prepend(p);}
 window.toggleLog=function(on){ $('logPanel').style.display=on?'flex':'none'; };
 window.toggleRules=function(on){ $('rulesPanel').style.display=on?'flex':'none'; };
@@ -1522,7 +1608,7 @@ function resolveSpell(card,towner,w,i){
 function castSpell(idx,which,i){
   const card=G.P.you.hand[idx]; if(!card||card.type!=='spell'||card.trap)return;
   if(manaTotal('you')<card.c){setHint('Not enough mana.');return;}
-  if(!canPay('you',card)){setHint(`${card.nm} needs ${manaGlyph(card.color)}1 ${cap(card.color)} in its cost.`);return;}
+  if(!canPay('you',card)){setHint(`${card.nm} needs ◆${card.c}.`);return;}
   if(!resolveSpell(card,'foe',which,i)){setHint('Not a legal target for that spell.');return;}
   payCost('you',card); G.P.you.hand.splice(idx,1); G.P.you.grave.push(spellRec(card));
   G.sel=null; defaultHint(); render(); checkWin();
