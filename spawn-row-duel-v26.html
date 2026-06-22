@@ -65,7 +65,7 @@
     color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
   #conscriptBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:default;}
   /* Build sits next to the player's commander figure (bottom-left), not in the right stack */
-  #buildBtn{position:absolute;left:clamp(78px,7vw,104px);bottom:clamp(64px,9vh,96px);z-index:24;
+  #buildBtn{position:absolute;left:clamp(86px,7.5vw,120px);bottom:clamp(16px,3.4vh,40px);z-index:25;
     font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:7px 15px;border-radius:999px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,#e4c878,#a8842e);border:1px solid #f0d68a;box-shadow:0 3px 0 #4d3a10,0 4px 12px rgba(0,0,0,.45);}
   #buildBtn:active{transform:translatey(2px);box-shadow:0 1px 0 #4d3a10;}
@@ -124,7 +124,7 @@
   /* corner command zone with commander figure standing on it (Master Duel pet style) */
   .cmdzone{position:absolute;z-index:24;display:flex;flex-direction:column;align-items:center;pointer-events:none;width:auto;}
   .cmdzone.foe{top:58px;right:12px;}
-  .cmdzone.you{bottom:58px;left:12px;}
+  .cmdzone.you{bottom:8px;left:16px;}  /* commander stands in the HUD frame's left (map) zone */
   .cmdfig{width:clamp(40px,5vw,62px);height:clamp(48px,6vw,74px);z-index:2;pointer-events:auto;cursor:pointer;
     filter:drop-shadow(0 5px 5px rgba(0,0,0,.6));animation:bob 3.4s ease-in-out infinite;}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
@@ -288,14 +288,22 @@
   #conscriptBtn:active:not(:disabled){transform:translatey(2px);box-shadow:0 1px 0 #19401f;}
   #conscriptBtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
   /* ===== hand: rests off-screen showing only a name + cost peek strip; lifts to overlay the board when viewed ===== */
-  /* WC3-style command-bar backing — barely there at rest, brightens + rises when the hand is viewed */
-  #hudbar{position:fixed;left:0;right:0;bottom:0;height:var(--handpad);z-index:23;pointer-events:none;
-    background:linear-gradient(180deg,transparent 0,rgba(10,8,14,.5) 45%,rgba(6,5,9,.85) 100%);
-    border-top:2px solid var(--youelem,#caa05a);box-shadow:0 -8px 26px rgba(0,0,0,.5),inset 0 2px 16px rgba(202,160,90,.16);
-    opacity:.5;transition:opacity .22s ease,height .22s ease;}
-  body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar{opacity:1;height:calc(var(--handpad) + var(--hch)*.55);}
-  /* thin accent line under the opponent's edge */
-  #hudbar.top{display:none;}
+  /* WC3-style themed STONE command panel along the bottom — always present, element-themed.
+     Stone blocks + mortar via layered repeating gradients; element-coloured top rail with metal
+     studs; faint element glyph ornaments at each end (set per the player's commander). */
+  #hudbar{position:fixed;left:0;right:0;bottom:0;height:var(--handpad);z-index:23;pointer-events:none;overflow:hidden;
+    background:
+      repeating-linear-gradient(90deg, rgba(0,0,0,.32) 0 1.5px, transparent 1.5px 48px),
+      repeating-linear-gradient(180deg, rgba(0,0,0,.26) 0 1.5px, transparent 1.5px 26px),
+      radial-gradient(120% 140% at 50% 0,#544d44 0,#322d27 38%,#16130e 100%);
+    border-top:3px solid var(--youelem,#caa05a);
+    box-shadow:0 -10px 30px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.1), inset 0 -16px 30px rgba(0,0,0,.65);}
+  #hudbar::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;pointer-events:none;
+    background:repeating-linear-gradient(90deg, var(--youelem,#caa05a) 0 5px, transparent 5px 24px);opacity:.55;
+    -webkit-mask:linear-gradient(180deg,#000,transparent);mask:linear-gradient(180deg,#000,transparent);}
+  #hudbar .hudglyph{position:absolute;bottom:-14%;font-family:serif;font-weight:700;font-size:calc(var(--handpad)*1.55);line-height:1;
+    color:var(--youelem,#caa05a);opacity:.09;pointer-events:none;text-shadow:0 0 18px var(--youelem,#caa05a);}
+  #hudbar .hudglyph.l{left:1.6%;} #hudbar .hudglyph.r{right:1.6%;}
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
   /* help text lives on the right margin, off the board */
   .handhint{position:fixed;right:10px;top:46%;transform:translateY(-50%);text-align:left;z-index:60;
@@ -683,8 +691,8 @@
     </div>
   </div>
 
-  <!-- WC3-style command bar backing: barely-there strip at the bottom, brightens when the hand is viewed -->
-  <div id="hudbar"></div>
+  <!-- WC3-style themed stone command panel: commander (left), hand (center), right reserved -->
+  <div id="hudbar"><span class="hudglyph l" id="hudGlyphL"></span><span class="hudglyph r" id="hudGlyphR"></span></div>
   <div class="handwrap">
     <div class="handhint" id="hint"></div>
     <div class="hand" id="hand"></div>
@@ -1290,7 +1298,8 @@ function bootstrap(){
 function ccPips(def){return def.colors.map(c=>elemBadge(c,15)).join('');}
 function applyCharacterUI(){
   const cy=CCS[G.P.you.cc], cf=CCS[G.P.foe.cc];
-  document.documentElement.style.setProperty('--youelem', `var(--${cy.colors[0]})`); // tint the HUD bar by the player's element
+  document.documentElement.style.setProperty('--youelem', `var(--${cy.colors[0]})`); // tint the HUD frame by the player's element
+  { const gl=$('hudGlyphL'), gr=$('hudGlyphR'); if(gl)gl.textContent=ELEMENTS[cy.colors[0]].glyph; if(gr)gr.textContent=ELEMENTS[cy.colors[cy.colors.length>1?1:0]].glyph; }
   const fName=$('foeName'); fName.style.color=`var(--${cf.colors[0]})`;
   fName.innerHTML=`${ccPips(cf)}${cf.name}`;
   const yName=$('youName'); yName.style.color=`var(--${cy.colors[0]})`;
