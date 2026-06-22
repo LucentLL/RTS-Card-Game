@@ -55,7 +55,7 @@ card, ever.
 1. Make a square image (512×512+) and name it `<slug>_cardart.<ext>`, where
    `<slug>` is the card name lowercased with spaces/punctuation removed and a
    leading "The " dropped (e.g. **Magmaw → `magmaw_cardart.png`**,
-   **The Tide Spire → `tidespire_cardart.png`**). `png`, `jpg`, `jpeg`, and
+   **Voidwyrm → `voidwyrm_cardart.png`**). `png`, `jpg`, `jpeg`, and
    `webp` all work. The full checklist is in
    [`assets/cards/README.md`](assets/cards/README.md).
 2. Drop it in `assets/cards/` and refresh. To swap art later, replace the file

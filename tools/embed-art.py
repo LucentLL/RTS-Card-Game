@@ -53,46 +53,60 @@ def data_uri(path, fallback_mime):
 with io.open(SRC, "r", encoding="utf-8") as f:
     html = f.read()
 
-# Scan for <slug>_cardart.<ext> images and key them by <slug> (the game derives the
-# same slug from each card's name, so they line up automatically).
-entries  = {}
-embedded = []
-skipped  = []
-for fn in sorted(os.listdir(ARTDIR)):
-    if fn.startswith(".") or fn.startswith("_") or fn.lower().endswith(".md"):
-        continue
-    full = os.path.join(ARTDIR, fn)
-    if not os.path.isfile(full):
-        continue
-    base, ext = os.path.splitext(fn)
-    ext = ext.lower()
-    mime = MIME.get(ext)
-    if not mime:
-        skipped.append(fn + " (unsupported type)")
-        continue
-    if not base.endswith(SUFFIX):
-        skipped.append(fn + " (name must end with '%s', e.g. magmaw%s.png)" % (SUFFIX, SUFFIX))
-        continue
-    slug = base[:-len(SUFFIX)]
-    if slug in entries:
-        skipped.append(fn + " (duplicate slug '%s' already embedded)" % slug)
-        continue
-    entries[slug] = data_uri(full, mime)
-    embedded.append(fn)
+SPRITEDIR = os.path.join(HERE, "assets", "sprites")
 
-# Inject the map into the game's `w.EMBEDDED = { ... }` object (replace its braces' contents).
-key = "w.EMBEDDED ="
-i  = html.index(key)
-lb = html.index("{", i)
-rb = html.index("}", lb)
-obj = "{" + ",".join("'%s':'%s'" % (slug, uri) for slug, uri in sorted(entries.items())) + "}"
-out_html = html[:lb] + obj + html[rb + 1:]
+
+def scan(dirpath, suffix, example):
+    """Collect <slug><suffix>.<ext> images from dirpath, keyed by <slug>."""
+    entries, embedded, skipped = {}, [], []
+    if not os.path.isdir(dirpath):
+        return entries, embedded, skipped
+    for fn in sorted(os.listdir(dirpath)):
+        if fn.startswith(".") or fn.startswith("_") or fn.lower().endswith(".md"):
+            continue
+        full = os.path.join(dirpath, fn)
+        if not os.path.isfile(full):
+            continue
+        base, ext = os.path.splitext(fn)
+        mime = MIME.get(ext.lower())
+        if not mime:
+            skipped.append(fn + " (unsupported type)")
+            continue
+        if not base.endswith(suffix):
+            skipped.append(fn + " (name must end with '%s', e.g. %s)" % (suffix, example))
+            continue
+        slug = base[:-len(suffix)]
+        if slug in entries:
+            skipped.append(fn + " (duplicate slug '%s')" % slug)
+            continue
+        entries[slug] = data_uri(full, mime)
+        embedded.append(fn)
+    return entries, embedded, skipped
+
+
+def inject(html, key, entries):
+    """Replace the contents of the game's `key = { ... }` object literal."""
+    i  = html.index(key)
+    lb = html.index("{", i)
+    rb = html.index("}", lb)
+    obj = "{" + ",".join("'%s':'%s'" % (slug, uri) for slug, uri in sorted(entries.items())) + "}"
+    return html[:lb] + obj + html[rb + 1:]
+
+
+# Card art (assets/cards/<slug>_cardart.<ext>) and floating sprites (assets/sprites/<slug>_sprite.<ext>)
+art_entries,    art_done,    art_skip    = scan(ARTDIR,    SUFFIX,    "magmaw" + SUFFIX + ".png")
+sprite_entries, sprite_done, sprite_skip = scan(SPRITEDIR, "_sprite", "magmaw_sprite.png")
+
+out_html = inject(html, "w.EMBEDDED =", art_entries)
+out_html = inject(out_html, "w.EMBEDDED_SPRITES =", sprite_entries)
 
 with io.open(OUT, "w", encoding="utf-8") as f:
     f.write(out_html)
 
-print("Embedded %d image(s): %s" % (len(embedded), ", ".join(embedded) or "none"))
+print("Embedded %d card art image(s): %s" % (len(art_done), ", ".join(art_done) or "none"))
+print("Embedded %d sprite image(s): %s" % (len(sprite_done), ", ".join(sprite_done) or "none"))
+skipped = art_skip + sprite_skip
 if skipped:
     print("Skipped: " + "; ".join(skipped))
 print("Wrote %s (%d KB)" % (os.path.basename(OUT), len(out_html.encode("utf-8")) // 1024))
-print("Cards with no image file still show their built-in placeholder.")
+print("Cards with no image file still show their built-in placeholder / borrowed card art.")

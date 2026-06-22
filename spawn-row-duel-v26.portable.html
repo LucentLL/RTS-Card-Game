@@ -11,7 +11,10 @@
   :root{
     --ink:#ece3cf; --ink-dim:#9c9277;
     --gold:#d9b04a; --gold-deep:#8a6d22;
-    --ember:#e0613f; --tide:#3fa3e0; --verdant:#5fc46a;
+    /* element palette (7 elements) */
+    --fire:#e0613f; --water:#3fa3e0; --earth:#c0863c; --wind:#5fc46a;
+    --light:#e8c64a; --dark:#9a5cc6; --divine:#c9d4ec;
+    --ember:var(--fire); --tide:var(--water); --verdant:var(--wind); /* legacy aliases */
     --spawn:#52c6ec;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -29,7 +32,7 @@
     --ch: clamp(50px, calc((100dvh - 70px)/5.4), 196px); --cw: calc(var(--ch)*.74);
     --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
     --peek: clamp(34px, calc(var(--hch)*.27), 58px);
-    --handpad: calc(var(--peek) + 12px);}
+    --handpad: calc(var(--hch) + 10px);}
   @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
   .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
   .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-bottom:var(--handpad);}
@@ -43,6 +46,7 @@
   .who{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em;display:flex;align-items:center;gap:6px;font-weight:700;}
   .pbadge.foe .who{flex-direction:row-reverse;}
   .cdot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;}
+  .elembadge{display:inline-block;vertical-align:middle;margin-right:3px;flex:none;}
   .vit{font-size:14.5px;} .vit b{font-family:'Cinzel',serif;}
   .heart{color:#e35b4f;} .mana{color:var(--spawn);}
   .bct{color:#caa15a;} .wct{color:#9ad17f;} .vit .bct,.vit .wct{font-size:13px;}
@@ -59,9 +63,10 @@
   #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
   #conscriptBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:default;}
-  #logBtn,#rulesBtn{font-family:'Cinzel',serif;letter-spacing:.06em;font-weight:700;font-size:10px;padding:6px 11px;border-radius:999px;cursor:pointer;
+  #logBtn,#rulesBtn,#sprBtn{font-family:'Cinzel',serif;letter-spacing:.06em;font-weight:700;font-size:10px;padding:6px 11px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.88);border:1px solid #3a3450;box-shadow:0 4px 12px rgba(0,0,0,.5);}
-  #logBtn:active,#rulesBtn:active{transform:translateY(1px);}
+  #logBtn:active,#rulesBtn:active,#sprBtn:active{transform:translateY(1px);}
+  #sprBtn.off{opacity:.5;text-decoration:line-through;}
   #logPanel,#rulesPanel{position:fixed;inset:0;z-index:27;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
   #rulesPanel{z-index:50;}/* above the main-menu screens (Rules is reachable from the menu) */
   #logPanel .box,#rulesPanel .box{width:430px;max-width:92vw;max-height:88dvh;overflow-y:auto;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
@@ -72,9 +77,11 @@
   #rulesPanel p{font-size:13px;line-height:1.55;color:var(--ink-dim);margin:7px 0;} #rulesPanel p b{color:var(--ink);} #rulesPanel p i{color:var(--ink-dim);}
   .btnrow{display:flex;gap:6px;justify-content:flex-end;align-items:center;}
 
-  .mat{flex:1;min-height:0;display:flex;gap:6px;border-radius:0;padding:4px clamp(4px,1vw,12px) 4px;
+  /* the mat is the surrounding "table" environment; the matmain inside it is the
+     contained, perspective-tilted PLAYFIELD (Master Duel style). */
+  .mat{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:0;padding:4px clamp(4px,1vw,12px) 4px;
     background:repeating-linear-gradient(45deg,rgba(0,0,0,.18) 0 2px,transparent 2px 9px),linear-gradient(160deg,#3a2c12,#241a0a 55%,#1a1208);
-    border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);}
+    border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);perspective:1700px;perspective-origin:50% 42%;}
   .rowlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;text-align:center;margin:3px 0 5px;color:var(--ink-dim);}
   .rowlabel.spawn{color:var(--spawn);font-size:10px;text-shadow:0 0 10px rgba(82,198,236,.4);}
   .centerwrap{flex:1;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;align-items:stretch;padding:0 6px;}
@@ -111,7 +118,19 @@
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
   .cmdfig svg{width:100%;height:100%;display:block;overflow:visible;}
   .zone:active{transform:translate(1px,1px);}
-  .matmain{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
+  /* opponent's hand — fanned face-down card backs along the top edge */
+  .foehand{position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:21;display:flex;justify-content:center;align-items:flex-start;pointer-events:none;height:clamp(30px,6vh,54px);}
+  .foehand .fb{position:relative;width:clamp(22px,3.4vw,38px);height:100%;border-radius:4px;margin:0 clamp(-7px,-0.7vw,-5px);flex:none;transform-origin:50% 130%;
+    background:linear-gradient(160deg,#33457e,#16213e);
+    border:1px solid #46568a;box-shadow:0 3px 7px rgba(0,0,0,.5),inset 0 0 0 1px rgba(120,150,220,.18);}
+  .foehand .fb::after{content:"";position:absolute;inset:3px;border-radius:3px;border:1px solid rgba(150,175,235,.28);
+    background:repeating-linear-gradient(45deg,rgba(150,175,235,.10) 0 3px,transparent 3px 7px);}
+  .foehand .fbcount{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;
+    font-family:'Cinzel',serif;font-weight:900;font-size:clamp(11px,1.4vw,16px);color:#dce6ff;text-shadow:0 1px 3px #000,0 0 6px rgba(0,0,0,.8);}
+  .matmain{flex:none;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:center;
+    width:min(1060px,82vw);height:min(70vh,560px);
+    transform:rotateX(15deg);transform-origin:50% 94%;
+    border-radius:18px;box-shadow:0 30px 60px rgba(0,0,0,.55),inset 0 0 40px rgba(0,0,0,.35);}
   /* the worker rail — off-board token wells aligned to the five rows */
   .wrail{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;display:flex;flex-direction:column;align-items:stretch;}
   .wrail-spacer{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;}
@@ -150,6 +169,20 @@
 
   .card{position:absolute;inset:3px;border-radius:5px;padding:5px;display:flex;flex-direction:column;justify-content:space-between;animation:pop .18s ease;}
   @keyframes pop{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
+  /* the opponent's cards face the opponent — rotated 180° from the player (Master Duel style) */
+  #foeBack .card,#foeFront .card,.centercell.foeHere .card{transform:rotate(180deg);animation:popfoe .18s ease;}
+  @keyframes popfoe{from{transform:rotate(180deg) scale(.7);opacity:0;}to{transform:rotate(180deg) scale(1);opacity:1;}}
+  /* floating standee sprites — a figure that hovers above a creature's card (Duel Links style).
+     Sized in cell container-query units (the .cell is a size container) so they track the board. */
+  .cell.hasSprite{overflow:visible;z-index:5;}
+  .spritewrap{position:absolute;inset:0;z-index:3;pointer-events:none;}
+  .spriteshadow{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);width:58cqw;height:12cqh;border-radius:50%;
+    background:radial-gradient(ellipse at center,rgba(0,0,0,.55),rgba(0,0,0,0) 72%);}
+  .spritebob{position:absolute;left:50%;bottom:11%;animation:spritebob 3.4s ease-in-out infinite;transform-origin:50% 100%;will-change:transform;}
+  .spritefig{display:block;height:150cqh;width:auto;max-width:165cqw;object-fit:contain;object-position:bottom;
+    filter:drop-shadow(0 7px 5px rgba(0,0,0,.5));}
+  .spritefig.fromart{height:104cqh;border-radius:9px;box-shadow:0 5px 12px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.14);}
+  @keyframes spritebob{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-7%);}}
   .card .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(7px,16cqmin,16px);text-align:center;text-shadow:0 1px 2px #000;line-height:1.06;}
   .card .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(8px,21cqmin,19px);}
   .atk{color:#ffd98a;} .hp{color:#ff9a8a;}
@@ -185,9 +218,14 @@
   .minpill.selected{box-shadow:0 0 0 2px var(--gold),0 0 12px rgba(217,176,74,.5);}
   .minpill.target{cursor:pointer;border-color:#ff9a6a;box-shadow:0 0 0 1px rgba(255,120,80,.8),0 0 12px rgba(255,120,80,.5);}
   .minpill .pin{font-size:10px;opacity:.8;margin-left:2px;cursor:pointer;}
-  .ember-c{background:linear-gradient(165deg,#451f17,#28110c);border-color:var(--ember);box-shadow:inset 0 0 13px rgba(224,97,63,.2);}
-  .tide-c{background:linear-gradient(165deg,#123847,#08222e);border-color:var(--tide);box-shadow:inset 0 0 13px rgba(63,163,224,.2);}
-  .verdant-c{background:linear-gradient(165deg,#173d1d,#0a230e);border-color:var(--verdant);box-shadow:inset 0 0 13px rgba(95,196,106,.2);}
+  .fire-c{background:linear-gradient(165deg,#451f17,#28110c);border-color:var(--fire);box-shadow:inset 0 0 13px rgba(224,97,63,.2);}
+  .water-c{background:linear-gradient(165deg,#123847,#08222e);border-color:var(--water);box-shadow:inset 0 0 13px rgba(63,163,224,.2);}
+  .earth-c{background:linear-gradient(165deg,#3a2a14,#211607);border-color:var(--earth);box-shadow:inset 0 0 13px rgba(192,134,60,.2);}
+  .wind-c{background:linear-gradient(165deg,#173d1d,#0a230e);border-color:var(--wind);box-shadow:inset 0 0 13px rgba(95,196,106,.2);}
+  .light-c{background:linear-gradient(165deg,#46390f,#241c05);border-color:var(--light);box-shadow:inset 0 0 13px rgba(232,198,74,.2);}
+  .dark-c{background:linear-gradient(165deg,#2e1a40,#170a22);border-color:var(--dark);box-shadow:inset 0 0 13px rgba(154,92,198,.22);}
+  .divine-c{background:linear-gradient(165deg,#2b3450,#141a2c);border-color:var(--divine);box-shadow:inset 0 0 13px rgba(201,212,236,.22);}
+  /* legacy aliases */ .ember-c{background:linear-gradient(165deg,#451f17,#28110c);border-color:var(--fire);} .tide-c{background:linear-gradient(165deg,#123847,#08222e);border-color:var(--water);}
   .sick{filter:saturate(.5) brightness(.78);}
   .sick::after{content:"zzz";position:absolute;top:2px;right:4px;font-size:8px;color:#fff8;font-style:italic;}
   .tapped{filter:saturate(.45) brightness(.6);}
@@ -231,21 +269,24 @@
   #conscriptBtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
   /* ===== hand: rests off-screen showing only a name + cost peek strip; lifts to overlay the board when viewed ===== */
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
-  .handhint{position:fixed;bottom:calc(var(--peek) + 12px);left:50%;transform:translateX(-50%);text-align:center;z-index:60;
+  .handhint{position:fixed;bottom:calc(var(--hch) + 16px);left:50%;transform:translateX(-50%);text-align:center;z-index:60;
     width:max-content;max-width:min(82vw,540px);font-style:italic;color:var(--ink-dim);font-size:11px;min-height:0;
     background:rgba(13,11,18,.85);border:1px solid rgba(58,52,80,.7);border-radius:9px;padding:5px 13px;box-shadow:0 4px 16px rgba(0,0,0,.55);pointer-events:auto;}
   .handhint:empty{display:none;}
   .handhint button{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.04em;margin:0 3px;padding:5px 11px;border-radius:8px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:none;box-shadow:0 2px 0 #4d3a10;}
   .handhint button.set{background:linear-gradient(180deg,#b79bе8,#6a4fa0);color:#150f1f;box-shadow:0 2px 0 #3a2960;}
+  /* hand sits fully visible at the bottom (Master Duel style); a small dip on rest, level on hover */
   .hand{position:absolute;left:50%;bottom:0;display:flex;justify-content:center;align-items:flex-end;padding:0 24px;min-height:0;pointer-events:auto;
-    transform:translateX(-50%) translateY(calc(100% - var(--peek)));transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+    transform:translateX(-50%) translateY(0);transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
   .hand:hover,.hand.show,.hand:focus-within,.hand:has(.hc.selected){transform:translateX(-50%) translateY(0);}
   .hc{position:relative;width:var(--hcw);height:var(--hch);flex:none;border-radius:11px 11px 7px 7px;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
     margin:0 calc(var(--hcw)*-.03);transform:translateY(var(--lift,0px));transform-origin:50% 120%;
     transition:transform .16s ease,margin .16s ease;box-shadow:0 -3px 12px rgba(0,0,0,.5),0 6px 18px rgba(0,0,0,.6);}
-  .hc:hover{transform:translateY(-16%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:55!important;overflow:visible;}
-  .hc.selected{transform:translateY(-16%) scale(1.16) rotate(0deg);margin:0 calc(var(--hcw)*.14);z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
+  /* lift+grow on hover via transform ONLY — changing margin here reflows the fan and
+     shifts the card out from under the cursor, causing a rapid hover on/off jiggle. */
+  .hc:hover{transform:translateY(-18%) scale(1.18);z-index:55!important;overflow:visible;}
+  .hc.selected{transform:translateY(-18%) scale(1.18);z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
   /* always-visible peek header: name + cost (the only thing seen when the hand rests) */
   .hc .hchead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:6px;height:var(--peek);padding:0 8px;
     border-bottom:1px solid rgba(0,0,0,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);background:rgba(0,0,0,.22);}
@@ -464,9 +505,9 @@
   .mmbtn.off{color:var(--ink-dim);background:rgba(13,11,18,.6);border:1px dashed #3a3450;box-shadow:none;cursor:default;filter:grayscale(.4);}
   .mmbtn .soon{display:block;font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:10.5px;letter-spacing:.04em;color:var(--ink-dim);margin-top:2px;text-transform:uppercase;}
   /* ===== deck builder (Master-Duel-style three columns: detail · deck · pool) ===== */
-  #deckBuilder{position:fixed;inset:0;z-index:44;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.97);backdrop-filter:blur(3px);padding:12px;}
-  #deckBuilder .dbbox{width:1120px;max-width:97vw;height:94dvh;display:flex;flex-direction:column;gap:10px;
-    background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
+  #deckBuilder{position:fixed;inset:0;z-index:44;display:none;align-items:stretch;justify-content:stretch;background:rgba(4,3,8,.97);backdrop-filter:blur(3px);padding:0;}
+  #deckBuilder .dbbox{width:100%;max-width:none;height:100dvh;display:flex;flex-direction:column;gap:10px;
+    background:linear-gradient(165deg,#201827,#120d18);border:none;border-radius:0;padding:14px clamp(16px,3vw,48px);box-shadow:none;}
   .dbbar{display:flex;align-items:center;justify-content:space-between;flex:none;}
   .dbtitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);}
   .dbbaracts{display:flex;gap:9px;}
@@ -475,7 +516,7 @@
   #dbSave:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
   #dbSave:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
   .dbcancel{color:var(--ink);background:#2a2336;border:1px solid #3d3450;}
-  .dbcols{flex:1;min-height:0;display:grid;grid-template-columns:minmax(220px,1fr) 1.25fr 1.25fr;gap:12px;}
+  .dbcols{flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,0.9fr) 1.3fr 1.7fr;gap:14px;}
   .dbcol{min-height:0;display:flex;flex-direction:column;background:#15121c;border:1px solid #2a2433;border-radius:10px;padding:9px;overflow:hidden;}
   .dbcolhead,.dbpoolhead{flex:none;font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;margin-bottom:7px;}
   /* LEFT — card detail */
@@ -490,8 +531,10 @@
   .dbd-step{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:12px;}
   /* CENTER deck header */
   .dbdeckhead{flex:none;}
-  #dbLeaders{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;}
-  .dbleader{display:flex;align-items:center;gap:5px;font-family:'Cinzel',serif;font-size:11px;padding:5px 9px;border-radius:999px;cursor:pointer;color:var(--ink);background:#1a1622;border:2px solid #2a2433;}
+  #dbLeaders{margin-bottom:8px;max-height:26vh;overflow-y:auto;padding-right:2px;}
+  .dbleadlab{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);margin:2px 0 5px;text-align:center;}
+  .dbleadrow{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;}
+  .dbleader{display:flex;align-items:center;gap:4px;font-family:'Cinzel',serif;font-size:11px;padding:4px 9px;border-radius:999px;cursor:pointer;color:var(--ink);background:#1a1622;border:2px solid #2a2433;}
   .dbleader.on{border-color:var(--lc,var(--gold));box-shadow:0 0 14px rgba(217,176,74,.35);background:#221c2e;}
   .dbnamerow{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
   .dbname{flex:1;min-width:0;font-family:'EB Garamond',serif;font-size:14px;padding:8px 11px;border-radius:9px;background:#0d0b12;border:1px solid #3d3450;color:var(--ink);}
@@ -507,8 +550,11 @@
   .dbcard-art img{width:100%;height:100%;object-fit:cover;display:block;}
   .dbcard-nm{font-family:'Cinzel',serif;font-weight:700;font-size:9.5px;line-height:1.05;color:var(--ink);padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .dbcard-cost{position:absolute;top:2px;left:3px;font-family:'Cinzel',serif;font-weight:900;font-size:11px;color:var(--spawn);text-shadow:0 1px 2px #000,0 0 3px #000;}
-  .dbcard.ember-c{box-shadow:inset 3px 0 0 var(--ember);} .dbcard.tide-c{box-shadow:inset 3px 0 0 var(--tide);} .dbcard.neutral{box-shadow:inset 3px 0 0 #6a6a76;}
-  .dbcard.ember-c.sel,.dbcard.tide-c.sel,.dbcard.neutral.sel{box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
+  .dbcard.fire-c{box-shadow:inset 3px 0 0 var(--fire);} .dbcard.water-c{box-shadow:inset 3px 0 0 var(--water);}
+  .dbcard.earth-c{box-shadow:inset 3px 0 0 var(--earth);} .dbcard.wind-c{box-shadow:inset 3px 0 0 var(--wind);}
+  .dbcard.light-c{box-shadow:inset 3px 0 0 var(--light);} .dbcard.dark-c{box-shadow:inset 3px 0 0 var(--dark);}
+  .dbcard.divine-c{box-shadow:inset 3px 0 0 var(--divine);} .dbcard.neutral{box-shadow:inset 3px 0 0 #6a6a76;}
+  .dbcard.fire-c.sel,.dbcard.water-c.sel,.dbcard.earth-c.sel,.dbcard.wind-c.sel,.dbcard.light-c.sel,.dbcard.dark-c.sel,.dbcard.divine-c.sel,.dbcard.neutral.sel{box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
   .dbcount-badge{position:absolute;top:2px;right:2px;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;font-family:'Cinzel',serif;font-weight:900;font-size:11px;border-radius:6px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.6);}
   .dbcard-x{position:absolute;bottom:2px;right:2px;width:17px;height:17px;border-radius:50%;background:rgba(40,20,24,.92);border:1px solid #b3504a;color:#ff9a8a;font-size:11px;line-height:15px;text-align:center;cursor:pointer;}
   .dbstep{display:flex;align-items:center;gap:10px;}
@@ -549,17 +595,16 @@
         <div class="row" id="youBack"></div>
       </div>
     </div>
+    <!-- deck + graveyard at the field corners (Master Duel style), tilting with the field -->
+    <div class="decks foe" id="foeDecks">
+      <div class="zone deck" onclick="openViewer('deck','foe')"><span class="zl">🂠 Deck</span><b id="foeDeckN">0</b></div>
+      <div class="zone grave" onclick="openViewer('grave','foe')"><span class="zl">⚰ Grave</span><b id="foeGraveN">0</b></div>
+    </div>
+    <div class="decks you" id="youDecks">
+      <div class="zone grave" onclick="openViewer('grave','you')"><span class="zl">⚰ Grave</span><b id="youGraveN">0</b></div>
+      <div class="zone deck" onclick="openViewer('deck','you')"><span class="zl">🂠 Deck</span><b id="youDeckN">0</b></div>
+    </div>
     </div><!-- /matmain -->
-  </div>
-
-  <!-- deck + graveyard tucked into the corners (Master Duel style) -->
-  <div class="decks foe" id="foeDecks">
-    <div class="zone deck" onclick="openViewer('deck','foe')"><span class="zl">🂠 Deck</span><b id="foeDeckN">0</b></div>
-    <div class="zone grave" onclick="openViewer('grave','foe')"><span class="zl">⚰ Grave</span><b id="foeGraveN">0</b></div>
-  </div>
-  <div class="decks you" id="youDecks">
-    <div class="zone grave" onclick="openViewer('grave','you')"><span class="zl">⚰ Grave</span><b id="youGraveN">0</b></div>
-    <div class="zone deck" onclick="openViewer('deck','you')"><span class="zl">🂠 Deck</span><b id="youDeckN">0</b></div>
   </div>
 
   <!-- player badges in the corners, vitals stored by the name (Master Duel style) -->
@@ -571,6 +616,9 @@
     <div class="who" id="youName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
     <div class="vit"><span class="heart">♥</span><b id="youLife">26</b> &nbsp;<span id="youManaStr"></span> &nbsp;<span class="bct">⌂</span><b id="youStruct">0</b> &nbsp;<span class="wct">⚒</span><b id="youCap">0/2</b></div>
   </div>
+
+  <!-- opponent's hand, face-down at the top (Master Duel style) -->
+  <div class="foehand" id="foeHand"></div>
 
   <div class="cmdzone foe" id="foeCmd"></div>
   <div class="cmdzone you" id="youCmd"></div>
@@ -584,6 +632,7 @@
     <div class="btnrow">
       <button id="logBtn" onclick="toggleLog(true)">📜 Log</button>
       <button id="rulesBtn" onclick="toggleRules(true)">❔ Rules</button>
+      <button id="sprBtn" onclick="toggleSprites()">🧍 Figures</button>
     </div>
   </div>
 
@@ -665,30 +714,82 @@
 <script>
 const C=5, SLOTS=5;
 let uid=1;
-const clsOf={ember:'ember-c',tide:'tide-c',verdant:'verdant-c'};
-
-/* Original placeholder art (hand-authored, not derived from any existing card). Swap for licensed/custom art at release via each template's `art` field. */
-const A_BG={
- ember:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#5e1d10"/><stop offset=".55" stop-color="#2a0f08"/><stop offset="1" stop-color="#080403"/></radialGradient>',
- tide:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#0f3a52"/><stop offset=".55" stop-color="#0a2230"/><stop offset="1" stop-color="#03090f"/></radialGradient>',
- wood:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#3a2c14"/><stop offset=".55" stop-color="#241a0a"/><stop offset="1" stop-color="#0a0704"/></radialGradient>',
- arc:'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="#3a1f5e"/><stop offset=".55" stop-color="#1d1030"/><stop offset="1" stop-color="#080510"/></radialGradient>',
- snare:'<radialGradient id="bg" cx="50%" cy="40%" r="82%"><stop offset="0" stop-color="#3a1410"/><stop offset=".55" stop-color="#1a0a08"/><stop offset="1" stop-color="#060303"/></radialGradient>'
+/* ---------- ELEMENTS (7) ----------
+   The 7 attributes (Spell & Trap are NOT elements — they stay color:null/neutral).
+   Each element carries: display name, kanji glyph, a theme palette (primary color +
+   highlight accent + deep shade + 3 radial-gradient bg stops) and its command-center
+   identity (starting HP / starting workers). Everything downstream — pools, builds,
+   command centers, mana, CSS classes, card registry — is derived from this table. */
+const ELEMENTS={
+  fire:  {name:'Fire',  glyph:'炎', color:'#e0613f', accent:'#ff8a1f', deep:'#86291c', bg:['#5e1d10','#2a0f08','#080403'], hp:26, wk:2, lore:'A furnace-keep of slag and iron. Thick walls, single-minded fire.'},
+  water: {name:'Water', glyph:'水', color:'#3fa3e0', accent:'#7fd0f5', deep:'#0e5a7a', bg:['#0f3a52','#0a2230','#03090f'], hp:22, wk:3, lore:'A drowned tower humming with current. A fast economy behind thinner walls.'},
+  earth: {name:'Earth', glyph:'地', color:'#c0863c', accent:'#e5b66a', deep:'#7a5320', bg:['#4a3413','#2a1c0a','#0a0704'], hp:28, wk:2, lore:'A mountain hollowed into a fortress. Roots in bedrock, walls that have never fallen.'},
+  wind:  {name:'Wind',  glyph:'風', color:'#5fc46a', accent:'#a6f0ac', deep:'#2f7a3a', bg:['#173d1d','#0d250f','#041206'], hp:20, wk:3, lore:'A wind-scoured crag of open sky and screaming updrafts. Nothing lingers; everything strikes and is gone.'},
+  light: {name:'Light', glyph:'光', color:'#e8c64a', accent:'#fff0a8', deep:'#9a7a1e', bg:['#4a3d10','#2a2208','#0a0803'], hp:24, wk:3, lore:'A gold-vaulted cloister where dawnlight never fails. Patient walls, unyielding grace.'},
+  dark:  {name:'Dark',  glyph:'闇', color:'#9a5cc6', accent:'#caa0ec', deep:'#56307a', bg:['#2e1a40','#1a0f26','#080510'], hp:22, wk:2, lore:'A sunken crypt of whispering dark. Everything here is sharpened, spent, and fed to the void.'},
+  divine:{name:'Divine',glyph:'神', color:'#c9d4ec', accent:'#ffffff', deep:'#5a6a96', bg:['#2b3450','#171d2e','#070a12'], hp:25, wk:2, lore:'A vaulted sanctum of gold and judgement-light. Serene, immovable, and merciless to the unworthy.'},
 };
+const COLORS=Object.keys(ELEMENTS);                                   // mana-color identities, in canonical order
+const clsOf=Object.fromEntries(COLORS.map(k=>[k,k+'-c']));           // element -> creature CSS class
+function zc(){ return Object.fromEntries(COLORS.map(c=>[c,0])); }     // a fresh zeroed colored-mana pool
+
+/* Placeholder art. Element backgrounds are derived from each element's palette;
+   wood/arc/snare stay neutral for element-agnostic structures, spells and traps.
+   Swap for licensed/custom art at release via each template's `art` field, or just
+   drop a <slug>_cardart file in assets/cards/ (these are only the fallback). */
+const A_BG=(function(){
+  const g=s=>'<radialGradient id="bg" cx="50%" cy="38%" r="82%"><stop offset="0" stop-color="'+s[0]+'"/><stop offset=".55" stop-color="'+s[1]+'"/><stop offset="1" stop-color="'+s[2]+'"/></radialGradient>';
+  const o={}; for(const k in ELEMENTS) o[k]=g(ELEMENTS[k].bg);
+  o.wood=g(['#3a2c14','#241a0a','#0a0704']);   // neutral timber — generic structures
+  o.arc =g(['#3a1f5e','#1d1030','#080510']);    // neutral arcane — spells
+  o.snare=g(['#3a1410','#1a0a08','#060303']);   // neutral — traps
+  return o;
+})();
 const frame=(bg,inner)=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs>'+A_BG[bg]+'</defs><rect width="120" height="120" fill="url(#bg)"/>'+inner+'</svg>';
 const artURI=s=>'data:image/svg+xml,'+encodeURIComponent(s);
+/* ---- parametric placeholder art for the elements that have no hand-drawn art ----
+   Each draws an element-tinted scene over the element's bg; real art still wins when
+   a matching <slug>_cardart file is present. */
+function glyphWM(el){ const E=ELEMENTS[el]; return '<text x="60" y="80" font-size="62" text-anchor="middle" fill="'+E.color+'" opacity=".09" font-family="serif" font-weight="700">'+E.glyph+'</text>'; }
+function creInner(el,tier){ const E=ELEMENTS[el], body=E.deep, belly=E.color, eye=E.accent; const sc=(0.78+(tier||1)*0.045).toFixed(3);
+  let horns=''; if((tier||1)>=3) horns+='<path d="M44 40 l-6 -15 l13 9 z" fill="'+body+'"/><path d="M76 40 l6 -15 l-13 9 z" fill="'+body+'"/>';
+  if((tier||1)>=5) horns+='<path d="M60 32 l-5 -16 l10 0 z" fill="'+body+'"/>';
+  return '<g transform="translate(60 70) scale('+sc+') translate(-60 -70)">'+horns+
+    '<path d="M28 94 q6 -39 32 -43 q26 4 32 43 z" fill="'+body+'" stroke="#0a0a10" stroke-width="1.6"/>'+
+    '<path d="M46 84 q14 7 28 0 q-5 13 -14 13 q-9 0 -14 -13 z" fill="'+belly+'" opacity=".9"/>'+
+    '<ellipse cx="50" cy="58" rx="5" ry="6" fill="'+eye+'"/><ellipse cx="70" cy="58" rx="5" ry="6" fill="'+eye+'"/>'+
+    '<circle cx="50" cy="59" r="2" fill="#0a0406"/><circle cx="70" cy="59" r="2" fill="#0a0406"/></g>'; }
+function forgeInner(el){ const E=ELEMENTS[el];
+  return '<rect x="40" y="78" width="40" height="14" rx="2" fill="#3a3a44"/>'+
+    '<path d="M38 58 h44 l-8 14 h-20 q-11 0 -16 -14z" fill="#8a8a9a"/>'+
+    '<rect x="34" y="70" width="52" height="8" rx="2" fill="#5a5a66"/>'+
+    '<path d="M60 32 q-8 15 0 24 q8 -11 0 -24z" fill="'+E.color+'"/>'+
+    '<path d="M60 38 q-4 10 0 15 q4 -7 0 -15z" fill="'+E.accent+'"/>'; }
+function ccTowerInner(c1,c2){ const A=ELEMENTS[c1], B=c2?ELEMENTS[c2]:A;
+  return '<rect x="34" y="56" width="52" height="40" fill="'+A.deep+'"/>'+(c2?'<rect x="60" y="56" width="26" height="40" fill="'+B.deep+'"/>':'')+
+    '<rect x="30" y="48" width="60" height="10" fill="'+A.color+'"/>'+(c2?'<rect x="60" y="48" width="30" height="10" fill="'+B.color+'"/>':'')+
+    '<rect x="34" y="40" width="8" height="10" fill="'+A.color+'"/><rect x="56" y="40" width="8" height="10" fill="'+(c2?B.color:A.color)+'"/><rect x="78" y="40" width="8" height="10" fill="'+(c2?B.color:A.color)+'"/>'+
+    '<rect x="54" y="74" width="12" height="22" fill="#160a05"/>'+
+    '<circle cx="46" cy="33" r="4" fill="'+A.accent+'"/><circle cx="74" cy="33" r="4" fill="'+(c2?B.accent:A.accent)+'"/>'; }
+function phArt(el,kind,tier){ const inner = kind==='bld' ? glyphWM(el)+forgeInner(el) : glyphWM(el)+creInner(el,tier); return artURI(frame(el,inner)); }
+function ccArt(colors){ return artURI(frame(colors[0], ccTowerInner(colors[0], colors[1]||null))); }
+/* crisp kanji-in-gem element badge (UI) — sized inline */
+function elemBadge(el,size){ const E=ELEMENTS[el], s=size||16, g='eb_'+el;
+  return '<svg class="elembadge" viewBox="0 0 40 40" width="'+s+'" height="'+s+'" aria-label="'+E.name+'"><defs><radialGradient id="'+g+'" cx="40%" cy="34%" r="78%"><stop offset="0" stop-color="'+E.accent+'"/><stop offset=".55" stop-color="'+E.color+'"/><stop offset="1" stop-color="'+E.deep+'"/></radialGradient></defs>'+
+    '<circle cx="20" cy="20" r="18" fill="url(#'+g+')" stroke="rgba(0,0,0,.5)" stroke-width="2"/>'+
+    '<text x="20" y="27" font-size="20" text-anchor="middle" fill="#fff" font-family="serif" font-weight="700" style="paint-order:stroke" stroke="rgba(0,0,0,.45)" stroke-width="1">'+E.glyph+'</text></svg>'; }
 const DRAGON_INNER='<defs><linearGradient id="sc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86291c"/><stop offset="1" stop-color="#360e07"/></linearGradient><linearGradient id="hn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecd09a"/><stop offset="1" stop-color="#6e4f1d"/></linearGradient><radialGradient id="ey"><stop offset="0" stop-color="#fff6cc"/><stop offset=".42" stop-color="#ffd23f"/><stop offset="1" stop-color="#bf360c"/></radialGradient><radialGradient id="fr"><stop offset="0" stop-color="#fff2ac"/><stop offset=".45" stop-color="#ff8a1f"/><stop offset="1" stop-color="#e0240c"/></radialGradient></defs><path d="M28 120 Q40 82 60 80 Q80 82 92 120 Z" fill="url(#sc)"/><path d="M60 80 l-7 -11 l11 3 z" fill="#8f2c1b"/><path d="M38 60 Q42 36 64 34 Q92 36 96 58 Q92 75 70 77 Q48 75 38 60 Z" fill="url(#sc)" stroke="#170704" stroke-width="1.6"/><path d="M44 64 Q33 70 27 83 Q42 72 51 68 Z" fill="#7c241a"/><path d="M88 51 Q109 49 111 60 Q109 71 85 69 Q83 60 88 51 Z" fill="#6c2016" stroke="#170704" stroke-width="1.2"/><path d="M85 66 Q100 71 109 64 Q104 77 87 75 Z" fill="#4a140c" stroke="#170704" stroke-width="1"/><path d="M91 67 l3 5 l3 -5 z M98 67 l3 5 l3 -5 z M105 66 l2.5 4 l2.5 -4 z" fill="#f4e8c4"/><circle cx="105" cy="57" r="2.1" fill="#170704"/><path d="M52 50 Q66 41 82 50 Q70 49 52 50 Z" fill="#8f2c1b"/><ellipse cx="68" cy="54" rx="7" ry="5.2" fill="url(#ey)"/><ellipse cx="68" cy="54" rx="2" ry="4.6" fill="#220604"/><path d="M50 40 Q39 17 21 11 Q34 26 44 45 Z" fill="url(#hn)" stroke="#352510" stroke-width="1"/><path d="M64 34 Q60 11 47 1 Q58 18 57 36 Z" fill="url(#hn)" stroke="#352510" stroke-width="1"/><path d="M111 61 Q123 57 119 66 Q125 64 119 73 Q113 70 110 66 Z" fill="url(#fr)"/>';
 const ART={
- magmaw:artURI(frame('ember',DRAGON_INNER)),
- sparkimp:artURI(frame('ember','<ellipse cx="60" cy="74" rx="22" ry="20" fill="#86291c"/><path d="M44 58 l-6 -16 l14 8 z" fill="#6e1f12"/><path d="M76 58 l6 -16 l-14 8 z" fill="#6e1f12"/><circle cx="52" cy="72" r="4" fill="#ffd23f"/><circle cx="68" cy="72" r="4" fill="#ffd23f"/><circle cx="52" cy="72" r="1.8" fill="#3a0d05"/><circle cx="68" cy="72" r="1.8" fill="#3a0d05"/><path d="M54 82 q6 6 12 0 q-6 7 -12 0z" fill="#3a0d05"/><path d="M60 38 q-5 9 0 13 q5 -5 0 -13z" fill="#ff8a1f"/>')),
- cinderling:artURI(frame('ember','<circle cx="60" cy="66" r="26" fill="#2a0f08"/><path d="M44 60 l10 -4 l4 10 l-9 5z" fill="#ff8a1f"/><path d="M64 54 l12 3 l-2 11 l-11 -2z" fill="#ffd23f"/><path d="M52 74 l10 2 l-1 9 l-10 -1z" fill="#bf360c"/><path d="M70 72 l8 4 l-4 8 l-7 -3z" fill="#ff8a1f"/><circle cx="60" cy="66" r="26" fill="none" stroke="#86291c" stroke-width="2"/>')),
- ashfang:artURI(frame('ember','<path d="M30 50 q30 -16 60 0 q-6 30 -30 34 q-24 -4 -30 -34z" fill="#86291c" stroke="#360e07" stroke-width="2"/><path d="M40 56 l6 12 l6 -12z M54 58 l6 14 l6 -14z M68 56 l6 12 l6 -12z" fill="#ecd09a"/><circle cx="46" cy="50" r="4" fill="#ffd23f"/><circle cx="74" cy="50" r="4" fill="#ffd23f"/><circle cx="46" cy="50" r="1.6" fill="#2a0805"/><circle cx="74" cy="50" r="1.6" fill="#2a0805"/>')),
- pyrewing:artURI(frame('ember','<path d="M58 50 q-30 -6 -42 10 q26 2 42 6z" fill="#bf360c"/><path d="M62 50 q30 -6 42 10 q-26 2 -42 6z" fill="#bf360c"/><path d="M58 50 q-22 0 -34 10 q20 -2 34 2z" fill="#ffd23f"/><path d="M62 50 q22 0 34 10 q-20 -2 -34 2z" fill="#ffd23f"/><path d="M60 40 q-5 24 0 46 q5 -22 0 -46z" fill="#ff8a1f"/><circle cx="60" cy="44" r="6" fill="#ffd23f"/><circle cx="60" cy="44" r="2" fill="#3a0d05"/>')),
- mistling:artURI(frame('tide','<path d="M40 60 q0 -22 20 -22 q20 0 20 22 q0 18 -8 24 q-3 -6 -6 0 q-3 -6 -6 0 q-3 -6 -6 0 q-8 -6 -8 -24z" fill="#7fd0f5" opacity=".88"/><circle cx="53" cy="58" r="3.5" fill="#082230"/><circle cx="67" cy="58" r="3.5" fill="#082230"/>')),
- rippler:artURI(frame('tide','<circle cx="60" cy="64" r="40" fill="none" stroke="#3fa3e0" stroke-width="1.5" opacity=".3"/><circle cx="60" cy="64" r="30" fill="none" stroke="#3fa3e0" stroke-width="2" opacity=".5"/><circle cx="60" cy="64" r="20" fill="#3fa3e0"/><circle cx="60" cy="64" r="20" fill="none" stroke="#7fd0f5" stroke-width="2"/><circle cx="54" cy="60" r="3" fill="#082230"/><circle cx="68" cy="60" r="3" fill="#082230"/><path d="M54 70 q6 5 12 0" fill="none" stroke="#082230" stroke-width="2"/>')),
- tidecaller:artURI(frame('tide','<path d="M44 96 q0 -40 16 -44 q16 4 16 44z" fill="#0e5a7a"/><circle cx="60" cy="44" r="10" fill="#0e5a7a"/><path d="M51 44 q9 -11 18 0 q-9 -3 -18 0z" fill="#06222e"/><circle cx="60" cy="72" r="9" fill="#7fd0f5"/><circle cx="60" cy="72" r="9" fill="none" stroke="#cfeffb" stroke-width="1.5"/><circle cx="60" cy="72" r="3" fill="#cfeffb"/>')),
- surgeling:artURI(frame('tide','<path d="M18 88 q12 -42 42 -42 q34 0 42 28 q-16 -16 -32 -8 q10 -14 -2 -22 q-2 18 -14 14 q4 14 -8 18 q-12 4 -28 12z" fill="#3fa3e0"/><path d="M62 50 q18 -2 28 12 q-16 -6 -28 -2z" fill="#cfeffb" opacity=".8"/><circle cx="44" cy="66" r="3.5" fill="#06222e"/><circle cx="56" cy="64" r="3.5" fill="#06222e"/>')),
- leviath:artURI(frame('tide','<path d="M30 100 q4 -30 24 -36 q-10 -10 -4 -22 q8 8 14 8 q18 0 24 16 q4 22 -16 28 q-18 4 -42 6z" fill="#0e5a7a" stroke="#03141d" stroke-width="2"/><path d="M60 38 q-6 -14 2 -24 q4 14 8 18z" fill="#3fa3e0"/><ellipse cx="74" cy="58" rx="6" ry="4.5" fill="#7fd0f5"/><ellipse cx="74" cy="58" rx="2" ry="4" fill="#03141d"/><path d="M84 64 q12 -1 16 5 q-9 -1 -16 2z" fill="#0e5a7a"/><path d="M86 67 l3 5 l3 -5z M93 67 l3 5 l3 -5z" fill="#cfeffb"/>')),
+ magmaw:artURI(frame('fire',DRAGON_INNER)),
+ sparkimp:artURI(frame('fire','<ellipse cx="60" cy="74" rx="22" ry="20" fill="#86291c"/><path d="M44 58 l-6 -16 l14 8 z" fill="#6e1f12"/><path d="M76 58 l6 -16 l-14 8 z" fill="#6e1f12"/><circle cx="52" cy="72" r="4" fill="#ffd23f"/><circle cx="68" cy="72" r="4" fill="#ffd23f"/><circle cx="52" cy="72" r="1.8" fill="#3a0d05"/><circle cx="68" cy="72" r="1.8" fill="#3a0d05"/><path d="M54 82 q6 6 12 0 q-6 7 -12 0z" fill="#3a0d05"/><path d="M60 38 q-5 9 0 13 q5 -5 0 -13z" fill="#ff8a1f"/>')),
+ cinderling:artURI(frame('fire','<circle cx="60" cy="66" r="26" fill="#2a0f08"/><path d="M44 60 l10 -4 l4 10 l-9 5z" fill="#ff8a1f"/><path d="M64 54 l12 3 l-2 11 l-11 -2z" fill="#ffd23f"/><path d="M52 74 l10 2 l-1 9 l-10 -1z" fill="#bf360c"/><path d="M70 72 l8 4 l-4 8 l-7 -3z" fill="#ff8a1f"/><circle cx="60" cy="66" r="26" fill="none" stroke="#86291c" stroke-width="2"/>')),
+ ashfang:artURI(frame('fire','<path d="M30 50 q30 -16 60 0 q-6 30 -30 34 q-24 -4 -30 -34z" fill="#86291c" stroke="#360e07" stroke-width="2"/><path d="M40 56 l6 12 l6 -12z M54 58 l6 14 l6 -14z M68 56 l6 12 l6 -12z" fill="#ecd09a"/><circle cx="46" cy="50" r="4" fill="#ffd23f"/><circle cx="74" cy="50" r="4" fill="#ffd23f"/><circle cx="46" cy="50" r="1.6" fill="#2a0805"/><circle cx="74" cy="50" r="1.6" fill="#2a0805"/>')),
+ pyrewing:artURI(frame('fire','<path d="M58 50 q-30 -6 -42 10 q26 2 42 6z" fill="#bf360c"/><path d="M62 50 q30 -6 42 10 q-26 2 -42 6z" fill="#bf360c"/><path d="M58 50 q-22 0 -34 10 q20 -2 34 2z" fill="#ffd23f"/><path d="M62 50 q22 0 34 10 q-20 -2 -34 2z" fill="#ffd23f"/><path d="M60 40 q-5 24 0 46 q5 -22 0 -46z" fill="#ff8a1f"/><circle cx="60" cy="44" r="6" fill="#ffd23f"/><circle cx="60" cy="44" r="2" fill="#3a0d05"/>')),
+ mistling:artURI(frame('water','<path d="M40 60 q0 -22 20 -22 q20 0 20 22 q0 18 -8 24 q-3 -6 -6 0 q-3 -6 -6 0 q-3 -6 -6 0 q-8 -6 -8 -24z" fill="#7fd0f5" opacity=".88"/><circle cx="53" cy="58" r="3.5" fill="#082230"/><circle cx="67" cy="58" r="3.5" fill="#082230"/>')),
+ rippler:artURI(frame('water','<circle cx="60" cy="64" r="40" fill="none" stroke="#3fa3e0" stroke-width="1.5" opacity=".3"/><circle cx="60" cy="64" r="30" fill="none" stroke="#3fa3e0" stroke-width="2" opacity=".5"/><circle cx="60" cy="64" r="20" fill="#3fa3e0"/><circle cx="60" cy="64" r="20" fill="none" stroke="#7fd0f5" stroke-width="2"/><circle cx="54" cy="60" r="3" fill="#082230"/><circle cx="68" cy="60" r="3" fill="#082230"/><path d="M54 70 q6 5 12 0" fill="none" stroke="#082230" stroke-width="2"/>')),
+ tidecaller:artURI(frame('water','<path d="M44 96 q0 -40 16 -44 q16 4 16 44z" fill="#0e5a7a"/><circle cx="60" cy="44" r="10" fill="#0e5a7a"/><path d="M51 44 q9 -11 18 0 q-9 -3 -18 0z" fill="#06222e"/><circle cx="60" cy="72" r="9" fill="#7fd0f5"/><circle cx="60" cy="72" r="9" fill="none" stroke="#cfeffb" stroke-width="1.5"/><circle cx="60" cy="72" r="3" fill="#cfeffb"/>')),
+ surgeling:artURI(frame('water','<path d="M18 88 q12 -42 42 -42 q34 0 42 28 q-16 -16 -32 -8 q10 -14 -2 -22 q-2 18 -14 14 q4 14 -8 18 q-12 4 -28 12z" fill="#3fa3e0"/><path d="M62 50 q18 -2 28 12 q-16 -6 -28 -2z" fill="#cfeffb" opacity=".8"/><circle cx="44" cy="66" r="3.5" fill="#06222e"/><circle cx="56" cy="64" r="3.5" fill="#06222e"/>')),
+ leviath:artURI(frame('water','<path d="M30 100 q4 -30 24 -36 q-10 -10 -4 -22 q8 8 14 8 q18 0 24 16 q4 22 -16 28 q-18 4 -42 6z" fill="#0e5a7a" stroke="#03141d" stroke-width="2"/><path d="M60 38 q-6 -14 2 -24 q4 14 8 18z" fill="#3fa3e0"/><ellipse cx="74" cy="58" rx="6" ry="4.5" fill="#7fd0f5"/><ellipse cx="74" cy="58" rx="2" ry="4" fill="#03141d"/><path d="M84 64 q12 -1 16 5 q-9 -1 -16 2z" fill="#0e5a7a"/><path d="M86 67 l3 5 l3 -5z M93 67 l3 5 l3 -5z" fill="#cfeffb"/>')),
  emberforge:artURI(frame('wood','<rect x="44" y="80" width="32" height="14" rx="2" fill="#3a3a44"/><path d="M40 56 h40 l-7 13 h-19 q-10 0 -14 -13z" fill="#8a8a9a"/><rect x="34" y="68" width="52" height="8" rx="2" fill="#5a5a66"/><path d="M60 36 q-7 12 0 20 q7 -8 0 -20z" fill="#ff8a1f"/><path d="M60 42 q-3 8 0 13 q3 -5 0 -13z" fill="#ffd23f"/>')),
  tidewell:artURI(frame('wood','<rect x="44" y="36" width="4" height="24" fill="#6a5a46"/><rect x="72" y="36" width="4" height="24" fill="#6a5a46"/><path d="M38 40 l22 -13 l22 13z" fill="#7a3a2a"/><rect x="40" y="60" width="40" height="30" rx="2" fill="#5a4a3a"/><rect x="37" y="56" width="46" height="8" rx="2" fill="#6a5a46"/><ellipse cx="60" cy="62" rx="18" ry="5" fill="#3fa3e0"/>')),
  longhouse:artURI(frame('wood','<rect x="34" y="58" width="52" height="34" fill="#5a4029"/><path d="M26 58 l34 -24 l34 24z" fill="#7a3a2a"/><rect x="54" y="72" width="12" height="20" fill="#241208"/><rect x="40" y="66" width="9" height="9" fill="#241208"/><rect x="71" y="66" width="9" height="9" fill="#241208"/>')),
@@ -701,13 +802,24 @@ const ART={
  whirltrap:artURI(frame('snare','<circle cx="60" cy="60" r="34" fill="none" stroke="#0e5a7a" stroke-width="5"/><circle cx="60" cy="60" r="34" fill="none" stroke="#3fa3e0" stroke-width="5" stroke-dasharray="120 130"/><circle cx="60" cy="60" r="22" fill="none" stroke="#3fa3e0" stroke-width="5" stroke-dasharray="80 70" transform="rotate(40 60 60)"/><circle cx="60" cy="60" r="11" fill="none" stroke="#7fd0f5" stroke-width="4" stroke-dasharray="40 30" transform="rotate(90 60 60)"/><circle cx="60" cy="60" r="4" fill="#cfeffb"/>'))
 };
 
+/* ---------- creature pools (5 per element, cost curve 1/2/3/4/6, upkeep 1/1/2/2/3,
+   the 3-drop strikes first). Fire & Water keep their hand-drawn art; the other five
+   use parametric element-tinted placeholders until art files are dropped in. ---------- */
 const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw}];
 const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Leviath',c:6,a:5,h:6,up:3,art:ART.leviath}];
-const BUILD={
-  ember:[{nm:'Emberforge',c:3,h:5,eff:'mana',val:2,sup:4,ic:'⛭',art:ART.emberforge},{nm:'Longhouse',c:4,h:6,eff:'villager',sup:5,ic:'⌂',art:ART.longhouse}],
-  tide :[{nm:'Tidewell',c:3,h:5,eff:'mana',val:2,sup:4,ic:'⛭',art:ART.tidewell},{nm:'Longhouse',c:4,h:6,eff:'villager',sup:5,ic:'⌂',art:ART.longhouse}],
-};
-const VILL={ember:{nm:'Minion',c:0,a:0,h:2,art:ART.villager},tide:{nm:'Minion',c:0,a:0,h:2,art:ART.villager}};
+const EARTH =[{nm:'Pebbling',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:1,h:3,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:1,h:4,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:2,h:5,up:2,art:phArt('earth','cre',4)},{nm:'Titanore',c:6,a:4,h:7,up:3,art:phArt('earth','cre',5)}];
+const WIND  =[{nm:'Gustling',c:1,a:2,h:1,up:1,art:phArt('wind','cre',1)},{nm:'Zephyr',c:2,a:3,h:1,up:1,art:phArt('wind','cre',2)},{nm:'Skirl',c:3,a:4,h:1,fs:true,up:2,art:phArt('wind','cre',3)},{nm:'Talonwind',c:4,a:5,h:2,up:2,art:phArt('wind','cre',4)},{nm:'Tempest',c:6,a:8,h:3,up:3,art:phArt('wind','cre',5)}];
+const LIGHT =[{nm:'Dawnmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:1,h:3,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:2,h:3,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:3,h:4,up:2,art:phArt('light','cre',4)},{nm:'Seraphine',c:6,a:5,h:6,up:3,art:phArt('light','cre',5)}];
+const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,art:phArt('dark','cre',4)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,art:phArt('dark','cre',5)}];
+const DIVINE=[{nm:'Cherub',c:1,a:1,h:2,up:1,art:phArt('divine','cre',1)},{nm:'Seraphling',c:2,a:2,h:2,up:1,art:phArt('divine','cre',2)},{nm:'Valkar',c:3,a:3,h:2,fs:true,up:2,art:phArt('divine','cre',3)},{nm:'Archon',c:4,a:4,h:3,up:2,art:phArt('divine','cre',4)},{nm:'Empyrean',c:6,a:6,h:5,up:3,art:phArt('divine','cre',5)}];
+const POOLS={fire:EMBER,water:TIDE,earth:EARTH,wind:WIND,light:LIGHT,dark:DARK,divine:DIVINE};
+// every element trains the same neutral worker structure (Longhouse); plus a unique mana forge.
+const LONGHOUSE={nm:'Longhouse',c:4,h:6,eff:'villager',sup:5,ic:'⌂',art:ART.longhouse};
+const FORGE_NAMES={fire:'Emberforge',water:'Tidewell',earth:'Stonewell',wind:'Galewell',light:'Dawnwell',dark:'Gloomwell',divine:'Empyreum'};
+const FORGE_ART={fire:ART.emberforge,water:ART.tidewell};
+const BUILD={};
+for(const el of COLORS){ BUILD[el]=[{nm:FORGE_NAMES[el],c:3,h:5,eff:'mana',val:2,sup:4,ic:'⛭',art:FORGE_ART[el]||phArt(el,'bld')}, LONGHOUSE]; }
+const WORKER={nm:'Worker',c:0,a:0,h:2,art:ART.villager};
 // Spells & traps are ELEMENT-NEUTRAL — no color, generic-mana cost, legal in any deck.
 const SPELL_NEUTRAL=[
   {nm:'Ember Bolt',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
@@ -717,30 +829,35 @@ const SPELL_NEUTRAL=[
   {nm:'Snare Pit',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit},
   {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap}
 ];
-const SPELL={ember:SPELL_NEUTRAL, tide:SPELL_NEUTRAL}; // compat shim so deckOf() keeps drawing spells
+const SPELL=Object.fromEntries(COLORS.map(c=>[c,SPELL_NEUTRAL])); // compat shim so deckOf() keeps drawing spells
 
 /* ---------- Command Centers ----------
    The commander IS a structure. Your CC choice sets starting HP, starting
    workers (and worker support), and your mana-color identity. It cannot move
-   or attack; if it is destroyed, you lose. */
-const CC_ART={
- emberbastion:artURI(frame('ember','<rect x="34" y="58" width="52" height="38" fill="#5a2a1a"/><rect x="30" y="50" width="60" height="10" fill="#7a3a22"/><rect x="34" y="42" width="8" height="10" fill="#7a3a22"/><rect x="56" y="42" width="8" height="10" fill="#7a3a22"/><rect x="78" y="42" width="8" height="10" fill="#7a3a22"/><rect x="54" y="74" width="12" height="22" fill="#1d0a05"/><path d="M60 20 q-6 12 0 20 q6 -8 0 -20z" fill="#ff8a1f"/><path d="M60 26 q-3 7 0 11 q3 -4 0 -11z" fill="#ffd23f"/>')),
- tidespire:artURI(frame('tide','<path d="M48 96 l6 -58 q6 -10 12 0 l6 58z" fill="#0e5a7a" stroke="#06222e" stroke-width="2"/><circle cx="60" cy="30" r="8" fill="#3fa3e0"/><circle cx="60" cy="30" r="8" fill="none" stroke="#7fd0f5" stroke-width="2"/><ellipse cx="60" cy="98" rx="26" ry="6" fill="#0a2230"/><path d="M40 80 q20 8 40 0" fill="none" stroke="#3fa3e0" stroke-width="2" opacity=".6"/>')),
- thornwall:artURI(frame('wood','<rect x="30" y="60" width="60" height="34" fill="#4a3a26"/><rect x="26" y="52" width="14" height="42" fill="#5a4a30"/><rect x="80" y="52" width="14" height="42" fill="#5a4a30"/><path d="M26 52 l7 -10 l7 10z M80 52 l7 -10 l7 10z" fill="#6a5a3a"/><rect x="54" y="72" width="12" height="22" fill="#170d06"/><path d="M40 36 q8 -10 12 2 M68 36 q8 -10 12 2" stroke="#86291c" stroke-width="3" fill="none"/><circle cx="46" cy="34" r="3.5" fill="#ff8a1f"/><circle cx="74" cy="34" r="3.5" fill="#3fa3e0"/>')),
-};
-const CCS={
-  emberbastion:{ id:'emberbastion', name:'The Ember Bastion', hp:26, wk:2, colors:['ember'],
-    desc:'A furnace-keep of slag and iron. Thick walls, single-minded fire.' },
-  tidespire:{ id:'tidespire', name:'The Tide Spire', hp:22, wk:3, colors:['tide'],
-    desc:'A drowned tower humming with current. A fast economy behind thinner walls.' },
-  thornwall:{ id:'thornwall', name:'The Thornwall Compact', hp:24, wk:2, colors:['ember','tide'],
-    desc:'Two banners over one keep. Dual-color reach, bought with stone.' },
-};
+   or attack; if it is destroyed, you lose. Generated from ELEMENTS: one solo
+   commander per element (id = element id) + one dual "Compact" for every pair
+   (id = "elemA_elemB"). 7 solo + 21 dual = 28 commanders. */
+const DUAL_LORE=["Two banners over one keep, where flame meets flood and the air screams steam — every order forged in the storm-anvil's hiss.","Two banners over one keep, magma poured into the bones of the world, bought with ash and bedrock both.","Two banners over one keep, fire fed to the gale until the sky becomes a roaring firestorm that bends the field.","Two banners over one keep, the dawn-flame that gilds blades and blinds armies in one searing, holy glare.","Two banners over one keep, embers in the long dark, where ashfall and shadow smother every foe in cinders.","Two banners over one keep, the sacred pyre — judgment lit and offered up as fire too righteous to extinguish.","Two banners over one keep, river-fed soil and silted mire, slow as the tide that drowns and buries together.","Two banners over one keep, the tempest itself — rain on the wind, squall and surge marching as one front.","Two banners over one keep, still water under risen moon, where reflection becomes blade and frost crowns the deep.","Two banners over one keep, the black tide of the drowned, abyss and brine bargained for in cold silence.","Two banners over one keep, the blessed font — healing waters poured from a chalice that never runs dry.","Two banners over one keep, dust on the driving wind, sandstorm and stone-shard scouring the realm to grit.","Two banners over one keep, the verdant terrace where sunlight grows in the soil, growth and glory rooted deep.","Two banners over one keep, the barrow-deep — grave-loam and gloom, the patient rot beneath the hill.","Two banners over one keep, the sacred mountain, altar-stone raised so high the gods themselves must look up.","Two banners over one keep, light on the swift wind, the radiant gale that scatters foes like dawn scatters mist.","Two banners over one keep, the night-wind howling — wraiths on the gale, whispers that cut where blades cannot.","Two banners over one keep, the answered prayer carried aloft, breath of the heavens sweeping the field clean.","Two banners over one keep, the eclipse made flesh, twilight crowned where day and night wage their endless dusk.","Two banners over one keep, the unbearable radiance — halo and sunfire, glory too bright for mortal eyes.","Two banners over one keep, the fallen choir, sacred shadow where mercy and damnation share a single throne."];
+const CC_ART={}, CCS={};
+(function(){
+  for(const el of COLORS){ const E=ELEMENTS[el];
+    CCS[el]={ id:el, name:E.name, hp:E.hp, wk:E.wk, colors:[el], desc:E.lore };
+    CC_ART[el]=ccArt([el]);
+  }
+  let n=0;
+  for(let i=0;i<COLORS.length;i++) for(let j=i+1;j<COLORS.length;j++){
+    const a=COLORS[i], b=COLORS[j], id=a+'_'+b;
+    CCS[id]={ id, name:ELEMENTS[a].name+' / '+ELEMENTS[b].name,
+      hp:Math.round((ELEMENTS[a].hp+ELEMENTS[b].hp)/2), wk:Math.round((ELEMENTS[a].wk+ELEMENTS[b].wk)/2),
+      colors:[a,b], desc:DUAL_LORE[n++]||'Two banners over one keep.' };
+    CC_ART[id]=ccArt([a,b]);
+  }
+})();
 function mkCC(def,owner){ return {kind:'building',cc:true,id:uid++,owner,color:def.colors[0],colors:def.colors.slice(),
   nm:def.name,h:def.hp,maxh:def.hp,c:0,eff:'command',val:0,sup:def.wk,ic:'♜',art:CC_ART[def.id],bank:0}; }
 function findCC(o){ let r=null; ['front','back'].forEach(w=>G.P[o][w].forEach(x=>{if(x&&x.kind==='building'&&x.cc)r=x;}));
   G.center.forEach(x=>{if(x&&x.owner===o&&x.kind==='building'&&x.cc)r=x;}); return r; }
-const poolFor=color=>color==='ember'?EMBER:TIDE;
+const poolFor=color=>POOLS[color]||EMBER;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 /* ===========================================================================
    CARD ART  —  no table to edit. Every card's art file is derived straight
@@ -788,9 +905,36 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
     var ph = w.PLACEHOLDERS[nm];
     if(ph) img.src = ph; else img.removeAttribute('src');
   };
+  /* ---- floating board SPRITES (Duel Links-style figures that hover above a card) ----
+     Drop  assets/sprites/<slug>_sprite.<ext>  (png/webp/jpg) — transparent PNG cut-outs
+     look best. Until a sprite file exists, the figure falls back to the card's own art
+     so the effect is visible right away, then your dedicated sprite overrides it. */
+  w.SPRITE_DIR = 'assets/sprites/';
+  w.SPRITE_EXTS = ['png','webp','jpg'];
+  w.EMBEDDED_SPRITES = {};                 // slug -> data URI; filled by tools/embed-art.py for the portable build
+  w.SPRITES_ON = true;                     // toggled in-game by the 🧍 Figures button
+  w.spriteBase = function(n){ return w.SPRITE_DIR + w.slugify(n) + '_sprite'; };
+  w.spritePath = function(n){ var s=w.slugify(n); return w.EMBEDDED_SPRITES[s] || (w.spriteBase(n)+'.'+w.SPRITE_EXTS[0]); };
+  w.spriteImg = function(card){
+    var nm = card && card.nm ? card.nm : '';
+    return '<img class="spritefig" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" data-ext="0" src="'+w.spritePath(nm)+'" onerror="spriteFallback(this)">';
+  };
+  // 404 chain: remaining sprite exts -> the card art (borrowed) -> built-in placeholder
+  w.spriteFallback = function(img){
+    var nm = (img.getAttribute && img.getAttribute('data-card')) || '';
+    var s = w.slugify(nm);
+    var ei = (parseInt(img.getAttribute('data-ext'),10) || 0) + 1;
+    if(w.EMBEDDED_SPRITES[s] && ei===1){ img.onerror=null; img.src=w.EMBEDDED_SPRITES[s]; return; }
+    if(ei < w.SPRITE_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.spriteBase(nm) + '.' + w.SPRITE_EXTS[ei]; return; }
+    // no dedicated sprite — borrow the card art (looks like a framed standee until a cut-out is added)
+    img.classList.add('fromart'); img.setAttribute('data-ext','0');
+    img.onerror = function(){ artFallback(img); };
+    img.src = w.artPath(nm);
+  };
   /* placeholder map auto-synced from the pools above — the always-works safety net */
   var add = function(t){ if(t && t.nm && t.art) w.PLACEHOLDERS[t.nm] = t.art; };
-  [].concat(EMBER, TIDE, BUILD.ember, BUILD.tide, SPELL.ember, SPELL.tide, VILL.ember, VILL.tide).forEach(add);
+  COLORS.forEach(function(el){ [].concat(POOLS[el]||[], BUILD[el]||[]).forEach(add); });
+  SPELL_NEUTRAL.forEach(add); add(WORKER);
   Object.keys(CCS).forEach(function(id){ if(CC_ART[id]) w.PLACEHOLDERS[CCS[id].name] = CC_ART[id]; });
   w.PLACEHOLDERS['Worker'] = ART.villager;
 })(window);
@@ -800,8 +944,8 @@ const G={
   sel:null, atk:[], moveFrom:null, moveMana:null,
   center:Array(SLOTS).fill(null),
   P:{
-    you:{color:'ember',life:25,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'emberbastion'},
-    foe:{color:'tide',life:25,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'tidespire'},
+    you:{color:'fire',life:25,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'fire'},
+    foe:{color:'water',life:25,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'water'},
   }
 };
 
@@ -887,7 +1031,7 @@ function creaturesInRow(owner,which){
    a colored creature/spell needs 1 mana of its color; the remainder takes any
    mix. Structures and traps take any mana. Face-down flips pay from the bank
    and waive the color pip (the secrecy discount). */
-const COLORS=['ember','tide'];
+/* COLORS is defined up top, derived from ELEMENTS (all 7 element ids). */
 function manaTotal(o){const P=G.P[o];return P.mana+COLORS.reduce((s,c)=>s+P.cmana[c],0);}
 function colorNeed(card){return (card.type==='creature'||(card.type==='spell'&&!card.trap))&&!!card.color&&card.c>0;}
 function canPay(o,card){const P=G.P[o];if(manaTotal(o)<card.c)return false;
@@ -935,8 +1079,7 @@ function deckOf(colors){ // colors: array — mono draws one pool, dual mixes bo
 const DECK_SIZE=20, MAX_COPIES=3, MAX_DECKS=5, DECKS_KEY='srd.decks.v1';
 const CARD_REG=(function(){
   const reg=[]; const add=(arr,type,color)=>(arr||[]).forEach(t=>reg.push({key:(color||'neutral')+'|'+t.nm,type,color,nm:t.nm,tpl:t}));
-  add(EMBER,'creature','ember'); add(TIDE,'creature','tide');
-  add(BUILD.ember,'building','ember'); add(BUILD.tide,'building','tide');
+  for(const el of COLORS){ add(POOLS[el],'creature',el); add(BUILD[el],'building',el); }
   add(SPELL_NEUTRAL,'spell',null); // spells & traps are neutral — keyed 'neutral|<nm>', color null
   return reg;
 })();
@@ -948,10 +1091,18 @@ function cardColorOK(key,ccId){ const e=CARD_BY_KEY[key]; return !!e&&(e.color==
 function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function jsq(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); } // safe inside a single-quoted JS string in an onclick
 function isWellFormedDeck(d){ return d&&typeof d.name==='string'&&CCS[d.cc]&&d.cards&&typeof d.cards==='object'; }
-// spells became neutral — remap any old 'ember|Snare Pit' style key to 'neutral|Snare Pit' so saved decks survive
-function migrateKey(key){ const b=String(key).indexOf('|'); if(b<0)return key; const color=key.slice(0,b), nm=key.slice(b+1); return (color!=='neutral'&&SPELL_NAMES.has(nm))?'neutral|'+nm:key; }
+// migrate saved decks across the rename: old color prefixes (ember/tide/verdant) -> element ids,
+// old leader ids (emberbastion/tidespire/thornwall) -> new ids, and old spell keys -> neutral.
+const COLOR_ALIAS={ember:'fire',tide:'water',verdant:'wind'};
+const CC_ALIAS={emberbastion:'fire',tidespire:'water',thornwall:'fire_water'};
+function migrateCC(id){ return CC_ALIAS[id]||id; }
+function migrateKey(key){ const b=String(key).indexOf('|'); if(b<0)return key; let color=key.slice(0,b); const nm=key.slice(b+1);
+  if(color!=='neutral'&&SPELL_NAMES.has(nm))return 'neutral|'+nm;            // spells are neutral
+  if(COLOR_ALIAS[color])color=COLOR_ALIAS[color];                            // ember|X -> fire|X, etc.
+  return color+'|'+nm; }
 function migrateDeckCards(cards){ const out={}; for(const [k,v] of Object.entries(cards||{})){ const nk=migrateKey(k); out[nk]=Math.min(MAX_COPIES,(out[nk]||0)+(v|0)); } return out; }
-function loadDecks(){ try{ const raw=localStorage.getItem(DECKS_KEY); if(!raw)return []; const arr=JSON.parse(raw); if(!Array.isArray(arr))return []; return arr.filter(isWellFormedDeck).slice(0,MAX_DECKS).map(d=>({...d,cards:migrateDeckCards(d.cards)})); }catch(e){ return []; } }
+function loadDecks(){ try{ const raw=localStorage.getItem(DECKS_KEY); if(!raw)return []; const arr=JSON.parse(raw); if(!Array.isArray(arr))return [];
+  return arr.map(d=>(d&&typeof d==='object')?{...d,cc:migrateCC(d.cc)}:d).filter(isWellFormedDeck).slice(0,MAX_DECKS).map(d=>({...d,cards:migrateDeckCards(d.cards)})); }catch(e){ return []; } }
 function saveDecks(arr){ try{ localStorage.setItem(DECKS_KEY,JSON.stringify(arr.slice(0,MAX_DECKS))); return true; }catch(e){ return false; } }
 function deleteDeck(i){ const a=loadDecks(); if(i>=0&&i<a.length){ a.splice(i,1); saveDecks(a); } }
 function deckTotal(cards){ return Object.values(cards||{}).reduce((s,n)=>s+(n|0),0); }
@@ -997,7 +1148,7 @@ function bootstrap(){
   window.addEventListener('resize',()=>placeCardMenu());
   showMainMenu();
 }
-function ccPips(def){return def.colors.map(c=>`<span class="cdot" style="background:var(--${c})"></span>`).join('');}
+function ccPips(def){return def.colors.map(c=>elemBadge(c,15)).join('');}
 function applyCharacterUI(){
   const cy=CCS[G.P.you.cc], cf=CCS[G.P.foe.cc];
   const fName=$('foeName'); fName.style.color=`var(--${cf.colors[0]})`;
@@ -1012,8 +1163,8 @@ function applyCharacterUI(){
 }
 function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
-  Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
-  Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:2,cmana:{ember:0,tide:0},hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
+  Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
+  Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
   G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;
   G.center=Array(SLOTS).fill(null);
   // command centers anchor the back row; starting workers report ready
@@ -1027,7 +1178,7 @@ function startGame(youId,foeId,youDeck,foeDeck){
   log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Raze the enemy command center to win — lose yours and the duel is over.</span>`);
   defaultHint(); render();
 }
-let selYou='emberbastion', selFoe='tidespire', csStep=1;
+let selYou='fire', selFoe='water', csStep=1;
 function csCard(c,col,on){
   return `<button class="cschar ${on?'on':''}" data-col="${col}" data-id="${c.id}">`+
     `<div class="cn" style="color:var(--${c.colors[0]})">${ccPips(c)}${c.name}</div>`+
@@ -1072,15 +1223,20 @@ function openDeckBuilder(editIndex,ret){
   hideAllScreens();
   const back=ret||'menu';
   if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back,sel:null};
-  else dbState={cc:'emberbastion',name:'',cards:{},editIndex:null,back,sel:null};
+  else dbState={cc:'fire',name:'',cards:{},editIndex:null,back,sel:null};
   renderDeckBuilder(); $('deckBuilder').style.display='flex';
 }
 function dbReturn(){ const back=dbState&&dbState.back; dbState=null; if(back==='solo')showSoloDeckPick(); else showMainMenu(); }
 function dbNameInput(v){ if(dbState){ dbState.name=v; refreshDbCounter(); } }
 function renderDeckBuilder(){ renderDbLeaders(); $('dbName').value=dbState.name; renderDbPool(); renderDbDeck(); renderDbDetail(); refreshDbCounter(); }
 function renderDbLeaders(){
-  $('dbLeaders').innerHTML=Object.keys(CCS).map(id=>{const c=CCS[id]; const on=id===dbState.cc?' on':'';
-    return `<button class="dbleader${on}" style="--lc:var(--${c.colors[0]})" onclick="dbPickCC('${id}')">${ccPips(c)}<span>${c.name}</span></button>`;}).join('');
+  const ids=Object.keys(CCS);
+  const chip=id=>{const c=CCS[id]; const on=id===dbState.cc?' on':'';
+    return `<button class="dbleader${on}" style="--lc:var(--${c.colors[0]})" onclick="dbPickCC('${id}')">${ccPips(c)}<span>${c.name}</span></button>`;};
+  const solo=ids.filter(id=>CCS[id].colors.length===1).map(chip).join('');
+  const dual=ids.filter(id=>CCS[id].colors.length===2).map(chip).join('');
+  $('dbLeaders').innerHTML=`<div class="dbleadlab">Elements</div><div class="dbleadrow">${solo}</div>`+
+    `<div class="dbleadlab">Dual Compacts</div><div class="dbleadrow">${dual}</div>`;
 }
 const DB_TYPE_ORDER={creature:0,building:1,spell:2};
 function accentOf(color){ return color?clsOf[color]:'neutral'; } // never clsOf[null]
@@ -1125,7 +1281,7 @@ function renderDbDetail(){
   if(!e){ el.innerHTML='<div class="dbd-empty">Select a card to see its details.</div>'; return; }
   const n=dbState.cards[e.key]||0; const total=deckTotal(dbState.cards);
   const label=dbCardLabel(e,dbPoolNameCount());
-  const elem=e.color?`<span class="cdot" style="background:var(--${e.color})"></span>${cap(e.color)}`:'◇ Neutral';
+  const elem=e.color?`${elemBadge(e.color,18)}${cap(e.color)}`:'◇ Neutral';
   el.innerHTML=`<div class="dbd-art">${cardArtImg(e.tpl,'big')}</div>`+
     `<div class="dbd-name">${escHtml(label)}</div>`+
     `<div class="dbd-line"><span style="color:var(--spawn)">${costGlyph(e)}</span><span>${cardStat(e)}</span></div>`+
@@ -1189,7 +1345,7 @@ window.soloStart=(foeId)=>{
   const ids=Object.keys(CCS); if(foeId==='__rand')foeId=ids[Math.floor(Math.random()*ids.length)];
   let youId,youDeck;
   if(soloYou&&soloYou.kind==='custom'){ const d=loadDecks()[soloYou.index]; if(!d||!deckValid(d)){ showSoloDeckPick(); return; } youId=d.cc; youDeck=expandDeck(d); }
-  else { youId=(soloYou&&soloYou.cc)||'emberbastion'; youDeck=undefined; }
+  else { youId=(soloYou&&soloYou.cc)||'fire'; youDeck=undefined; }
   $('soloSelect').style.display='none';
   startGame(youId,foeId,youDeck,undefined);
 };
@@ -1219,7 +1375,7 @@ function render(){
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   renderRow('foeBack','foe','back'); renderRow('foeFront','foe','front');
   renderCenter();
-  renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderHand();
+  renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderHand(); renderFoeHand();
   renderCmdZone('foe'); renderCmdZone('you');
   placeCardMenu();
 }
@@ -1312,6 +1468,15 @@ function cardHTML(o,me){
   }
   return '';
 }
+// a floating standee figure that hovers above a creature's card (Duel Links style)
+function attachSprite(cell,o,me){
+  if(!window.SPRITES_ON||!o||o.kind!=='creature'||o.worker) return;
+  cell.classList.add('hasSprite');
+  const w=document.createElement('div'); w.className='spritewrap'+(me?'':' foe');
+  w.innerHTML=`<div class="spriteshadow"></div><div class="spritebob">${spriteImg(o)}</div>`;
+  cell.appendChild(w);
+}
+window.toggleSprites=()=>{ window.SPRITES_ON=!window.SPRITES_ON; const b=$('sprBtn'); if(b)b.classList.toggle('off',!window.SPRITES_ON); render(); };
 function wkSlotEl(owner,which,aiming){
   const slot=document.createElement('div'); slot.className='wkslot';
   if(!owner) return slot; // empty spacer keeps the card slots centered
@@ -1337,7 +1502,7 @@ function renderRow(elId,owner,which){
     const o=G.P[owner][which][i];
     // the command center stands on the board as a full card (its corner zone keeps only the figure)
     if(o&&o.kind==='building'&&o.cc) cell.classList.add('cccell');
-    if(o){ cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); }
+    if(o){ cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); attachSprite(cell,o,me); }
     decorate(cell,owner,which,i,o);
     el.appendChild(cell);
   }
@@ -1356,7 +1521,7 @@ function renderCmdZone(owner){
   const el=$(owner+'Cmd'); if(!el)return;
   const cc=findCC(owner);
   if(!cc){ el.innerHTML=''; el.className='cmdzone '+owner; return; }
-  const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'ember':'tide')})`;
+  const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'fire':'water')})`;
   el.className='cmdzone '+owner;
   // the card itself now lives on the board (back-row center); the corner keeps only the standing figure
   el.innerHTML=`<div class="cmdfig" style="--fc:${fc}" title="${cc.nm}">${GUARDIAN_SVG}</div>`;
@@ -1371,11 +1536,24 @@ function renderCenter(){
     const cell=document.createElement('div'); cell.className='cell centercell';
     const o=G.center[i];
     const persp=o?o.owner:'center';
-    if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); }
+    if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); attachSprite(cell,o,me); }
     decorate(cell,persp,'center',i,o);
     el.appendChild(cell);
   }
   el.appendChild(wkSlotEl('foe','center',aiming)); // foe contested-center workers on the right
+}
+function renderFoeHand(){
+  const el=$('foeHand'); if(!el)return;
+  const n=G.P.foe.hand.length; el.innerHTML='';
+  const max=Math.min(n,10);
+  for(let i=0;i<max;i++){
+    const b=document.createElement('div'); b.className='fb';
+    const t=i-(max-1)/2;                       // fan: arc downward toward the player
+    b.style.transform=`rotate(${t*4}deg) translateY(${Math.abs(t)*1.5}px)`;
+    el.appendChild(b);
+  }
+  if(n){ const c=document.createElement('div'); c.className='fbcount'; c.textContent=n; el.appendChild(c); }
+  el.title=`Opponent's hand — ${n} card${n===1?'':'s'}`;
 }
 function renderHand(){
   const el=$('hand');el.innerHTML='';
@@ -2642,7 +2820,7 @@ document.addEventListener('mouseout',e=>{
 function fitBoard(){
   const root=document.querySelector('.wrap'); if(!root)return;
   const topChrome=6;                                            // no header/status anymore
-  const handReserve=Math.min(160,Math.max(80,innerHeight*.20));  // matches --handpad (~1.44*ch)
+  const handReserve=Math.min(230,Math.max(120,innerHeight*.24));  // matches --handpad (full hand now visible)
   const boardChrome=28;                                          // mat padding + center gap
   let ch=Math.min(240,
     (innerHeight-topChrome-handReserve-boardChrome)/5.05,        // 5 rows + a little center gap
