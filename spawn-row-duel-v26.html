@@ -33,7 +33,7 @@
     --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
     --peek: clamp(34px, calc(var(--hch)*.27), 58px);
     --topzone: clamp(30px, 5vh, 58px);              /* room at the top for the opponent's hand */
-    --handpad: calc(var(--peek) + 44px);}           /* room at the bottom for the player's hand / HUD */
+    --handpad: calc(var(--peek) + 16px);}           /* at rest only the name+cost strip is reserved; the wall rises over it on hover */
   @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
   .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
   .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-top:var(--topzone);padding-bottom:var(--handpad);}
@@ -121,10 +121,13 @@
     box-shadow:inset 0 2px 4px rgba(255,255,255,.12),inset 0 -3px 6px rgba(0,0,0,.5),0 3px 6px rgba(0,0,0,.5);color:#15151a;}
   .zone.grave.tomb .zl{color:#1a1a1f;font-weight:900;letter-spacing:.12em;text-shadow:0 1px 0 rgba(255,255,255,.18);}
   .zone.grave.tomb b{color:#262630;}
-  /* corner command zone with commander figure standing on it (Master Duel pet style) */
+  /* the commander figure = the KEEP (off-board command center) standing on the castle wall */
   .cmdzone{position:absolute;z-index:24;display:flex;flex-direction:column;align-items:center;pointer-events:none;width:auto;}
-  .cmdzone.foe{top:58px;right:12px;}
-  .cmdzone.you{bottom:8px;left:16px;}  /* commander stands in the HUD frame's left (map) zone */
+  .cmdzone.foe{top:48px;right:14px;}
+  .cmdzone.you{bottom:8px;left:16px;}  /* the player's keep stands in the HUD frame's left (map) zone */
+  .cmdzone .keephp{margin-top:1px;font-family:'Cinzel',serif;font-weight:900;font-size:12.5px;color:#ff9a8a;text-shadow:0 1px 3px #000;line-height:1;}
+  .cmdzone .keephp .heart{color:#ff6a5a;margin-right:1px;}
+  .cmdzone.keepTarget{cursor:pointer;border-radius:10px;box-shadow:0 0 0 2px rgba(227,91,79,.8),0 0 16px rgba(227,91,79,.55);animation:pulse 1.1s ease-in-out infinite;}
   .cmdfig{width:clamp(40px,5vw,62px);height:clamp(48px,6vw,74px);z-index:2;pointer-events:auto;cursor:pointer;
     filter:drop-shadow(0 5px 5px rgba(0,0,0,.6));animation:bob 3.4s ease-in-out infinite;}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
@@ -291,13 +294,18 @@
   /* WC3-style themed STONE command panel along the bottom — always present, element-themed.
      Stone blocks + mortar via layered repeating gradients; element-coloured top rail with metal
      studs; faint element glyph ornaments at each end (set per the player's commander). */
-  #hudbar{position:fixed;left:0;right:0;bottom:0;height:var(--handpad);z-index:23;pointer-events:none;overflow:hidden;
+  #hudbar{position:fixed;left:0;right:0;bottom:0;height:clamp(96px,16vh,140px);z-index:23;pointer-events:none;overflow:hidden;
     background:
       repeating-linear-gradient(90deg, rgba(0,0,0,.32) 0 1.5px, transparent 1.5px 48px),
       repeating-linear-gradient(180deg, rgba(0,0,0,.26) 0 1.5px, transparent 1.5px 26px),
       radial-gradient(120% 140% at 50% 0,#544d44 0,#322d27 38%,#16130e 100%);
     border-top:3px solid var(--youelem,#caa05a);
-    box-shadow:0 -10px 30px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.1), inset 0 -16px 30px rgba(0,0,0,.65);}
+    box-shadow:0 -10px 30px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.1), inset 0 -16px 30px rgba(0,0,0,.65);
+    transform:translateY(calc(100% - 18px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  /* castle wall RISES with the hand; at rest only its top rail (+ the name/cost strip & vitals) shows */
+  body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar{transform:translateY(0);}
+  body:has(.hand:hover) .cmdzone.you, body:has(.hc.selected) .cmdzone.you{transform:translateY(0);}
+  .cmdzone.you{transform:translateY(150%);transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
   #hudbar::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;pointer-events:none;
     background:repeating-linear-gradient(90deg, var(--youelem,#caa05a) 0 5px, transparent 5px 24px);opacity:.55;
     -webkit-mask:linear-gradient(180deg,#000,transparent);mask:linear-gradient(180deg,#000,transparent);}
@@ -944,8 +952,7 @@ const CC_ART={}, CCS={};
 })();
 function mkCC(def,owner){ return {kind:'building',cc:true,id:uid++,owner,color:def.colors[0],colors:def.colors.slice(),
   nm:def.name,h:def.hp,maxh:def.hp,c:0,eff:'command',val:0,sup:def.wk,ic:'♜',art:CC_ART[def.id],bank:0}; }
-function findCC(o){ let r=null; ['front','back'].forEach(w=>G.P[o][w].forEach(x=>{if(x&&x.kind==='building'&&x.cc)r=x;}));
-  G.center.forEach(x=>{if(x&&x.owner===o&&x.kind==='building'&&x.cc)r=x;}); return r; }
+function findCC(o){ const cc=G.P[o]&&G.P[o].ccUnit; return (cc&&cc.h>0)?cc:null; } // the off-board keep on the castle wall
 const poolFor=color=>POOLS[color]||EMBER;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 /* ===========================================================================
@@ -1098,6 +1105,7 @@ function rowWorkers(owner,which){
   const tally=o=>{ if(!o||o.owner&&o.owner!==owner)return; if(o.kind==='building')s+=(o.sup||0)+(o.eff==='villager'?(o.val||0):0); else if(o.kind==='creature'&&!o.worker)s-=(o.up||0); };
   if(which==='center') G.center.forEach(o=>{if(o&&o.owner===owner)tally(o);});
   else G.P[owner][which].forEach(tally);
+  if(which==='back'){ const cc=G.P[owner].ccUnit; if(cc&&cc.h>0) s+=(cc.sup||0); } // the keep anchors the back row
   return s;
 }
 function totalWorkers(owner){ return ['back','front','center'].reduce((s,w)=>s+Math.max(0,rowWorkers(owner,w)),0); }
@@ -1142,6 +1150,7 @@ function extractColors(owner,which){
     if(x.kind==='building'&&x.cc)(x.colors||[]).forEach(c=>set.add(c));
     if(x.kind==='building'&&!x.cc&&x.eff==='mana'&&x.color)set.add(x.color); // a built forge lets its row harvest its element's mana
   }});
+  if(which==='back'){ const cc=G.P[owner].ccUnit; if(cc&&cc.h>0)(cc.colors||[]).forEach(c=>set.add(c)); } // the keep's colors harvest from the back row
   return [...set];
 }
 function minionCount(owner){ const m=G.P[owner].min; return m.back.length+m.front.length+m.center.length; }
@@ -1316,8 +1325,9 @@ function startGame(youId,foeId,youDeck,foeDeck){
   Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
   G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;
   G.center=Array(SLOTS).fill(null);
-  // command centers anchor the back row; starting workers report ready
-  G.P.you.back[2]=mkCC(cy,'you'); G.P.foe.back[2]=mkCC(cf,'foe');
+  // command centers are the off-board "keep" on each player's castle wall (not a back-row card);
+  // they still anchor the back row's workers + colors and are the win/loss structure.
+  G.P.you.ccUnit=mkCC(cy,'you'); G.P.foe.ccUnit=mkCC(cf,'foe');
   syncWorkers('you'); syncWorkers('foe');
   G.P.you.deck=youDeck||deckOf(cy.colors); G.P.foe.deck=foeDeck||deckOf(cf.colors);
   dealOpening('you'); dealOpening('foe');
@@ -1674,11 +1684,17 @@ function renderCmdZone(owner){
   const cc=findCC(owner);
   if(!cc){ el.innerHTML=''; el.className='cmdzone '+owner; return; }
   const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'fire':'water')})`;
-  el.className='cmdzone '+owner;
-  // the card itself now lives on the board (back-row center); the corner keeps only the standing figure
-  el.innerHTML=`<div class="cmdfig" style="--fc:${fc}" title="${cc.nm}">${GUARDIAN_SVG}</div>`;
+  const me=owner==='you';
+  const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
+  const targetable=!me&&aiming;
+  el.className='cmdzone '+owner+(targetable?' keepTarget':'');
+  el.innerHTML=`<div class="cmdfig" style="--fc:${fc}" title="${cc.nm}">${GUARDIAN_SVG}</div>`+
+    `<div class="keephp"><span class="heart">♥</span>${Math.max(0,cc.h)}</div>`;
   const fig=el.querySelector('.cmdfig');
-  addInspect(fig,()=>inspectRef(owner,'back',2));
+  addInspect(fig,()=>showInspect(`♜ ${cc.nm}`,`Your <b>keep</b> on the castle wall — the win/loss structure. It anchors the back row's <b>⚒${cc.sup} workers</b> and harvests <b>${cc.colors.map(c=>manaGlyph(c)).join(' ')}</b>. It never moves or attacks and no spell can raze it; it falls only when a strike reaches it through the rows. <b>If it falls, you lose.</b>`));
+  if(me){ el.style.pointerEvents='auto'; fig.style.cursor='pointer'; fig.addEventListener('click',()=>{ if(G.turn==='you'&&!G.busy&&!G.over&&!G.deficit) openBuildMenu(); }); }
+  else if(targetable){ el.style.pointerEvents='auto'; el.style.cursor='pointer'; el.addEventListener('click',()=>{ if(canAttack()) attackBase('foe'); }); }
+  else { el.style.pointerEvents='none'; }
 }
 function renderCenter(){
   const el=$('center'); el.innerHTML='';
@@ -2280,6 +2296,27 @@ function doAttack(which,ti){
   else { log(`<span class="y">You attack ${tgt.nm} with ${attackers.length} creature(s).</span>`,'y'); resolveCombat(attackers,[tgt]); }
   clearAtk(); render(); checkWin();
 }
+// strike the enemy's keep (their off-board command center on the castle wall). Treated as sitting
+// behind the enemy back row — same row-distance / interception rules as before.
+function attackBase(defOwner){
+  const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
+  if(!attackers.length){clearAtk();render();return;}
+  const cc=G.P[defOwner].ccUnit; if(!cc||cc.h<=0){clearAtk();render();return;}
+  const tgtKey=defOwner==='foe'?'foeBack':'youBack'; const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
+  attackers.forEach(a=>a.tapped=true);
+  if(Math.abs(aIdx-tIdx)>1){
+    const elig=eligibleInterceptors('you',aIdx,tIdx);
+    const chosen=aiChooseInterceptors(attackers,{kind:'building',cc:true,elig});
+    if(chosen.length){
+      chosen.forEach(r=>r.c.tapped=true);
+      log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike at the keep is met midway.</span>`,'e');
+      resolveCombat(attackers,chosen.map(r=>r.c)); clearAtk(); render(); checkWin(); return;
+    }
+  }
+  log(`<span class="y">You strike the enemy keep with ${attackers.length} creature(s).</span>`,'y');
+  applyDmg(focusFire(attackers,[cc])); cleanup();
+  clearAtk(); render(); checkWin();
+}
 /* The player chooses interceptors when the AI's strike travels through rows they hold. Refs are {key,i}. */
 function askBlock(opts){
   return new Promise(resolve=>{
@@ -2484,9 +2521,9 @@ function aiPickTarget(m){
   if(kill) return kill;
   const bld=fld.filter(t=>t.o.kind==='building').sort((a,b)=>a.o.h-b.o.h)[0];
   if(bld&&Math.random()<0.3) return bld;
-  // otherwise march on the command center itself
-  const i=G.P.you.back.findIndex(x=>x&&x.cc);
-  return i>=0?{key:'youBack',i,o:G.P.you.back[i]}:null;
+  // otherwise march on the keep (off-board base behind the back row)
+  const cc=G.P.you.ccUnit;
+  return (cc&&cc.h>0)?{key:'youBack',i:-1,base:true,o:cc}:null;
 }
 async function foeTurn(){
   const F=G.P.foe,Y=G.P.you;
