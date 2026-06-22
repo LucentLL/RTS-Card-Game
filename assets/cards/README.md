@@ -38,50 +38,50 @@ including brand-new cards you add later.
 Name each file exactly as below (shown with `.png`; any supported extension
 works) and drop it here.
 
-The game now has **7 elements** — Fire, Water, Earth, Wind, Light, Dark, Divine.
-Spells & traps are element-neutral. Cards without an art file fall back to a
-built-in element-tinted placeholder, so everything works while you add art.
+The game has **8 deckable elements** — Fire, Water, Earth, Wind, Forest, Electric,
+Light, Dark (Divine is reserved for future Ace/Boss/God cards). **8 creatures per
+element.** Spells & traps are element-neutral. **Structures are NOT deck cards** —
+the commander builds them from an RTS menu — but they still load art by slug.
+Cards with no art file fall back to a built-in element-tinted placeholder.
 
 **Fire creatures (炎)**
-`sparkimp_cardart.png` · `cinderling_cardart.png` · `ashfang_cardart.png` · `pyrewing_cardart.png` · `magmaw_cardart.png`
+`sparkimp` · `flicker` · `cinderling` · `scorchling` · `ashfang` · `pyrewing` · `infernox` · `magmaw`
 
 **Water creatures (水)**
-`mistling_cardart.png` · `rippler_cardart.png` · `tidecaller_cardart.png` · `surgeling_cardart.png` · `leviath_cardart.png`
+`mistling` · `brinekin` · `rippler` · `undertow` · `tidecaller` · `surgeling` · `maelstrom` · `leviath`
 
 **Earth creatures (地)**
-`pebbling_cardart.png` · `mosshide_cardart.png` · `cragtooth_cardart.png` · `bouldroot_cardart.png` · `titanore_cardart.png`
+`pebbling` · `gravelkin` · `mosshide` · `loamhide` · `cragtooth` · `bouldroot` · `monolith` · `titanore`
 
 **Wind creatures (風)**
-`gustling_cardart.png` · `zephyr_cardart.png` · `skirl_cardart.png` · `talonwind_cardart.png` · `tempest_cardart.png`
+`gustling` · `breezeling` · `zephyr` · `galeling` · `skirl` · `talonwind` · `cyclone` · `tempest`
+
+**Forest creatures (森)**
+`sapling` · `thornling` · `bramble` · `vinewhip` · `pouncer` · `grovekeep` · `maulhorn` · `eldertree`
+
+**Electric creatures (雷)**
+`spark` · `jolt` · `volt` · `crackle` · `surge` · `thunderhead` · `stormcall` · `galvanwyrm`
 
 **Light creatures (光)**
-`dawnmote_cardart.png` · `gleamward_cardart.png` · `lumenfang_cardart.png` · `aegisol_cardart.png` · `seraphine_cardart.png`
+`dawnmote` · `glimmer` · `gleamward` · `radiant` · `lumenfang` · `aegisol` · `solstice` · `seraphine`
 
 **Dark creatures (闇)**
-`wraithling_cardart.png` · `gravelurk_cardart.png` · `nightstalker_cardart.png` · `dreadmaw_cardart.png` · `voidwyrm_cardart.png`
+`wraithling` · `shadeling` · `gravelurk` · `grimfang` · `nightstalker` · `dreadmaw` · `maledict` · `voidwyrm`
 
-**Divine creatures (神)**
-`cherub_cardart.png` · `seraphling_cardart.png` · `valkar_cardart.png` · `archon_cardart.png` · `empyrean_cardart.png`
+(each is `<name>_cardart.png`, e.g. `infernox_cardart.png`.)
 
-**Structures** (one mana-forge per element + the shared Longhouse)
-`emberforge_cardart.png` · `tidewell_cardart.png` · `stonewell_cardart.png` · `galewell_cardart.png` · `dawnwell_cardart.png` · `gloomwell_cardart.png` · `empyreum_cardart.png` · `longhouse_cardart.png`
+**Structures** (built from the commander's menu — not in the deck). Generic:
+`thefoundry`… → slug `foundry`, plus `longhouse`, `bulwark`. Per-element mana forges:
+`emberforge` · `tidewell` · `stonewell` · `galewell` · `thornwell` · `stormforge` · `dawnwell` · `gloomwell`.
+Grand forges use `grand<forge>` (e.g. `grandemberforge`).
 
-**Workers** (the spawned minion token)
-`worker_cardart.png`
+**Workers** (the spawned minion token): `worker_cardart.png`
 
-**Spells & traps** (neutral)
-`emberbolt_cardart.png` · `frostlance_cardart.png` · `cavein_cardart.png` · `dissolve_cardart.png` · `snarepit_cardart.png` · `whirltrap_cardart.png`
+**Spells & traps** (neutral): `emberbolt` · `frostlance` · `cavein` · `dissolve` · `snarepit` · `whirltrap` · `cindervolley` · `searingbrand` · `topplethespire` · `collapsingfloor`
 
-**Command Centers — solo** (your base / the win-loss structure; named by element)
-`fire_cardart.png` · `water_cardart.png` · `earth_cardart.png` · `wind_cardart.png` · `light_cardart.png` · `dark_cardart.png` · `divine_cardart.png`
-
-**Command Centers — dual Compacts** (21, one per element pair). The slug is the two
-element names joined, lowercase, no separators — i.e. `<a><b>_cardart.png`:
-`firewater` · `fireearth` · `firewind` · `firelight` · `firedark` · `firedivine` ·
-`waterearth` · `waterwind` · `waterlight` · `waterdark` · `waterdivine` ·
-`earthwind` · `earthlight` · `earthdark` · `earthdivine` ·
-`windlight` · `winddark` · `winddivine` · `lightdark` · `lightdivine` · `darkdivine`
-(e.g. `firewater_cardart.png`).
+**Command Centers** — 8 solo (slug = element: `fire`, `water`, `earth`, `wind`,
+`forest`, `electric`, `light`, `dark`) + 28 dual "Compacts" (slug = the two element
+names joined, e.g. `firewater`, `forestelectric`, `electricdark`).
 
 ## Portable build
 

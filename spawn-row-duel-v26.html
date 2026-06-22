@@ -11,10 +11,10 @@
   :root{
     --ink:#ece3cf; --ink-dim:#9c9277;
     --gold:#d9b04a; --gold-deep:#8a6d22;
-    /* element palette (7 elements) */
-    --fire:#e0613f; --water:#3fa3e0; --earth:#c0863c; --wind:#5fc46a;
-    --light:#e8c64a; --dark:#9a5cc6; --divine:#c9d4ec;
-    --ember:var(--fire); --tide:var(--water); --verdant:var(--wind); /* legacy aliases */
+    /* element palette (8 deckable elements + reserved Divine) */
+    --fire:#e0613f; --water:#3fa3e0; --earth:#c0863c; --wind:#76c7c0;
+    --forest:#4fae5e; --electric:#f2cf3b; --light:#ece3c0; --dark:#9a5cc6; --divine:#c9d4ec;
+    --ember:var(--fire); --tide:var(--water); --verdant:var(--forest); /* legacy aliases */
     --spawn:#52c6ec;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -32,7 +32,7 @@
     --ch: clamp(50px, calc((100dvh - 70px)/5.4), 196px); --cw: calc(var(--ch)*.74);
     --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
     --peek: clamp(34px, calc(var(--hch)*.27), 58px);
-    --handpad: calc(var(--hch) + 10px);}
+    --handpad: calc(var(--peek) + 12px);}
   @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
   .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
   .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-bottom:var(--handpad);}
@@ -63,6 +63,10 @@
   #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
   #conscriptBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:default;}
+  #buildBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:7px 15px;border-radius:999px;cursor:pointer;
+    color:#1a140a;background:linear-gradient(180deg,#e4c878,#a8842e);border:1px solid #f0d68a;box-shadow:0 3px 0 #4d3a10,0 4px 12px rgba(0,0,0,.45);}
+  #buildBtn:active{transform:translatey(2px);box-shadow:0 1px 0 #4d3a10;}
+  #buildBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:none;}
   #logBtn,#rulesBtn,#sprBtn{font-family:'Cinzel',serif;letter-spacing:.06em;font-weight:700;font-size:10px;padding:6px 11px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.88);border:1px solid #3a3450;box-shadow:0 4px 12px rgba(0,0,0,.5);}
   #logBtn:active,#rulesBtn:active,#sprBtn:active{transform:translateY(1px);}
@@ -79,9 +83,9 @@
 
   /* the mat is the surrounding "table" environment; the matmain inside it is the
      contained, perspective-tilted PLAYFIELD (Master Duel style). */
-  .mat{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:0;padding:4px clamp(4px,1vw,12px) 4px;
+  .mat{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:0;padding:2px clamp(4px,1vw,12px);
     background:repeating-linear-gradient(45deg,rgba(0,0,0,.18) 0 2px,transparent 2px 9px),linear-gradient(160deg,#3a2c12,#241a0a 55%,#1a1208);
-    border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);perspective:1700px;perspective-origin:50% 42%;}
+    border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);perspective:1550px;perspective-origin:50% 15%;overflow:visible;}
   .rowlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;text-align:center;margin:3px 0 5px;color:var(--ink-dim);}
   .rowlabel.spawn{color:var(--spawn);font-size:10px;text-shadow:0 0 10px rgba(82,198,236,.4);}
   .centerwrap{flex:1;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;align-items:stretch;padding:0 6px;}
@@ -127,10 +131,12 @@
     background:repeating-linear-gradient(45deg,rgba(150,175,235,.10) 0 3px,transparent 3px 7px);}
   .foehand .fbcount{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;
     font-family:'Cinzel',serif;font-weight:900;font-size:clamp(11px,1.4vw,16px);color:#dce6ff;text-shadow:0 1px 3px #000,0 0 6px rgba(0,0,0,.8);}
+  /* full-screen, strongly-tilted "floor": near edge (yours) wide at the bottom,
+     far edge (opponent) narrower at the top. Height-driven cells set the floor
+     width; the box fills the mat and the deck zones are JS-pinned to the corner cells. */
   .matmain{flex:none;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:center;
-    width:min(1060px,82vw);height:min(70vh,560px);
-    transform:rotateX(15deg);transform-origin:50% 94%;
-    border-radius:18px;box-shadow:0 30px 60px rgba(0,0,0,.55),inset 0 0 40px rgba(0,0,0,.35);}
+    width:100%;height:103%;
+    transform:translateY(-9%) rotateX(32deg);transform-origin:50% 50%;}
   /* the worker rail — off-board token wells aligned to the five rows */
   .wrail{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;display:flex;flex-direction:column;align-items:stretch;}
   .wrail-spacer{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;}
@@ -221,8 +227,10 @@
   .fire-c{background:linear-gradient(165deg,#451f17,#28110c);border-color:var(--fire);box-shadow:inset 0 0 13px rgba(224,97,63,.2);}
   .water-c{background:linear-gradient(165deg,#123847,#08222e);border-color:var(--water);box-shadow:inset 0 0 13px rgba(63,163,224,.2);}
   .earth-c{background:linear-gradient(165deg,#3a2a14,#211607);border-color:var(--earth);box-shadow:inset 0 0 13px rgba(192,134,60,.2);}
-  .wind-c{background:linear-gradient(165deg,#173d1d,#0a230e);border-color:var(--wind);box-shadow:inset 0 0 13px rgba(95,196,106,.2);}
-  .light-c{background:linear-gradient(165deg,#46390f,#241c05);border-color:var(--light);box-shadow:inset 0 0 13px rgba(232,198,74,.2);}
+  .wind-c{background:linear-gradient(165deg,#123d3a,#08221f);border-color:var(--wind);box-shadow:inset 0 0 13px rgba(118,199,192,.2);}
+  .forest-c{background:linear-gradient(165deg,#173d1d,#0a230e);border-color:var(--forest);box-shadow:inset 0 0 13px rgba(79,174,94,.2);}
+  .electric-c{background:linear-gradient(165deg,#3e3408,#211b04);border-color:var(--electric);box-shadow:inset 0 0 13px rgba(242,207,59,.22);}
+  .light-c{background:linear-gradient(165deg,#3a3622,#221f12);border-color:var(--light);box-shadow:inset 0 0 13px rgba(236,227,192,.18);}
   .dark-c{background:linear-gradient(165deg,#2e1a40,#170a22);border-color:var(--dark);box-shadow:inset 0 0 13px rgba(154,92,198,.22);}
   .divine-c{background:linear-gradient(165deg,#2b3450,#141a2c);border-color:var(--divine);box-shadow:inset 0 0 13px rgba(201,212,236,.22);}
   /* legacy aliases */ .ember-c{background:linear-gradient(165deg,#451f17,#28110c);border-color:var(--fire);} .tide-c{background:linear-gradient(165deg,#123847,#08222e);border-color:var(--water);}
@@ -269,16 +277,16 @@
   #conscriptBtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
   /* ===== hand: rests off-screen showing only a name + cost peek strip; lifts to overlay the board when viewed ===== */
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
-  .handhint{position:fixed;bottom:calc(var(--hch) + 16px);left:50%;transform:translateX(-50%);text-align:center;z-index:60;
+  .handhint{position:fixed;bottom:calc(var(--peek) + 12px);left:50%;transform:translateX(-50%);text-align:center;z-index:60;
     width:max-content;max-width:min(82vw,540px);font-style:italic;color:var(--ink-dim);font-size:11px;min-height:0;
     background:rgba(13,11,18,.85);border:1px solid rgba(58,52,80,.7);border-radius:9px;padding:5px 13px;box-shadow:0 4px 16px rgba(0,0,0,.55);pointer-events:auto;}
   .handhint:empty{display:none;}
   .handhint button{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.04em;margin:0 3px;padding:5px 11px;border-radius:8px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:none;box-shadow:0 2px 0 #4d3a10;}
   .handhint button.set{background:linear-gradient(180deg,#b79bе8,#6a4fa0);color:#150f1f;box-shadow:0 2px 0 #3a2960;}
-  /* hand sits fully visible at the bottom (Master Duel style); a small dip on rest, level on hover */
+  /* hand tucks mostly off the bottom edge (peek), sliding up fully on hover/select (Master Duel style) */
   .hand{position:absolute;left:50%;bottom:0;display:flex;justify-content:center;align-items:flex-end;padding:0 24px;min-height:0;pointer-events:auto;
-    transform:translateX(-50%) translateY(0);transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+    transform:translateX(-50%) translateY(calc(100% - var(--peek)));transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
   .hand:hover,.hand.show,.hand:focus-within,.hand:has(.hc.selected){transform:translateX(-50%) translateY(0);}
   .hc{position:relative;width:var(--hcw);height:var(--hch);flex:none;border-radius:11px 11px 7px 7px;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
     margin:0 calc(var(--hcw)*-.03);transform:translateY(var(--lift,0px));transform-origin:50% 120%;
@@ -330,9 +338,23 @@
   #cardActions .act.off{cursor:default;}
   #cardActions .act.off .ico{filter:grayscale(.85) brightness(.55);box-shadow:none;}
   #cardActions .act.off .sub{color:#c77;}
-  #cpanel,#contestPanel,#harvestPanel{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
-  #cpanel .box,#contestPanel .box,#harvestPanel .box{width:300px;max-width:90vw;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold);border-radius:14px;padding:16px 16px 12px;box-shadow:0 18px 50px rgba(0,0,0,.6);text-align:center;}
+  #cpanel,#contestPanel,#harvestPanel,#buildPanel{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
+  #cpanel .box,#contestPanel .box,#harvestPanel .box,#buildPanel .box{width:300px;max-width:90vw;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold);border-radius:14px;padding:16px 16px 12px;box-shadow:0 18px 50px rgba(0,0,0,.6);text-align:center;}
   #harvestPanel .box{border-color:#9ad17f;width:286px;}
+  /* RTS build menu */
+  #buildPanel .box{border-color:#caa05a;width:360px;text-align:left;}
+  #buildPanel .ptitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);text-align:center;}
+  #buildPanel .pmeta{font-size:11.5px;color:var(--ink-dim);margin:3px 0 11px;text-align:center;}
+  .bdlist{display:flex;flex-direction:column;gap:7px;max-height:62vh;overflow-y:auto;}
+  .bdrow{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:10px;background:#1a1622;border:1px solid #34304a;}
+  .bdrow.off{opacity:.5;}
+  .bdic{font-size:20px;width:26px;text-align:center;color:#d9c79a;flex:none;}
+  .bdmid{flex:1;min-width:0;}
+  .bdnm{font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:var(--ink);display:flex;align-items:center;gap:5px;}
+  .bddesc{font-size:10.5px;color:var(--ink-dim);font-style:italic;line-height:1.3;margin-top:2px;}
+  .bdbtn{flex:none;font-family:'Cinzel',serif;font-weight:900;font-size:13px;padding:7px 11px;border-radius:8px;cursor:pointer;border:none;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 2px 0 #4d3a10;}
+  .bdbtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;color:#caa;}
+  #buildPanel .pclose{display:block;margin:10px auto 0;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
   #harvestPanel .ptitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:#bfe6a3;}
   #harvestPanel .pmeta{font-size:11.5px;color:var(--ink-dim);margin:3px 0 11px;}
   #harvestPanel .hvgrid{display:flex;flex-direction:column;gap:9px;margin-bottom:9px;}
@@ -552,9 +574,10 @@
   .dbcard-cost{position:absolute;top:2px;left:3px;font-family:'Cinzel',serif;font-weight:900;font-size:11px;color:var(--spawn);text-shadow:0 1px 2px #000,0 0 3px #000;}
   .dbcard.fire-c{box-shadow:inset 3px 0 0 var(--fire);} .dbcard.water-c{box-shadow:inset 3px 0 0 var(--water);}
   .dbcard.earth-c{box-shadow:inset 3px 0 0 var(--earth);} .dbcard.wind-c{box-shadow:inset 3px 0 0 var(--wind);}
+  .dbcard.forest-c{box-shadow:inset 3px 0 0 var(--forest);} .dbcard.electric-c{box-shadow:inset 3px 0 0 var(--electric);}
   .dbcard.light-c{box-shadow:inset 3px 0 0 var(--light);} .dbcard.dark-c{box-shadow:inset 3px 0 0 var(--dark);}
   .dbcard.divine-c{box-shadow:inset 3px 0 0 var(--divine);} .dbcard.neutral{box-shadow:inset 3px 0 0 #6a6a76;}
-  .dbcard.fire-c.sel,.dbcard.water-c.sel,.dbcard.earth-c.sel,.dbcard.wind-c.sel,.dbcard.light-c.sel,.dbcard.dark-c.sel,.dbcard.divine-c.sel,.dbcard.neutral.sel{box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
+  .dbcard.fire-c.sel,.dbcard.water-c.sel,.dbcard.earth-c.sel,.dbcard.wind-c.sel,.dbcard.forest-c.sel,.dbcard.electric-c.sel,.dbcard.light-c.sel,.dbcard.dark-c.sel,.dbcard.divine-c.sel,.dbcard.neutral.sel{box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
   .dbcount-badge{position:absolute;top:2px;right:2px;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;font-family:'Cinzel',serif;font-weight:900;font-size:11px;border-radius:6px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.6);}
   .dbcard-x{position:absolute;bottom:2px;right:2px;width:17px;height:17px;border-radius:50%;background:rgba(40,20,24,.92);border:1px solid #b3504a;color:#ff9a8a;font-size:11px;line-height:15px;text-align:center;cursor:pointer;}
   .dbstep{display:flex;align-items:center;gap:10px;}
@@ -628,6 +651,7 @@
   <div id="boardBtns">
     <div class="turnlabel" id="turnLabel">Your Turn</div>
     <button id="endBtn">End Turn</button>
+    <button id="buildBtn" onclick="openBuildMenu()">⚒ Build</button>
     <button id="conscriptBtn">⚒ Train</button>
     <div class="btnrow">
       <button id="logBtn" onclick="toggleLog(true)">📜 Log</button>
@@ -652,6 +676,7 @@
       <div class="cmdpass" id="cmdPass">Your command center holds the base — it cannot move or attack, and no spell can raze or burn it. It falls only when a strike reaches it through the rows. If it falls, you lose.</div>
       <p><b>Win — raze the command center.</b> Each side anchors its base with a <b>command center</b>: the structure you chose at the start. It sets your starting health, your starting workers, and your <b>mana colors</b>. It cannot move or attack — and the moment it is destroyed, its owner <b>loses</b>. Everything else on the field exists to protect yours and reach theirs.</p>
       <p><b>The board.</b> Five rows stack between the two keeps: the enemy base and front line up top, your front line and base below, and a single <b>contested center</b> that belongs to no one. You may place into any of your three rows. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
+      <p><b>Building (RTS).</b> Structures are <b>not in your deck</b> — your commander <b>builds</b> them. Tap your command center or the <b>⚒ Build</b> button to open the menu, then tap an open space to raise it. Building costs <b>mana</b> and follows a <b>tech tree</b>: a <b>Foundry</b> first, which unlocks the element <b>Forges</b> (a forge lets its row harvest that element's mana) and the <b>Longhouse</b>; a forge in turn unlocks the <b>Bulwark</b> and <b>Grand Forges</b>. Build as often as you can afford it.</p>
       <p><b>Workers &amp; the rail.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2), so a row holding both sits at ⚒+1. Workers are not trained and never move; they simply follow the cards. Tap a row's worker on the rail to <b>Harvest</b> the whole row at once (◆1 per worker at the base, ◆2 at the front or center); a pop-up then lets you <b>distribute</b> the haul across the colors among that row's units, with the remainder kept as generic ◆. At the <b>start of your turn</b>, any row whose number has gone <b>negative</b> (for example because a supporting structure was razed) must be brought back to <b>0 or higher</b> by moving its monsters to a row that can support them, or sacrificing them — you resolve this before you can act. You may overextend on your own turn; the bill comes due at the start of the next.</p>
       <p><b>Colored mana.</b> Extraction yields <b>generic ◆</b> — or mana of <b>any color among your units in that row</b> (a red dragon on the front line lets front workers pull red; your command center counts for its own colors in its row). A colored creature or spell needs <b>1 mana of its color</b> in its cost; the rest takes any mix. Structures take anything. <i>Mana of every kind drains at end of turn — bank it on face-downs to keep it.</i></p>
       <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Flips from a funded face-down <b>waive the color pip</b> — secrecy's discount. Face-down a full turn? It flips with haste.</p>
@@ -669,6 +694,7 @@
 </div></div>
 <div id="cpanel"><div class="box"></div></div>
 <div id="harvestPanel" onclick="if(event.target===this)hvCancel()"><div class="box"></div></div>
+<div id="buildPanel" onclick="if(event.target===this)closeBuild()"><div class="box"></div></div>
 <div id="viewerPanel" onclick="if(event.target===this)closeViewer()"><div class="box"></div></div>
 <div class="banner" id="banner"><div><div class="msg" id="bannerMsg"></div><button onclick="location.reload()">Duel Again</button></div></div>
 <div id="charsel"><div class="csbox"></div></div>
@@ -721,17 +747,21 @@ let uid=1;
    identity (starting HP / starting workers). Everything downstream — pools, builds,
    command centers, mana, CSS classes, card registry — is derived from this table. */
 const ELEMENTS={
-  fire:  {name:'Fire',  glyph:'炎', color:'#e0613f', accent:'#ff8a1f', deep:'#86291c', bg:['#5e1d10','#2a0f08','#080403'], hp:26, wk:2, lore:'A furnace-keep of slag and iron. Thick walls, single-minded fire.'},
-  water: {name:'Water', glyph:'水', color:'#3fa3e0', accent:'#7fd0f5', deep:'#0e5a7a', bg:['#0f3a52','#0a2230','#03090f'], hp:22, wk:3, lore:'A drowned tower humming with current. A fast economy behind thinner walls.'},
-  earth: {name:'Earth', glyph:'地', color:'#c0863c', accent:'#e5b66a', deep:'#7a5320', bg:['#4a3413','#2a1c0a','#0a0704'], hp:28, wk:2, lore:'A mountain hollowed into a fortress. Roots in bedrock, walls that have never fallen.'},
-  wind:  {name:'Wind',  glyph:'風', color:'#5fc46a', accent:'#a6f0ac', deep:'#2f7a3a', bg:['#173d1d','#0d250f','#041206'], hp:20, wk:3, lore:'A wind-scoured crag of open sky and screaming updrafts. Nothing lingers; everything strikes and is gone.'},
-  light: {name:'Light', glyph:'光', color:'#e8c64a', accent:'#fff0a8', deep:'#9a7a1e', bg:['#4a3d10','#2a2208','#0a0803'], hp:24, wk:3, lore:'A gold-vaulted cloister where dawnlight never fails. Patient walls, unyielding grace.'},
-  dark:  {name:'Dark',  glyph:'闇', color:'#9a5cc6', accent:'#caa0ec', deep:'#56307a', bg:['#2e1a40','#1a0f26','#080510'], hp:22, wk:2, lore:'A sunken crypt of whispering dark. Everything here is sharpened, spent, and fed to the void.'},
-  divine:{name:'Divine',glyph:'神', color:'#c9d4ec', accent:'#ffffff', deep:'#5a6a96', bg:['#2b3450','#171d2e','#070a12'], hp:25, wk:2, lore:'A vaulted sanctum of gold and judgement-light. Serene, immovable, and merciless to the unworthy.'},
+  fire:    {name:'Fire',    glyph:'炎', color:'#e0613f', accent:'#ff8a1f', deep:'#86291c', bg:['#5e1d10','#2a0f08','#080403'], hp:26, wk:2, lore:'A furnace-keep of slag and iron. Thick walls, single-minded fire.'},
+  water:   {name:'Water',   glyph:'水', color:'#3fa3e0', accent:'#7fd0f5', deep:'#0e5a7a', bg:['#0f3a52','#0a2230','#03090f'], hp:22, wk:3, lore:'A drowned tower humming with current. A fast economy behind thinner walls.'},
+  earth:   {name:'Earth',   glyph:'地', color:'#c0863c', accent:'#e5b66a', deep:'#7a5320', bg:['#4a3413','#2a1c0a','#0a0704'], hp:28, wk:2, lore:'A mountain hollowed into a fortress. Roots in bedrock, walls that have never fallen.'},
+  wind:    {name:'Wind',    glyph:'風', color:'#76c7c0', accent:'#cdeeea', deep:'#2f726b', bg:['#123d3a','#0c2422','#04100f'], hp:20, wk:3, lore:'A wind-scoured crag of open sky and screaming updrafts. Nothing lingers; everything strikes and is gone.'},
+  forest:  {name:'Forest',  glyph:'森', color:'#4fae5e', accent:'#a6f0ac', deep:'#27692f', bg:['#173d1d','#0d250f','#041206'], hp:25, wk:2, lore:'A living rampart of root and bough. Slow to rouse, impossible to clear.'},
+  electric:{name:'Electric',glyph:'雷', color:'#f2cf3b', accent:'#fff7a8', deep:'#9a7a16', bg:['#3e3408','#241d05','#0a0802'], hp:21, wk:3, lore:'A crackling pylon-hold. Everything here moves first and hits like a storm.'},
+  light:   {name:'Light',   glyph:'光', color:'#ece3c0', accent:'#ffffff', deep:'#b0a45e', bg:['#3a3622','#221f12','#0a0905'], hp:24, wk:3, lore:'A gold-vaulted cloister where dawnlight never fails. Patient walls, unyielding grace.'},
+  dark:    {name:'Dark',    glyph:'闇', color:'#9a5cc6', accent:'#caa0ec', deep:'#56307a', bg:['#2e1a40','#1a0f26','#080510'], hp:22, wk:2, lore:'A sunken crypt of whispering dark. Everything here is sharpened, spent, and fed to the void.'},
+  /* Divine is NOT a major/deckable element — reserved for Ace / Boss / God cards (e.g. a campaign "God" NPC). */
+  divine:  {name:'Divine',  glyph:'神', color:'#c9d4ec', accent:'#ffffff', deep:'#5a6a96', bg:['#2b3450','#171d2e','#070a12'], hp:25, wk:2, lore:'A vaulted sanctum of judgement-light, beyond the reach of any single banner.'},
 };
-const COLORS=Object.keys(ELEMENTS);                                   // mana-color identities, in canonical order
-const clsOf=Object.fromEntries(COLORS.map(k=>[k,k+'-c']));           // element -> creature CSS class
-function zc(){ return Object.fromEntries(COLORS.map(c=>[c,0])); }     // a fresh zeroed colored-mana pool
+const MAJORS=['fire','water','earth','wind','forest','electric','light','dark']; // the 8 deckable / commander elements (Divine excluded)
+const COLORS=MAJORS.slice();                                                     // colored-mana identities, in canonical order
+const clsOf=Object.fromEntries(Object.keys(ELEMENTS).map(k=>[k,k+'-c']));        // element -> creature CSS class (incl. divine, for art)
+function zc(){ return Object.fromEntries(COLORS.map(c=>[c,0])); }                // a fresh zeroed colored-mana pool
 
 /* Placeholder art. Element backgrounds are derived from each element's palette;
    wood/arc/snare stay neutral for element-agnostic structures, spells and traps.
@@ -802,24 +832,44 @@ const ART={
  whirltrap:artURI(frame('snare','<circle cx="60" cy="60" r="34" fill="none" stroke="#0e5a7a" stroke-width="5"/><circle cx="60" cy="60" r="34" fill="none" stroke="#3fa3e0" stroke-width="5" stroke-dasharray="120 130"/><circle cx="60" cy="60" r="22" fill="none" stroke="#3fa3e0" stroke-width="5" stroke-dasharray="80 70" transform="rotate(40 60 60)"/><circle cx="60" cy="60" r="11" fill="none" stroke="#7fd0f5" stroke-width="4" stroke-dasharray="40 30" transform="rotate(90 60 60)"/><circle cx="60" cy="60" r="4" fill="#cfeffb"/>'))
 };
 
-/* ---------- creature pools (5 per element, cost curve 1/2/3/4/6, upkeep 1/1/2/2/3,
-   the 3-drop strikes first). Fire & Water keep their hand-drawn art; the other five
-   use parametric element-tinted placeholders until art files are dropped in. ---------- */
-const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw}];
-const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Leviath',c:6,a:5,h:6,up:3,art:ART.leviath}];
-const EARTH =[{nm:'Pebbling',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:1,h:3,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:1,h:4,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:2,h:5,up:2,art:phArt('earth','cre',4)},{nm:'Titanore',c:6,a:4,h:7,up:3,art:phArt('earth','cre',5)}];
-const WIND  =[{nm:'Gustling',c:1,a:2,h:1,up:1,art:phArt('wind','cre',1)},{nm:'Zephyr',c:2,a:3,h:1,up:1,art:phArt('wind','cre',2)},{nm:'Skirl',c:3,a:4,h:1,fs:true,up:2,art:phArt('wind','cre',3)},{nm:'Talonwind',c:4,a:5,h:2,up:2,art:phArt('wind','cre',4)},{nm:'Tempest',c:6,a:8,h:3,up:3,art:phArt('wind','cre',5)}];
-const LIGHT =[{nm:'Dawnmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:1,h:3,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:2,h:3,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:3,h:4,up:2,art:phArt('light','cre',4)},{nm:'Seraphine',c:6,a:5,h:6,up:3,art:phArt('light','cre',5)}];
-const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,art:phArt('dark','cre',4)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,art:phArt('dark','cre',5)}];
-const DIVINE=[{nm:'Cherub',c:1,a:1,h:2,up:1,art:phArt('divine','cre',1)},{nm:'Seraphling',c:2,a:2,h:2,up:1,art:phArt('divine','cre',2)},{nm:'Valkar',c:3,a:3,h:2,fs:true,up:2,art:phArt('divine','cre',3)},{nm:'Archon',c:4,a:4,h:3,up:2,art:phArt('divine','cre',4)},{nm:'Empyrean',c:6,a:6,h:5,up:3,art:phArt('divine','cre',5)}];
-const POOLS={fire:EMBER,water:TIDE,earth:EARTH,wind:WIND,light:LIGHT,dark:DARK,divine:DIVINE};
-// every element trains the same neutral worker structure (Longhouse); plus a unique mana forge.
-const LONGHOUSE={nm:'Longhouse',c:4,h:6,eff:'villager',sup:5,ic:'⌂',art:ART.longhouse};
-const FORGE_NAMES={fire:'Emberforge',water:'Tidewell',earth:'Stonewell',wind:'Galewell',light:'Dawnwell',dark:'Gloomwell',divine:'Empyreum'};
+/* ---------- creature pools (8 per element; costs 1,1,2,2,3,4,5,6; upkeep scales with cost;
+   one cost-3 strikes first). Fire & Water keep their hand-drawn art; the rest use parametric
+   element-tinted placeholders until art files are dropped in. ---------- */
+const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Flicker',c:1,a:2,h:1,up:1,art:phArt('fire','cre',1)},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Scorchling',c:2,a:3,h:1,up:1,art:phArt('fire','cre',2)},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing},{nm:'Infernox',c:5,a:5,h:4,up:3,art:phArt('fire','cre',5)},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw}];
+const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Brinekin',c:1,a:1,h:2,up:1,art:phArt('water','cre',1)},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Undertow',c:2,a:2,h:2,up:1,art:phArt('water','cre',2)},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Maelstrom',c:5,a:4,h:5,up:3,art:phArt('water','cre',5)},{nm:'Leviath',c:6,a:5,h:6,up:3,art:ART.leviath}];
+const EARTH =[{nm:'Pebbling',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Gravelkin',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:1,h:3,up:1,art:phArt('earth','cre',2)},{nm:'Loamhide',c:2,a:1,h:4,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:1,h:4,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:2,h:5,up:2,art:phArt('earth','cre',4)},{nm:'Monolith',c:5,a:3,h:6,up:3,art:phArt('earth','cre',5)},{nm:'Titanore',c:6,a:4,h:7,up:3,art:phArt('earth','cre',5)}];
+const WIND  =[{nm:'Gustling',c:1,a:2,h:1,up:1,art:phArt('wind','cre',1)},{nm:'Breezeling',c:1,a:1,h:2,up:1,art:phArt('wind','cre',1)},{nm:'Zephyr',c:2,a:3,h:1,up:1,art:phArt('wind','cre',2)},{nm:'Galeling',c:2,a:2,h:2,up:1,art:phArt('wind','cre',2)},{nm:'Skirl',c:3,a:4,h:1,fs:true,up:2,art:phArt('wind','cre',3)},{nm:'Talonwind',c:4,a:5,h:2,up:2,art:phArt('wind','cre',4)},{nm:'Cyclone',c:5,a:6,h:3,up:3,art:phArt('wind','cre',5)},{nm:'Tempest',c:6,a:8,h:3,up:3,art:phArt('wind','cre',5)}];
+const FOREST=[{nm:'Sapling',c:1,a:1,h:2,up:1,art:phArt('forest','cre',1)},{nm:'Thornling',c:1,a:2,h:1,up:1,art:phArt('forest','cre',1)},{nm:'Bramble',c:2,a:1,h:3,up:1,art:phArt('forest','cre',2)},{nm:'Vinewhip',c:2,a:2,h:2,up:1,art:phArt('forest','cre',2)},{nm:'Pouncer',c:3,a:3,h:2,fs:true,up:2,art:phArt('forest','cre',3)},{nm:'Grovekeep',c:4,a:2,h:5,up:2,art:phArt('forest','cre',4)},{nm:'Maulhorn',c:5,a:5,h:4,up:3,art:phArt('forest','cre',5)},{nm:'Eldertree',c:6,a:4,h:7,up:3,art:phArt('forest','cre',5)}];
+const ELECTRIC=[{nm:'Spark',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Jolt',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Volt',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Crackle',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Surge',c:3,a:4,h:1,fs:true,up:2,art:phArt('electric','cre',3)},{nm:'Thunderhead',c:4,a:5,h:2,up:2,art:phArt('electric','cre',4)},{nm:'Stormcall',c:5,a:6,h:3,up:3,art:phArt('electric','cre',5)},{nm:'Galvanwyrm',c:6,a:8,h:3,up:3,art:phArt('electric','cre',5)}];
+const LIGHT =[{nm:'Dawnmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Glimmer',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:1,h:3,up:1,art:phArt('light','cre',2)},{nm:'Radiant',c:2,a:2,h:2,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:2,h:3,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:3,h:4,up:2,art:phArt('light','cre',4)},{nm:'Solstice',c:5,a:4,h:5,up:3,art:phArt('light','cre',5)},{nm:'Seraphine',c:6,a:5,h:6,up:3,art:phArt('light','cre',5)}];
+const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Shadeling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Grimfang',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,art:phArt('dark','cre',4)},{nm:'Maledict',c:5,a:7,h:2,up:3,art:phArt('dark','cre',5)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,art:phArt('dark','cre',5)}];
+const POOLS={fire:EMBER,water:TIDE,earth:EARTH,wind:WIND,forest:FOREST,electric:ELECTRIC,light:LIGHT,dark:DARK};
+/* Divine roster reserved for future Ace / Boss / God cards — not a deckable pool. */
+const DIVINE=[{nm:'Cherub',c:1,a:1,h:2,up:1,art:phArt('divine','cre',1)},{nm:'Valkar',c:3,a:3,h:2,fs:true,up:2,art:phArt('divine','cre',3)},{nm:'Archon',c:4,a:4,h:3,up:2,art:phArt('divine','cre',4)},{nm:'Empyrean',c:6,a:6,h:5,up:3,art:phArt('divine','cre',5)}];
+const FORGE_NAMES={fire:'Emberforge',water:'Tidewell',earth:'Stonewell',wind:'Galewell',forest:'Thornwell',electric:'Stormforge',light:'Dawnwell',dark:'Gloomwell',divine:'Empyreum'};
 const FORGE_ART={fire:ART.emberforge,water:ART.tidewell};
-const BUILD={};
-for(const el of COLORS){ BUILD[el]=[{nm:FORGE_NAMES[el],c:3,h:5,eff:'mana',val:2,sup:4,ic:'⛭',art:FORGE_ART[el]||phArt(el,'bld')}, LONGHOUSE]; }
 const WORKER={nm:'Worker',c:0,a:0,h:2,art:ART.villager};
+/* ===== RTS build menu — structures are NOT deck cards. The commander builds them from a menu,
+   paying MANA, gated by a prerequisite tech tree:
+       Foundry  →  element Forges + Longhouse  →  Bulwark + Grand Forges
+   A built structure tags the field with its `bid`; a structure is buildable only once all of
+   its `prereq` bids are present on your field (and you can afford it and have an empty slot). */
+function forgeArt(el){ return FORGE_ART[el]||phArt(el,'bld'); }
+const STRUCT_DEFS={
+  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:6,  eff:'mana',     val:1, sup:3, ic:'⚒', prereq:[],          color:null, art:phArt('earth','bld'), desc:'Where the first fires are lit and raw stone becomes the means to make war. Yields ◆1 and raises ⚒+3.'},
+  longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:6,  eff:'villager', val:0, sup:5, ic:'⌂', prereq:['foundry'], color:null, art:ART.longhouse,        desc:'Hearth-smoke and full benches — trains a Worker each turn and raises ⚒+5.'},
+  bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:12, eff:'wall',     val:0, sup:2, ic:'▣', prereq:['forge'],   color:null, art:phArt('earth','bld'), desc:'A wall of piled iron and oath — a ♥12 body that screens the line. Raises ⚒+2.'},
+};
+function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:5, eff:'mana', val:2, sup:3, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2, raises ⚒+3, and lets its row harvest '+ELEMENTS[el].name+' mana.'}; }
+function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:7, eff:'mana', val:3, sup:4, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3, raises ⚒+4, harvests '+ELEMENTS[el].name+' mana.'}; }
+// the ordered list of structures a given commander can build (its colors expand the forges)
+function buildList(ccId){
+  const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];
+  cols.forEach(el=>out.push(forgeDef(el)));
+  out.push(STRUCT_DEFS.longhouse, STRUCT_DEFS.bulwark);
+  cols.forEach(el=>out.push(grandForgeDef(el)));
+  return out;
+}
 // Spells & traps are ELEMENT-NEUTRAL — no color, generic-mana cost, legal in any deck.
 const SPELL_NEUTRAL=[
   {nm:'Ember Bolt',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
@@ -827,7 +877,11 @@ const SPELL_NEUTRAL=[
   {nm:'Cave-In',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
   {nm:'Dissolve',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.dissolve},
   {nm:'Snare Pit',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit},
-  {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap}
+  {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
+  {nm:'Cinder Volley',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
+  {nm:'Searing Brand',c:3,trap:false,effect:'burn',val:4,target:'enemy',ic:'✦',art:ART.frostlance},
+  {nm:'Topple the Spire',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
+  {nm:'Collapsing Floor',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap}
 ];
 const SPELL=Object.fromEntries(COLORS.map(c=>[c,SPELL_NEUTRAL])); // compat shim so deckOf() keeps drawing spells
 
@@ -836,8 +890,8 @@ const SPELL=Object.fromEntries(COLORS.map(c=>[c,SPELL_NEUTRAL])); // compat shim
    workers (and worker support), and your mana-color identity. It cannot move
    or attack; if it is destroyed, you lose. Generated from ELEMENTS: one solo
    commander per element (id = element id) + one dual "Compact" for every pair
-   (id = "elemA_elemB"). 7 solo + 21 dual = 28 commanders. */
-const DUAL_LORE=["Two banners over one keep, where flame meets flood and the air screams steam — every order forged in the storm-anvil's hiss.","Two banners over one keep, magma poured into the bones of the world, bought with ash and bedrock both.","Two banners over one keep, fire fed to the gale until the sky becomes a roaring firestorm that bends the field.","Two banners over one keep, the dawn-flame that gilds blades and blinds armies in one searing, holy glare.","Two banners over one keep, embers in the long dark, where ashfall and shadow smother every foe in cinders.","Two banners over one keep, the sacred pyre — judgment lit and offered up as fire too righteous to extinguish.","Two banners over one keep, river-fed soil and silted mire, slow as the tide that drowns and buries together.","Two banners over one keep, the tempest itself — rain on the wind, squall and surge marching as one front.","Two banners over one keep, still water under risen moon, where reflection becomes blade and frost crowns the deep.","Two banners over one keep, the black tide of the drowned, abyss and brine bargained for in cold silence.","Two banners over one keep, the blessed font — healing waters poured from a chalice that never runs dry.","Two banners over one keep, dust on the driving wind, sandstorm and stone-shard scouring the realm to grit.","Two banners over one keep, the verdant terrace where sunlight grows in the soil, growth and glory rooted deep.","Two banners over one keep, the barrow-deep — grave-loam and gloom, the patient rot beneath the hill.","Two banners over one keep, the sacred mountain, altar-stone raised so high the gods themselves must look up.","Two banners over one keep, light on the swift wind, the radiant gale that scatters foes like dawn scatters mist.","Two banners over one keep, the night-wind howling — wraiths on the gale, whispers that cut where blades cannot.","Two banners over one keep, the answered prayer carried aloft, breath of the heavens sweeping the field clean.","Two banners over one keep, the eclipse made flesh, twilight crowned where day and night wage their endless dusk.","Two banners over one keep, the unbearable radiance — halo and sunfire, glory too bright for mortal eyes.","Two banners over one keep, the fallen choir, sacred shadow where mercy and damnation share a single throne."];
+   (id = "elemA_elemB"). 8 solo + 28 dual = 36 commanders. */
+const DUAL_LORE=["A steam-forge keep, hissing between anvil and cistern. It boils its own moat to fight.","A kiln-foundry of baked clay walls. Fire sets what the earth has shaped.","A bellows-citadel where wind feeds the furnace. It breathes, and the fire screams.","A char-grove smoldering behind green walls. It burns the forest to fertilize the next.","A plasma-spire crowned in welding light. Heat and current fused past parting.","A solar-furnace of mirrored fire. It does not warm; it consumes by daylight.","An ember-vault banked in cold ash. Its fire burns blackest where no light reaches.","A delta-hold of silt and slow water. It builds new ground from what the river drowns.","A mist-cistern wreathed in cold fog. It hides its walls behind its own breath.","A mangrove-keep half-swallowed by tide. Root and water hold the same line.","A storm-cistern wired to the rain. Every drop it catches it returns as a spark.","A glacier-hall of refracting ice. It bends the dawn and keeps the cold.","A drowned-vault below the black tide. What sinks there is never given back.","A canyon-bastion carved by the gale. The wind shapes the stone and the stone shapes the wind.","A terraced grove of stone and root. The mountain wears the forest like a cloak.","A geode-tower veined with raw current. It stores the storm in solid rock.","A marble-fastness facing the sun. Mountain bones lit white to their core.","A barrow-keep dug into lightless rock. The deep stone keeps its dead unburied.","A storm-canopy of singing leaves. The gale combs the branches and the branches answer in sparks.","A galleon-spire riding the lightning front. It sails on its own thunder.","A lantern-spire of open air and light. Nothing it holds is ever in shadow.","A gale-vault of howling dark corridors. The wind carries off what the dark takes.","A storm-canopy bristling with charged thorns. The forest fruits in lightning.","A bloom-bastion of luminous boughs. It grows toward the light and feeds on it.","A thornwood-vault tangled in night. Its roots drink the dark and the dark drinks back.","A beacon-coil ringed in radiant current. It burns and shines as one act.","A blackout-tower of caged storms. Its lightning never escapes its own walls.","A dusk-bastion balanced on the line of day. It gives light with one hand and takes it with the other."];
 const CC_ART={}, CCS={};
 (function(){
   for(const el of COLORS){ const E=ELEMENTS[el];
@@ -933,8 +987,11 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   };
   /* placeholder map auto-synced from the pools above — the always-works safety net */
   var add = function(t){ if(t && t.nm && t.art) w.PLACEHOLDERS[t.nm] = t.art; };
-  COLORS.forEach(function(el){ [].concat(POOLS[el]||[], BUILD[el]||[]).forEach(add); });
+  COLORS.forEach(function(el){ (POOLS[el]||[]).forEach(add); });
   SPELL_NEUTRAL.forEach(add); add(WORKER);
+  // build-menu structures (generic + per-element forges) so the placed buildings have art
+  [STRUCT_DEFS.foundry, STRUCT_DEFS.longhouse, STRUCT_DEFS.bulwark].forEach(add);
+  COLORS.forEach(function(el){ add(forgeDef(el)); add(grandForgeDef(el)); });
   Object.keys(CCS).forEach(function(id){ if(CC_ART[id]) w.PLACEHOLDERS[CCS[id].name] = CC_ART[id]; });
   w.PLACEHOLDERS['Worker'] = ART.villager;
 })(window);
@@ -1048,6 +1105,7 @@ function extractColors(owner,which){
   rowArr(key).forEach(x=>{ if(x&&x.owner===owner){
     if(x.kind==='creature'&&!x.worker)set.add(x.color);
     if(x.kind==='building'&&x.cc)(x.colors||[]).forEach(c=>set.add(c));
+    if(x.kind==='building'&&!x.cc&&x.eff==='mana'&&x.color)set.add(x.color); // a built forge lets its row harvest its element's mana
   }});
   return [...set];
 }
@@ -1065,21 +1123,21 @@ function enforceCap(owner){
 function afterDeploy(owner){ syncWorkers(owner); }
 const $=id=>document.getElementById(id);
 const rng=a=>a[Math.floor(Math.random()*a.length)];
-function deckOf(colors){ // colors: array — mono draws one pool, dual mixes both evenly
+function deckOf(colors){ // colors: array — 40 cards of creatures + neutral spells (structures are built, not drawn)
   const d=[]; const n=colors.length;
   colors.forEach(col=>{
     const src=poolFor(col);
-    for(let i=0;i<Math.round(16/n);i++){const t=rng(src);d.push({type:'creature',color:col,...t});}
-    for(let i=0;i<Math.round(5/n);i++){const t=rng(BUILD[col]);d.push({type:'building',color:col,...t});}
-    for(let i=0;i<Math.round(5/n);i++){const t=rng(SPELL[col]);d.push({type:'spell',color:null,...t});}
+    for(let i=0;i<Math.round(28/n);i++){const t=rng(src);d.push({type:'creature',color:col,...t});}
+    for(let i=0;i<Math.round(12/n);i++){const t=rng(SPELL_NEUTRAL);d.push({type:'spell',color:null,...t});}
   });
+  while(d.length<DECK_SIZE){const t=rng(poolFor(colors[0]));d.push({type:'creature',color:colors[0],...t});}
   for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
-  return d;}
+  return d.slice(0,DECK_SIZE);}
 /* ===== deck-building data: registry, saved decks (localStorage), validation, expander ===== */
-const DECK_SIZE=20, MAX_COPIES=3, MAX_DECKS=5, DECKS_KEY='srd.decks.v1';
+const DECK_SIZE=40, MAX_COPIES=3, MAX_DECKS=5, DECKS_KEY='srd.decks.v1';
 const CARD_REG=(function(){
   const reg=[]; const add=(arr,type,color)=>(arr||[]).forEach(t=>reg.push({key:(color||'neutral')+'|'+t.nm,type,color,nm:t.nm,tpl:t}));
-  for(const el of COLORS){ add(POOLS[el],'creature',el); add(BUILD[el],'building',el); }
+  for(const el of COLORS){ add(POOLS[el],'creature',el); } // creatures only — structures are built, not drawn
   add(SPELL_NEUTRAL,'spell',null); // spells & traps are neutral — keyed 'neutral|<nm>', color null
   return reg;
 })();
@@ -1100,7 +1158,7 @@ function migrateKey(key){ const b=String(key).indexOf('|'); if(b<0)return key; l
   if(color!=='neutral'&&SPELL_NAMES.has(nm))return 'neutral|'+nm;            // spells are neutral
   if(COLOR_ALIAS[color])color=COLOR_ALIAS[color];                            // ember|X -> fire|X, etc.
   return color+'|'+nm; }
-function migrateDeckCards(cards){ const out={}; for(const [k,v] of Object.entries(cards||{})){ const nk=migrateKey(k); out[nk]=Math.min(MAX_COPIES,(out[nk]||0)+(v|0)); } return out; }
+function migrateDeckCards(cards){ const out={}; for(const [k,v] of Object.entries(cards||{})){ const nk=migrateKey(k); if(!CARD_BY_KEY[nk])continue; /* drop structures & retired cards */ out[nk]=Math.min(MAX_COPIES,(out[nk]||0)+(v|0)); } return out; }
 function loadDecks(){ try{ const raw=localStorage.getItem(DECKS_KEY); if(!raw)return []; const arr=JSON.parse(raw); if(!Array.isArray(arr))return [];
   return arr.map(d=>(d&&typeof d==='object')?{...d,cc:migrateCC(d.cc)}:d).filter(isWellFormedDeck).slice(0,MAX_DECKS).map(d=>({...d,cards:migrateDeckCards(d.cards)})); }catch(e){ return []; } }
 function saveDecks(arr){ try{ localStorage.setItem(DECKS_KEY,JSON.stringify(arr.slice(0,MAX_DECKS))); return true; }catch(e){ return false; } }
@@ -1131,7 +1189,56 @@ function expandDeck(deck){
 }
 function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art};}
 function mkVil(owner){return mkCre({nm:'Worker',a:0,h:2,c:0,up:0,art:ART.villager},owner,true);}
-function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0};}
+function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0,bid:t.bid||null};}
+/* ===== RTS structure building — commander build menu (cost = mana; prerequisite tech tree) ===== */
+function ownBuildings(owner){ return ownUnits(owner).filter(o=>o.kind==='building'&&!o.cc); }
+function hasBuild(owner,bid){ return ownBuildings(owner).some(b=>b.bid===bid); }
+function prereqMet(owner,def){ return (def.prereq||[]).every(p=>hasBuild(owner,p)); }
+function hasEmptyDeploy(owner){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x); }); }
+function canBuild(owner,def){ return manaTotal(owner)>=def.c && prereqMet(owner,def) && hasEmptyDeploy(owner); }
+function resolveStruct(bid,color){ if(bid==='forge')return forgeDef(color); if(bid==='grandforge')return grandForgeDef(color); return STRUCT_DEFS[bid]||null; }
+window.openBuildMenu=function(){ if(G.turn!=='you'||G.busy||G.over||G.deficit)return; G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null; $('buildPanel').style.display='flex'; drawBuild(); render(); };
+function drawBuild(){
+  const list=buildList(G.P.you.cc), have=manaTotal('you');
+  const rows=list.map(def=>{
+    const ok=canBuild('you',def);
+    const why=!prereqMet('you',def)?('needs '+def.prereq.map(p=>p==='foundry'?'a Foundry':'a Forge').join(' + ')):(have<def.c?('need ◆'+def.c):(!hasEmptyDeploy('you')?'no open space':''));
+    const dot=def.color?`<span class="cdot" style="background:var(--${def.color})"></span>`:'';
+    return `<div class="bdrow${ok?'':' off'}"><div class="bdic">${def.ic}</div>`+
+      `<div class="bdmid"><div class="bdnm">${dot}${escHtml(def.nm)}</div><div class="bddesc">${escHtml(def.desc)}</div></div>`+
+      `<button class="bdbtn" ${ok?`onclick="buildPick('${def.bid}','${def.color||''}')"`:`disabled title="${escHtml(why)}"`}>◆${def.c}</button></div>`;
+  }).join('');
+  $('buildPanel').querySelector('.box').innerHTML=
+    `<div class="ptitle">⚒ Build</div><div class="pmeta">Raise structures — pay mana, follow the tech tree. <b>◆${have}</b> available.</div>`+
+    `<div class="bdlist">${rows}</div><button class="pclose" onclick="closeBuild()">Done</button>`;
+}
+window.closeBuild=function(){ $('buildPanel').style.display='none'; defaultHint(); render(); };
+window.buildPick=function(bid,color){ const def=resolveStruct(bid,color||null); if(!def||!canBuild('you',def))return;
+  G.build=def; $('buildPanel').style.display='none';
+  setHint(`Raising <b>${escHtml(def.nm)}</b> (◆${def.c}) — tap an open space in your rows. <button onclick="cancelBuild()">cancel</button>`); render(); };
+window.cancelBuild=function(){ G.build=null; defaultHint(); render(); };
+function placeBuild(which,i){ const def=G.build; if(!def)return;
+  if(!canBuild('you',def)||cellArr('you',which)[i]){ G.build=null; defaultHint(); render(); return; }
+  payAny('you',def.c); cellArr('you',which)[i]=mkBld(def,'you');
+  log(`<span class="y">You raise a ${escHtml(def.nm)}.</span>`,'y');
+  G.build=null; afterDeploy('you'); defaultHint(); render(); checkWin(); }
+// ----- AI building: foundry -> a forge for each color -> longhouse / bulwark -----
+function aiBuild(owner){
+  const ccId=G.P[owner].cc, list=buildList(ccId);
+  // priority order: foundry, forges, longhouse, bulwark, grand forges
+  for(const def of list){
+    if(hasBuild(owner,def.bid) && (def.bid==='foundry'||def.bid==='longhouse'||def.bid==='bulwark')) continue; // one of each generic
+    if(def.bid==='forge' && ownBuildings(owner).some(b=>b.bid==='forge'&&b.color===def.color)) continue;       // one forge per color
+    if(def.bid==='grandforge' && ownBuildings(owner).some(b=>b.bid==='grandforge'&&b.color===def.color)) continue;
+    if(!canBuild(owner,def)) continue;
+    const which=['back','front'].find(w=>cellArr(owner,w).some(x=>!x)); if(!which)return;
+    const slot=cellArr(owner,which).findIndex(x=>!x);
+    payAny(owner,def.c); cellArr(owner,which)[slot]=mkBld(def,owner); syncWorkers(owner);
+    log(`<span class="e">Opponent raises a ${escHtml(def.nm)}.</span>`,'e');
+    return true; // build one per call
+  }
+  return false;
+}
 function toGrave(owner,obj){
   if(!obj)return; let rec;
   if(obj.kind==='creature') rec={type:obj.worker?'villager':'creature',nm:obj.nm,a:obj.a,h:obj.maxh??obj.h,c:obj.c,up:obj.up,fs:obj.fs};
@@ -1371,12 +1478,14 @@ function render(){
   $('foeGraveN').textContent=G.P.foe.grave.length; $('youGraveN').textContent=G.P.you.grave.length;
   $('turnLabel').textContent=G.turn==='you'?'Your Turn':'Opponent…';
   $('endBtn').disabled=G.turn!=='you'||G.busy||G.over||G.deficit;
+  { const bb=$('buildBtn'); if(bb)bb.disabled=G.turn!=='you'||G.busy||G.over||G.deficit; }
   const cb=$('conscriptBtn'); if(cb)cb.style.display='none';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   renderRow('foeBack','foe','back'); renderRow('foeFront','foe','front');
   renderCenter();
   renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderHand(); renderFoeHand();
   renderCmdZone('foe'); renderCmdZone('you');
+  positionDecks();
   placeCardMenu();
 }
 function renderMinions(){
@@ -1493,6 +1602,23 @@ function wkSlotEl(owner,which,aiming){
   tok.addEventListener('contextmenu',e=>{e.preventDefault();inspectMinion(owner,which);});
   slot.appendChild(tok); return slot;
 }
+// pin the deck/graveyard zones to the floor's corner cells so they ride the tilted
+// plane (your deck off the bottom-right corner, opponent's off the top-left corner)
+function positionDecks(){
+  const mm=document.querySelector('.matmain'); if(!mm)return;
+  const yb=document.querySelectorAll('#youBack .cell'), fb=document.querySelectorAll('#foeBack .cell');
+  const yd=$('youDecks'), fd=$('foeDecks');
+  if(yd&&yb.length){ const c=yb[yb.length-1]; // bottom-right corner cell
+    yd.style.right='auto'; yd.style.bottom='auto';
+    yd.style.left=(c.offsetLeft+c.offsetWidth+8)+'px';
+    yd.style.top=(c.offsetTop+c.offsetHeight-yd.offsetHeight)+'px';
+  }
+  if(fd&&fb.length){ const c=fb[0]; // top-left corner cell
+    fd.style.left='auto'; fd.style.bottom='auto';
+    fd.style.right=(mm.clientWidth-c.offsetLeft+8)+'px';
+    fd.style.top=c.offsetTop+'px';
+  }
+}
 function renderRow(elId,owner,which){
   const el=$(elId);el.innerHTML='';const me=owner==='you';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
@@ -1602,6 +1728,7 @@ function decorate(cell,owner,which,i,o){
     if(mine&&(o.kind==='creature'||o.kind==='building')){ cell.classList.add('target'); cell.addEventListener('click',()=>doSendMana(which,i)); return; }
     cell.addEventListener('click',cancelSendMana); return;
   }
+  if(G.build){ if(owner==='you'&&!o&&canDeploy('you',which)) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(owner,which,i,o)); return; }
   const handSel=G.sel&&G.sel.kind==='hand';
   if(mine&&o.kind==='creature'&&inAtk(which,i)) cell.classList.add('selected');
   if(mine&&o.kind==='creature'&&!o.sick&&!o.tapped&&!handSel) cell.classList.add('tappable');
@@ -1676,6 +1803,10 @@ function clearAtk(){G.atk=[];G.cardMenu=null;G.minSel=null;defaultHint();}
 function onCell(owner,which,i,o){
   G.cardMenu=null; G.minSel=null;
   const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
+  if(G.build){ // placing a structure from the build menu
+    if(owner==='you'&&!o&&canDeploy('you',which)){ placeBuild(which,i); } else { G.build=null; defaultHint(); render(); }
+    return;
+  }
   if(G.sel&&G.sel.kind==='hand'){
     const sc=G.P.you.hand[G.sel.idx];
     if(G.sel.mode==='cast'){ if(foe&&sc&&validSpellTarget(sc,o)){ castSpell(G.sel.idx,which,i); } else { G.sel=null; defaultHint(); render(); } return; }
@@ -1687,7 +1818,7 @@ function onCell(owner,which,i,o){
   if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.'); return; }
   if(mine&&o.kind==='charge'){ if(G.atk.length===0) openCharge(which,i); return; }
   if(mine&&o.kind==='building'){
-    if(o.cc){ setHint(`<b style="color:var(--gold)">♜ ${o.nm}</b> — your command center. It cannot move or attack. <b>If it falls, you lose.</b> Its row's workers harvest ${o.colors.map(c=>manaGlyph(c)).join(' ')} mana.`); render(); return; }
+    if(o.cc){ openBuildMenu(); return; } // tap your command center to open the RTS build menu
     if(o.bank>0){ G.cardMenu={w:which,i,html:`<button onclick="startSendMana('${which}',${i})">◆ Send ${o.bank}</button><span class="taphint">stored mana — move it, or play a card on top to spend it</span>`}; setHint('Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
     else setHint('Structures hold the base — they don\u2019t move or fight.');
     render(); return;
@@ -2352,7 +2483,8 @@ async function foeTurn(){
   }
   cleanup();
   // build a structure sometimes
-  if(structuresOf('foe').length===0||Math.random()<0.4){const bIdx=F.hand.findIndex(c=>c.type==='building'&&c.c<=manaTotal('foe'));const bs=F.back.findIndex(x=>!x);if(bIdx>=0&&bs>=0){const card=F.hand[bIdx];payAny('foe',card.c);F.hand.splice(bIdx,1);F.back[bs]=mkBld(card,'foe');log(`<span class="e">Opponent builds a ${card.nm}.</span>`,'e');}}
+  // RTS building: the AI techs up from its commander's build menu (Foundry -> Forge -> ...), up to twice a turn
+  if(aiBuild('foe')) aiBuild('foe');
   // cast a raze spell on one of your structures
   let rzi=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='raze'&&canPay('foe',c));
   if(rzi>=0){ let tk=null,ti=-1; ['youBack','youFront'].forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.kind==='building'&&!o.cc){tk=key;ti=j;}}));
@@ -2438,6 +2570,7 @@ function bldEffectText(eff,val,sup){
   const supTxt=sup?` Grants <b>+${sup} worker cap</b> while it stands.`:'';
   if(eff==='mana') return `<b>Forge.</b> Yields <b>◆${val} mana</b> at the start of its owner's turn.${supTxt}`;
   if(eff==='villager') return `<b>Longhouse.</b> Trains a free <b>Minion</b> (0/2 ⚒) into its owner's base pool at the start of its owner's turn.${supTxt}`;
+  if(eff==='wall') return `<b>Bulwark.</b> A heavy body that screens the line — it can intercept and be raided, but never moves or attacks.${supTxt}`;
   return `Structure with no upkeep effect.${supTxt}`;
 }
 function showInspect(title,body){
@@ -2820,7 +2953,7 @@ document.addEventListener('mouseout',e=>{
 function fitBoard(){
   const root=document.querySelector('.wrap'); if(!root)return;
   const topChrome=6;                                            // no header/status anymore
-  const handReserve=Math.min(230,Math.max(120,innerHeight*.24));  // matches --handpad (full hand now visible)
+  const handReserve=Math.min(160,Math.max(80,innerHeight*.20));  // hand peeks at the bottom; small reserve
   const boardChrome=28;                                          // mat padding + center gap
   let ch=Math.min(240,
     (innerHeight-topChrome-handReserve-boardChrome)/5.05,        // 5 rows + a little center gap
