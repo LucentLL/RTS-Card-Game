@@ -32,10 +32,11 @@
     --ch: clamp(50px, calc((100dvh - 70px)/5.4), 196px); --cw: calc(var(--ch)*.74);
     --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
     --peek: clamp(34px, calc(var(--hch)*.27), 58px);
-    --handpad: calc(var(--peek) + 20px);}
+    --topzone: clamp(30px, 5vh, 58px);              /* room at the top for the opponent's hand */
+    --handpad: calc(var(--peek) + 44px);}           /* room at the bottom for the player's hand / HUD */
   @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
   .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
-  .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-bottom:var(--handpad);}
+  .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-top:var(--topzone);padding-bottom:var(--handpad);}
   header{display:none!important;}
 
   /* ===== corner player badges — vitals stored by the name (Master Duel style) ===== */
@@ -100,9 +101,9 @@
   #youSide{flex-direction:row-reverse;}
   .rowsbox{flex:1;min-width:0;display:flex;flex-direction:column;gap:clamp(3px,.7vw,9px);}
   .flank{display:none;}
-  .decks{position:absolute;z-index:26;display:flex;gap:6px;pointer-events:auto;}
-  .decks.foe{top:8px;left:10px;}
-  .decks.you{bottom:8px;right:10px;}
+  .decks{position:absolute;z-index:26;display:flex;flex-direction:column;gap:7px;pointer-events:auto;align-items:center;}
+  .decks.foe{top:10px;left:12px;}      /* foe: Deck on top, RIP grave below */
+  .decks.you{bottom:10px;right:12px;}  /* you: RIP grave on top, Deck below */
   .decks .zone{width:clamp(38px,5.4vw,58px);height:clamp(50px,8.4vh,80px);flex:none;}
   .zonecol{width:var(--cw);flex:none;display:flex;flex-direction:column;gap:5px;justify-content:space-between;}
   .zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:6px;cursor:pointer;
@@ -121,7 +122,7 @@
   .zone.grave.tomb .zl{color:#1a1a1f;font-weight:900;letter-spacing:.12em;text-shadow:0 1px 0 rgba(255,255,255,.18);}
   .zone.grave.tomb b{color:#262630;}
   /* corner command zone with commander figure standing on it (Master Duel pet style) */
-  .cmdzone{position:absolute;z-index:22;display:flex;flex-direction:column;align-items:center;pointer-events:none;width:auto;}
+  .cmdzone{position:absolute;z-index:24;display:flex;flex-direction:column;align-items:center;pointer-events:none;width:auto;}
   .cmdzone.foe{top:58px;right:12px;}
   .cmdzone.you{bottom:58px;left:12px;}
   .cmdfig{width:clamp(40px,5vw,62px);height:clamp(48px,6vw,74px);z-index:2;pointer-events:auto;cursor:pointer;
@@ -129,16 +130,16 @@
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
   .cmdfig svg{width:100%;height:100%;display:block;overflow:visible;}
   .zone:active{transform:translate(1px,1px);}
-  /* opponent's hand — face-down backs tucked above the top edge, barely peeking; pulls DOWN on hover */
-  .foehand{position:absolute;top:0;left:50%;z-index:21;display:flex;justify-content:center;align-items:flex-start;pointer-events:auto;height:clamp(54px,9vh,86px);
-    transform:translateX(-50%) translateY(calc(-100% + 16px));transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
-  .foehand:hover{transform:translateX(-50%) translateY(2px);}
-  .foehand .fb{position:relative;width:clamp(22px,3.4vw,38px);height:100%;border-radius:4px;margin:0 clamp(-7px,-0.7vw,-5px);flex:none;transform-origin:50% 130%;
-    background:linear-gradient(160deg,#33457e,#16213e);
-    border:1px solid #46568a;box-shadow:0 3px 7px rgba(0,0,0,.5),inset 0 0 0 1px rgba(120,150,220,.18);}
+  /* opponent's hand — a FLAT row of face-down backs flush with the top edge, barely peeking down;
+     drops to full height on hover (mirror of the player's bottom strip, reversed) */
+  .foehand{position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:21;display:flex;justify-content:center;align-items:flex-start;gap:3px;padding:0 24px;pointer-events:auto;}
+  .foehand .fb{position:relative;width:var(--hcw);height:clamp(14px,2.4vh,24px);border-radius:0 0 7px 7px;flex:none;
+    transition:height .18s ease;background:linear-gradient(180deg,#33457e,#16213e);border:1px solid #46568a;border-top:none;
+    box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 0 0 1px rgba(120,150,220,.18);}
+  .foehand:hover .fb{height:var(--hch);}
   .foehand .fb::after{content:"";position:absolute;inset:3px;border-radius:3px;border:1px solid rgba(150,175,235,.28);
     background:repeating-linear-gradient(45deg,rgba(150,175,235,.10) 0 3px,transparent 3px 7px);}
-  .foehand .fbcount{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;
+  .foehand .fbcount{position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;
     font-family:'Cinzel',serif;font-weight:900;font-size:clamp(11px,1.4vw,16px);color:#dce6ff;text-shadow:0 1px 3px #000,0 0 6px rgba(0,0,0,.8);}
   /* full-screen, strongly-tilted "floor": near edge (yours) wide at the bottom,
      far edge (opponent) narrower at the top. Height-driven cells set the floor
@@ -287,6 +288,14 @@
   #conscriptBtn:active:not(:disabled){transform:translatey(2px);box-shadow:0 1px 0 #19401f;}
   #conscriptBtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
   /* ===== hand: rests off-screen showing only a name + cost peek strip; lifts to overlay the board when viewed ===== */
+  /* WC3-style command-bar backing — barely there at rest, brightens + rises when the hand is viewed */
+  #hudbar{position:fixed;left:0;right:0;bottom:0;height:var(--handpad);z-index:23;pointer-events:none;
+    background:linear-gradient(180deg,transparent 0,rgba(10,8,14,.5) 45%,rgba(6,5,9,.85) 100%);
+    border-top:2px solid var(--youelem,#caa05a);box-shadow:0 -8px 26px rgba(0,0,0,.5),inset 0 2px 16px rgba(202,160,90,.16);
+    opacity:.5;transition:opacity .22s ease,height .22s ease;}
+  body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar{opacity:1;height:calc(var(--handpad) + var(--hch)*.55);}
+  /* thin accent line under the opponent's edge */
+  #hudbar.top{display:none;}
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
   /* help text lives on the right margin, off the board */
   .handhint{position:fixed;right:10px;top:46%;transform:translateY(-50%);text-align:left;z-index:60;
@@ -674,6 +683,8 @@
     </div>
   </div>
 
+  <!-- WC3-style command bar backing: barely-there strip at the bottom, brightens when the hand is viewed -->
+  <div id="hudbar"></div>
   <div class="handwrap">
     <div class="handhint" id="hint"></div>
     <div class="hand" id="hand"></div>
@@ -1279,6 +1290,7 @@ function bootstrap(){
 function ccPips(def){return def.colors.map(c=>elemBadge(c,15)).join('');}
 function applyCharacterUI(){
   const cy=CCS[G.P.you.cc], cf=CCS[G.P.foe.cc];
+  document.documentElement.style.setProperty('--youelem', `var(--${cy.colors[0]})`); // tint the HUD bar by the player's element
   const fName=$('foeName'); fName.style.color=`var(--${cf.colors[0]})`;
   fName.innerHTML=`${ccPips(cf)}${cf.name}`;
   const yName=$('youName'); yName.style.color=`var(--${cy.colors[0]})`;
@@ -1677,12 +1689,7 @@ function renderFoeHand(){
   const el=$('foeHand'); if(!el)return;
   const n=G.P.foe.hand.length; el.innerHTML='';
   const max=Math.min(n,10);
-  for(let i=0;i<max;i++){
-    const b=document.createElement('div'); b.className='fb';
-    const t=i-(max-1)/2;                       // fan: arc downward toward the player
-    b.style.transform=`rotate(${t*4}deg) translateY(${Math.abs(t)*1.5}px)`;
-    el.appendChild(b);
-  }
+  for(let i=0;i<max;i++){ const b=document.createElement('div'); b.className='fb'; el.appendChild(b); } // flat row of backs (no fan)
   if(n){ const c=document.createElement('div'); c.className='fbcount'; c.textContent=n; el.appendChild(c); }
   el.title=`Opponent's hand — ${n} card${n===1?'':'s'}`;
 }
