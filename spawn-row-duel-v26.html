@@ -32,7 +32,7 @@
     --ch: clamp(50px, calc((100dvh - 70px)/5.4), 196px); --cw: calc(var(--ch)*.74);
     --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
     --peek: clamp(34px, calc(var(--hch)*.27), 58px);
-    --handpad: calc(var(--peek) + 12px);}
+    --handpad: calc(var(--peek) + 20px);}
   @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
   .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
   .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-bottom:var(--handpad);}
@@ -63,10 +63,12 @@
   #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
   #conscriptBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:default;}
-  #buildBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:7px 15px;border-radius:999px;cursor:pointer;
+  /* Build sits next to the player's commander figure (bottom-left), not in the right stack */
+  #buildBtn{position:absolute;left:clamp(78px,7vw,104px);bottom:clamp(64px,9vh,96px);z-index:24;
+    font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:7px 15px;border-radius:999px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,#e4c878,#a8842e);border:1px solid #f0d68a;box-shadow:0 3px 0 #4d3a10,0 4px 12px rgba(0,0,0,.45);}
   #buildBtn:active{transform:translatey(2px);box-shadow:0 1px 0 #4d3a10;}
-  #buildBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:none;}
+  #buildBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:none;opacity:.5;}
   #logBtn,#rulesBtn,#sprBtn{font-family:'Cinzel',serif;letter-spacing:.06em;font-weight:700;font-size:10px;padding:6px 11px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.88);border:1px solid #3a3450;box-shadow:0 4px 12px rgba(0,0,0,.5);}
   #logBtn:active,#rulesBtn:active,#sprBtn:active{transform:translateY(1px);}
@@ -113,6 +115,11 @@
   .zone.grave{background:radial-gradient(circle at 50% 35%,#2c2026,#140e12);border:1px solid #5a3b3b;
     box-shadow:2px 2px 0 #140e12,2px 2px 0 1px #43292b;}
   .zone.grave b{color:#e0a59a;}
+  /* graveyard styled as a tombstone (rounded-top slab) */
+  .zone.grave.tomb{background:linear-gradient(180deg,#6b6b73,#3a3a42 60%,#26262c);border:1px solid #1a1a1f;border-radius:50% 50% 7px 7px/30% 30% 7px 7px;
+    box-shadow:inset 0 2px 4px rgba(255,255,255,.12),inset 0 -3px 6px rgba(0,0,0,.5),0 3px 6px rgba(0,0,0,.5);color:#15151a;}
+  .zone.grave.tomb .zl{color:#1a1a1f;font-weight:900;letter-spacing:.12em;text-shadow:0 1px 0 rgba(255,255,255,.18);}
+  .zone.grave.tomb b{color:#262630;}
   /* corner command zone with commander figure standing on it (Master Duel pet style) */
   .cmdzone{position:absolute;z-index:22;display:flex;flex-direction:column;align-items:center;pointer-events:none;width:auto;}
   .cmdzone.foe{top:58px;right:12px;}
@@ -122,8 +129,10 @@
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
   .cmdfig svg{width:100%;height:100%;display:block;overflow:visible;}
   .zone:active{transform:translate(1px,1px);}
-  /* opponent's hand — fanned face-down card backs along the top edge */
-  .foehand{position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:21;display:flex;justify-content:center;align-items:flex-start;pointer-events:none;height:clamp(30px,6vh,54px);}
+  /* opponent's hand — face-down backs tucked above the top edge, barely peeking; pulls DOWN on hover */
+  .foehand{position:absolute;top:0;left:50%;z-index:21;display:flex;justify-content:center;align-items:flex-start;pointer-events:auto;height:clamp(54px,9vh,86px);
+    transform:translateX(-50%) translateY(calc(-100% + 16px));transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  .foehand:hover{transform:translateX(-50%) translateY(2px);}
   .foehand .fb{position:relative;width:clamp(22px,3.4vw,38px);height:100%;border-radius:4px;margin:0 clamp(-7px,-0.7vw,-5px);flex:none;transform-origin:50% 130%;
     background:linear-gradient(160deg,#33457e,#16213e);
     border:1px solid #46568a;box-shadow:0 3px 7px rgba(0,0,0,.5),inset 0 0 0 1px rgba(120,150,220,.18);}
@@ -159,6 +168,8 @@
   .wtok.selected{border-color:var(--gold);background:radial-gradient(circle at 35% 30%,#4d4030,#1d1812);}
   /* command center cells read as the keep */
   .cell .card.ccx{box-shadow:inset 0 0 0 2px var(--gold-deep),0 0 14px rgba(217,176,74,.35);}
+  .card.ccx .artwin{flex:1;min-height:0;}
+  .card.ccx .ccpips{position:absolute;top:2px;right:3px;display:flex;gap:3px;z-index:2;}
   .card .ccb{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-family:'Cinzel',serif;font-weight:900;
     font-size:clamp(6px,11cqmin,12px);letter-spacing:.14em;color:var(--gold);text-shadow:0 1px 2px #000;}
   .centerbox{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
@@ -277,24 +288,26 @@
   #conscriptBtn:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
   /* ===== hand: rests off-screen showing only a name + cost peek strip; lifts to overlay the board when viewed ===== */
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
-  .handhint{position:fixed;bottom:calc(var(--peek) + 12px);left:50%;transform:translateX(-50%);text-align:center;z-index:60;
-    width:max-content;max-width:min(82vw,540px);font-style:italic;color:var(--ink-dim);font-size:11px;min-height:0;
-    background:rgba(13,11,18,.85);border:1px solid rgba(58,52,80,.7);border-radius:9px;padding:5px 13px;box-shadow:0 4px 16px rgba(0,0,0,.55);pointer-events:auto;}
+  /* help text lives on the right margin, off the board */
+  .handhint{position:fixed;right:10px;top:46%;transform:translateY(-50%);text-align:left;z-index:60;
+    width:clamp(150px,17vw,250px);font-style:italic;color:var(--ink-dim);font-size:11.5px;line-height:1.4;min-height:0;
+    background:rgba(13,11,18,.9);border:1px solid rgba(58,52,80,.7);border-radius:9px;padding:8px 11px;box-shadow:0 4px 16px rgba(0,0,0,.55);pointer-events:auto;}
   .handhint:empty{display:none;}
   .handhint button{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.04em;margin:0 3px;padding:5px 11px;border-radius:8px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:none;box-shadow:0 2px 0 #4d3a10;}
   .handhint button.set{background:linear-gradient(180deg,#b79bе8,#6a4fa0);color:#150f1f;box-shadow:0 2px 0 #3a2960;}
-  /* hand tucks mostly off the bottom edge (peek), sliding up fully on hover/select (Master Duel style) */
-  .hand{position:absolute;left:50%;bottom:0;display:flex;justify-content:center;align-items:flex-end;padding:0 24px;min-height:0;pointer-events:auto;
-    transform:translateX(-50%) translateY(calc(100% - var(--peek)));transition:transform .22s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
-  .hand:hover,.hand.show,.hand:focus-within,.hand:has(.hc.selected){transform:translateX(-50%) translateY(0);}
-  .hc{position:relative;width:var(--hcw);height:var(--hch);flex:none;border-radius:11px 11px 7px 7px;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
-    margin:0 calc(var(--hcw)*-.03);transform:translateY(var(--lift,0px));transform-origin:50% 120%;
-    transition:transform .16s ease,margin .16s ease;box-shadow:0 -3px 12px rgba(0,0,0,.5),0 6px 18px rgba(0,0,0,.6);}
-  /* lift+grow on hover via transform ONLY — changing margin here reflows the fan and
-     shifts the card out from under the cursor, causing a rapid hover on/off jiggle. */
-  .hc:hover{transform:translateY(-18%) scale(1.18);z-index:55!important;overflow:visible;}
-  .hc.selected{transform:translateY(-18%) scale(1.18);z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
+  /* hand RESTS as a compact name+cost strip at the very bottom; cards expand to full only
+     when the hand is hovered (or a card is selected). The board reserves just the strip height. */
+  .hand{position:absolute;left:50%;bottom:0;display:flex;justify-content:center;align-items:flex-end;gap:3px;padding:0 24px;min-height:0;pointer-events:auto;
+    transform:translateX(-50%);will-change:transform;}
+  .hc{position:relative;width:var(--hcw);height:var(--peek);flex:none;border-radius:9px 9px 6px 6px;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
+    transform-origin:50% 100%;transition:height .18s ease,transform .14s ease;box-shadow:0 -2px 8px rgba(0,0,0,.45),0 4px 12px rgba(0,0,0,.55);}
+  .hc .hcbody{display:none;}
+  .hand:hover .hc,.hand:focus-within .hc,.hand:has(.hc.selected) .hc{height:var(--hch);}
+  .hand:hover .hc .hcbody,.hand:has(.hc.selected) .hc .hcbody,.hc.selected .hcbody{display:flex;}
+  .hc.selected{height:var(--hch);}
+  .hc:hover{transform:translateY(-8%) scale(1.1);z-index:55!important;overflow:visible;}
+  .hc.selected{z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
   /* always-visible peek header: name + cost (the only thing seen when the hand rests) */
   .hc .hchead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:6px;height:var(--peek);padding:0 8px;
     border-bottom:1px solid rgba(0,0,0,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);background:rgba(0,0,0,.22);}
@@ -302,7 +315,7 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;text-shadow:0 1px 2px #000;}
   .hc:hover .hchead .nm,.hc.selected .hchead .nm{white-space:normal;overflow:visible;}
   .hc .hchead .cost{flex:none;font-family:'Cinzel',serif;font-weight:900;font-size:clamp(12px,calc(var(--hcw)*.15),19px);color:var(--spawn);text-shadow:0 1px 2px #000;}
-  .hc .hcbody{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-between;padding:5px 7px 6px;}
+  .hc .hcbody{flex:1;min-height:0;flex-direction:column;justify-content:space-between;padding:5px 7px 6px;} /* display toggled by the resting/hover rules above */
   .hc .hcbody .bic{flex:1;display:flex;align-items:center;justify-content:center;font-size:clamp(22px,calc(var(--hcw)*.42),50px);opacity:.82;text-shadow:0 2px 6px rgba(0,0,0,.6);}
   .hc .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(10px,calc(var(--hcw)*.125),16px);}
 
@@ -618,16 +631,17 @@
         <div class="row" id="youBack"></div>
       </div>
     </div>
-    <!-- deck + graveyard at the field corners (Master Duel style), tilting with the field -->
-    <div class="decks foe" id="foeDecks">
-      <div class="zone deck" onclick="openViewer('deck','foe')"><span class="zl">🂠 Deck</span><b id="foeDeckN">0</b></div>
-      <div class="zone grave" onclick="openViewer('grave','foe')"><span class="zl">⚰ Grave</span><b id="foeGraveN">0</b></div>
-    </div>
-    <div class="decks you" id="youDecks">
-      <div class="zone grave" onclick="openViewer('grave','you')"><span class="zl">⚰ Grave</span><b id="youGraveN">0</b></div>
-      <div class="zone deck" onclick="openViewer('deck','you')"><span class="zl">🂠 Deck</span><b id="youDeckN">0</b></div>
-    </div>
     </div><!-- /matmain -->
+  </div>
+
+  <!-- deck + graveyard at the screen corners (foe top-left, you bottom-right); graveyard is a tombstone -->
+  <div class="decks foe" id="foeDecks">
+    <div class="zone deck" onclick="openViewer('deck','foe')"><span class="zl">Deck</span><b id="foeDeckN">0</b></div>
+    <div class="zone grave tomb" onclick="openViewer('grave','foe')"><span class="zl">RIP</span><b id="foeGraveN">0</b></div>
+  </div>
+  <div class="decks you" id="youDecks">
+    <div class="zone grave tomb" onclick="openViewer('grave','you')"><span class="zl">RIP</span><b id="youGraveN">0</b></div>
+    <div class="zone deck" onclick="openViewer('deck','you')"><span class="zl">Deck</span><b id="youDeckN">0</b></div>
   </div>
 
   <!-- player badges in the corners, vitals stored by the name (Master Duel style) -->
@@ -645,13 +659,13 @@
 
   <div class="cmdzone foe" id="foeCmd"></div>
   <div class="cmdzone you" id="youCmd"></div>
+  <button id="buildBtn" onclick="openBuildMenu()" title="Build a structure (commander)">⚒ Build</button>
 
   <div id="cardActions"></div>
 
   <div id="boardBtns">
     <div class="turnlabel" id="turnLabel">Your Turn</div>
     <button id="endBtn">End Turn</button>
-    <button id="buildBtn" onclick="openBuildMenu()">⚒ Build</button>
     <button id="conscriptBtn">⚒ Train</button>
     <div class="btnrow">
       <button id="logBtn" onclick="toggleLog(true)">📜 Log</button>
@@ -856,9 +870,11 @@ const WORKER={nm:'Worker',c:0,a:0,h:2,art:ART.villager};
    its `prereq` bids are present on your field (and you can afford it and have an empty slot). */
 function forgeArt(el){ return FORGE_ART[el]||phArt(el,'bld'); }
 const STRUCT_DEFS={
-  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:6,  eff:'mana',     val:1, sup:3, ic:'⚒', prereq:[],          color:null, art:phArt('earth','bld'), desc:'Where the first fires are lit and raw stone becomes the means to make war. Yields ◆1 and raises ⚒+3.'},
-  longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:6,  eff:'villager', val:0, sup:5, ic:'⌂', prereq:['foundry'], color:null, art:ART.longhouse,        desc:'Hearth-smoke and full benches — trains a Worker each turn and raises ⚒+5.'},
-  bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:12, eff:'wall',     val:0, sup:2, ic:'▣', prereq:['forge'],   color:null, art:phArt('earth','bld'), desc:'A wall of piled iron and oath — a ♥12 body that screens the line. Raises ⚒+2.'},
+  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:6,  eff:'mana',     val:1, sup:3, ic:'⚒', prereq:[],          color:null, art:phArt('earth','bld'), desc:'Town hall of the host. Yields ◆1 a turn and raises ⚒+3. Unlocks the forges and the Longhouse.'},
+  longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:6,  eff:'villager', val:0, sup:5, ic:'⌂', prereq:['foundry'], color:null, art:ART.longhouse,        desc:'Hearth and full benches — trains a Worker each turn and raises ⚒+5. Your main workforce.'},
+  vault:    {bid:'vault',    nm:'Mana Vault',  c:4, h:6,  eff:'vault',    val:4, sup:0, ic:'◈', prereq:['foundry'], color:null, art:phArt('water','bld'), desc:'Cisterns that hold the surplus — keeps up to ◆4 of your unspent mana across the turn. ⚒0.'},
+  bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:12, eff:'wall',     val:0, sup:2, ic:'▣', prereq:['forge'],   color:null, art:phArt('earth','bld'), desc:'A ♥12 wall that screens the line — it can intercept and be raided. Raises ⚒+2.'},
+  tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:8,  eff:'damage',   val:2, sup:-2,ic:'⤢', prereq:['forge'],   color:null, art:phArt('fire','bld'),  desc:'Guns that never sleep — strikes the nearest enemy creature for 2 each turn. Needs ⚒2 to crew (build it where a row has the workers to spare).'},
 };
 function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:5, eff:'mana', val:2, sup:3, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2, raises ⚒+3, and lets its row harvest '+ELEMENTS[el].name+' mana.'}; }
 function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:7, eff:'mana', val:3, sup:4, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3, raises ⚒+4, harvests '+ELEMENTS[el].name+' mana.'}; }
@@ -866,7 +882,7 @@ function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el
 function buildList(ccId){
   const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];
   cols.forEach(el=>out.push(forgeDef(el)));
-  out.push(STRUCT_DEFS.longhouse, STRUCT_DEFS.bulwark);
+  out.push(STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower);
   cols.forEach(el=>out.push(grandForgeDef(el)));
   return out;
 }
@@ -990,7 +1006,7 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   COLORS.forEach(function(el){ (POOLS[el]||[]).forEach(add); });
   SPELL_NEUTRAL.forEach(add); add(WORKER);
   // build-menu structures (generic + per-element forges) so the placed buildings have art
-  [STRUCT_DEFS.foundry, STRUCT_DEFS.longhouse, STRUCT_DEFS.bulwark].forEach(add);
+  [STRUCT_DEFS.foundry, STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower].forEach(add);
   COLORS.forEach(function(el){ add(forgeDef(el)); add(grandForgeDef(el)); });
   Object.keys(CCS).forEach(function(id){ if(CC_ART[id]) w.PLACEHOLDERS[CCS[id].name] = CC_ART[id]; });
   w.PLACEHOLDERS['Worker'] = ART.villager;
@@ -1195,14 +1211,17 @@ function ownBuildings(owner){ return ownUnits(owner).filter(o=>o.kind==='buildin
 function hasBuild(owner,bid){ return ownBuildings(owner).some(b=>b.bid===bid); }
 function prereqMet(owner,def){ return (def.prereq||[]).every(p=>hasBuild(owner,p)); }
 function hasEmptyDeploy(owner){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x); }); }
-function canBuild(owner,def){ return manaTotal(owner)>=def.c && prereqMet(owner,def) && hasEmptyDeploy(owner); }
+// a worker-COSTING building (negative sup, e.g. a tower) may only go in a row that stays non-negative
+function placeRowOK(owner,which,def){ return (def.sup||0)>=0 || (rowWorkers(owner,which)+(def.sup||0))>=0; }
+function hasPlacement(owner,def){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x)&&placeRowOK(owner,w,def); }); }
+function canBuild(owner,def){ return manaTotal(owner)>=def.c && prereqMet(owner,def) && hasPlacement(owner,def); }
 function resolveStruct(bid,color){ if(bid==='forge')return forgeDef(color); if(bid==='grandforge')return grandForgeDef(color); return STRUCT_DEFS[bid]||null; }
 window.openBuildMenu=function(){ if(G.turn!=='you'||G.busy||G.over||G.deficit)return; G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null; $('buildPanel').style.display='flex'; drawBuild(); render(); };
 function drawBuild(){
   const list=buildList(G.P.you.cc), have=manaTotal('you');
   const rows=list.map(def=>{
     const ok=canBuild('you',def);
-    const why=!prereqMet('you',def)?('needs '+def.prereq.map(p=>p==='foundry'?'a Foundry':'a Forge').join(' + ')):(have<def.c?('need ◆'+def.c):(!hasEmptyDeploy('you')?'no open space':''));
+    const why=!prereqMet('you',def)?('needs '+def.prereq.map(p=>p==='foundry'?'a Foundry':'a Forge').join(' + ')):(have<def.c?('need ◆'+def.c):(!hasPlacement('you',def)?((def.sup||0)<0?'no row with ⚒ to spare':'no open space'):''));
     const dot=def.color?`<span class="cdot" style="background:var(--${def.color})"></span>`:'';
     return `<div class="bdrow${ok?'':' off'}"><div class="bdic">${def.ic}</div>`+
       `<div class="bdmid"><div class="bdnm">${dot}${escHtml(def.nm)}</div><div class="bddesc">${escHtml(def.desc)}</div></div>`+
@@ -1218,20 +1237,22 @@ window.buildPick=function(bid,color){ const def=resolveStruct(bid,color||null); 
   setHint(`Raising <b>${escHtml(def.nm)}</b> (◆${def.c}) — tap an open space in your rows. <button onclick="cancelBuild()">cancel</button>`); render(); };
 window.cancelBuild=function(){ G.build=null; defaultHint(); render(); };
 function placeBuild(which,i){ const def=G.build; if(!def)return;
-  if(!canBuild('you',def)||cellArr('you',which)[i]){ G.build=null; defaultHint(); render(); return; }
+  if(cellArr('you',which)[i]||!placeRowOK('you',which,def)){ setHint(`That row can't support <b>${escHtml(def.nm)}</b> (needs ⚒ to spare). Pick another space. <button onclick="cancelBuild()">cancel</button>`); render(); return; }
+  if(!canBuild('you',def)){ G.build=null; defaultHint(); render(); return; }
   payAny('you',def.c); cellArr('you',which)[i]=mkBld(def,'you');
   log(`<span class="y">You raise a ${escHtml(def.nm)}.</span>`,'y');
   G.build=null; afterDeploy('you'); defaultHint(); render(); checkWin(); }
 // ----- AI building: foundry -> a forge for each color -> longhouse / bulwark -----
 function aiBuild(owner){
   const ccId=G.P[owner].cc, list=buildList(ccId);
-  // priority order: foundry, forges, longhouse, bulwark, grand forges
+  // priority order = buildList order; cap how many of each the AI wants
+  const CAP={foundry:1,longhouse:1,vault:1,bulwark:1,tower:2};
   for(const def of list){
-    if(hasBuild(owner,def.bid) && (def.bid==='foundry'||def.bid==='longhouse'||def.bid==='bulwark')) continue; // one of each generic
+    if(CAP[def.bid] && ownBuildings(owner).filter(b=>b.bid===def.bid).length>=CAP[def.bid]) continue;
     if(def.bid==='forge' && ownBuildings(owner).some(b=>b.bid==='forge'&&b.color===def.color)) continue;       // one forge per color
     if(def.bid==='grandforge' && ownBuildings(owner).some(b=>b.bid==='grandforge'&&b.color===def.color)) continue;
     if(!canBuild(owner,def)) continue;
-    const which=['back','front'].find(w=>cellArr(owner,w).some(x=>!x)); if(!which)return;
+    const which=['back','front'].find(w=>cellArr(owner,w).some(x=>!x)&&placeRowOK(owner,w,def)); if(!which)continue;
     const slot=cellArr(owner,which).findIndex(x=>!x);
     payAny(owner,def.c); cellArr(owner,which)[slot]=mkBld(def,owner); syncWorkers(owner);
     log(`<span class="e">Opponent raises a ${escHtml(def.nm)}.</span>`,'e');
@@ -1485,7 +1506,6 @@ function render(){
   renderCenter();
   renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderHand(); renderFoeHand();
   renderCmdZone('foe'); renderCmdZone('you');
-  positionDecks();
   placeCardMenu();
 }
 function renderMinions(){
@@ -1548,7 +1568,7 @@ function placeCardMenu(){
 function cardHTML(o,me){
   if(o.kind==='building'&&o.cc){
     const pips=(o.colors||[]).map(c=>`<span class="cdot" style="background:var(--${c});width:6px;height:6px"></span>`).join('');
-    return `<div class="card bld ccx"><div class="nm">${o.nm}</div><div class="bic">♜</div><div style="text-align:center">${pips}</div><div class="stats"><span></span><span class="hp">♥${o.h}</span></div><div class="ccb">COMMAND</div></div>`;
+    return `<div class="card bld ccx"><div class="nm">${o.nm}</div><div class="artwin">${cardArtImg(o)}</div><div class="ccpips">${pips}</div><div class="stats"><span></span><span class="hp">♥${o.h}</span></div><div class="ccb">COMMAND</div></div>`;
   }
   if(o.kind==='creature'){
     const cls=o.worker?'vil':('crt '+clsOf[o.color]);
@@ -1562,7 +1582,7 @@ function cardHTML(o,me){
   }
   if(o.kind==='building'){
     const bart=o.art?`<div class="artwin">${cardArtImg(o)}</div>`:`<div class="bic">${o.ic||'⌂'}</div>`;
-    const eff=o.eff==='mana'?('◆+'+o.val):(o.eff==='villager'?'⚒train':'⌂');
+    const eff=o.eff==='mana'?('◆+'+o.val):o.eff==='villager'?'⚒train':o.eff==='damage'?('⚔'+o.val):o.eff==='vault'?('◈'+o.val):o.eff==='wall'?'▣':'⌂';
     return `<div class="card bld">${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}${o.sup?`<div class="supb">⚒+${o.sup}</div>`:''}<div class="nm">${o.nm}</div>${bart}
       <div class="stats"><span class="eff">${eff}</span><span class="hp">♥${o.h}</span></div></div>`;
   }
@@ -1604,21 +1624,6 @@ function wkSlotEl(owner,which,aiming){
 }
 // pin the deck/graveyard zones to the floor's corner cells so they ride the tilted
 // plane (your deck off the bottom-right corner, opponent's off the top-left corner)
-function positionDecks(){
-  const mm=document.querySelector('.matmain'); if(!mm)return;
-  const yb=document.querySelectorAll('#youBack .cell'), fb=document.querySelectorAll('#foeBack .cell');
-  const yd=$('youDecks'), fd=$('foeDecks');
-  if(yd&&yb.length){ const c=yb[yb.length-1]; // bottom-right corner cell
-    yd.style.right='auto'; yd.style.bottom='auto';
-    yd.style.left=(c.offsetLeft+c.offsetWidth+8)+'px';
-    yd.style.top=(c.offsetTop+c.offsetHeight-yd.offsetHeight)+'px';
-  }
-  if(fd&&fb.length){ const c=fb[0]; // top-left corner cell
-    fd.style.left='auto'; fd.style.bottom='auto';
-    fd.style.right=(mm.clientWidth-c.offsetLeft+8)+'px';
-    fd.style.top=c.offsetTop+'px';
-  }
-}
 function renderRow(elId,owner,which){
   const el=$(elId);el.innerHTML='';const me=owner==='you';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
@@ -1728,7 +1733,7 @@ function decorate(cell,owner,which,i,o){
     if(mine&&(o.kind==='creature'||o.kind==='building')){ cell.classList.add('target'); cell.addEventListener('click',()=>doSendMana(which,i)); return; }
     cell.addEventListener('click',cancelSendMana); return;
   }
-  if(G.build){ if(owner==='you'&&!o&&canDeploy('you',which)) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(owner,which,i,o)); return; }
+  if(G.build){ if(owner==='you'&&!o&&canDeploy('you',which)&&placeRowOK('you',which,G.build)) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(owner,which,i,o)); return; }
   const handSel=G.sel&&G.sel.kind==='hand';
   if(mine&&o.kind==='creature'&&inAtk(which,i)) cell.classList.add('selected');
   if(mine&&o.kind==='creature'&&!o.sick&&!o.tapped&&!handSel) cell.classList.add('tappable');
@@ -2321,16 +2326,29 @@ function buildingUpkeep(owner){
   const P=G.P[owner];
   const tick=o=>{ if(o&&o.kind==='building'){
     if(o.eff==='mana'){P.mana=Math.min(20,P.mana+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ◆${o.val}.</span>`,owner==='you'?'y':'e');}
+    else if(o.eff==='damage'){buildingDamage(owner,o.val||0,o.nm);}
   }};
   ['front','back'].forEach(w=>P[w].forEach(tick));
   G.center.forEach(o=>{ if(o&&o.owner===owner) tick(o); });
 }
+// a damage structure (tower) strikes the nearest enemy creature at the start of its owner's turn
+function buildingDamage(owner,val,nm){
+  if(val<=0)return; const foe=owner==='you'?'foe':'you';
+  let tgt=null;
+  for(const w of ['front','center','back']){ const arr=w==='center'?G.center:G.P[foe][w];
+    for(const x of arr){ if(x&&x.owner===foe&&x.kind==='creature'&&!x.worker){ tgt=x; break; } } if(tgt)break; }
+  if(tgt){ tgt.h-=val; log(`<span class="${owner==='you'?'y':'e'}">${nm} fires for ${val} — enemy ${tgt.nm} is hit.</span>`,owner==='you'?'y':'e'); }
+}
+// mana-storage structures (vaults) keep up to their total `val` in generic mana across the drain
+function vaultCap(owner){ return ownUnits(owner).filter(o=>o.kind==='building'&&o.eff==='vault').reduce((s,o)=>s+(o.val||0),0); }
+function drainMana(owner){ const P=G.P[owner]; const keep=Math.min(vaultCap(owner),P.mana); const lost=manaTotal(owner)-keep; P.mana=keep; COLORS.forEach(c=>P.cmana[c]=0); return {keep,lost}; }
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
   P.mana=Math.min(20,P.mana+1); P.firstExtract=true;
   ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}}));
   G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}});
   buildingUpkeep(owner);
+  cleanup(); // sweep anything a damage-tower just killed
   drawCard(owner);
   syncWorkers(owner); // workers re-derived from the cards now in each row
   ['back','front','center'].forEach(w=>P.min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;}));
@@ -2425,8 +2443,7 @@ $('endBtn').addEventListener('click',endTurn);
 function endTurn(){
   if(G.turn!=='you'||G.busy||G.over)return;
   if(G.deficit){ promptDeficit(); render(); return; }
-  if(manaTotal('you')>0) log(`<span class="y">◆${manaTotal('you')} unspent mana drains away — mana doesn't carry between turns.</span>`,'y');
-  G.P.you.mana=0; COLORS.forEach(c=>G.P.you.cmana[c]=0);
+  { const d=drainMana('you'); if(d.lost>0) log(`<span class="y">◆${d.lost} unspent mana drains away${d.keep?` — your vaults keep ◆${d.keep}`:''}.</span>`,'y'); }
   G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.busy=true;render();
   startTurn('foe');log('<span class="e">— Opponent\'s turn —</span>','e');render();
   setTimeout(foeTurn,650);
@@ -2540,8 +2557,7 @@ async function foeTurn(){
   }
   cleanup();render();checkWin();
   if(G.over)return;
-  if(manaTotal('foe')>0) log(`<span class="e">Opponent's ◆${manaTotal('foe')} unspent mana drains away.</span>`,'e');
-  F.mana=0; COLORS.forEach(c=>F.cmana[c]=0); render();
+  { const d=drainMana('foe'); if(d.lost>0) log(`<span class="e">Opponent's ◆${d.lost} unspent mana drains away${d.keep?` — vaults keep ◆${d.keep}`:''}.</span>`,'e'); } render();
   setTimeout(()=>{G.busy=false;startTurn('you');render();},650);
 }
 
@@ -2567,10 +2583,12 @@ function addInspect(host,fn){
   host.appendChild(b);
 }
 function bldEffectText(eff,val,sup){
-  const supTxt=sup?` Grants <b>+${sup} worker cap</b> while it stands.`:'';
+  const supTxt=(sup>0)?` Raises <b>⚒+${sup}</b> in its row.`:(sup<0)?` Costs <b>⚒${sup}</b> in its row — build it where workers are to spare.`:'';
   if(eff==='mana') return `<b>Forge.</b> Yields <b>◆${val} mana</b> at the start of its owner's turn.${supTxt}`;
   if(eff==='villager') return `<b>Longhouse.</b> Trains a free <b>Minion</b> (0/2 ⚒) into its owner's base pool at the start of its owner's turn.${supTxt}`;
   if(eff==='wall') return `<b>Bulwark.</b> A heavy body that screens the line — it can intercept and be raided, but never moves or attacks.${supTxt}`;
+  if(eff==='damage') return `<b>Cannon Tower.</b> Strikes the nearest enemy creature for <b>${val}</b> at the start of its owner's turn.${supTxt}`;
+  if(eff==='vault') return `<b>Mana Vault.</b> Keeps up to <b>◆${val}</b> of unspent mana across the turn instead of letting it drain.${supTxt}`;
   return `Structure with no upkeep effect.${supTxt}`;
 }
 function showInspect(title,body){
