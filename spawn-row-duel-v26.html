@@ -43,12 +43,19 @@
   .pbadge{position:absolute;z-index:26;display:flex;flex-direction:column;gap:1px;padding:6px 13px;border-radius:12px;pointer-events:none;
     background:linear-gradient(180deg,rgba(26,23,34,.92),rgba(16,13,21,.92));border:1px solid #3a3450;box-shadow:0 6px 18px rgba(0,0,0,.55);}
   .pbadge.foe{top:6px;right:8px;align-items:flex-end;text-align:right;}
-  .pbadge.you{bottom:6px;left:8px;align-items:flex-start;text-align:left;}
+  .pbadge.you{bottom:6px;left:8px;align-items:flex-start;text-align:left;transition:opacity .2s ease;}
+  /* when the hand/castle wall is raised, the player's vitals show on the wall — hide the corner badge */
+  body:has(.hand:hover) .pbadge.you, body:has(.hc.selected) .pbadge.you, body.wall-open .pbadge.you{opacity:0;pointer-events:none;}
   .who{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em;display:flex;align-items:center;gap:6px;font-weight:700;}
   .pbadge.foe .who{flex-direction:row-reverse;}
   .cdot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;}
   .elembadge{display:inline-block;vertical-align:middle;margin-right:3px;flex:none;}
-  .vit{font-size:14.5px;} .vit b{font-family:'Cinzel',serif;}
+  .vit{font-size:14.5px;display:flex;align-items:center;flex-wrap:wrap;gap:0 2px;} .vit b{font-family:'Cinzel',serif;}
+  .pbadge.foe .vit{justify-content:flex-end;}
+  .vit .mc{font-family:'Cinzel',serif;font-weight:700;margin:0 6px 0 1px;}
+  .vit .elembadge{vertical-align:-2px;}
+  .genorb{display:inline-block;width:13px;height:13px;border-radius:50%;vertical-align:-2px;margin-right:1px;
+    background:radial-gradient(circle at 40% 34%,#d3cee0,#7b7689 58%,#3c3947);border:1px solid rgba(0,0,0,.55);box-shadow:0 0 5px rgba(190,190,210,.4);}
   .heart{color:#e35b4f;} .mana{color:var(--spawn);}
   .bct{color:#caa15a;} .wct{color:#9ad17f;} .vit .bct,.vit .wct{font-size:13px;}
   /* ===== on-board overlay controls (Arena-style) ===== */
@@ -64,12 +71,18 @@
   #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
   #conscriptBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:default;}
-  /* Build sits next to the player's commander figure (bottom-left), not in the right stack */
-  #buildBtn{position:absolute;left:clamp(86px,7.5vw,120px);bottom:clamp(16px,3.4vh,40px);z-index:25;
-    font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:7px 15px;border-radius:999px;cursor:pointer;
+  /* the commander cluster (figure + vitals + Build) stands on the left tower of the castle wall */
+  .cmdzone .cmdvit{margin-top:2px;display:flex;align-items:center;justify-content:center;gap:1px;white-space:nowrap;
+    font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;color:var(--ink);text-shadow:0 1px 3px #000;}
+  .cmdzone .cmdvit .elembadge{vertical-align:-2px;}
+  .cmdzone .cmdvit .mc{margin:0 5px 0 1px;}
+  .cmdzone .cmdvit.sub{font-size:11.5px;gap:3px;color:#d9c7a0;}
+  .cmdzone .cmdvit.sub .bct{color:#caa15a;} .cmdzone .cmdvit.sub .wct{color:#9ad17f;}
+  .cmdzone .cmdbuild{margin-top:5px;pointer-events:auto;cursor:pointer;
+    font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:6px 14px;border-radius:999px;
     color:#1a140a;background:linear-gradient(180deg,#e4c878,#a8842e);border:1px solid #f0d68a;box-shadow:0 3px 0 #4d3a10,0 4px 12px rgba(0,0,0,.45);}
-  #buildBtn:active{transform:translatey(2px);box-shadow:0 1px 0 #4d3a10;}
-  #buildBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:none;opacity:.5;}
+  .cmdzone .cmdbuild:active{transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
+  .cmdzone .cmdbuild:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:none;opacity:.5;}
   #logBtn,#rulesBtn,#sprBtn{font-family:'Cinzel',serif;letter-spacing:.06em;font-weight:700;font-size:10px;padding:6px 11px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.88);border:1px solid #3a3450;box-shadow:0 4px 12px rgba(0,0,0,.5);}
   #logBtn:active,#rulesBtn:active,#sprBtn:active{transform:translateY(1px);}
@@ -216,7 +229,27 @@
   .bld .nm{color:#d6d6e6;}
   .bld .eff{color:var(--spawn);}
   .backcell{border-style:solid;border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.02);}
+  /* DECK slot — a card-slot-sized zone pinned (absolutely) beside the back line, INSIDE the tilted
+     matmain so it rides the board's isometric perspective. Size/position are set by positionDeck(). */
+  .deckslot{position:absolute;z-index:4;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    border-radius:8px;border:1px solid #2c5a72;background:radial-gradient(circle at 50% 30%,#1b3a47,#0a1a22);
+    box-shadow:inset 0 0 0 1px rgba(120,180,230,.22),3px 4px 0 #07121a,0 6px 14px rgba(0,0,0,.55);}
+  .deckslot{transition:opacity .2s ease;}
+  .deckslot:active{transform:translate(1px,1px);}
+  .deckslot .dzl{font-family:'Cinzel',serif;letter-spacing:.14em;text-transform:uppercase;font-size:clamp(7px,calc(var(--ch)*.1),12px);color:#7fa8d8;}
+  .deckslot .dzc{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(14px,calc(var(--ch)*.26),30px);color:#bcd6f5;text-shadow:0 1px 3px #000;line-height:1;}
+  /* GRAVEYARD tombstone — stacked just above the deck, riding the same isometric plane */
+  .graveslot{position:absolute;z-index:4;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    border:1px solid #1a1a1f;border-radius:46% 46% 8px 8px/34% 34% 8px 8px;
+    background:linear-gradient(180deg,#6b6b73,#3a3a42 60%,#26262c);
+    box-shadow:inset 0 2px 4px rgba(255,255,255,.12),inset 0 -3px 6px rgba(0,0,0,.5),3px 4px 0 #07070a,0 5px 12px rgba(0,0,0,.5);}
+  .graveslot:active{transform:translate(1px,1px);}
+  .graveslot .gzl{font-family:'Cinzel',serif;letter-spacing:.12em;font-weight:900;font-size:clamp(7px,calc(var(--ch)*.095),11px);color:#1a1a1f;text-shadow:0 1px 0 rgba(255,255,255,.18);}
+  .graveslot .gzc{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(12px,calc(var(--ch)*.2),24px);color:#262630;line-height:1;}
+  /* the raised castle wall covers the near-side deck (it rides the back line under the right tower) — fade it while the wall is up */
+  body:has(.hand:hover) #youBack .deckslot, body:has(.hc.selected) #youBack .deckslot, body.wall-open #youBack .deckslot{opacity:0;pointer-events:none;}
   .centerrow{margin:2px 0;}
+  .cell.centergap{border:none!important;background:transparent!important;box-shadow:none!important;pointer-events:none;}
   .cell.centercell{border-style:solid;border-color:rgba(82,198,236,.28);background:rgba(82,198,236,.06);box-shadow:inset 0 0 10px rgba(82,198,236,.08);}
   .cell.mineHere{box-shadow:inset 0 0 0 2px rgba(217,176,74,.4);}
   .cell.foeHere{box-shadow:inset 0 0 0 2px rgba(63,163,224,.4);}
@@ -294,17 +327,23 @@
   /* WC3-style themed STONE command panel along the bottom — always present, element-themed.
      Stone blocks + mortar via layered repeating gradients; element-coloured top rail with metal
      studs; faint element glyph ornaments at each end (set per the player's commander). */
-  #hudbar{position:fixed;left:0;right:0;bottom:0;height:clamp(96px,16vh,140px);z-index:23;pointer-events:none;overflow:hidden;
+  /* the wall is a crenellated battlement: tall towers on the LEFT and RIGHT, dipping to a low
+     wall across the MIDDLE where the hand cards are displayed. Silhouette via clip-path. */
+  #hudbar{position:fixed;left:0;right:0;bottom:0;height:clamp(150px,23vh,222px);z-index:23;pointer-events:none;transform:translateY(calc(100% - 18px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  #hudbar .wallstone{position:absolute;inset:0;z-index:0;pointer-events:none;
     background:
+      linear-gradient(180deg, color-mix(in srgb, var(--youelem,#caa05a) 30%, transparent) 0, transparent 34%),
       repeating-linear-gradient(90deg, rgba(0,0,0,.32) 0 1.5px, transparent 1.5px 48px),
       repeating-linear-gradient(180deg, rgba(0,0,0,.26) 0 1.5px, transparent 1.5px 26px),
       radial-gradient(120% 140% at 50% 0,#544d44 0,#322d27 38%,#16130e 100%);
-    border-top:3px solid var(--youelem,#caa05a);
-    box-shadow:0 -10px 30px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.1), inset 0 -16px 30px rgba(0,0,0,.65);
-    transform:translateY(calc(100% - 18px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
-  /* castle wall RISES with the hand; at rest only its top rail (+ the name/cost strip & vitals) shows */
-  body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar{transform:translateY(0);}
-  body:has(.hand:hover) .cmdzone.you, body:has(.hc.selected) .cmdzone.you{transform:translateY(0);}
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.1), inset 0 -16px 30px rgba(0,0,0,.65), inset 0 0 0 2px rgba(0,0,0,.4);
+    filter:drop-shadow(0 -5px 11px rgba(0,0,0,.55));
+    clip-path:polygon(0% 100%, 0% 7%, 5.9% 7%, 5.9% 20%, 9.55% 20%, 9.55% 7%, 15.45% 7%, 15.45% 20%, 19.1% 20%, 19.1% 7%, 25.0% 7%, 25% 56%, 25% 45%, 29.66% 45%, 29.66% 56%, 32.56% 56%, 32.56% 45%, 37.22% 45%, 37.22% 56%, 40.11% 56%, 40.11% 45%, 44.78% 45%, 44.78% 56%, 47.67% 56%, 47.67% 45%, 52.33% 45%, 52.33% 56%, 55.22% 56%, 55.22% 45%, 59.89% 45%, 59.89% 56%, 62.78% 56%, 62.78% 45%, 67.44% 45%, 67.44% 56%, 70.34% 56%, 70.34% 45%, 75.0% 45%, 75% 20%, 75% 7%, 80.9% 7%, 80.9% 20%, 84.55% 20%, 84.55% 7%, 90.45% 7%, 90.45% 20%, 94.1% 20%, 94.1% 7%, 100.0% 7%, 100% 100%);}
+  /* castle wall RISES with the hand; at rest only its top rail (+ the name/cost strip & vitals) shows.
+     body.wall-open is set by JS to KEEP it raised while the cursor is anywhere over the wall band,
+     so you can move off the cards onto the commander/Build without it retracting. */
+  body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar, body.wall-open #hudbar{transform:translateY(0);}
+  body:has(.hand:hover) .cmdzone.you, body:has(.hc.selected) .cmdzone.you, body.wall-open .cmdzone.you{transform:translateY(0);}
   .cmdzone.you{transform:translateY(150%);transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
   #hudbar::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;pointer-events:none;
     background:repeating-linear-gradient(90deg, var(--youelem,#caa05a) 0 5px, transparent 5px 24px);opacity:.55;
@@ -312,6 +351,53 @@
   #hudbar .hudglyph{position:absolute;bottom:-14%;font-family:serif;font-weight:700;font-size:calc(var(--handpad)*1.55);line-height:1;
     color:var(--youelem,#caa05a);opacity:.09;pointer-events:none;text-shadow:0 0 18px var(--youelem,#caa05a);}
   #hudbar .hudglyph.l{left:1.6%;} #hudbar .hudglyph.r{right:1.6%;}
+  /* ---- FOE castle wall: a vertical mirror of #hudbar at the top of the screen ---- */
+  #hudbarFoe{position:fixed;left:0;right:0;top:0;height:clamp(118px,18vh,180px);z-index:23;pointer-events:none;transform:translateY(calc(-100% + 46px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  #hudbarFoe .wallstone{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:
+      linear-gradient(0deg, color-mix(in srgb, var(--foeelem,#7aa0c8) 28%, transparent) 0, transparent 34%),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.32) 0 1.5px, transparent 1.5px 48px),
+      repeating-linear-gradient(180deg, rgba(0,0,0,.26) 0 1.5px, transparent 1.5px 26px),
+      radial-gradient(120% 140% at 50% 100%,#544d44 0,#322d27 38%,#16130e 100%);
+    box-shadow:inset 0 -3px 0 rgba(255,255,255,.08), inset 0 16px 30px rgba(0,0,0,.6), inset 0 0 0 2px rgba(0,0,0,.4);
+    filter:drop-shadow(0 5px 11px rgba(0,0,0,.55));
+    clip-path:polygon(0% 0%, 0% 93%, 5.9% 93%, 5.9% 80%, 9.55% 80%, 9.55% 93%, 15.45% 93%, 15.45% 80%, 19.1% 80%, 19.1% 93%, 25.0% 93%, 25% 44%, 25% 55%, 29.66% 55%, 29.66% 44%, 32.56% 44%, 32.56% 55%, 37.22% 55%, 37.22% 44%, 40.11% 44%, 40.11% 55%, 44.78% 55%, 44.78% 44%, 47.67% 44%, 47.67% 55%, 52.33% 55%, 52.33% 44%, 55.22% 44%, 55.22% 55%, 59.89% 55%, 59.89% 44%, 62.78% 44%, 62.78% 55%, 67.44% 55%, 67.44% 44%, 70.34% 44%, 70.34% 55%, 75.0% 55%, 75% 80%, 75% 93%, 80.9% 93%, 80.9% 80%, 84.55% 80%, 84.55% 93%, 90.45% 93%, 90.45% 80%, 94.1% 80%, 94.1% 93%, 100.0% 93%, 100% 0%);}
+  body:has(#hudbarFoe:hover) #hudbarFoe, body.foewall-open #hudbarFoe{transform:translateY(0);}
+  body:has(.foehand:hover) #hudbarFoe{transform:translateY(0);}
+  body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull{display:block;}
+  /* hovering the foe wall (or reaching the top edge) also fans the opponent's hand down */
+  body:has(#hudbarFoe:hover) .foehand .fb, body.foewall-open .foehand .fb{height:var(--hch);}
+  #hudbarFoe::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9px;pointer-events:none;
+    background:repeating-linear-gradient(90deg, var(--foeelem,#7aa0c8) 0 5px, transparent 5px 24px);opacity:.5;
+    -webkit-mask:linear-gradient(0deg,#000,transparent);mask:linear-gradient(0deg,#000,transparent);}
+  #hudbarFoe .hudglyph{position:absolute;top:-12%;font-family:serif;font-weight:700;font-size:calc(var(--handpad,40px)*1.35);line-height:1;color:var(--foeelem,#7aa0c8);opacity:.09;pointer-events:none;text-shadow:0 0 18px var(--foeelem,#7aa0c8);}
+  #hudbarFoe .hudglyph.l{left:1.6%;} #hudbarFoe .hudglyph.r{right:1.6%;}
+  /* foe vitals ride the wall's LEFT tower (mirrors the player's left-tower commander), visible on the rail at rest */
+  .wallvit.foe{position:absolute;bottom:5px;left:1.5%;width:23%;z-index:3;pointer-events:auto;text-align:center;
+    font-size:12px;color:#e9dcc0;text-shadow:0 1px 3px #000;line-height:1.25;}
+  .wallvit.foe .who{font-family:'Cinzel',serif;font-weight:700;font-size:11px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wallvit.foe .vit{font-size:11.5px;white-space:nowrap;} .wallvit.foe .vit b{color:#fff;}
+  /* deck + graveyard widgets ride the RIGHT tower of each wall; count sits on the visible rail, fuller art on raise */
+  .wallzone{position:absolute;z-index:2;pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;
+    width:clamp(44px,6.2vw,66px);height:46%;border-radius:9px;background:rgba(8,10,16,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:background .15s;}
+  .wallzone:hover{background:rgba(20,26,40,.5);}
+  #hudbar .wallzone{top:auto;bottom:12px;display:none;} #hudbar .wallzone.deck{right:20%;} #hudbar .wallzone.grave{right:7%;}
+  body:has(.hand:hover) #hudbar .wallzone, body:has(.hc.selected) #hudbar .wallzone, body.wall-open #hudbar .wallzone{display:flex;}
+  .decline{position:absolute;right:5%;top:2px;z-index:4;pointer-events:none;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;color:#e7eefb;text-shadow:0 1px 3px #000;white-space:nowrap;}
+  .decline b{color:#fff;} #foeDeckLine{top:auto;bottom:2px;color:#cfe0f5;}
+  body:has(.hand:hover) #youDeckLine, body:has(.hc.selected) #youDeckLine, body.wall-open #youDeckLine{display:none;}
+  body:has(.foehand:hover) #foeDeckLine, body:has(#hudbarFoe:hover) #foeDeckLine, body.foewall-open #foeDeckLine{display:none;}
+  #hudbarFoe .wallzone{bottom:12px;top:auto;flex-direction:column-reverse;justify-content:flex-start;display:none;} #hudbarFoe .wallzone.deck{right:20%;} #hudbarFoe .wallzone.grave{right:7%;}
+  body:has(.foehand:hover) #hudbarFoe .wallzone, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone, body.foewall-open #hudbarFoe .wallzone{display:flex;}
+  .wallzone .wzl{font-family:'Cinzel',serif;letter-spacing:.1em;text-transform:uppercase;font-size:9px;color:#9fb6d6;opacity:.85;}
+  .wallzone.grave .wzl{color:#b9b2a0;}
+  .wallzone .wzc{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(15px,2vw,23px);color:#dfeaf8;text-shadow:0 1px 3px #000;line-height:1;}
+  .wallzone.grave .wzc{color:#d2d0d8;}
+  .wallzone .wzfull{width:78%;aspect-ratio:.72;margin-top:2px;border-radius:5px;display:none;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.5);}
+  .wallzone .wzfull img{width:100%;height:100%;object-fit:cover;display:block;}
+  .wallzone.deck .wzfull{background:repeating-linear-gradient(135deg,#1d3a55 0 6px,#16314a 6px 12px),#16314a;box-shadow:0 2px 6px rgba(0,0,0,.5),2px 2px 0 -1px #122638,4px 4px 0 -2px #0e1f30;}
+  body:has(.hand:hover) #hudbar .wallzone .wzfull, body:has(.hc.selected) #hudbar .wallzone .wzfull, body.wall-open #hudbar .wallzone .wzfull,
+  body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone .wzfull, body.foewall-open #hudbarFoe .wallzone .wzfull{display:block;}
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
   /* help text lives on the right margin, off the board */
   .handhint{position:fixed;right:10px;top:46%;transform:translateY(-50%);text-align:left;z-index:60;
@@ -659,21 +745,10 @@
     </div><!-- /matmain -->
   </div>
 
-  <!-- deck + graveyard at the screen corners (foe top-left, you bottom-right); graveyard is a tombstone -->
-  <div class="decks foe" id="foeDecks">
-    <div class="zone deck" onclick="openViewer('deck','foe')"><span class="zl">Deck</span><b id="foeDeckN">0</b></div>
-    <div class="zone grave tomb" onclick="openViewer('grave','foe')"><span class="zl">RIP</span><b id="foeGraveN">0</b></div>
-  </div>
-  <div class="decks you" id="youDecks">
-    <div class="zone grave tomb" onclick="openViewer('grave','you')"><span class="zl">RIP</span><b id="youGraveN">0</b></div>
-    <div class="zone deck" onclick="openViewer('deck','you')"><span class="zl">Deck</span><b id="youDeckN">0</b></div>
-  </div>
+  <!-- the DECK renders as a card-sized slot beside each player's back line, with the graveyard
+       tombstone stacked just above it (both on the board plane; see positionDeck/positionGrave) -->
 
-  <!-- player badges in the corners, vitals stored by the name (Master Duel style) -->
-  <div class="pbadge foe" id="foeBadge">
-    <div class="who" id="foeName" style="color:var(--tide)"><span class="cdot" style="background:var(--tide)"></span>The Tide Spire</div>
-    <div class="vit"><span class="heart">♥</span><b id="foeLife">22</b> &nbsp;<span id="foeManaStr"></span> &nbsp;<span class="bct">⌂</span><b id="foeStruct">0</b> &nbsp;<span class="wct">⚒</span><b id="foeCap">0/2</b></div>
-  </div>
+  <!-- player vitals corner badge (foe vitals now ride the foe castle wall — see #hudbarFoe) -->
   <div class="pbadge you" id="youBadge">
     <div class="who" id="youName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
     <div class="vit"><span class="heart">♥</span><b id="youLife">26</b> &nbsp;<span id="youManaStr"></span> &nbsp;<span class="bct">⌂</span><b id="youStruct">0</b> &nbsp;<span class="wct">⚒</span><b id="youCap">0/2</b></div>
@@ -684,7 +759,6 @@
 
   <div class="cmdzone foe" id="foeCmd"></div>
   <div class="cmdzone you" id="youCmd"></div>
-  <button id="buildBtn" onclick="openBuildMenu()" title="Build a structure (commander)">⚒ Build</button>
 
   <div id="cardActions"></div>
 
@@ -699,8 +773,24 @@
     </div>
   </div>
 
-  <!-- WC3-style themed stone command panel: commander (left), hand (center), right reserved -->
-  <div id="hudbar"><span class="hudglyph l" id="hudGlyphL"></span><span class="hudglyph r" id="hudGlyphR"></span></div>
+  <!-- FOE castle wall (top): foe vitals + deck + graveyard, mirroring the player's wall -->
+  <div id="hudbarFoe">
+    <div class="wallstone"></div>
+    <span class="hudglyph l" id="hudGlyphFL"></span><span class="hudglyph r" id="hudGlyphFR"></span>
+    <div class="wallvit foe" id="foeBadge">
+      <div class="who" id="foeName" style="color:var(--tide)"><span class="cdot" style="background:var(--tide)"></span>The Tide Spire</div>
+      <div class="vit"><span class="heart">♥</span><b id="foeLife">22</b> <span id="foeManaStr"></span> <span class="bct">⌂</span><b id="foeStruct">0</b> <span class="wct">⚒</span><b id="foeCap">0/2</b></div>
+    </div>
+    <div class="wallzone deck" id="foeWallDeck" onclick="openViewer('deck','foe')"></div>
+    <div class="wallzone grave" id="foeWallGrave" onclick="openViewer('grave','foe')"></div>
+    <div class="decline" id="foeDeckLine"></div>
+  </div>
+  <!-- WC3-style themed stone command wall (bottom): commander (left tower), hand (center), deck/grave (right tower) -->
+  <div id="hudbar"><div class="wallstone"></div><span class="hudglyph l" id="hudGlyphL"></span><span class="hudglyph r" id="hudGlyphR"></span>
+    <div class="wallzone deck" id="youWallDeck" onclick="openViewer('deck','you')"></div>
+    <div class="wallzone grave" id="youWallGrave" onclick="openViewer('grave','you')"></div>
+    <div class="decline" id="youDeckLine"></div>
+  </div>
   <div class="handwrap">
     <div class="handhint" id="hint"></div>
     <div class="hand" id="hand"></div>
@@ -779,7 +869,11 @@
 </div></div>
 
 <script>
-const C=5, SLOTS=5;
+const C=7, SLOTS=7;
+const CENTER_LANES=[1,3,5];          // the contested center has real slots only at these columns
+const isLane=i=>CENTER_LANES.includes(i);
+const BASE_COL=3;                    // the keep sits at back-center (column 3)
+function colReach(aCol,tCol){ return Math.abs(aCol-tCol)<=1; } // a unit reaches columns C-1,C,C+1
 let uid=1;
 /* ---------- ELEMENTS (7) ----------
    The 7 attributes (Spell & Trap are NOT elements — they stay color:null/neutral).
@@ -876,14 +970,22 @@ const ART={
 /* ---------- creature pools (8 per element; costs 1,1,2,2,3,4,5,6; upkeep scales with cost;
    one cost-3 strikes first). Fire & Water keep their hand-drawn art; the rest use parametric
    element-tinted placeholders until art files are dropped in. ---------- */
-const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Flicker',c:1,a:2,h:1,up:1,art:phArt('fire','cre',1)},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Scorchling',c:2,a:3,h:1,up:1,art:phArt('fire','cre',2)},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing},{nm:'Infernox',c:5,a:5,h:4,up:3,art:phArt('fire','cre',5)},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw}];
-const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Brinekin',c:1,a:1,h:2,up:1,art:phArt('water','cre',1)},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Undertow',c:2,a:2,h:2,up:1,art:phArt('water','cre',2)},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Maelstrom',c:5,a:4,h:5,up:3,art:phArt('water','cre',5)},{nm:'Leviath',c:6,a:5,h:6,up:3,art:ART.leviath}];
-const EARTH =[{nm:'Pebbling',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Gravelkin',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:1,h:3,up:1,art:phArt('earth','cre',2)},{nm:'Loamhide',c:2,a:1,h:4,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:1,h:4,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:2,h:5,up:2,art:phArt('earth','cre',4)},{nm:'Monolith',c:5,a:3,h:6,up:3,art:phArt('earth','cre',5)},{nm:'Titanore',c:6,a:4,h:7,up:3,art:phArt('earth','cre',5)}];
-const WIND  =[{nm:'Gustling',c:1,a:2,h:1,up:1,art:phArt('wind','cre',1)},{nm:'Breezeling',c:1,a:1,h:2,up:1,art:phArt('wind','cre',1)},{nm:'Zephyr',c:2,a:3,h:1,up:1,art:phArt('wind','cre',2)},{nm:'Galeling',c:2,a:2,h:2,up:1,art:phArt('wind','cre',2)},{nm:'Skirl',c:3,a:4,h:1,fs:true,up:2,art:phArt('wind','cre',3)},{nm:'Talonwind',c:4,a:5,h:2,up:2,art:phArt('wind','cre',4)},{nm:'Cyclone',c:5,a:6,h:3,up:3,art:phArt('wind','cre',5)},{nm:'Tempest',c:6,a:8,h:3,up:3,art:phArt('wind','cre',5)}];
-const FOREST=[{nm:'Sapling',c:1,a:1,h:2,up:1,art:phArt('forest','cre',1)},{nm:'Thornling',c:1,a:2,h:1,up:1,art:phArt('forest','cre',1)},{nm:'Bramble',c:2,a:1,h:3,up:1,art:phArt('forest','cre',2)},{nm:'Vinewhip',c:2,a:2,h:2,up:1,art:phArt('forest','cre',2)},{nm:'Pouncer',c:3,a:3,h:2,fs:true,up:2,art:phArt('forest','cre',3)},{nm:'Grovekeep',c:4,a:2,h:5,up:2,art:phArt('forest','cre',4)},{nm:'Maulhorn',c:5,a:5,h:4,up:3,art:phArt('forest','cre',5)},{nm:'Eldertree',c:6,a:4,h:7,up:3,art:phArt('forest','cre',5)}];
-const ELECTRIC=[{nm:'Spark',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Jolt',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Volt',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Crackle',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Surge',c:3,a:4,h:1,fs:true,up:2,art:phArt('electric','cre',3)},{nm:'Thunderhead',c:4,a:5,h:2,up:2,art:phArt('electric','cre',4)},{nm:'Stormcall',c:5,a:6,h:3,up:3,art:phArt('electric','cre',5)},{nm:'Galvanwyrm',c:6,a:8,h:3,up:3,art:phArt('electric','cre',5)}];
-const LIGHT =[{nm:'Dawnmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Glimmer',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:1,h:3,up:1,art:phArt('light','cre',2)},{nm:'Radiant',c:2,a:2,h:2,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:2,h:3,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:3,h:4,up:2,art:phArt('light','cre',4)},{nm:'Solstice',c:5,a:4,h:5,up:3,art:phArt('light','cre',5)},{nm:'Seraphine',c:6,a:5,h:6,up:3,art:phArt('light','cre',5)}];
-const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Shadeling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Grimfang',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,art:phArt('dark','cre',4)},{nm:'Maledict',c:5,a:7,h:2,up:3,art:phArt('dark','cre',5)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,art:phArt('dark','cre',5)}];
+// FIRE — Detonate (parting blast)
+const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Emberfly',c:1,a:1,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',1)},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Scorchling',c:2,a:3,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',2)},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing},{nm:'Infernox',c:5,a:5,h:4,up:3,kw:'detonate',det:3,art:phArt('fire','cre',5)},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw}];
+// WATER — Undertow (bounce the attacker)
+const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Brinekin',c:1,a:1,h:2,up:1,art:phArt('water','cre',1)},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Undertow',c:2,a:1,h:3,up:1,kw:'undertow',art:phArt('water','cre',2)},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Maelstrom',c:5,a:3,h:5,up:3,kw:'undertow',art:phArt('water','cre',5)},{nm:'Leviath',c:6,a:4,h:7,up:3,kw:'undertow',art:ART.leviath}];
+// EARTH — Entrench (immovable wall)
+const EARTH =[{nm:'Pebbling',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Gravelkin',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:1,h:3,up:1,kw:'entrench',entrench:true,art:phArt('earth','cre',2)},{nm:'Loamhide',c:2,a:1,h:4,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:1,h:4,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:2,h:5,up:2,kw:'entrench',entrench:true,art:phArt('earth','cre',4)},{nm:'Monolith',c:5,a:3,h:6,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)},{nm:'Titanore',c:6,a:4,h:8,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)}];
+// WIND — Scour (flier; ignores interceptors, cracks the back row)
+const WIND  =[{nm:'Gustling',c:1,a:2,h:1,up:1,art:phArt('wind','cre',1)},{nm:'Breezeling',c:1,a:1,h:2,up:1,art:phArt('wind','cre',1)},{nm:'Zephyr',c:2,a:3,h:1,up:1,kw:'scour',art:phArt('wind','cre',2)},{nm:'Galeling',c:2,a:2,h:2,up:1,art:phArt('wind','cre',2)},{nm:'Skirl',c:3,a:4,h:1,fs:true,up:2,art:phArt('wind','cre',3)},{nm:'Talonwind',c:4,a:5,h:2,up:2,kw:'scour',art:phArt('wind','cre',4)},{nm:'Cyclone',c:5,a:6,h:3,up:3,kw:'scour',art:phArt('wind','cre',5)},{nm:'Tempest',c:6,a:8,h:3,up:3,kw:'scour',art:phArt('wind','cre',5)}];
+// FOREST — Chrysalis (cocoon → hatch)
+const FOREST=[{nm:'Sapling',c:1,a:1,h:2,up:1,art:phArt('forest','cre',1)},{nm:'Thornling',c:1,a:2,h:1,up:1,art:phArt('forest','cre',1)},{nm:'Sap Pod',c:2,a:0,h:3,up:1,kw:'chrysalis',grow:1,hatch:3,into:{nm:'Canopy Beast',a:5,h:4},art:phArt('forest','cre',2)},{nm:'Vinewhip',c:2,a:2,h:2,up:1,art:phArt('forest','cre',2)},{nm:'Pouncer',c:3,a:3,h:2,fs:true,up:2,art:phArt('forest','cre',3)},{nm:'Grovekeep',c:4,a:2,h:5,up:2,art:phArt('forest','cre',4)},{nm:'Maulhorn',c:5,a:5,h:4,up:3,art:phArt('forest','cre',5)},{nm:'Hive Cradle',c:6,a:3,h:6,up:3,kw:'chrysalis',grow:1,hatch:2,into:{nm:'Broodtitan',a:8,h:7},art:phArt('forest','cre',5)}];
+// ELECTRIC — Overcharge (bank ◆, discharge on attack)
+const ELECTRIC=[{nm:'Spark',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Jolt',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Volt',c:2,a:2,h:2,up:1,kw:'overcharge',art:phArt('electric','cre',2)},{nm:'Crackle',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Surge',c:3,a:4,h:1,fs:true,up:2,art:phArt('electric','cre',3)},{nm:'Thunderhead',c:4,a:4,h:3,up:2,kw:'overcharge',art:phArt('electric','cre',4)},{nm:'Stormcall',c:5,a:6,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5)},{nm:'Galvanwyrm',c:6,a:8,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5)}];
+// LIGHT — Ward (token blocker)
+const LIGHT =[{nm:'Dawnmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Sunmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:1,h:3,up:1,kw:'ward',wardhp:2,art:phArt('light','cre',2)},{nm:'Radiant',c:2,a:2,h:2,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:2,h:3,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:3,h:4,up:2,kw:'ward',wardhp:3,art:phArt('light','cre',4)},{nm:'Solstice',c:5,a:4,h:5,up:3,art:phArt('light','cre',5)},{nm:'Seraphine',c:6,a:5,h:6,up:3,kw:'ward',wardhp:4,art:phArt('light','cre',5)}];
+// DARK — Reap (raise a Shade on death)
+const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',1)},{nm:'Shadeling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Grimfang',c:2,a:3,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,kw:'reap',reap:2,art:phArt('dark','cre',4)},{nm:'Maledict',c:5,a:7,h:2,up:3,kw:'reap',reap:3,art:phArt('dark','cre',5)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,kw:'reap',reap:4,art:phArt('dark','cre',5)}];
 const POOLS={fire:EMBER,water:TIDE,earth:EARTH,wind:WIND,forest:FOREST,electric:ELECTRIC,light:LIGHT,dark:DARK};
 /* Divine roster reserved for future Ace / Boss / God cards — not a deckable pool. */
 const DIVINE=[{nm:'Cherub',c:1,a:1,h:2,up:1,art:phArt('divine','cre',1)},{nm:'Valkar',c:3,a:3,h:2,fs:true,up:2,art:phArt('divine','cre',3)},{nm:'Archon',c:4,a:4,h:3,up:2,art:phArt('divine','cre',4)},{nm:'Empyrean',c:6,a:6,h:5,up:3,art:phArt('divine','cre',5)}];
@@ -902,6 +1004,7 @@ const STRUCT_DEFS={
   vault:    {bid:'vault',    nm:'Mana Vault',  c:4, h:6,  eff:'vault',    val:4, sup:0, ic:'◈', prereq:['foundry'], color:null, art:phArt('water','bld'), desc:'Cisterns that hold the surplus — keeps up to ◆4 of your unspent mana across the turn. ⚒0.'},
   bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:12, eff:'wall',     val:0, sup:2, ic:'▣', prereq:['forge'],   color:null, art:phArt('earth','bld'), desc:'A ♥12 wall that screens the line — it can intercept and be raided. Raises ⚒+2.'},
   tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:8,  eff:'damage',   val:2, sup:-2,ic:'⤢', prereq:['forge'],   color:null, art:phArt('fire','bld'),  desc:'Guns that never sleep — strikes the nearest enemy creature for 2 each turn. Needs ⚒2 to crew (build it where a row has the workers to spare).'},
+  reliquary:{bid:'reliquary',nm:'Reliquary',  c:5, h:7,  eff:'revive',    val:0, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:phArt('dark','bld'),  desc:'Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.'},
 };
 function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:5, eff:'mana', val:2, sup:3, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2, raises ⚒+3, and lets its row harvest '+ELEMENTS[el].name+' mana.'}; }
 function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:7, eff:'mana', val:3, sup:4, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3, raises ⚒+4, harvests '+ELEMENTS[el].name+' mana.'}; }
@@ -909,7 +1012,7 @@ function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el
 function buildList(ccId){
   const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];
   cols.forEach(el=>out.push(forgeDef(el)));
-  out.push(STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower);
+  out.push(STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower, STRUCT_DEFS.reliquary);
   cols.forEach(el=>out.push(grandForgeDef(el)));
   return out;
 }
@@ -924,7 +1027,11 @@ const SPELL_NEUTRAL=[
   {nm:'Cinder Volley',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
   {nm:'Searing Brand',c:3,trap:false,effect:'burn',val:4,target:'enemy',ic:'✦',art:ART.frostlance},
   {nm:'Topple the Spire',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
-  {nm:'Collapsing Floor',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap}
+  {nm:'Collapsing Floor',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
+  {nm:'Arc Flash',c:3,trap:false,effect:'chain',val:2,target:'enemy',ic:'✦',art:ART.emberbolt},   // 2 dmg to the two highest-attack enemy creatures
+  {nm:'Riptide',c:3,trap:false,effect:'bounce',target:'enemy',ic:'✦',art:ART.frostlance},          // return target enemy creature to its hand
+  {nm:'Overgrowth',c:0,trap:true,effect:'thornmail',trigger:'attack',ic:'⚠',art:ART.snarePit},     // when struck, your defender gains +1/+2
+  {nm:'Backlash',c:0,trap:true,effect:'burn',val:3,trigger:'attack',ic:'⚠',art:ART.whirltrap}      // when struck, the attackers take 3
 ];
 const SPELL=Object.fromEntries(COLORS.map(c=>[c,SPELL_NEUTRAL])); // compat shim so deckOf() keeps drawing spells
 
@@ -1032,7 +1139,7 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   COLORS.forEach(function(el){ (POOLS[el]||[]).forEach(add); });
   SPELL_NEUTRAL.forEach(add); add(WORKER);
   // build-menu structures (generic + per-element forges) so the placed buildings have art
-  [STRUCT_DEFS.foundry, STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower].forEach(add);
+  [STRUCT_DEFS.foundry, STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower, STRUCT_DEFS.reliquary].forEach(add);
   COLORS.forEach(function(el){ add(forgeDef(el)); add(grandForgeDef(el)); });
   Object.keys(CCS).forEach(function(id){ if(CC_ART[id]) w.PLACEHOLDERS[CCS[id].name] = CC_ART[id]; });
   w.PLACEHOLDERS['Worker'] = ART.villager;
@@ -1104,8 +1211,7 @@ function rowWorkers(owner,which){
   let s=0;
   const tally=o=>{ if(!o||o.owner&&o.owner!==owner)return; if(o.kind==='building')s+=(o.sup||0)+(o.eff==='villager'?(o.val||0):0); else if(o.kind==='creature'&&!o.worker)s-=(o.up||0); };
   if(which==='center') G.center.forEach(o=>{if(o&&o.owner===owner)tally(o);});
-  else G.P[owner][which].forEach(tally);
-  if(which==='back'){ const cc=G.P[owner].ccUnit; if(cc&&cc.h>0) s+=(cc.sup||0); } // the keep anchors the back row
+  else G.P[owner][which].forEach(tally); // the keep now stands in back[BASE_COL] and is tallied here
   return s;
 }
 function totalWorkers(owner){ return ['back','front','center'].reduce((s,w)=>s+Math.max(0,rowWorkers(owner,w)),0); }
@@ -1231,9 +1337,105 @@ function expandDeck(deck){
   for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
   return d;
 }
-function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art};}
+function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art,
+  kw:t.kw||null,det:t.det||0,ward:t.ward||0,wardhp:t.wardhp||2,reap:t.reap||0,grow:t.grow||0,hatch:t.hatch||0,into:t.into||null,cnt:t.cnt||0,oc:t.oc||0,entrench:!!t.entrench,token:!!t.token};}
 function mkVil(owner){return mkCre({nm:'Worker',a:0,h:2,c:0,up:0,art:ART.villager},owner,true);}
 function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0,bid:t.bid||null};}
+
+/* ===== CREATURE KEYWORDS — element identities =====
+   Hooks: enter (summon/flip) · death (cleanup) · defend (resolveCombat groupB) · upkeep (startTurn). */
+function kwOf(o){ return (o&&o.kind==='creature'&&!o.worker)?(o.kw||null):null; }
+function ekc(o){ return (o&&o.owner==='you')?'y':'e'; }
+function enemyOf(owner){ return owner==='you'?'foe':'you'; }
+function liveEnemyCreatures(owner){ const f=enemyOf(owner),out=[];
+  ['front','back'].forEach(w=>G.P[f][w].forEach(o=>{ if(o&&o.kind==='creature'&&!o.worker&&o.h>0)out.push(o); }));
+  G.center.forEach(o=>{ if(o&&o.owner===f&&o.kind==='creature'&&!o.worker&&o.h>0)out.push(o); }); return out; }
+function liveEnemyStructures(owner){ const f=enemyOf(owner),out=[];
+  ['front','back'].forEach(w=>G.P[f][w].forEach(o=>{ if(o&&o.kind==='building'&&!o.cc&&o.h>0)out.push(o); }));
+  G.center.forEach(o=>{ if(o&&o.owner===f&&o.kind==='building'&&!o.cc&&o.h>0)out.push(o); }); return out; }
+function firstEmptyCell(owner){
+  for(const w of ['back','front']){ const a=G.P[owner][w]; const i=a.findIndex((x,idx)=>!x&&!(w==='back'&&idx===BASE_COL)); if(i>=0)return {arr:a,i}; }
+  const ci=G.center.findIndex((x,idx)=>!x&&isLane(idx)); if(ci>=0)return {arr:G.center,i:ci}; return null; }
+function removeUnitFromBoard(unit){
+  for(const o of ['you','foe']) for(const w of ['front','back']){ const a=G.P[o][w]; const i=a.indexOf(unit); if(i>=0){a[i]=null;return o;} }
+  const ci=G.center.indexOf(unit); if(ci>=0){ const ow=unit.owner; G.center[ci]=null; return ow; }
+  for(const o of ['you','foe']) for(const w of ['back','front','center']){ const p=G.P[o].min[w]; const i=p.indexOf(unit); if(i>=0){p.splice(i,1);return o;} }
+  return null; }
+function handcardFromCreature(cr){ return {kind:'handcard',id:uid++,type:'creature',color:cr.color,nm:cr.nm,a:cr.a,h:cr.maxh??cr.h,c:cr.c,fs:cr.fs,up:cr.up,art:cr.art,
+  kw:cr.kw,det:cr.det,ward:cr.ward,wardhp:cr.wardhp,reap:cr.reap,grow:cr.grow,hatch:cr.hatch,into:cr.into,entrench:cr.entrench}; }
+function mkToken(owner,nm,a,h,color){ const t=mkCre({nm,a,h,c:0,up:0},owner,false); t.token=true; t.color=color||G.P[owner].color; return t; }
+function effA(c){ return (c?(c.a||0):0)+((c&&c._dis)||0); } // effective attack (Overcharge discharge bonus)
+
+// ENTER (after a creature is summoned or flipped)
+function onCreatureEnter(cr,owner){
+  if(kwOf(cr)==='ward'){ const spot=firstEmptyCell(owner);
+    if(spot){ const tok=mkToken(owner,'Lumen',0,cr.wardhp||2,cr.color); tok.sick=true; spot.arr[spot.i]=tok;
+      log(`<span class="${ekc(cr)}">${cr.nm} conjures a Lumen ward (0/${tok.h}).</span>`,ekc(cr)); }
+    else log(`<span class="${ekc(cr)}">${cr.nm} would ward, but there is no room.</span>`,ekc(cr)); }
+}
+// DEATH (called inside cleanup the moment a creature is removed; its cell is already freed)
+function onCreatureDeath(cr,owner){
+  if(kwOf(cr)==='detonate'){ const n=cr.det||0; if(n>0){
+    const cres=liveEnemyCreatures(owner).sort((a,b)=>(b.a-a.a)||(a.h-b.h));
+    let tgt=cres[0]||liveEnemyStructures(owner).sort((a,b)=>a.h-b.h)[0];
+    if(tgt){ tgt.h-=n; log(`<span class="${ekc(cr)}">Detonate! ${cr.nm} bursts for ${n} into ${tgt.nm}.</span>`,ekc(cr)); } } }
+  else if(kwOf(cr)==='reap'){ const spot=firstEmptyCell(owner);
+    if(spot){ const a=cr.reap||1, tok=mkToken(owner,'Shade',a,a,cr.color); tok.sick=true; spot.arr[spot.i]=tok;
+      log(`<span class="${ekc(cr)}">Reap. ${cr.nm} drags a Shade (${a}/${a}) up from the grave.</span>`,ekc(cr)); } }
+}
+// DEFEND (a Water creature in the blocking group shoves one attacker back to hand; Entrench is immune)
+function applyUndertow(groupA,groupB){
+  const wardens=groupB.filter(c=>c&&kwOf(c)==='undertow'&&c.h>0); if(!wardens.length)return;
+  const marks=groupA.filter(c=>c&&c.kind==='creature'&&c.h>0&&!c.worker&&!c.token&&!c.entrench&&!c.cc).sort((a,b)=>(b.c||0)-(a.c||0));
+  const a=marks[0]; if(!a)return;
+  const ow=removeUnitFromBoard(a);
+  if(ow){ G.P[ow].hand.push(handcardFromCreature(a)); const k=groupA.indexOf(a); if(k>=0)groupA.splice(k,1);
+    log(`<span class="${ekc(wardens[0])}">Undertow! ${wardens[0].nm} hurls ${a.nm} back to ${ow==='you'?'your':'their'} hand.</span>`,ekc(wardens[0])); }
+}
+// UPKEEP (Chrysalis cocoons swell and hatch)
+function chrysalisUpkeep(owner){
+  const all=[]; ['front','back'].forEach(w=>G.P[owner][w].forEach(o=>{if(o)all.push(o);})); G.center.forEach(o=>{if(o&&o.owner===owner)all.push(o);});
+  all.forEach(o=>{ if(kwOf(o)==='chrysalis'){
+    o.cnt=(o.cnt||0)+(o.grow||1);
+    if(o.cnt>=(o.hatch||3)){ const into=o.into||{};
+      o.nm=into.nm||o.nm; o.a=into.a??o.a; o.maxh=into.h??o.maxh; o.h=into.h??o.maxh??o.h; o.up=into.up??o.up; o.fs=into.fs??o.fs; o.kw=into.kw||null; o.sick=true;
+      log(`<span class="${ekc(o)}">${o.nm} hatches! (⚔${o.a}/♥${o.h})</span>`,ekc(o));
+    } else { o.sick=true; log(`<span class="${ekc(o)}">A cocoon swells (${o.cnt}/${o.hatch}).</span>`,ekc(o)); } }});
+}
+// UPKEEP (Overcharge creatures bank ◆ each turn, up to 3) — Electric identity, simple v1
+function overchargeUpkeep(owner){
+  const all=[]; ['front','back'].forEach(w=>G.P[owner][w].forEach(o=>{if(o)all.push(o);})); G.center.forEach(o=>{if(o&&o.owner===owner)all.push(o);});
+  all.forEach(o=>{ if(kwOf(o)==='overcharge'){ o.oc=Math.min(3,(o.oc||0)+1); log(`<span class="${ekc(o)}">${o.nm} overcharges (◆${o.oc}).</span>`,ekc(o)); } });
+}
+// ATTACK prep: Overcharge attackers discharge their banked ◆ as bonus attack for this strike only
+function dischargeOvercharge(attackers){
+  attackers.forEach(a=>{ if(a&&kwOf(a)==='overcharge'&&(a.oc||0)>0){ a._dis=a.oc; a.oc=0;
+    log(`<span class="${ekc(a)}">Overcharge! ${a.nm} discharges +${a._dis}⚔.</span>`,ekc(a)); } });
+}
+function clearDischarge(units){ if(units)units.forEach(a=>{ if(a)a._dis=0; }); }
+// ON-HIT: a Scour flier shatters one enemy back-row card on a connecting strike (face-down preferred)
+function scourStrike(att,defOwner){
+  const back=G.P[defOwner].back;
+  let idx=back.findIndex(o=>o&&(o.kind==='charge'||o.kind==='trap'));
+  if(idx<0) idx=back.findIndex(o=>o&&o.kind==='building'&&!o.cc);
+  if(idx<0) return;
+  const tgt=back[idx];
+  log(`<span class="${ekc(att)}">Scour! ${att.nm} shatters ${defOwner==='you'?'your':'their'} ${tgt.kind==='trap'?'set trap':(tgt.kind==='charge'?'face-down card':tgt.nm)}.</span>`,ekc(att));
+  if(tgt.kind==='charge'||tgt.kind==='trap'){ toGrave(defOwner,tgt); back[idx]=null; } else { tgt.h=0; }
+}
+function groupIsScour(attackers){ return attackers.length>0 && attackers.every(a=>kwOf(a)==='scour'); }
+// Inspect text (so each card explains itself in the ⓘ panel)
+function kwText(o){ switch(o&&o.kw){
+  case 'detonate': return `<b>Detonate ${o.det}.</b> When destroyed, deals ${o.det} to the deadliest enemy creature (or an enemy structure). Never hits a command center.`;
+  case 'undertow': return `<b>Undertow.</b> When this blocks or is attacked, the strongest attacking creature is hurled back to its owner's hand (re-summoning-sick).`;
+  case 'entrench': return `<b>Entrench.</b> Immovable — cannot be bounced or pushed; effects like Undertow slide off.`;
+  case 'ward': return `<b>Ward.</b> On entry, conjures a 0/${o.wardhp||2} Lumen token blocker beside it.`;
+  case 'reap': return `<b>Reap ${o.reap}.</b> When destroyed, raises a ${o.reap}/${o.reap} Shade token in its place.`;
+  case 'chrysalis': { const i=o.into||{}; return `<b>Chrysalis ${o.cnt||0}/${o.hatch||3}.</b> Cannot attack; swells +${o.grow||1} each of your turns, then hatches into ${i.nm} (⚔${i.a}/♥${i.h}).`; }
+  case 'scour': return `<b>Scour.</b> Flier — ignores interceptors and shatters an enemy back-row card on attack.`;
+  case 'overcharge': return `<b>Overcharge.</b> Banks ◆ each of your turns (up to 3); when it attacks it discharges them as bonus ⚔.`;
+} return ''; }
+
 /* ===== RTS structure building — commander build menu (cost = mana; prerequisite tech tree) ===== */
 function ownBuildings(owner){ return ownUnits(owner).filter(o=>o.kind==='building'&&!o.cc); }
 function hasBuild(owner,bid){ return ownBuildings(owner).some(b=>b.bid===bid); }
@@ -1274,14 +1476,14 @@ function placeBuild(which,i){ const def=G.build; if(!def)return;
 function aiBuild(owner){
   const ccId=G.P[owner].cc, list=buildList(ccId);
   // priority order = buildList order; cap how many of each the AI wants
-  const CAP={foundry:1,longhouse:1,vault:1,bulwark:1,tower:2};
+  const CAP={foundry:1,longhouse:1,vault:1,bulwark:1,tower:2,reliquary:1};
   for(const def of list){
     if(CAP[def.bid] && ownBuildings(owner).filter(b=>b.bid===def.bid).length>=CAP[def.bid]) continue;
     if(def.bid==='forge' && ownBuildings(owner).some(b=>b.bid==='forge'&&b.color===def.color)) continue;       // one forge per color
     if(def.bid==='grandforge' && ownBuildings(owner).some(b=>b.bid==='grandforge'&&b.color===def.color)) continue;
     if(!canBuild(owner,def)) continue;
-    const which=['back','front'].find(w=>cellArr(owner,w).some(x=>!x)&&placeRowOK(owner,w,def)); if(!which)continue;
-    const slot=cellArr(owner,which).findIndex(x=>!x);
+    const which=['back','front'].find(w=>freeDeploySlot(owner,w)>=0&&placeRowOK(owner,w,def)); if(!which)continue;
+    const slot=aiPickDeploySlot(owner,which);
     payAny(owner,def.c); cellArr(owner,which)[slot]=mkBld(def,owner); syncWorkers(owner);
     log(`<span class="e">Opponent raises a ${escHtml(def.nm)}.</span>`,'e');
     return true; // build one per call
@@ -1290,7 +1492,8 @@ function aiBuild(owner){
 }
 function toGrave(owner,obj){
   if(!obj)return; let rec;
-  if(obj.kind==='creature') rec={type:obj.worker?'villager':'creature',nm:obj.nm,a:obj.a,h:obj.maxh??obj.h,c:obj.c,up:obj.up,fs:obj.fs};
+  if(obj.kind==='creature') rec={type:obj.worker?'villager':'creature',nm:obj.nm,a:obj.a,h:obj.maxh??obj.h,c:obj.c,up:obj.up,fs:obj.fs,art:obj.art,color:obj.color,token:!!obj.token,
+    kw:obj.token?null:obj.kw,det:obj.det,ward:obj.ward,wardhp:obj.wardhp,reap:obj.reap,grow:obj.grow,hatch:obj.hatch,into:obj.into,entrench:obj.entrench};
   else if(obj.kind==='building') rec={type:'building',nm:obj.nm,h:obj.maxh??obj.h,c:obj.c,eff:obj.eff,val:obj.val,sup:obj.sup,ic:obj.ic};
   else if(obj.kind==='charge') rec={type:obj.ctype||'creature',nm:obj.card.nm,a:obj.card.a,h:obj.card.h,c:obj.card.c,up:obj.card.up,sup:obj.card.sup,eff:obj.card.eff,val:obj.card.val,ic:obj.card.ic};
   else if(obj.kind==='trap') rec={type:'spell',nm:obj.card.nm,c:obj.card.c,trap:true,effect:obj.card.effect,val:obj.card.val,ic:obj.card.ic};
@@ -1308,11 +1511,13 @@ function ccPips(def){return def.colors.map(c=>elemBadge(c,15)).join('');}
 function applyCharacterUI(){
   const cy=CCS[G.P.you.cc], cf=CCS[G.P.foe.cc];
   document.documentElement.style.setProperty('--youelem', `var(--${cy.colors[0]})`); // tint the HUD frame by the player's element
+  document.documentElement.style.setProperty('--foeelem', `var(--${cf.colors[0]})`); // tint the foe wall by the opponent's element
   { const gl=$('hudGlyphL'), gr=$('hudGlyphR'); if(gl)gl.textContent=ELEMENTS[cy.colors[0]].glyph; if(gr)gr.textContent=ELEMENTS[cy.colors[cy.colors.length>1?1:0]].glyph; }
+  { const gl=$('hudGlyphFL'), gr=$('hudGlyphFR'); if(gl)gl.textContent=ELEMENTS[cf.colors[0]].glyph; if(gr)gr.textContent=ELEMENTS[cf.colors[cf.colors.length>1?1:0]].glyph; }
   const fName=$('foeName'); fName.style.color=`var(--${cf.colors[0]})`;
-  fName.innerHTML=`${ccPips(cf)}${cf.name}`;
+  fName.innerHTML=`<span class="cdot" style="background:var(--${cf.colors[0]})"></span>${cf.name}`;
   const yName=$('youName'); yName.style.color=`var(--${cy.colors[0]})`;
-  yName.innerHTML=`${cy.name}${ccPips(cy)}`;
+  yName.innerHTML=`${cy.name}<span class="cdot" style="background:var(--${cy.colors[0]})"></span>`;
   const cn=$('cmdName'); cn.style.color=`var(--${cy.colors[0]})`;
   cn.innerHTML=`${ccPips(cy)}${cy.name}`;
   $('cmdPass').innerHTML=`♥${cy.hp} · ⚒${cy.wk} workers · ${cy.colors.map(cap).join(' + ')} mana. Your command center holds the base — it cannot move or attack. <b>If it falls, you lose.</b>`;
@@ -1325,9 +1530,10 @@ function startGame(youId,foeId,youDeck,foeDeck){
   Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
   G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;
   G.center=Array(SLOTS).fill(null);
-  // command centers are the off-board "keep" on each player's castle wall (not a back-row card);
-  // they still anchor the back row's workers + colors and are the win/loss structure.
+  // command centers now stand ON the board at back-center (column 3); ccUnit is the same object,
+  // so it still anchors the back row's workers + colors and remains the win/loss structure.
   G.P.you.ccUnit=mkCC(cy,'you'); G.P.foe.ccUnit=mkCC(cf,'foe');
+  G.P.you.back[BASE_COL]=G.P.you.ccUnit; G.P.foe.back[BASE_COL]=G.P.foe.ccUnit;
   syncWorkers('you'); syncWorkers('foe');
   G.P.you.deck=youDeck||deckOf(cy.colors); G.P.foe.deck=foeDeck||deckOf(cf.colors);
   dealOpening('you'); dealOpening('foe');
@@ -1511,14 +1717,16 @@ window.soloStart=(foeId)=>{
 function dealOpening(o){ // your command center is pre-placed, so the opening hand is simply 4 cards
   G.P[o].hand=[]; for(let i=0;i<4;i++)drawCard(o);
 }
-function drawCard(o){if(G.P[o].deck.length){const t=G.P[o].deck.pop();G.P[o].hand.push({kind:'handcard',id:uid++,type:t.type,color:t.type==='spell'?null:(t.color||G.P[o].color),nm:t.nm,a:t.a,h:t.h,c:t.c,fs:t.fs,up:t.up,sup:t.sup,eff:t.eff,val:t.val,ic:t.ic,art:t.art,trap:t.trap,effect:t.effect,target:t.target,trigger:t.trigger});}}
+function drawCard(o){if(G.P[o].deck.length){const t=G.P[o].deck.pop();G.P[o].hand.push({kind:'handcard',id:uid++,type:t.type,color:t.type==='spell'?null:(t.color||G.P[o].color),nm:t.nm,a:t.a,h:t.h,c:t.c,fs:t.fs,up:t.up,sup:t.sup,eff:t.eff,val:t.val,ic:t.ic,art:t.art,trap:t.trap,effect:t.effect,target:t.target,trigger:t.trigger,
+  kw:t.kw,det:t.det,ward:t.ward,wardhp:t.wardhp,reap:t.reap,grow:t.grow,hatch:t.hatch,into:t.into,entrench:t.entrench});}}
 function log(html,cls=''){const p=document.createElement('p');if(cls)p.className=cls;p.innerHTML=html;$('log').prepend(p);}
 window.toggleLog=function(on){ $('logPanel').style.display=on?'flex':'none'; };
 window.toggleRules=function(on){ $('rulesPanel').style.display=on?'flex':'none'; };
 
 /* ---------- render ---------- */
-function manaStr(o){const P=G.P[o];let out=`<span class="mana">◆</span><b>${P.mana}</b>`;
-  CCS[P.cc].colors.forEach(c=>{out+=` <span class="mana" style="color:var(--${c})">◆</span><b style="color:var(--${c})">${P.cmana[c]}</b>`;});
+function manaStr(o){const P=G.P[o];let out='';
+  CCS[P.cc].colors.forEach(c=>{out+=`${elemBadge(c,14)}<b class="mc" style="color:var(--${c})">${P.cmana[c]}</b>`;});
+  if(P.mana>0) out+=`<span class="genorb" title="generic mana — spends as any element"></span><b class="mc">${P.mana}</b>`;
   return out;}
 function render(){
   ['you','foe'].forEach(o=>{const cc=findCC(o); G.P[o].life=cc?Math.max(0,cc.h):0;});
@@ -1526,18 +1734,33 @@ function render(){
   $('foeManaStr').innerHTML=manaStr('foe'); $('youManaStr').innerHTML=manaStr('you');
   $('foeStruct').textContent=structuresOf('foe').length; $('youStruct').textContent=structuresOf('you').length;
   $('foeCap').textContent=totalWorkers('foe'); $('youCap').textContent=totalWorkers('you');
-  $('foeDeckN').textContent=G.P.foe.deck.length; $('youDeckN').textContent=G.P.you.deck.length;
-  $('foeGraveN').textContent=G.P.foe.grave.length; $('youGraveN').textContent=G.P.you.grave.length;
+  {const a=$('foeDeckN');if(a)a.textContent=G.P.foe.deck.length;} {const b=$('youDeckN');if(b)b.textContent=G.P.you.deck.length;}
+  {const a=$('foeGraveN');if(a)a.textContent=G.P.foe.grave.length;} {const b=$('youGraveN');if(b)b.textContent=G.P.you.grave.length;}
   $('turnLabel').textContent=G.turn==='you'?'Your Turn':'Opponent…';
   $('endBtn').disabled=G.turn!=='you'||G.busy||G.over||G.deficit;
-  { const bb=$('buildBtn'); if(bb)bb.disabled=G.turn!=='you'||G.busy||G.over||G.deficit; }
   const cb=$('conscriptBtn'); if(cb)cb.style.display='none';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   renderRow('foeBack','foe','back'); renderRow('foeFront','foe','front');
   renderCenter();
   renderRow('youFront','you','front'); renderRow('youBack','you','back'); renderHand(); renderFoeHand();
   renderCmdZone('foe'); renderCmdZone('you');
+  renderWalls();
   placeCardMenu();
+}
+// deck + graveyard now live in the castle walls: count always shown, a fuller visual when the wall is raised
+function renderWalls(){
+  const fill=(id,owner,kind)=>{
+    const el=$(id); if(!el)return;
+    const arr=kind==='deck'?G.P[owner].deck:G.P[owner].grave; const n=arr.length;
+    let full='<div class="wzfull"></div>';
+    if(kind==='grave'){ const top=n?arr[n-1]:null; full=`<div class="wzfull">${top?cardArtImg(top):''}</div>`; }
+    el.innerHTML=`<span class="wzl">${kind==='deck'?'Deck':'RIP'}</span><b class="wzc">${n}</b>${full}`;
+    el.title=`${owner==='you'?'Your':"Opponent's"} ${kind==='deck'?'deck':'graveyard'} — ${n} card${n===1?'':'s'}`;
+  };
+  fill('youWallDeck','you','deck'); fill('youWallGrave','you','grave');
+  fill('foeWallDeck','foe','deck'); fill('foeWallGrave','foe','grave');
+  const dl=$('youDeckLine'); if(dl) dl.innerHTML=`Deck: <b>${G.P.you.deck.length}</b> &nbsp; GY: <b>${G.P.you.grave.length}</b>`;
+  const fl=$('foeDeckLine'); if(fl) fl.innerHTML=`Deck: <b>${G.P.foe.deck.length}</b> &nbsp; GY: <b>${G.P.foe.grave.length}</b>`;
 }
 function renderMinions(){
   const wells=[['wellFoeBack','foeBack'],['wellFoeFront','foeFront'],['wellCenter','center'],['wellYouFront','youFront'],['wellYouBack','youBack']];
@@ -1613,7 +1836,7 @@ function cardHTML(o,me){
   }
   if(o.kind==='building'){
     const bart=o.art?`<div class="artwin">${cardArtImg(o)}</div>`:`<div class="bic">${o.ic||'⌂'}</div>`;
-    const eff=o.eff==='mana'?('◆+'+o.val):o.eff==='villager'?'⚒train':o.eff==='damage'?('⚔'+o.val):o.eff==='vault'?('◈'+o.val):o.eff==='wall'?'▣':'⌂';
+    const eff=o.eff==='mana'?('◆+'+o.val):o.eff==='villager'?'⚒train':o.eff==='damage'?('⚔'+o.val):o.eff==='vault'?('◈'+o.val):o.eff==='wall'?'▣':o.eff==='revive'?'☩':'⌂';
     return `<div class="card bld">${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}${o.sup?`<div class="supb">⚒+${o.sup}</div>`:''}<div class="nm">${o.nm}</div>${bart}
       <div class="stats"><span class="eff">${eff}</span><span class="hp">♥${o.h}</span></div></div>`;
   }
@@ -1655,6 +1878,27 @@ function wkSlotEl(owner,which,aiming){
 }
 // pin the deck/graveyard zones to the floor's corner cells so they ride the tilted
 // plane (your deck off the bottom-right corner, opponent's off the top-left corner)
+// pin the deck directly beside the outer back-line card slot, on the perspective plane
+// (the outer worker well on that side of the back row is empty, so the deck tucks in next to the cards)
+function positionDeck(deck,row,owner){
+  const cells=[...row.querySelectorAll('.cell:not(.deckslot)')];
+  if(!cells.length)return;
+  const c=owner==='you'?cells[cells.length-1]:cells[0];   // outer card slot of the back line
+  const w=c.offsetWidth,h=c.offsetHeight;
+  const gap=(parseFloat(getComputedStyle(row).columnGap)||6)+2;
+  deck.style.width=w+'px'; deck.style.height=h+'px'; deck.style.top=c.offsetTop+'px';
+  deck.style.left=(owner==='you'? (c.offsetLeft+w+gap) : (c.offsetLeft-gap-w))+'px';
+}
+// the graveyard tombstone stacks just ABOVE the deck (toward each player's front line), riding the same plane
+function positionGrave(grave,deck,owner){
+  const w=parseFloat(deck.style.width)||deck.offsetWidth;
+  const dh=parseFloat(deck.style.height)||deck.offsetHeight;
+  const dtop=parseFloat(deck.style.top)||deck.offsetTop;
+  const dleft=parseFloat(deck.style.left)||deck.offsetLeft;
+  const gh=Math.round(dh*0.72), gap=8;
+  grave.style.width=w+'px'; grave.style.height=gh+'px'; grave.style.left=dleft+'px';
+  grave.style.top=(owner==='you'? (dtop-gh-gap) : (dtop+dh+gap))+'px';
+}
 function renderRow(elId,owner,which){
   const el=$(elId);el.innerHTML='';const me=owner==='you';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
@@ -1669,6 +1913,7 @@ function renderRow(elId,owner,which){
     el.appendChild(cell);
   }
   el.appendChild(wkSlotEl(me?null:owner,which,aiming)); // foe workers sit on the right
+  // (deck + graveyard now live in the castle walls — see renderWalls — not on the board plane)
 }
 const GUARDIAN_SVG=`<svg viewBox="0 0 48 62" xmlns="http://www.w3.org/2000/svg">
   <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--fc)"/><stop offset="1" stop-color="#160f22"/></linearGradient></defs>
@@ -1682,25 +1927,26 @@ const GUARDIAN_SVG=`<svg viewBox="0 0 48 62" xmlns="http://www.w3.org/2000/svg">
 function renderCmdZone(owner){
   const el=$(owner+'Cmd'); if(!el)return;
   const cc=findCC(owner);
-  if(!cc){ el.innerHTML=''; el.className='cmdzone '+owner; return; }
-  const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'fire':'water')})`;
+  if(!cc){ el.innerHTML=''; el.className='cmdzone '+owner; el.style.pointerEvents='none'; return; }
   const me=owner==='you';
-  const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
-  const targetable=!me&&aiming;
-  el.className='cmdzone '+owner+(targetable?' keepTarget':'');
-  el.innerHTML=`<div class="cmdfig" style="--fc:${fc}" title="${cc.nm}">${GUARDIAN_SVG}</div>`+
-    `<div class="keephp"><span class="heart">♥</span>${Math.max(0,cc.h)}</div>`;
-  const fig=el.querySelector('.cmdfig');
-  addInspect(fig,()=>showInspect(`♜ ${cc.nm}`,`Your <b>keep</b> on the castle wall — the win/loss structure. It anchors the back row's <b>⚒${cc.sup} workers</b> and harvests <b>${cc.colors.map(c=>manaGlyph(c)).join(' ')}</b>. It never moves or attacks and no spell can raze it; it falls only when a strike reaches it through the rows. <b>If it falls, you lose.</b>`));
-  if(me){ el.style.pointerEvents='auto'; fig.style.cursor='pointer'; fig.addEventListener('click',()=>{ if(G.turn==='you'&&!G.busy&&!G.over&&!G.deficit) openBuildMenu(); }); }
-  else if(targetable){ el.style.pointerEvents='auto'; el.style.cursor='pointer'; el.addEventListener('click',()=>{ if(canAttack()) attackBase('foe'); }); }
-  else { el.style.pointerEvents='none'; }
+  el.className='cmdzone '+owner;
+  // the keep now stands ON the board at back-center — strike it there. The corner zone keeps only the
+  // player's vitals (mana orbs, workers, structures) + the Build entry; the foe corner is a HP readout.
+  const canBuild=G.turn==='you'&&!G.busy&&!G.over&&!G.deficit;
+  const vit=me?(`<div class="cmdvit">${manaStr('you')}</div>`
+    +`<div class="cmdvit sub"><span class="bct">⌂</span><b>${structuresOf('you').length}</b><span class="wct">⚒</span><b>${totalWorkers('you')}</b></div>`
+    +`<button class="cmdbuild" ${canBuild?'':'disabled'} onclick="openBuildMenu()" title="Build a structure (commander)">⚒ Build</button>`):'';
+  const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'fire':'water')})`;
+  el.innerHTML=`<div class="keepname" style="color:${fc}" title="${cc.nm}">♜ ${escHtml(cc.nm)}</div>`+
+    `<div class="keephp"><span class="heart">♥</span>${Math.max(0,cc.h)}</div>`+vit;
+  el.style.pointerEvents=me?'auto':'none';
 }
 function renderCenter(){
   const el=$('center'); el.innerHTML='';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   el.appendChild(wkSlotEl('you','center',aiming)); // your contested-center workers on the left
   for(let i=0;i<SLOTS;i++){
+    if(!isLane(i)){ const gap=document.createElement('div'); gap.className='cell centergap'; el.appendChild(gap); continue; }
     const cell=document.createElement('div'); cell.className='cell centercell';
     const o=G.center[i];
     const persp=o?o.owner:'center';
@@ -1773,7 +2019,7 @@ function decorate(cell,owner,which,i,o){
   if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&canDeploy(owner,which)) cell.classList.add('tappable');
   if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0) cell.classList.add('target');
   if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
-  if(G.atk.length){ if(foe&&canAttack()) cell.classList.add('target'); }
+  if(G.atk.length){ if(foe&&canAttack()&&colReach(G.atk[0].i,i)) cell.classList.add('target'); } // ±1 column reach
   cell.addEventListener('click',()=>onCell(owner,which,i,o));
 }
 function setHint(html){$('hint').innerHTML=html;}
@@ -1791,14 +2037,14 @@ function onHand(i){
     `<span class="ico">${ico}</span><span class="lbl">${lbl}</span><span class="sub">${ok?sub:(why||sub)}</span></button>`;
   let html='';
   if(card.type==='building'){
-    const can=card.c<=G.P.you.mana;
+    const can=canPay('you',card);
     html=act('build','🜂','Build','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','free',true);
   } else if(card.type==='spell'){
     if(card.trap){ html=act('settrap','⊡','Set','free',true); }
-    else { const can=card.c<=G.P.you.mana&&spellHasTarget(card); const why=card.c>G.P.you.mana?'not enough mana':'no legal target';
+    else { const okMana=canPay('you',card); const can=okMana&&spellHasTarget(card); const why=!okMana?'not enough mana':'no legal target';
       html=act('cast','✦','Cast','◆'+card.c,can,why); }
   } else {
-    const can=card.c<=G.P.you.mana;
+    const can=canPay('you',card);
     html=act('summon','⬆','Summon','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','free',true);
   }
   G.cardMenu={hand:true,i,html};
@@ -1826,12 +2072,17 @@ function validSpellTarget(card,o){
   if(o.cc)return false; // the command center can only be felled by combat reaching it through the rows
   if(card.effect==='raze') return o.kind==='building';
   if(card.effect==='burn') return o.kind==='creature'||o.kind==='building'||o.kind==='charge';
+  if(card.effect==='chain') return o.kind==='creature'&&!o.worker;
+  if(card.effect==='bounce') return o.kind==='creature'&&!o.worker;
   return false;
 }
 function spellText(card){
   if(card.effect==='burn') return `<b>Bolt.</b> Deal <b>${card.val}</b> damage to an enemy creature, structure, or face-down card.`;
   if(card.effect==='raze') return `<b>Sunder.</b> Destroy a target enemy <b>structure</b>.`;
   if(card.effect==='pitfall') return `<b>Snare.</b> When your opponent <b>summons</b> a creature, destroy it.`;
+  if(card.effect==='chain') return `<b>Arc.</b> Deal <b>${card.val}</b> to the two highest-attack enemy creatures.`;
+  if(card.effect==='bounce') return `<b>Riptide.</b> Return target enemy creature to its owner's hand (Entrench resists).`;
+  if(card.effect==='thornmail') return `<b>Overgrowth.</b> When your line is struck, the defending creature gains <b>+1/+2</b> permanently.`;
   return 'A spell.';
 }
 function spellRec(card){return {type:'spell',nm:card.nm,c:card.c,trap:!!card.trap,effect:card.effect,val:card.val,ic:card.ic};}
@@ -1889,6 +2140,7 @@ function onCell(owner,which,i,o){
 function place(idx,mode,which,slot){
   const card=G.P.you.hand[idx];
   const where=which==='center'?'the contested center':(which==='front'?'front line':'base');
+  if(which==='center'&&!isLane(slot)){ setHint('The contested center has lanes only at its three marked columns.'); render(); return; }
   const arr=cellArr('you',which);
   const occ=arr[slot];
   // play face-up ON TOP of one of your cards that holds banked ◆ (summon/build only)
@@ -1906,6 +2158,7 @@ function place(idx,mode,which,slot){
     if(mode==='summon'){
       const cr=mkCre(card,'you',false); cr.sick=true; cr.bank=carry; arr[slot]=cr;
       log(`<span class="y">You play ${card.nm} over ${oldName} — ◆${fromBank} from its bank${need>0?` + ◆${need} mana`:''}.${carry?` ◆${carry} stored.`:''}</span>`,'y');
+      onCreatureEnter(cr,'you');
       foeTrapOnSummon(cr,which,slot);
     } else {
       const b=mkBld(card,'you'); b.bank=carry; arr[slot]=b;
@@ -1924,6 +2177,7 @@ function place(idx,mode,which,slot){
     payCost('you',card); G.P.you.hand.splice(idx,1);
     const cr=mkCre(card,'you',false); cr.sick=true; arr[slot]=cr;
     log(`<span class="y">You summon ${card.nm} (⚔${card.a}/♥${card.h}) to ${where}.</span>`,'y');
+    onCreatureEnter(cr,'you');
     foeTrapOnSummon(cr,which,slot);
   } else if(mode==='settrap'){
     G.P.you.hand.splice(idx,1);
@@ -1932,7 +2186,8 @@ function place(idx,mode,which,slot){
   } else { // set face-down — creature OR building
     G.P.you.hand.splice(idx,1);
     const ctype=card.type;
-    const cdata=ctype==='building'?{nm:card.nm,c:card.c,h:card.h,eff:card.eff,val:card.val,sup:card.sup,ic:card.ic,art:card.art}:{nm:card.nm,a:card.a,h:card.h,c:card.c,fs:card.fs,up:card.up,art:card.art};
+    const cdata=ctype==='building'?{nm:card.nm,c:card.c,h:card.h,eff:card.eff,val:card.val,sup:card.sup,ic:card.ic,art:card.art}:{nm:card.nm,a:card.a,h:card.h,c:card.c,fs:card.fs,up:card.up,art:card.art,
+      kw:card.kw,det:card.det,ward:card.ward,wardhp:card.wardhp,reap:card.reap,grow:card.grow,hatch:card.hatch,into:card.into,entrench:card.entrench};
     arr[slot]={kind:'charge',owner:'you',w:which,ctype,card:cdata,inv:0,setTurn:G.turnNo};
     log(`<span class="y">You set a face-down ${ctype==='building'?'structure':'card'} in ${where}.</span>`,'y');
   }
@@ -1948,6 +2203,17 @@ function resolveSpell(card,towner,w,i){
   } else if(card.effect==='raze'){
     if(o.kind!=='building')return false;
     log(`<span class="${towner==='you'?'e':'y'}">${card.nm} brings down ${ownerWord} ${o.nm}!</span>`,towner==='you'?'e':'y'); toGrave(towner,o); arr[i]=null;
+  } else if(card.effect==='chain'){
+    if(o.kind!=='creature'||o.worker)return false;
+    const caster=enemyOf(towner);
+    const cres=liveEnemyCreatures(caster).sort((a,b)=>(b.a-a.a)||(a.h-b.h)).slice(0,2);
+    if(!cres.length)return false;
+    cres.forEach(t=>{ t.h-=card.val; });
+    log(`<span class="${towner==='you'?'e':'y'}">${card.nm} arcs through ${cres.map(c=>c.nm).join(' &amp; ')} for ${card.val}.</span>`,towner==='you'?'e':'y');
+  } else if(card.effect==='bounce'){
+    if(o.kind!=='creature'||o.worker)return false;
+    if(o.entrench){ log(`<span class="${towner==='you'?'e':'y'}">${o.nm} is entrenched — ${card.nm} slides off.</span>`,towner==='you'?'e':'y'); }
+    else { const ow=removeUnitFromBoard(o); if(ow){ G.P[ow].hand.push(handcardFromCreature(o)); log(`<span class="${towner==='you'?'e':'y'}">${card.nm} drags ${o.nm} back to ${ow==='you'?'your':'their'} hand.</span>`,towner==='you'?'e':'y'); } }
   } else return false;
   cleanup(); return true;
 }
@@ -2049,7 +2315,7 @@ function flip(owner,which,slot){
   const cr=mkCre(ch.card,owner,false); cr.bank=bank; cr.sick=sick;
   arr[slot]=cr;
   log(`<span class="${owner==='you'?'y':'e'}">${owner==='you'?'Your':'Their'} ${cr.nm} surges into being! (⚔${cr.a}/♥${cr.h})${cr.fs?' First Strike.':''}${bank?` ◆${bank} banked.`:''}${sick?' Must rest this turn.':' Battle-ready!'}</span>`,owner==='you'?'y':'e');
-  
+  onCreatureEnter(cr,owner);
   syncWorkers(owner);
   return cr;
 }
@@ -2065,19 +2331,21 @@ function sumA(a){return a.reduce((s,c)=>s+(c.a||0),0);}
 function whichOf(key){ return key==='center'?'center':(key.slice(-5)==='Front'?'front':'back'); }
 function rowsStrictlyBetween(aIdx,tIdx){ const lo=Math.min(aIdx,tIdx),hi=Math.max(aIdx,tIdx),o=[]; for(let r=lo+1;r<hi;r++) if(r>=0&&r<ROWS.length) o.push(ROWS[r]); return o; }
 // untapped creatures in `key` NOT owned by the attacker (enemy or contesting-center units) — eligible to interpose
-function untappedInterceptors(key,attackerOwner){ const out=[];
-  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.tapped&&c.owner!==attackerOwner) out.push({key,i,c}); });
+function untappedInterceptors(key,attackerOwner,aCol){ const out=[];
+  // a slotted defender may interpose only if its column is within ±1 of the attacker's column
+  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.tapped&&c.owner!==attackerOwner&&(aCol==null||colReach(i,aCol))) out.push({key,i,c}); });
+  // worker stacks have no column — they screen their whole row
   minionsInRow(key).forEach(g=>{ if(g.owner!==attackerOwner&&!g.c.tapped&&!g.c.sick) out.push({key,c:g.c}); });
   return out;
 }
-function eligibleInterceptors(attackerOwner,aIdx,tIdx){ let out=[]; rowsStrictlyBetween(aIdx,tIdx).forEach(key=>{ out=out.concat(untappedInterceptors(key,attackerOwner)); }); return out; }
+function eligibleInterceptors(attackerOwner,aIdx,tIdx,aCol){ let out=[]; rowsStrictlyBetween(aIdx,tIdx).forEach(key=>{ out=out.concat(untappedInterceptors(key,attackerOwner,aCol)); }); return out; }
 
 // Assign each dealer to ONE target (no spillover). Greedy lethal-first: secure as many kills as possible,
 // then dump any leftover hitters onto the toughest target as chip damage. Returns Map<target, damage>.
 function focusFire(dealers, targets){
   const dmg=new Map(); targets.forEach(t=>dmg.set(t,0));
   if(!targets.length) return dmg;
-  const avail=[...dealers].filter(d=>(d.a||0)>0).sort((a,b)=>b.a-a.a);
+  const avail=[...dealers].filter(d=>effA(d)>0).sort((a,b)=>effA(b)-effA(a));
   const used=new Set();
   const order=[...targets].sort((a,b)=>a.h-b.h); // kill the cheapest-to-kill first → most kills
   for(const t of order){
@@ -2085,20 +2353,21 @@ function focusFire(dealers, targets){
     if(need<=0)continue;
     // commit the SMALLEST set of unused hitters that still finishes this target, so big hitters stay
     // free for tougher targets (maximizes total kills); if nothing reaches lethal, commit none here.
-    const free=avail.filter(d=>!used.has(d)).sort((a,b)=>a.a-b.a); // ascending: spend just enough
+    const free=avail.filter(d=>!used.has(d)).sort((a,b)=>effA(a)-effA(b)); // ascending: spend just enough
     const tryUse=[]; let n=need;
-    for(const d of free){ if(n<=0)break; tryUse.push(d); n-=d.a; }
-    if(n<=0){ tryUse.forEach(d=>{ used.add(d); dmg.set(t,dmg.get(t)+d.a); }); }
+    for(const d of free){ if(n<=0)break; tryUse.push(d); n-=effA(d); }
+    if(n<=0){ tryUse.forEach(d=>{ used.add(d); dmg.set(t,dmg.get(t)+effA(d)); }); }
   }
   // leftover hitters chip the toughest target
   const leftover=avail.filter(d=>!used.has(d));
-  if(leftover.length){ const t=[...targets].sort((a,b)=>b.h-a.h)[0]; leftover.forEach(d=>dmg.set(t,dmg.get(t)+d.a)); }
+  if(leftover.length){ const t=[...targets].sort((a,b)=>b.h-a.h)[0]; leftover.forEach(d=>dmg.set(t,dmg.get(t)+effA(d))); }
   return dmg;
 }
 function applyDmg(map){ map.forEach((d,t)=>{ t.h-=d; }); }
 
 // Full simultaneous clash between two groups of CREATURES, honouring First Strike and one-target-per-unit.
 function resolveCombat(groupA, groupB){
+  applyUndertow(groupA, groupB); // Water defenders shove the strongest attacker back to hand (before any blows land)
   const live=arr=>arr.filter(c=>c&&c.h>0);
   // First Strike pre-step: FS units on both sides strike at once; anything killed here never strikes back.
   const aFS=groupA.filter(c=>c.fs), bFS=groupB.filter(c=>c.fs);
@@ -2155,7 +2424,17 @@ function springTrap(defOwner, key, slot, attackers){
   log(`<span class="${ey}">${card.nm} springs on the attacker${attackers.length>1?'s':''}!</span>`,ey);
   if(card.effect==='pitfall'){ const v=[...attackers].sort((a,b)=>b.a-a.a)[0]; if(v){ log(`&nbsp;&nbsp;${v.nm} is dragged down — destroyed.`); v.h=0; } }
   else if(card.effect==='burn'){ attackers.forEach(a=>a.h-=card.val); log(`&nbsp;&nbsp;${card.val} damage to ${attackers.length} attacker(s).`); }
+  // thornmail has no creature defender when the trap card itself is struck — it simply fizzles
   G.P[defOwner].grave.push(spellRec(card)); arr[slot]=null; cleanup();
+}
+// A trigger:'attack' trap on defOwner's side springs the moment their line is struck (auto-resolves; it only helps the defender).
+function springAttackTrap(defOwner,attackers,defender){
+  const t=findArmedTrap(defOwner,'attack'); if(!t)return;
+  const card=t.o.card; const ey=defOwner==='you'?'y':'e';
+  log(`<span class="${ey}">${card.nm} springs as ${defOwner==='you'?'your':'their'} line is struck!</span>`,ey);
+  if(card.effect==='thornmail'){ if(defender&&defender.kind==='creature'&&!defender.cc){ defender.a+=1; defender.maxh+=2; defender.h+=2; log(`&nbsp;&nbsp;${defender.nm} hardens to ⚔${defender.a}/♥${defender.h}.`); } }
+  else if(card.effect==='burn'){ attackers.forEach(a=>{ if(a)a.h-=(card.val||0); }); log(`&nbsp;&nbsp;${card.val} damage to ${attackers.length} attacker(s).`); }
+  G.P[defOwner].grave.push(spellRec(card)); cellArr(defOwner,t.w)[t.i]=null;
 }
 
 function doExtract(type){
@@ -2241,10 +2520,10 @@ function attackMinionStack(key,owner,which){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
   const list=minPool(owner,which); if(!list.length){clearAtk();render();return;}
-  const aIdx=rowIdx(attackerRowKey()), tIdx=rowIdx(key);
+  const aIdx=rowIdx(attackerRowKey()), tIdx=rowIdx(key); const aCol=G.atk.length?G.atk[0].i:0;
   attackers.forEach(a=>a.tapped=true);
   if(Math.abs(aIdx-tIdx)>1){
-    const elig=eligibleInterceptors('you',aIdx,tIdx);
+    const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
     const chosen=aiChooseInterceptors(attackers,{kind:'creature',elig});
     if(chosen.length){
       chosen.forEach(r=>r.c.tapped=true);
@@ -2259,8 +2538,25 @@ function attackMinionStack(key,owner,which){
 
 /* ---------- movement (once/turn; across your base ↔ front ↔ contested center) ---------- */
 const MOVEZONES=['back','front','center']; // your side, far → near → contested
-function adjacent(w1,i1,w2,i2){ if(w1===w2)return Math.abs(i1-i2)===1; const a=MOVEZONES.indexOf(w1),b=MOVEZONES.indexOf(w2); if(a<0||b<0)return false; return i1===i2&&Math.abs(a-b)===1; }
-function adjCells(w,i){ const out=[]; if(i>0)out.push([w,i-1]); if(i<SLOTS-1)out.push([w,i+1]); const k=MOVEZONES.indexOf(w); if(k>0)out.push([MOVEZONES[k-1],i]); if(k>=0&&k<MOVEZONES.length-1)out.push([MOVEZONES[k+1],i]); return out; }
+// a real, standable slot exists everywhere on the side rows; the center only has slots at its lanes
+function slotExists(w,i){ return i>=0&&i<SLOTS&&(w!=='center'||isLane(i)); }
+// legal one-step destinations: full-width lateral within the row, or the same column in an adjacent zone
+function adjCells(w,i){ const out=[];
+  for(let j=0;j<SLOTS;j++){ if(j!==i&&slotExists(w,j)) out.push([w,j]); }      // lateral: any other column in the row
+  const k=MOVEZONES.indexOf(w);
+  if(k>0&&slotExists(MOVEZONES[k-1],i)) out.push([MOVEZONES[k-1],i]);          // step backward (same column)
+  if(k>=0&&k<MOVEZONES.length-1&&slotExists(MOVEZONES[k+1],i)) out.push([MOVEZONES[k+1],i]); // step forward (same column)
+  return out;
+}
+function adjacent(w1,i1,w2,i2){ return adjCells(w1,i1).some(([w,i])=>w===w2&&i===i2); }
+// first free, deployable slot in a row (skips the keep's back-center column and center non-lanes)
+function freeDeploySlot(owner,which){ const a=cellArr(owner,which); if(!a)return -1;
+  return a.findIndex((x,i)=>!x&&!(which==='back'&&i===BASE_COL)&&!(which==='center'&&!isLane(i))); }
+// AI deploy preference: contest the center lanes, push the front toward the base columns (3/4/5)
+function aiPickDeploySlot(owner,which){ const a=cellArr(owner,which); if(!a)return -1;
+  const order=which==='center'?[3,1,5]:which==='front'?[3,4,2,5,1,6,0]:[2,4,3,1,5,0,6];
+  for(const i of order){ if(i<SLOTS&&!a[i]&&!(which==='back'&&i===BASE_COL)&&slotExists(which,i)) return i; }
+  return freeDeploySlot(owner,which); }
 function canMoveCard(w,i){ const c=cellArr('you',w)[i]; if(!c||c.kind!=='creature'||c.moved)return false; return adjCells(w,i).some(([aw,ai])=>!cellArr('you',aw)[ai]); }
 function moveBtn(w,i){ return canMoveCard(w,i)?` <button onclick="startMove('${w}',${i})">⤧ Move</button>`:''; }
 window.startMove=(w,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(w,i))return; G.moveFrom={w,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null; setHint('Tap an open adjacent space — base, front line, or the contested center — to reposition (or tap the unit again to cancel).'); render(); };
@@ -2277,23 +2573,30 @@ function attackerRowKey(){ return G.atk.length?mineKey(G.atk[0].w):'youFront'; }
 function doAttack(which,ti){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
+  const aCol=G.atk.length?G.atk[0].i:ti;                 // the attacker's column governs reach
   const tgtKey=rowKeyFor('foe',which); const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
   const tgt=unitAt(tgtKey,ti); if(!tgt){clearAtk();render();return;}
+  if(!colReach(aCol,ti)){ setHint('Out of column — a unit reaches only its own column and the two beside it.'); render(); return; }
   attackers.forEach(a=>a.tapped=true);
-  // Not adjacent → the strike travels; the enemy may interpose units in any intervening row.
-  if(Math.abs(aIdx-tIdx)>1){
-    const elig=eligibleInterceptors('you',aIdx,tIdx);
+  const scour=groupIsScour(attackers);                   // Wind fliers ignore interceptors
+  dischargeOvercharge(attackers);                         // Electric attackers spend their banked ◆
+  // Not adjacent → the strike travels; the enemy may interpose units in any intervening row within ±1 column.
+  if(!scour && Math.abs(aIdx-tIdx)>1){
+    const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
     const chosen=aiChooseInterceptors(attackers,{kind:tgt.kind,cc:!!tgt.cc,elig});
     if(chosen.length){
       chosen.forEach(r=>r.c.tapped=true);
       log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike is met midway, the target spared.</span>`,'e');
-      resolveCombat(attackers,chosen.map(r=>r.c)); clearAtk(); render(); checkWin(); return;
+      resolveCombat(attackers,chosen.map(r=>r.c)); clearDischarge(attackers); clearAtk(); render(); checkWin(); return;
     }
   }
+  if(tgt.kind==='creature'||tgt.kind==='building') springAttackTrap('foe',attackers,tgt); // foe's attack-trigger trap
   if(tgt.kind==='charge'){ provokeFaceDown('foe',tgtKey,ti,attackers); }
   else if(tgt.kind==='trap'){ springTrap('foe',tgtKey,ti,attackers); }
   else if(tgt.kind==='building'){ log(`<span class="y">You strike the enemy ${tgt.nm}.</span>`,'y'); applyDmg(focusFire(attackers,[tgt])); cleanup(); }
   else { log(`<span class="y">You attack ${tgt.nm} with ${attackers.length} creature(s).</span>`,'y'); resolveCombat(attackers,[tgt]); }
+  if(scour && attackers[0]){ scourStrike(attackers[0],'foe'); cleanup(); }
+  clearDischarge(attackers);
   clearAtk(); render(); checkWin();
 }
 // strike the enemy's keep (their off-board command center on the castle wall). Treated as sitting
@@ -2302,10 +2605,12 @@ function attackBase(defOwner){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
   const cc=G.P[defOwner].ccUnit; if(!cc||cc.h<=0){clearAtk();render();return;}
+  const aCol=G.atk.length?G.atk[0].i:BASE_COL;
+  if(!colReach(aCol,BASE_COL)){ setHint('Out of column — only a unit in columns 2–4 can reach the keep.'); render(); return; }
   const tgtKey=defOwner==='foe'?'foeBack':'youBack'; const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
   attackers.forEach(a=>a.tapped=true);
   if(Math.abs(aIdx-tIdx)>1){
-    const elig=eligibleInterceptors('you',aIdx,tIdx);
+    const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
     const chosen=aiChooseInterceptors(attackers,{kind:'building',cc:true,elig});
     if(chosen.length){
       chosen.forEach(r=>r.c.tapped=true);
@@ -2367,22 +2672,49 @@ function applyRes(base,owner,creature,type){
 
 /* commander crest, passives, and once-per-game powers removed — the deck does the talking (v19) */
 
+// Settling loop: remove the dead, fire each creature's death keyword (its cell already freed), then
+// re-sweep so chained kills (Detonate, etc.) resolve in one pass. The command center is never swept —
+// checkWin ends the duel instead of graving the keep.
 function cleanup(){
-  ['you','foe'].forEach(o=>{['front','back'].forEach(w=>{const b=G.P[o][w];
-    for(let i=0;i<SLOTS;i++){const c=b[i];if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0){log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} ${c.kind==='building'?'is razed':'falls'}.`);toGrave(o,c);b[i]=null;}}});});
-  for(let i=0;i<SLOTS;i++){const c=G.center[i];if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0){const o=c.owner;log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} falls in the center.`);toGrave(o,c);G.center[i]=null;}}
-  ['you','foe'].forEach(o=>['back','front','center'].forEach(w=>{const pool=G.P[o].min[w];for(let i=pool.length-1;i>=0;i--){if(pool[i].h<=0){toGrave(o,pool[i]);pool.splice(i,1);}}}));
+  let any=true, guard=0;
+  while(any && guard++<40){
+    any=false;
+    ['you','foe'].forEach(o=>{['front','back'].forEach(w=>{const b=G.P[o][w];
+      for(let i=0;i<SLOTS;i++){const c=b[i];
+        if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0&&!c.cc){
+          log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} ${c.kind==='building'?'is razed':'falls'}.`);
+          b[i]=null; if(c.kind==='creature'&&!c.worker) onCreatureDeath(c,o); toGrave(o,c); any=true; }}});});
+    for(let i=0;i<SLOTS;i++){const c=G.center[i];
+      if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0&&!c.cc){const o=c.owner;
+        log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} falls in the center.`);
+        G.center[i]=null; if(c.kind==='creature'&&!c.worker) onCreatureDeath(c,o); toGrave(o,c); any=true; }}
+    ['you','foe'].forEach(o=>['back','front','center'].forEach(w=>{const pool=G.P[o].min[w];
+      for(let i=pool.length-1;i>=0;i--){if(pool[i].h<=0){toGrave(o,pool[i]);pool.splice(i,1);any=true;}}}));
+  }
 }
 
 /* ---------- turns ---------- */
 function buildingUpkeep(owner){
-  const P=G.P[owner];
+  const P=G.P[owner]; let revived=false;
   const tick=o=>{ if(o&&o.kind==='building'){
     if(o.eff==='mana'){P.mana=Math.min(20,P.mana+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ◆${o.val}.</span>`,owner==='you'?'y':'e');}
     else if(o.eff==='damage'){buildingDamage(owner,o.val||0,o.nm);}
+    else if(o.eff==='revive'){ if(!revived) revived=reviveFromGrave(owner); } // once per turn, regardless of count
   }};
   ['front','back'].forEach(w=>P[w].forEach(tick));
   G.center.forEach(o=>{ if(o&&o.owner===owner) tick(o); });
+}
+// Reliquary: return the most recently fallen non-token creature from the grave to its owner's hand
+function reviveFromGrave(owner){
+  const g=G.P[owner].grave;
+  for(let k=g.length-1;k>=0;k--){ const r=g[k];
+    if(r&&r.type==='creature'&&!r.token){ g.splice(k,1);
+      G.P[owner].hand.push({kind:'handcard',id:uid++,type:'creature',color:r.color||G.P[owner].color,nm:r.nm,a:r.a,h:r.h,c:r.c,fs:r.fs,up:r.up,art:r.art,
+        kw:r.kw,det:r.det,ward:r.ward,wardhp:r.wardhp,reap:r.reap,grow:r.grow,hatch:r.hatch,into:r.into,entrench:r.entrench});
+      log(`<span class="${owner==='you'?'y':'e'}">The Reliquary returns ${r.nm} to ${owner==='you'?'your':'their'} hand.</span>`,owner==='you'?'y':'e');
+      return true; }
+  }
+  return false;
 }
 // a damage structure (tower) strikes the nearest enemy creature at the start of its owner's turn
 function buildingDamage(owner,val,nm){
@@ -2398,8 +2730,10 @@ function drainMana(owner){ const P=G.P[owner]; const keep=Math.min(vaultCap(owne
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
   P.mana=Math.min(20,P.mana+1); P.firstExtract=true;
-  ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}}));
-  G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;}});
+  ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o._dis=0;}}));
+  G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o._dis=0;}});
+  chrysalisUpkeep(owner);   // cocoons swell (and re-sick so they can't attack) or hatch into their grown form
+  overchargeUpkeep(owner);  // Electric creatures bank ◆ for their next discharge
   buildingUpkeep(owner);
   cleanup(); // sweep anything a damage-tower just killed
   drawCard(owner);
@@ -2434,12 +2768,12 @@ window.pickDeficit=function(which,i){
   render();
 };
 window.promptDeficit2=()=>{ G.sel=null; promptDeficit(); render(); };
-function rowHasSpace(owner,which){ const arr=which==='center'?G.center:G.P[owner][which]; return arr.some((x,i)=>!x); }
+function rowHasSpace(owner,which){ return freeDeploySlot(owner,which)>=0; }
 window.deficitMove=function(which,i,to){
   const o=cellArr('you',which)[i]; if(!o)return;
   const arr=which==='center'?G.center:G.P.you[which];
   const dst=to==='center'?G.center:G.P.you[to];
-  let slot=dst.findIndex(x=>!x); if(slot<0)return;
+  let slot=freeDeploySlot('you',to); if(slot<0)return;
   arr[i]=null; o.moved=true; if(to==='center')o.owner='you'; dst[slot]=o;
   log(`<span class="y">${o.nm} repositions to ${rowName(to)}.</span>`,'y');
   G.sel=null; syncWorkers('you'); afterDeficitAction();
@@ -2460,7 +2794,7 @@ function aiMoveCreature(owner,which,i,to){
   const arr=which==='center'?G.center:G.P[owner][which];
   const dst=to==='center'?G.center:G.P[owner][to];
   const o=arr[i]; if(!o)return false;
-  const slot=dst.findIndex(x=>!x); if(slot<0)return false;
+  const slot=freeDeploySlot(owner,to); if(slot<0)return false;
   arr[i]=null; o.moved=true; o.owner=owner; dst[slot]=o; return true;
 }
 function aiFixDeficit(owner){
@@ -2513,17 +2847,19 @@ function yourFieldTargets(){ const out=[];
   G.center.forEach((o,i)=>{ if(o&&o.owner==='you') out.push({key:'center',i,o}); });
   return out;
 }
-function aiPickTarget(m){
-  const fld=yourFieldTargets();
+function aiPickTarget(m,aCol){
+  // column-aware: an attacker at column aCol can only reach targets within ±1 column (the keep excluded here)
+  const fld=yourFieldTargets().filter(t=>!t.o.cc&&colReach(aCol,t.i));
   const ch=fld.filter(t=>t.o.kind==='charge'&&t.o.inv>=2).sort((a,b)=>b.o.inv-a.o.inv)[0];
   if(ch&&Math.random()<0.6) return ch;
-  const kill=fld.filter(t=>t.o.kind==='creature'&&m.a>=t.o.h).sort((a,b)=>a.o.h-b.o.h)[0];
+  const kill=fld.filter(t=>t.o.kind==='creature'&&!t.o.worker&&m.a>=t.o.h).sort((a,b)=>a.o.h-b.o.h)[0];
   if(kill) return kill;
   const bld=fld.filter(t=>t.o.kind==='building').sort((a,b)=>a.o.h-b.o.h)[0];
   if(bld&&Math.random()<0.3) return bld;
-  // otherwise march on the keep (off-board base behind the back row)
-  const cc=G.P.you.ccUnit;
-  return (cc&&cc.h>0)?{key:'youBack',i:-1,base:true,o:cc}:null;
+  // otherwise march on the keep — now a board unit at youBack[BASE_COL], reachable only from columns 2–4
+  const cc=G.P.you.back[BASE_COL];
+  if(cc&&cc.cc&&cc.h>0&&colReach(aCol,BASE_COL)) return {key:'youBack',i:BASE_COL,o:cc};
+  return kill||bld||ch||fld[0]||null;
 }
 async function foeTurn(){
   const F=G.P.foe,Y=G.P.you;
@@ -2576,24 +2912,26 @@ async function foeTurn(){
   let cands=F.hand.map((c,i)=>({c,i})).filter(x=>x.c.type==='creature'&&canPay('foe',x.c)).sort((a,b)=>b.c.c-a.c.c);
   for(const {c} of cands){ if(guard++>6)break;
     const idx=F.hand.indexOf(c); if(idx<0||!canPay('foe',c))continue;
-    let key='foeFront', empty=F.front.findIndex(x=>!x);
-    const cEmpty=G.center.findIndex(x=>!x);
-    if(cEmpty>=0&&(empty<0||Math.random()<0.35)){ key='center'; empty=cEmpty; }
+    let key='foeFront', empty=aiPickDeploySlot('foe','front');
+    const cEmpty=aiPickDeploySlot('foe','center');
+    if(cEmpty>=0&&(empty<0||Math.random()<0.4)){ key='center'; empty=cEmpty; }
     if(empty<0)continue;
     payCost('foe',c);F.hand.splice(idx,1);const cr=mkCre(c,'foe',false);cr.sick=true;rowArr(key)[empty]=cr;
-    log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h})${key==='center'?' into the contested center':''}.</span>`,'e'); syncWorkers('foe'); render();
+    log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h})${key==='center'?' into the contested center':''}.</span>`,'e'); onCreatureEnter(cr,'foe'); syncWorkers('foe'); render();
     await playerTrapOnSummon(cr,whichOf(key),empty); if(G.over)return; }
   render();
   // attack — strikes travel across rows; you may interpose units in any row they cross
   for(const atk of aiAttackers()){
     const m=unitAt(atk.key,atk.i); if(!m||m.tapped)continue;
-    const aIdx=rowIdx(atk.key);
-    const tref=aiPickTarget(m); if(!tref)continue;
+    const aIdx=rowIdx(atk.key); const aCol=atk.i;
+    const tref=aiPickTarget(m,aCol); if(!tref)continue;
     const tIdx=rowIdx(tref.key);
     m.tapped=true;
+    const scour=kwOf(m)==='scour';
+    dischargeOvercharge([m]);
     let blk=[];
-    if(Math.abs(aIdx-tIdx)>1){
-      const elig=eligibleInterceptors('foe',aIdx,tIdx);
+    if(!scour && Math.abs(aIdx-tIdx)>1){
+      const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);
       if(elig.length){
         const tgtName='your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
         blk=await askBlock({attacker:m,elig,title:'Incoming Attack',desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${tgtName}.`});
@@ -2601,11 +2939,14 @@ async function foeTurn(){
     }
     if(blk.length){ const defs=blk.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean); defs.forEach(d=>d.tapped=true); log(`<span class="y">You interpose ${defs.length}!</span>`,'y'); resolveCombat([m],defs); }
     else { const o=tref.o;
+      if(o.kind==='creature'||o.kind==='building') springAttackTrap('you',[m],o); // your attack-trigger trap
       if(o.kind==='charge'){ provokeFaceDown('you',tref.key,tref.i,[m]); }
       else if(o.kind==='trap'){ springTrap('you',tref.key,tref.i,[m]); }
       else if(o.kind==='building'){ log(`<span class="e">${m.nm} raids your ${o.nm}.</span>`,'e'); applyDmg(focusFire([m],[o])); cleanup(); }
       else { log(`<span class="e">${m.nm} attacks your ${o.nm}.</span>`,'e'); resolveCombat([m],[o]); }
+      if(scour){ scourStrike(m,'you'); cleanup(); }
     }
+    clearDischarge([m]);
     render(); checkWin(); if(G.over)return;
   }
   cleanup();render();checkWin();
@@ -2642,6 +2983,7 @@ function bldEffectText(eff,val,sup){
   if(eff==='wall') return `<b>Bulwark.</b> A heavy body that screens the line — it can intercept and be raided, but never moves or attacks.${supTxt}`;
   if(eff==='damage') return `<b>Cannon Tower.</b> Strikes the nearest enemy creature for <b>${val}</b> at the start of its owner's turn.${supTxt}`;
   if(eff==='vault') return `<b>Mana Vault.</b> Keeps up to <b>◆${val}</b> of unspent mana across the turn instead of letting it drain.${supTxt}`;
+  if(eff==='revive') return `<b>Reliquary.</b> Once per turn at upkeep, returns your most recently fallen creature to your hand.${supTxt}`;
   return `Structure with no upkeep effect.${supTxt}`;
 }
 function showInspect(title,body){
@@ -2663,7 +3005,7 @@ function inspectRef(owner,which,i){
       `Your opponent's set card — its identity is concealed.<br>Banked so far: <b>◆${o.inv}</b> (resources are always public; the card is not).<br>It could be a creature <i>or</i> a structure. <b>Attack it to provoke it:</b> if it's under-funded it's interrupted and destroyed (banked ◆ lost); if it's fully funded it flips up and fights back.`); return; }
     const isB=o.ctype==='building';
     const stat=isB?`♥${o.card.h}`:`⚔${o.card.a} / ♥${o.card.h}${o.card.fs?' · First Strike':''}`;
-    const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):(o.card.fs?'<b>First Strike.</b> Strikes before the simultaneous step — a killed attacker never hits back.':'No special ability.');
+    const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):([o.card.fs?'<b>First Strike.</b> Strikes before the simultaneous step — a killed attacker never hits back.':'',kwText(o.card)].filter(Boolean).join('<br>')||'No special ability.');
     const ready=o.inv>=o.card.c;
     showInspect(`${o.card.nm} · face-down ${isB?'structure':'creature'}`,
       `${bigArt(o.card)}Only you can see what this is.<br>${isB?'Raise':'Summon'} cost <b>◆${o.card.c}</b> · banked <b>◆${o.inv}</b>${ready?' ✓ funded':` (◆${o.card.c-o.inv} more to fund)`} · ${stat}<br>${eff}<br><i>Bank ◆ across turns. If attacked while under-funded it's interrupted (destroyed, ◆ lost); once funded it can ${isB?'raise':'flip'} (surplus ◆ banks on it). A card face-down for a full turn flips with no summoning sickness — it can strike at once.</i>`);
@@ -2686,6 +3028,7 @@ function inspectRef(owner,which,i){
   if(o.worker) abilities.push('<b>Harvester.</b> Tap the row to harvest all its workers at once (◆1 each at the base, ◆2 at the front or center), then distribute the haul across colors. Can block but cannot attack.');
   if(!o.worker&&o.up>0) abilities.push(`<b>Upkeep ⚒-${o.up}.</b> While it stands it consumes <b>${o.up} worker cap</b> — a bigger army leaves room for fewer harvesters.`);
   if(o.fs) abilities.push('<b>First Strike.</b> Strikes before the simultaneous step — anything it kills never hits back. The front-line survival tool.');
+  { const kt=kwText(o); if(kt) abilities.push(kt); }
   const eff=abilities.length?abilities.join('<br>'):'No special ability.';
   const tags=[]; if(o.sick)tags.push('summoning-sick'); if(o.tapped)tags.push('tapped'); if(o.moved)tags.push('moved this turn'); if(o.bank>0)tags.push(`◆${o.bank} banked`); if(which==='center')tags.push('contesting the center');
   showInspect(`${o.nm} · ${role}${o.fs?' · First Strike':''}`,
@@ -2704,7 +3047,7 @@ function inspectHand(i){
     return;
   }
   const stat=isB?`♥${c.h}${c.sup?` · ⚒+${c.sup} cap`:''}`:`⚔${c.a} / ♥${c.h}${c.up?` · ⚒-${c.up} cap`:''}`;
-  const eff=isB?bldEffectText(c.eff,c.val,c.sup):(c.up?`<b>Upkeep ⚒-${c.up}.</b> Consumes ${c.up} worker cap while it stands.`:'No special ability.');
+  const eff=isB?bldEffectText(c.eff,c.val,c.sup):([c.up?`<b>Upkeep ⚒-${c.up}.</b> Consumes ${c.up} worker cap while it stands.`:'',kwText(c)].filter(Boolean).join('<br>')||'No special ability.');
   showInspect(`${c.nm} · ${isB?'Structure':'Creature'} (in hand)`,
     `${bigArt(c)}Cost <b>◆${c.c}</b> · ${stat}<br>${eff}<br><i>${isB?'Build':'Summon'} face-up (pay now), or <b>Set</b> face-down for free, into any empty slot — front line or base.${isB?' Structures are your lifeline: lose them all and you lose.':''}</i>`);
 }
@@ -3028,7 +3371,7 @@ function fitBoard(){
   const boardChrome=28;                                          // mat padding + center gap
   let ch=Math.min(240,
     (innerHeight-topChrome-handReserve-boardChrome)/5.05,        // 5 rows + a little center gap
-    ((innerWidth-150)/6.0)/.74);                                 // width almost never binds now
+    ((innerWidth-150)/9.5)/.74);                                 // 7 columns + a deck slot per side
   ch=Math.max(30,ch);
   root.style.setProperty('--ch',ch.toFixed(1)+'px');
   for(let i=0;i<12&&ch>30;i++){
@@ -3043,6 +3386,35 @@ function fitBoard(){
 }
 addEventListener('resize',fitBoard);
 document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
+// Keep the castle wall raised while the cursor is anywhere over the wall band (not just the cards),
+// so you can move off the hand onto the commander / Build button without it retracting. The wall
+// already rises on hand-hover and stays for a selected card; this PINS it open via body.wall-open
+// for the whole bottom band and releases when the cursor moves back up onto the board. Hover devices
+// only — touch keeps the existing tap-to-select behaviour (the wall holds while a card is selected).
+(function(){
+  if(!(window.matchMedia && matchMedia('(hover: hover)').matches)) return;
+  const hand=document.getElementById('hand'), hud=document.getElementById('hudbar');
+  if(!hand||!hud) return;
+  let pinned=false;
+  const setPinned=v=>{ if(v!==pinned){ pinned=v; document.body.classList.toggle('wall-open',v); } };
+  const bandTop=()=>innerHeight-(parseFloat(getComputedStyle(hud).height)||180)-6;
+  hand.addEventListener('pointerenter',()=>setPinned(true));   // entering the hand opens the wall and pins it
+  document.addEventListener('pointermove',e=>{
+    if(pinned){ if(e.clientY < bandTop()) setPinned(false); }        // moved back up onto the board → release
+    else if(e.clientY >= innerHeight-28) setPinned(true);            // reach the bottom edge → reveal the wall (works even with an empty hand)
+  });
+  document.addEventListener('pointerleave',()=>setPinned(false));
+  // foe wall mirrors at the top: reaching the top edge raises it (revealing deck/grave + fanning their hand), moving back down releases it
+  const hudF=document.getElementById('hudbarFoe');
+  if(hudF){ let fpin=false;
+    const setF=v=>{ if(v!==fpin){ fpin=v; document.body.classList.toggle('foewall-open',v); } };
+    const bandBot=()=>(parseFloat(getComputedStyle(hudF).height)||170)+6;
+    document.addEventListener('pointermove',e=>{
+      if(fpin){ if(e.clientY > bandBot()) setF(false); }
+      else if(e.clientY <= 28) setF(true);
+    });
+  }
+})();
 // stack the resting hand left-to-right so the peek headers overlap cleanly (the fan arc is
 // dropped — it fought the flat name+cost peek strip; per-card hover/select still pops on top)
 const _renderHand_v18=renderHand;

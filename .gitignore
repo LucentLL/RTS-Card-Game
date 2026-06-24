@@ -11,6 +11,9 @@ node_modules/
 npm-debug.log*
 *.log
 
+# Local jsdom test harness (depends on an external jsdom install)
+.srdtest/
+
 # Local builds / packaging output
 dist/
 build/
