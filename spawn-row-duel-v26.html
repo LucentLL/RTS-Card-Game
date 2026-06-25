@@ -161,8 +161,8 @@
      far edge (opponent) narrower at the top. Height-driven cells set the floor
      width; the box fills the mat and the deck zones are JS-pinned to the corner cells. */
   .matmain{flex:none;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:center;
-    width:100%;height:100%;
-    transform:none;transform-origin:50% 50%;}                /* flat board: every slot the same size, columns perfectly in line (was rotateX(32deg)) */
+    width:100%;height:103%;
+    transform:translateY(-9%) rotateX(32deg);transform-origin:50% 50%;}  /* perspective tilt restored; fixed-size cells keep every row's slots aligned in a clean grid */
   /* the worker rail — off-board token wells aligned to the five rows */
   .wrail{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;display:flex;flex-direction:column;align-items:stretch;}
   .wrail-spacer{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;}
@@ -885,16 +885,16 @@ let uid=1;
    identity (starting HP / starting workers). Everything downstream — pools, builds,
    command centers, mana, CSS classes, card registry — is derived from this table. */
 const ELEMENTS={
-  fire:    {name:'Fire',    glyph:'炎', color:'#e0613f', accent:'#ff8a1f', deep:'#86291c', bg:['#5e1d10','#2a0f08','#080403'], hp:26, wk:2, lore:'A furnace-keep of slag and iron. Thick walls, single-minded fire.'},
-  water:   {name:'Water',   glyph:'水', color:'#3fa3e0', accent:'#7fd0f5', deep:'#0e5a7a', bg:['#0f3a52','#0a2230','#03090f'], hp:22, wk:3, lore:'A drowned tower humming with current. A fast economy behind thinner walls.'},
-  earth:   {name:'Earth',   glyph:'地', color:'#c0863c', accent:'#e5b66a', deep:'#7a5320', bg:['#4a3413','#2a1c0a','#0a0704'], hp:28, wk:2, lore:'A mountain hollowed into a fortress. Roots in bedrock, walls that have never fallen.'},
-  wind:    {name:'Wind',    glyph:'風', color:'#76c7c0', accent:'#cdeeea', deep:'#2f726b', bg:['#123d3a','#0c2422','#04100f'], hp:20, wk:3, lore:'A wind-scoured crag of open sky and screaming updrafts. Nothing lingers; everything strikes and is gone.'},
-  forest:  {name:'Forest',  glyph:'森', color:'#4fae5e', accent:'#a6f0ac', deep:'#27692f', bg:['#173d1d','#0d250f','#041206'], hp:25, wk:2, lore:'A living rampart of root and bough. Slow to rouse, impossible to clear.'},
-  electric:{name:'Electric',glyph:'雷', color:'#f2cf3b', accent:'#fff7a8', deep:'#9a7a16', bg:['#3e3408','#241d05','#0a0802'], hp:21, wk:3, lore:'A crackling pylon-hold. Everything here moves first and hits like a storm.'},
-  light:   {name:'Light',   glyph:'光', color:'#ece3c0', accent:'#ffffff', deep:'#b0a45e', bg:['#3a3622','#221f12','#0a0905'], hp:24, wk:3, lore:'A gold-vaulted cloister where dawnlight never fails. Patient walls, unyielding grace.'},
-  dark:    {name:'Dark',    glyph:'闇', color:'#9a5cc6', accent:'#caa0ec', deep:'#56307a', bg:['#2e1a40','#1a0f26','#080510'], hp:22, wk:2, lore:'A sunken crypt of whispering dark. Everything here is sharpened, spent, and fed to the void.'},
+  fire:    {name:'Fire',    glyph:'炎', color:'#e0613f', accent:'#ff8a1f', deep:'#86291c', bg:['#5e1d10','#2a0f08','#080403'], hp:10000, wk:2, lore:'A furnace-keep of slag and iron. Thick walls, single-minded fire.'},
+  water:   {name:'Water',   glyph:'水', color:'#3fa3e0', accent:'#7fd0f5', deep:'#0e5a7a', bg:['#0f3a52','#0a2230','#03090f'], hp:10000, wk:3, lore:'A drowned tower humming with current. A fast economy behind thinner walls.'},
+  earth:   {name:'Earth',   glyph:'地', color:'#c0863c', accent:'#e5b66a', deep:'#7a5320', bg:['#4a3413','#2a1c0a','#0a0704'], hp:10000, wk:2, lore:'A mountain hollowed into a fortress. Roots in bedrock, walls that have never fallen.'},
+  wind:    {name:'Wind',    glyph:'風', color:'#76c7c0', accent:'#cdeeea', deep:'#2f726b', bg:['#123d3a','#0c2422','#04100f'], hp:10000, wk:3, lore:'A wind-scoured crag of open sky and screaming updrafts. Nothing lingers; everything strikes and is gone.'},
+  forest:  {name:'Forest',  glyph:'森', color:'#4fae5e', accent:'#a6f0ac', deep:'#27692f', bg:['#173d1d','#0d250f','#041206'], hp:10000, wk:2, lore:'A living rampart of root and bough. Slow to rouse, impossible to clear.'},
+  electric:{name:'Electric',glyph:'雷', color:'#f2cf3b', accent:'#fff7a8', deep:'#9a7a16', bg:['#3e3408','#241d05','#0a0802'], hp:10000, wk:3, lore:'A crackling pylon-hold. Everything here moves first and hits like a storm.'},
+  light:   {name:'Light',   glyph:'光', color:'#ece3c0', accent:'#ffffff', deep:'#b0a45e', bg:['#3a3622','#221f12','#0a0905'], hp:10000, wk:3, lore:'A gold-vaulted cloister where dawnlight never fails. Patient walls, unyielding grace.'},
+  dark:    {name:'Dark',    glyph:'闇', color:'#9a5cc6', accent:'#caa0ec', deep:'#56307a', bg:['#2e1a40','#1a0f26','#080510'], hp:10000, wk:2, lore:'A sunken crypt of whispering dark. Everything here is sharpened, spent, and fed to the void.'},
   /* Divine is NOT a major/deckable element — reserved for Ace / Boss / God cards (e.g. a campaign "God" NPC). */
-  divine:  {name:'Divine',  glyph:'神', color:'#c9d4ec', accent:'#ffffff', deep:'#5a6a96', bg:['#2b3450','#171d2e','#070a12'], hp:25, wk:2, lore:'A vaulted sanctum of judgement-light, beyond the reach of any single banner.'},
+  divine:  {name:'Divine',  glyph:'神', color:'#c9d4ec', accent:'#ffffff', deep:'#5a6a96', bg:['#2b3450','#171d2e','#070a12'], hp:10000, wk:2, lore:'A vaulted sanctum of judgement-light, beyond the reach of any single banner.'},
 };
 const MAJORS=['fire','water','earth','wind','forest','electric','light','dark']; // the 8 deckable / commander elements (Divine excluded)
 const COLORS=MAJORS.slice();                                                     // colored-mana identities, in canonical order
@@ -974,27 +974,27 @@ const ART={
    one cost-3 strikes first). Fire & Water keep their hand-drawn art; the rest use parametric
    element-tinted placeholders until art files are dropped in. ---------- */
 // FIRE — Detonate (parting blast)
-const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Emberfly',c:1,a:1,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',1)},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Scorchling',c:2,a:3,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',2)},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang,subtype:'Warrior'},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing,tribe:'Dragon',subtype:'Warrior'},{nm:'Infernox',c:5,a:5,h:4,up:3,kw:'detonate',det:3,art:phArt('fire','cre',5)},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw,tribe:'Dragon'}];
+const EMBER=[{nm:'Sparkimp',c:1,a:500,h:500,up:1,art:ART.sparkimp},{nm:'Emberfly',c:1,a:500,h:500,up:1,kw:'detonate',det:1000,art:phArt('fire','cre',1)},{nm:'Cinderling',c:2,a:1000,h:1000,up:1,art:ART.cinderling},{nm:'Scorchling',c:2,a:1500,h:500,up:1,kw:'detonate',det:1000,art:phArt('fire','cre',2)},{nm:'Ashfang',c:3,a:1500,h:1000,fs:true,up:2,art:ART.ashfang,subtype:'Warrior'},{nm:'Pyrewing',c:4,a:1500,h:2000,up:2,art:ART.pyrewing,tribe:'Dragon',subtype:'Warrior'},{nm:'Infernox',c:5,a:2500,h:2000,up:3,kw:'detonate',det:1500,art:phArt('fire','cre',5)},{nm:'Magmaw',c:6,a:3000,h:2500,up:3,art:ART.magmaw,tribe:'Dragon'}];
 // WATER — Undertow (bounce the attacker)
-const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Brinekin',c:1,a:1,h:2,up:1,art:phArt('water','cre',1)},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Undertow',c:2,a:1,h:3,up:1,kw:'undertow',art:phArt('water','cre',2)},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller,subtype:'Wizard'},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Maelstrom',c:5,a:3,h:5,up:3,kw:'undertow',art:phArt('water','cre',5)},{nm:'Leviath',c:6,a:4,h:7,up:3,kw:'undertow',art:ART.leviath,tribe:'Dragon'}];
+const TIDE =[{nm:'Mistling',c:1,a:500,h:1000,up:1,art:ART.mistling},{nm:'Brinekin',c:1,a:500,h:1000,up:1,art:phArt('water','cre',1)},{nm:'Rippler',c:2,a:1000,h:1000,up:1,art:ART.rippler},{nm:'Undertow',c:2,a:500,h:1500,up:1,kw:'undertow',art:phArt('water','cre',2)},{nm:'Tidecaller',c:3,a:500,h:2000,fs:true,up:2,art:ART.tidecaller,subtype:'Wizard'},{nm:'Surgeling',c:4,a:2000,h:1500,up:2,art:ART.surgeling},{nm:'Maelstrom',c:5,a:1500,h:2500,up:3,kw:'undertow',art:phArt('water','cre',5)},{nm:'Leviath',c:6,a:2000,h:3500,up:3,kw:'undertow',art:ART.leviath,tribe:'Dragon'}];
 // EARTH — Entrench (immovable wall)
-const EARTH =[{nm:'Pebbling',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Gravelkin',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:1,h:3,up:1,kw:'entrench',entrench:true,art:phArt('earth','cre',2)},{nm:'Loamhide',c:2,a:1,h:4,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:1,h:4,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:2,h:5,up:2,kw:'entrench',entrench:true,art:phArt('earth','cre',4)},{nm:'Monolith',c:5,a:3,h:6,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)},{nm:'Titanore',c:6,a:4,h:8,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)}];
+const EARTH =[{nm:'Pebbling',c:1,a:500,h:1000,up:1,art:phArt('earth','cre',1)},{nm:'Gravelkin',c:1,a:500,h:1000,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:500,h:1500,up:1,kw:'entrench',entrench:true,art:phArt('earth','cre',2)},{nm:'Loamhide',c:2,a:500,h:2000,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:500,h:2000,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:1000,h:2500,up:2,kw:'entrench',entrench:true,art:phArt('earth','cre',4)},{nm:'Monolith',c:5,a:1500,h:3000,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)},{nm:'Titanore',c:6,a:2000,h:4000,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)}];
 // WIND — Scour (flier; ignores interceptors, cracks the back row)
-const WIND  =[{nm:'Gustling',c:1,a:2,h:1,up:1,art:phArt('wind','cre',1)},{nm:'Breezeling',c:1,a:1,h:2,up:1,art:phArt('wind','cre',1)},{nm:'Zephyr',c:2,a:3,h:1,up:1,kw:'scour',art:phArt('wind','cre',2)},{nm:'Galeling',c:2,a:2,h:2,up:1,art:phArt('wind','cre',2)},{nm:'Skirl',c:3,a:4,h:1,fs:true,up:2,art:phArt('wind','cre',3)},{nm:'Talonwind',c:4,a:5,h:2,up:2,kw:'scour',art:phArt('wind','cre',4)},{nm:'Cyclone',c:5,a:6,h:3,up:3,kw:'scour',art:phArt('wind','cre',5)},{nm:'Tempest',c:6,a:8,h:3,up:3,kw:'scour',art:phArt('wind','cre',5)}];
+const WIND  =[{nm:'Gustling',c:1,a:1000,h:500,up:1,art:phArt('wind','cre',1)},{nm:'Breezeling',c:1,a:500,h:1000,up:1,art:phArt('wind','cre',1)},{nm:'Zephyr',c:2,a:1500,h:500,up:1,kw:'scour',art:phArt('wind','cre',2)},{nm:'Galeling',c:2,a:1000,h:1000,up:1,art:phArt('wind','cre',2)},{nm:'Skirl',c:3,a:2000,h:500,fs:true,up:2,art:phArt('wind','cre',3)},{nm:'Talonwind',c:4,a:2500,h:1000,up:2,kw:'scour',art:phArt('wind','cre',4)},{nm:'Cyclone',c:5,a:3000,h:1500,up:3,kw:'scour',art:phArt('wind','cre',5)},{nm:'Tempest',c:6,a:4000,h:1500,up:3,kw:'scour',art:phArt('wind','cre',5)}];
 // FOREST — Chrysalis (cocoon → hatch)
-const FOREST=[{nm:'Sapling',c:1,a:1,h:2,up:1,art:phArt('forest','cre',1)},{nm:'Thornling',c:1,a:2,h:1,up:1,art:phArt('forest','cre',1)},{nm:'Sap Pod',c:2,a:0,h:3,up:1,kw:'chrysalis',grow:1,hatch:3,into:{nm:'Canopy Beast',a:5,h:4},art:phArt('forest','cre',2)},{nm:'Vinewhip',c:2,a:2,h:2,up:1,art:phArt('forest','cre',2)},{nm:'Pouncer',c:3,a:3,h:2,fs:true,up:2,art:phArt('forest','cre',3)},{nm:'Grovekeep',c:4,a:2,h:5,up:2,art:phArt('forest','cre',4)},{nm:'Maulhorn',c:5,a:5,h:4,up:3,art:phArt('forest','cre',5)},{nm:'Hive Cradle',c:6,a:3,h:6,up:3,kw:'chrysalis',grow:1,hatch:2,into:{nm:'Broodtitan',a:8,h:7},art:phArt('forest','cre',5)}];
+const FOREST=[{nm:'Sapling',c:1,a:500,h:1000,up:1,art:phArt('forest','cre',1)},{nm:'Thornling',c:1,a:1000,h:500,up:1,art:phArt('forest','cre',1)},{nm:'Sap Pod',c:2,a:0,h:1500,up:1,kw:'chrysalis',grow:1,hatch:3,into:{nm:'Canopy Beast',a:2500,h:2000},art:phArt('forest','cre',2)},{nm:'Vinewhip',c:2,a:1000,h:1000,up:1,art:phArt('forest','cre',2)},{nm:'Pouncer',c:3,a:1500,h:1000,fs:true,up:2,art:phArt('forest','cre',3)},{nm:'Grovekeep',c:4,a:1000,h:2500,up:2,art:phArt('forest','cre',4)},{nm:'Maulhorn',c:5,a:2500,h:2000,up:3,art:phArt('forest','cre',5)},{nm:'Hive Cradle',c:6,a:1500,h:3000,up:3,kw:'chrysalis',grow:1,hatch:2,into:{nm:'Broodtitan',a:4000,h:3500},art:phArt('forest','cre',5)}];
 // ELECTRIC — Overcharge (bank ◆, discharge on attack)
-const ELECTRIC=[{nm:'Spark',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Jolt',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Volt',c:2,a:2,h:2,up:1,kw:'overcharge',art:phArt('electric','cre',2)},{nm:'Crackle',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Surge',c:3,a:4,h:1,fs:true,up:2,art:phArt('electric','cre',3)},{nm:'Thunderhead',c:4,a:4,h:3,up:2,kw:'overcharge',art:phArt('electric','cre',4)},{nm:'Stormcall',c:5,a:6,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5)},{nm:'Galvanwyrm',c:6,a:8,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5),tribe:'Dragon'}];
+const ELECTRIC=[{nm:'Spark',c:1,a:1000,h:500,up:1,art:phArt('electric','cre',1)},{nm:'Jolt',c:1,a:1000,h:500,up:1,art:phArt('electric','cre',1)},{nm:'Volt',c:2,a:1000,h:1000,up:1,kw:'overcharge',art:phArt('electric','cre',2)},{nm:'Crackle',c:2,a:1500,h:500,up:1,art:phArt('electric','cre',2)},{nm:'Surge',c:3,a:2000,h:500,fs:true,up:2,art:phArt('electric','cre',3)},{nm:'Thunderhead',c:4,a:2000,h:1500,up:2,kw:'overcharge',art:phArt('electric','cre',4)},{nm:'Stormcall',c:5,a:3000,h:1500,up:3,kw:'overcharge',art:phArt('electric','cre',5)},{nm:'Galvanwyrm',c:6,a:4000,h:1500,up:3,kw:'overcharge',art:phArt('electric','cre',5),tribe:'Dragon'}];
 // LIGHT — Ward (token blocker)
-const LIGHT =[{nm:'Dawnmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Sunmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:1,h:3,up:1,kw:'ward',wardhp:2,art:phArt('light','cre',2)},{nm:'Radiant',c:2,a:2,h:2,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:2,h:3,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:3,h:4,up:2,kw:'ward',wardhp:3,art:phArt('light','cre',4)},{nm:'Solstice',c:5,a:4,h:5,up:3,art:phArt('light','cre',5)},{nm:'Seraphine',c:6,a:5,h:6,up:3,kw:'ward',wardhp:4,art:phArt('light','cre',5)}];
+const LIGHT =[{nm:'Dawnmote',c:1,a:500,h:1000,up:1,art:phArt('light','cre',1)},{nm:'Sunmote',c:1,a:500,h:1000,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:500,h:1500,up:1,kw:'ward',wardhp:1000,art:phArt('light','cre',2)},{nm:'Radiant',c:2,a:1000,h:1000,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:1000,h:1500,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:1500,h:2000,up:2,kw:'ward',wardhp:1500,art:phArt('light','cre',4)},{nm:'Solstice',c:5,a:2000,h:2500,up:3,art:phArt('light','cre',5)},{nm:'Seraphine',c:6,a:2500,h:3000,up:3,kw:'ward',wardhp:2000,art:phArt('light','cre',5)}];
 // DARK — Reap (raise a Shade on death)
-const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',1)},{nm:'Shadeling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Grimfang',c:2,a:3,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,kw:'reap',reap:2,art:phArt('dark','cre',4)},{nm:'Maledict',c:5,a:7,h:2,up:3,kw:'reap',reap:3,art:phArt('dark','cre',5)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,kw:'reap',reap:4,art:phArt('dark','cre',5),tribe:'Dragon'}];
+const DARK  =[{nm:'Wraithling',c:1,a:1000,h:500,up:1,kw:'reap',reap:500,art:phArt('dark','cre',1)},{nm:'Shadeling',c:1,a:1000,h:500,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:1500,h:500,up:1,art:phArt('dark','cre',2)},{nm:'Grimfang',c:2,a:1500,h:500,up:1,kw:'reap',reap:500,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:2000,h:500,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:2500,h:1000,up:2,kw:'reap',reap:1000,art:phArt('dark','cre',4)},{nm:'Maledict',c:5,a:3500,h:1000,up:3,kw:'reap',reap:1500,art:phArt('dark','cre',5)},{nm:'Voidwyrm',c:6,a:4500,h:1000,up:3,kw:'reap',reap:2000,art:phArt('dark','cre',5),tribe:'Dragon'}];
 const POOLS={fire:EMBER,water:TIDE,earth:EARTH,wind:WIND,forest:FOREST,electric:ELECTRIC,light:LIGHT,dark:DARK};
 /* Divine roster reserved for future Ace / Boss / God cards — not a deckable pool. */
-const DIVINE=[{nm:'Cherub',c:1,a:1,h:2,up:1,art:phArt('divine','cre',1)},{nm:'Valkar',c:3,a:3,h:2,fs:true,up:2,art:phArt('divine','cre',3)},{nm:'Archon',c:4,a:4,h:3,up:2,art:phArt('divine','cre',4)},{nm:'Empyrean',c:6,a:6,h:5,up:3,art:phArt('divine','cre',5)}];
+const DIVINE=[{nm:'Cherub',c:1,a:500,h:1000,up:1,art:phArt('divine','cre',1)},{nm:'Valkar',c:3,a:1500,h:1000,fs:true,up:2,art:phArt('divine','cre',3)},{nm:'Archon',c:4,a:2000,h:1500,up:2,art:phArt('divine','cre',4)},{nm:'Empyrean',c:6,a:3000,h:2500,up:3,art:phArt('divine','cre',5)}];
 const FORGE_NAMES={fire:'Emberforge',water:'Tidewell',earth:'Stonewell',wind:'Galewell',forest:'Thornwell',electric:'Stormforge',light:'Dawnwell',dark:'Gloomwell',divine:'Empyreum'};
 const FORGE_ART={fire:ART.emberforge,water:ART.tidewell};
-const WORKER={nm:'Worker',c:0,a:0,h:2,art:ART.villager};
+const WORKER={nm:'Worker',c:0,a:0,h:1000,art:ART.villager};
 /* ===== creature types: tribe (lineage) + subtype (class) — both optional, single-valued strings ===== */
 const TRIBES=['Human','Dragon'];
 const SUBTYPES=['Wizard','Warrior'];
@@ -1006,15 +1006,15 @@ function typeLine(o){ return o ? [o.tribe||'',o.subtype||''].filter(Boolean).joi
    its `prereq` bids are present on your field (and you can afford it and have an empty slot). */
 function forgeArt(el){ return FORGE_ART[el]||phArt(el,'bld'); }
 const STRUCT_DEFS={
-  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:6,  eff:'mana',     val:1, sup:3, ic:'⚒', prereq:[],          color:null, art:phArt('earth','bld'), desc:'Town hall of the host. Yields ◆1 a turn and raises ⚒+3. Unlocks the forges and the Longhouse.'},
-  longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:6,  eff:'villager', val:0, sup:5, ic:'⌂', prereq:['foundry'], color:null, art:ART.longhouse,        desc:'Hearth and full benches — trains a Worker each turn and raises ⚒+5. Your main workforce.'},
-  vault:    {bid:'vault',    nm:'Mana Vault',  c:4, h:6,  eff:'vault',    val:4, sup:0, ic:'◈', prereq:['foundry'], color:null, art:phArt('water','bld'), desc:'Cisterns that hold the surplus — keeps up to ◆4 of your unspent mana across the turn. ⚒0.'},
-  bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:12, eff:'wall',     val:0, sup:2, ic:'▣', prereq:['forge'],   color:null, art:phArt('earth','bld'), desc:'A ♥12 wall that screens the line — it can intercept and be raided. Raises ⚒+2.'},
-  tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:8,  eff:'damage',   val:2, sup:-2,ic:'⤢', prereq:['forge'],   color:null, art:phArt('fire','bld'),  desc:'Guns that never sleep — strikes the nearest enemy creature for 2 each turn. Needs ⚒2 to crew (build it where a row has the workers to spare).'},
-  reliquary:{bid:'reliquary',nm:'Reliquary',  c:5, h:7,  eff:'revive',    val:0, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:phArt('dark','bld'),  desc:'Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.'},
+  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:3000,  eff:'mana',     val:1, sup:2, ic:'⚒', prereq:[],          color:null, art:phArt('earth','bld'), desc:'Town hall of the host. Yields ◆1 a turn and raises ⚒+2. Unlocks the forges and the Longhouse.'},
+  longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:3000,  eff:'villager', val:0, sup:3, ic:'⌂', prereq:['foundry'], color:null, art:ART.longhouse,        desc:'Hearth and full benches — trains a Worker each turn and raises ⚒+3. Your main workforce.'},
+  vault:    {bid:'vault',    nm:'Mana Vault',  c:4, h:3000,  eff:'vault',    val:4, sup:0, ic:'◈', prereq:['foundry'], color:null, art:phArt('water','bld'), desc:'Cisterns that hold the surplus — keeps up to ◆4 of your unspent mana across the turn. ⚒0.'},
+  bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:6000, eff:'wall',     val:0, sup:1, ic:'▣', prereq:['forge'],   color:null, art:phArt('earth','bld'), desc:'A heavy wall that screens the line — it can intercept and be raided. Raises ⚒+1.'},
+  tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:4000,  eff:'damage',   val:1000, sup:-2,ic:'⤢', prereq:['forge'],   color:null, art:phArt('fire','bld'),  desc:'Guns that never sleep — strikes the nearest enemy creature for 1000 each turn. Needs ⚒2 to crew (build it where a row has the workers to spare).'},
+  reliquary:{bid:'reliquary',nm:'Reliquary',  c:5, h:3500,  eff:'revive',    val:0, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:phArt('dark','bld'),  desc:'Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.'},
 };
-function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:5, eff:'mana', val:2, sup:3, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2, raises ⚒+3, and lets its row harvest '+ELEMENTS[el].name+' mana.'}; }
-function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:7, eff:'mana', val:3, sup:4, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3, raises ⚒+4, harvests '+ELEMENTS[el].name+' mana.'}; }
+function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:2, sup:2, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2, raises ⚒+2, and lets its row harvest '+ELEMENTS[el].name+' mana.'}; }
+function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:3, sup:3, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3, raises ⚒+3, harvests '+ELEMENTS[el].name+' mana.'}; }
 // the ordered list of structures a given commander can build (its colors expand the forges)
 function buildList(ccId){
   const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];
@@ -1025,20 +1025,20 @@ function buildList(ccId){
 }
 // Spells & traps are ELEMENT-NEUTRAL — no color, generic-mana cost, legal in any deck.
 const SPELL_NEUTRAL=[
-  {nm:'Ember Bolt',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
-  {nm:'Frost Lance',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.frostlance},
+  {nm:'Ember Bolt',c:2,trap:false,effect:'burn',val:1500,target:'enemy',ic:'✦',art:ART.emberbolt},
+  {nm:'Frost Lance',c:2,trap:false,effect:'burn',val:1500,target:'enemy',ic:'✦',art:ART.frostlance},
   {nm:'Cave-In',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
   {nm:'Dissolve',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.dissolve},
   {nm:'Snare Pit',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit},
   {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
-  {nm:'Cinder Volley',c:2,trap:false,effect:'burn',val:3,target:'enemy',ic:'✦',art:ART.emberbolt},
-  {nm:'Searing Brand',c:3,trap:false,effect:'burn',val:4,target:'enemy',ic:'✦',art:ART.frostlance},
+  {nm:'Cinder Volley',c:2,trap:false,effect:'burn',val:1500,target:'enemy',ic:'✦',art:ART.emberbolt},
+  {nm:'Searing Brand',c:3,trap:false,effect:'burn',val:2000,target:'enemy',ic:'✦',art:ART.frostlance},
   {nm:'Topple the Spire',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
   {nm:'Collapsing Floor',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
-  {nm:'Arc Flash',c:3,trap:false,effect:'chain',val:2,target:'enemy',ic:'✦',art:ART.emberbolt},   // 2 dmg to the two highest-attack enemy creatures
+  {nm:'Arc Flash',c:3,trap:false,effect:'chain',val:1000,target:'enemy',ic:'✦',art:ART.emberbolt},   // 2 dmg to the two highest-attack enemy creatures
   {nm:'Riptide',c:3,trap:false,effect:'bounce',target:'enemy',ic:'✦',art:ART.frostlance},          // return target enemy creature to its hand
-  {nm:'Overgrowth',c:0,trap:true,effect:'thornmail',trigger:'attack',ic:'⚠',art:ART.snarePit},     // when struck, your defender gains +1/+2
-  {nm:'Backlash',c:0,trap:true,effect:'burn',val:3,trigger:'attack',ic:'⚠',art:ART.whirltrap}      // when struck, the attackers take 3
+  {nm:'Overgrowth',c:0,trap:true,effect:'thornmail',trigger:'attack',ic:'⚠',art:ART.snarePit},     // when struck, your defender gains +500/+1000
+  {nm:'Backlash',c:0,trap:true,effect:'burn',val:1500,trigger:'attack',ic:'⚠',art:ART.whirltrap}      // when struck, the attackers take 3
 ];
 const SPELL=Object.fromEntries(COLORS.map(c=>[c,SPELL_NEUTRAL])); // compat shim so deckOf() keeps drawing spells
 
@@ -1350,7 +1350,7 @@ function expandDeck(deck){
 function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art,
   kw:t.kw||null,det:t.det||0,ward:t.ward||0,wardhp:t.wardhp||2,reap:t.reap||0,grow:t.grow||0,hatch:t.hatch||0,into:t.into||null,cnt:t.cnt||0,oc:t.oc||0,entrench:!!t.entrench,token:!!t.token,
   tribe:t.tribe||null,subtype:t.subtype||null};}
-function mkVil(owner){return mkCre({nm:'Worker',a:0,h:2,c:0,up:0,art:ART.villager},owner,true);}
+function mkVil(owner){return mkCre({nm:'Worker',a:0,h:1000,c:0,up:0,art:ART.villager},owner,true);}
 function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0,bid:t.bid||null};}
 
 /* ===== CREATURE KEYWORDS — element identities =====
@@ -1998,7 +1998,7 @@ function renderHand(){
 }
 function selCres(){return G.atk.map(s=>cellArr('you',s.w)[s.i]).filter(x=>x&&x.kind==='creature'&&x.owner==='you');}
 function canAttack(){const c=selCres();return c.length>0&&c.every(x=>!x.worker&&!x.sick&&!x.tapped);}
-function canExtract(){return G.atk.length===1;}
+function canExtract(){return false;} // creatures no longer extract mana — only workers harvest their row
 function inAtk(w,i){return G.atk.some(s=>s.w===w&&s.i===i);}
 function decorate(cell,owner,which,i,o){
   if(G.turn!=='you'||G.busy||G.over)return;
@@ -2095,7 +2095,7 @@ function spellText(card){
   if(card.effect==='pitfall') return `<b>Snare.</b> When your opponent <b>summons</b> a creature, destroy it.`;
   if(card.effect==='chain') return `<b>Arc.</b> Deal <b>${card.val}</b> to the two highest-attack enemy creatures.`;
   if(card.effect==='bounce') return `<b>Riptide.</b> Return target enemy creature to its owner's hand (Entrench resists).`;
-  if(card.effect==='thornmail') return `<b>Overgrowth.</b> When your line is struck, the defending creature gains <b>+1/+2</b> permanently.`;
+  if(card.effect==='thornmail') return `<b>Overgrowth.</b> When your line is struck, the defending creature gains <b>+500/+1000</b> permanently.`;
   return 'A spell.';
 }
 function spellRec(card){return {type:'spell',nm:card.nm,c:card.c,trap:!!card.trap,effect:card.effect,val:card.val,ic:card.ic};}
@@ -2138,10 +2138,10 @@ function onCell(owner,which,i,o){
     }
     if(G.atk.length===1){
       const s=G.atk[0]; const su=cellArr('you',s.w)[s.i]; const sd=su.bank>0?`<button onclick="startSendMana('${s.w}',${s.i})">◆ Send ${su.bank}</button>`:'';
-      G.cardMenu={w:s.w,i:s.i,html:`<button onclick="extractSel()">⚒ Extract ◆${extractYield(s.w)}</button>${moveBtn(s.w,s.i)}${sd}<span class="taphint">⚔ tap an enemy unit or structure to strike</span>`};
+      G.cardMenu={w:s.w,i:s.i,html:`${moveBtn(s.w,s.i)}${sd}<span class="taphint">⚔ tap an enemy unit or structure to strike</span>`};
       setHint('<b>1</b> ready — strike a foe, or use an action above the card.');
     } else if(G.atk.length){
-      setHint(`<b>${G.atk.length}</b> ready — tap an enemy unit or structure to strike. (Extract &amp; Move are solo only.)`);
+      setHint(`<b>${G.atk.length}</b> ready — tap an enemy unit or structure to strike. (Move is solo only.)`);
     } else defaultHint();
     render(); return;
   }
@@ -2445,7 +2445,7 @@ function springAttackTrap(defOwner,attackers,defender){
   const t=findArmedTrap(defOwner,'attack'); if(!t)return;
   const card=t.o.card; const ey=defOwner==='you'?'y':'e';
   log(`<span class="${ey}">${card.nm} springs as ${defOwner==='you'?'your':'their'} line is struck!</span>`,ey);
-  if(card.effect==='thornmail'){ if(defender&&defender.kind==='creature'&&!defender.cc){ defender.a+=1; defender.maxh+=2; defender.h+=2; log(`&nbsp;&nbsp;${defender.nm} hardens to ⚔${defender.a}/♥${defender.h}.`); } }
+  if(card.effect==='thornmail'){ if(defender&&defender.kind==='creature'&&!defender.cc){ defender.a+=500; defender.maxh+=1000; defender.h+=1000; log(`&nbsp;&nbsp;${defender.nm} hardens to ⚔${defender.a}/♥${defender.h}.`); } }
   else if(card.effect==='burn'){ attackers.forEach(a=>{ if(a)a.h-=(card.val||0); }); log(`&nbsp;&nbsp;${card.val} damage to ${attackers.length} attacker(s).`); }
   G.P[defOwner].grave.push(spellRec(card)); cellArr(defOwner,t.w)[t.i]=null;
 }
@@ -2886,7 +2886,7 @@ async function foeTurn(){
   F.min.back.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'back'});});
   F.min.front.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'front'});});
   F.min.center.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'center'});});
-  F.front.forEach((c,i)=>{if(c&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped&&F.mana<3)harvesters.push({c,w:'front'});});
+  // (creatures no longer extract — only workers harvest)
   const aiExtractType=(w)=>{
     const opts=extractColors('foe',w);
     if(!opts.length)return 'gen';
