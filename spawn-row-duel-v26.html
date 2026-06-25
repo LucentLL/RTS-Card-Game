@@ -624,9 +624,27 @@
   @keyframes fxsplash{0%{transform:scale(.6);opacity:0;}22%{transform:scale(1.06);opacity:1;}34%{transform:scale(1);}100%{transform:scale(1);}}
   .fx-conf{position:absolute;top:-14px;width:8px;height:13px;z-index:62;animation:fxconf 2.4s linear forwards;}
   @keyframes fxconf{0%{transform:translateY(0) rotate(0);}100%{transform:translateY(112vh) rotate(720deg);opacity:.5;}}
-  #sndBtn{position:fixed;top:8px;right:8px;z-index:65;width:34px;height:34px;border-radius:50%;
-    border:1px solid #3d3450;background:rgba(13,11,18,.85);color:var(--ink);font-size:15px;cursor:pointer;line-height:1;}
-  #sndBtn:active{transform:scale(.92);}
+  #setBtn{position:fixed;top:8px;right:8px;z-index:65;width:34px;height:34px;border-radius:50%;
+    border:1px solid #3d3450;background:rgba(13,11,18,.85);color:var(--ink);font-size:16px;cursor:pointer;line-height:1;}
+  #setBtn:active{transform:scale(.92);}
+  #settingsOverlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);}
+  #settingsOverlay .setbox{background:linear-gradient(160deg,#23202e,#15121d);border:1px solid #3d3450;border-radius:14px;padding:18px 20px;width:min(360px,86vw);box-shadow:0 12px 40px rgba(0,0,0,.6);color:var(--ink);}
+  #settingsOverlay .ptitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;margin-bottom:14px;text-align:center;color:var(--gold);}
+  .setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:11px 0;}
+  .setlab{font-family:'Cinzel',serif;font-size:13px;color:#d9c7a0;flex:none;}
+  #setVol{flex:1;max-width:190px;accent-color:var(--gold);}
+  .setrow button{font-family:'Cinzel',serif;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid #4a4060;background:#2a2640;color:var(--ink);}
+  .setangles{display:flex;gap:5px;}
+  .setangles button.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;border-color:var(--gold);}
+  .setsurr{width:100%;background:linear-gradient(180deg,#6a2a2a,#3a1414)!important;color:#ffd0c0!important;border-color:#7a3a3a!important;}
+  #settingsOverlay .pclose{display:block;width:100%;margin-top:12px;padding:8px;border-radius:8px;cursor:pointer;border:1px solid #3d3450;background:#1a1622;color:var(--ink-dim);font-family:'Cinzel',serif;}
+  /* board-angle modes (toggled in Settings; static .matmain rule below is the 'tilt' default) */
+  body.board-tilt .matmain{transform:translateY(-9%) rotateX(32deg);height:103%;}
+  body.board-tilt .mat{perspective:none;}
+  body.board-topdown .matmain{transform:none;height:100%;}
+  body.board-topdown .mat{perspective:none;}
+  body.board-extreme .matmain{transform:translateY(-2%) rotateX(52deg);height:118%;}
+  body.board-extreme .mat{perspective:760px;}
   .cell.selected .card::after{content:"⚔";position:absolute;top:1px;left:50%;transform:translateX(-50%);font-size:12px;z-index:5;
     color:var(--gold);text-shadow:0 0 8px var(--gold),0 1px 2px #000;animation:pulse 1.2s ease-in-out infinite;}
   .fxtitle{margin-bottom:14px;}
@@ -1157,8 +1175,8 @@ const G={
   sel:null, atk:[], moveFrom:null, moveMana:null,
   center:Array(SLOTS).fill(null),
   P:{
-    you:{color:'fire',life:25,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'fire'},
-    foe:{color:'water',life:25,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'water'},
+    you:{color:'fire',life:25,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'fire'},
+    foe:{color:'water',life:25,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'water'},
   }
 };
 
@@ -1538,8 +1556,8 @@ function applyCharacterUI(){
 }
 function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
-  Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
-  Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:2,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
+  Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
+  Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
   G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;
   G.center=Array(SLOTS).fill(null);
   // command centers now stand ON the board at back-center (column 3); ccUnit is the same object,
@@ -1739,8 +1757,7 @@ window.toggleRules=function(on){ $('rulesPanel').style.display=on?'flex':'none';
 /* ---------- render ---------- */
 function manaStr(o){const P=G.P[o];let out='';
   CCS[P.cc].colors.forEach(c=>{out+=`${elemBadge(c,14)}<b class="mc" style="color:var(--${c})">${P.cmana[c]}</b>`;});
-  if(P.mana>0) out+=`<span class="genorb" title="generic mana — spends as any element"></span><b class="mc">${P.mana}</b>`;
-  return out;}
+  return out;} // generic mana removed — only colored mana exists
 function render(){
   ['you','foe'].forEach(o=>{const cc=findCC(o); G.P[o].life=cc?Math.max(0,cc.h):0;});
   $('foeLife').textContent=G.P.foe.life; $('youLife').textContent=G.P.you.life;
@@ -2485,8 +2502,9 @@ window.harvestRow=(which)=>{
   if(!ready.length){setHint('No ready workers in this row.');return;}
   G.sel=null; G.atk=[]; G.moveFrom=null; G.moveMana=null; G.cardMenu=null; G.minSel=null;
   const total=ready.length*minYield(which);
-  const cols=extractColors('you',which);
-  if(!cols.length){ applyHarvest(which,{},total); return; } // only generic is available — no choice to make
+  let cols=extractColors('you',which);
+  if(!cols.length) cols=[CCS[G.P.you.cc].colors[0]];                 // no colour source here → workers pull the keep's primary colour
+  if(cols.length===1){ applyHarvest(which,{[cols[0]]:total},total); return; } // one colour — auto-harvest, no popup
   hv={which,total,cols:cols.slice(),alloc:Object.fromEntries(cols.map(c=>[c,0]))};
   $('harvestPanel').style.display='flex'; drawHarvest(); render();
 };
@@ -2501,8 +2519,8 @@ function drawHarvest(){
     `<button onclick="hvAdj('${c}',1)" ${rem<=0?'disabled':''}>+</button></span></div>`).join('');
   $('harvestPanel').querySelector('.box').innerHTML=
     `<div class="ptitle">⚒ Harvest ◆${hv.total}</div>`+
-    `<div class="pmeta">Workers of the ${where} bring in ◆${hv.total} — set how much of each color; the rest stays generic.</div>`+
-    `<div class="hvgrid">${rows}<div class="hvrow gen"><span class="hvlab">◆ Generic</span><span class="hvval">◆${rem}</span></div></div>`+
+    `<div class="pmeta">Workers of the ${where} bring in ${hv.total} mana — set how much of each colour. The remainder goes to ${cap(hv.cols[0])}.</div>`+
+    `<div class="hvgrid">${rows}<div class="hvrow gen"><span class="hvlab" style="color:var(--${hv.cols[0]})">${cap(hv.cols[0])} (rest)</span><span class="hvval">${manaGlyph(hv.cols[0])}${rem}</span></div></div>`+
     `<div class="pacts"><button onclick="hvConfirm()">Take the haul</button></div>`+
     `<button class="pclose" onclick="hvCancel()">Cancel</button>`;
 }
@@ -2512,9 +2530,10 @@ window.hvCancel=()=>{ hv=null; $('harvestPanel').style.display='none'; defaultHi
 function applyHarvest(which,alloc,total){
   const P=G.P.you;
   minPool('you',which).filter(m=>!m.tapped&&!m.sick).forEach(m=>m.tapped=true);
-  let gen=total; const parts=[];
-  Object.keys(alloc||{}).forEach(c=>{ const v=alloc[c]||0; if(v>0){ P.cmana[c]=Math.min(20,P.cmana[c]+v); gen-=v; parts.push(`◆${v} ${cap(c)}`); } });
-  if(gen>0){ P.mana=Math.min(20,P.mana+gen); parts.push(`◆${gen} generic`); }
+  const fb=(extractColors('you',which)[0])||CCS[P.cc].colors[0]; // unallocated remainder defaults to this colour — no generic
+  let rem=total; const parts=[];
+  Object.keys(alloc||{}).forEach(c=>{ const v=alloc[c]||0; if(v>0){ P.cmana[c]=Math.min(20,P.cmana[c]+v); rem-=v; parts.push(`${manaGlyph(c)}${v} ${cap(c)}`); } });
+  if(rem>0){ P.cmana[fb]=Math.min(20,P.cmana[fb]+rem); parts.push(`${manaGlyph(fb)}${rem} ${cap(fb)}`); }
   const where=which==='center'?'the contested center':(which==='front'?'the front line':'the base');
   log(`<span class="s">Workers harvest ${where} — ${parts.join(', ')}.</span>`,'s');
   P.firstExtract=false;
@@ -2678,10 +2697,10 @@ function askBlock(opts){
 }
 
 function applyRes(base,owner,creature,type){
-  type=type||'gen'; const P=G.P[owner]; const v=base;
-  if(type==='gen')P.mana=Math.min(20,P.mana+v);
-  else P.cmana[type]=Math.min(20,P.cmana[type]+v);
-  log(`&nbsp;&nbsp;<span class="s">+${v} ${type==='gen'?'generic':cap(type)} ${manaGlyph(type)}.</span>`,'s'); P.firstExtract=false;
+  const P=G.P[owner]; const v=base;
+  if(!type||type==='gen') type=CCS[P.cc].colors[0]; // no generic — default to the keep's primary colour
+  P.cmana[type]=Math.min(20,P.cmana[type]+v);
+  log(`&nbsp;&nbsp;<span class="s">+${v} ${cap(type)} ${manaGlyph(type)}.</span>`,'s'); P.firstExtract=false;
 }
 
 /* commander crest, passives, and once-per-game powers removed — the deck does the talking (v19) */
@@ -2740,10 +2759,13 @@ function buildingDamage(owner,val,nm){
 }
 // mana-storage structures (vaults) keep up to their total `val` in generic mana across the drain
 function vaultCap(owner){ return ownUnits(owner).filter(o=>o.kind==='building'&&o.eff==='vault').reduce((s,o)=>s+(o.val||0),0); }
-function drainMana(owner){ const P=G.P[owner]; const keep=Math.min(vaultCap(owner),P.mana); const lost=manaTotal(owner)-keep; P.mana=keep; COLORS.forEach(c=>P.cmana[c]=0); return {keep,lost}; }
+function drainMana(owner){ const P=G.P[owner]; const cap=vaultCap(owner); P.mana=0;
+  const total=COLORS.reduce((s,c)=>s+P.cmana[c],0); const lost=Math.max(0,total-cap);
+  let toLose=lost; for(const c of COLORS){ if(toLose<=0)break; const t=Math.min(P.cmana[c],toLose); P.cmana[c]-=t; toLose-=t; } // vaults keep up to their cap of colored mana
+  return {keep:Math.min(cap,total),lost}; }
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
-  P.mana=Math.min(20,P.mana+1); P.firstExtract=true;
+  P.firstExtract=true; // no generic income — mana comes from worker harvest + forge yields (all colored)
   ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}}));
   G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}});
   chrysalisUpkeep(owner);   // cocoons swell (and re-sick so they can't attack) or hatch into their grown form
@@ -2890,9 +2912,9 @@ async function foeTurn(){
   // (creatures no longer extract — only workers harvest)
   const aiExtractType=(w)=>{
     const opts=extractColors('foe',w);
-    if(!opts.length)return 'gen';
+    if(!opts.length)return CCS[F.cc].colors[0]; // no generic — default to the keep's primary colour
     for(const card of F.hand){ if(colorNeed(card)&&F.cmana[card.color]<1&&opts.includes(card.color))return card.color; }
-    return Math.random()<.5?opts[0]:'gen';
+    return opts[0];
   };
   for(const {c,w} of harvesters){
     if(harvested>=3)break;
@@ -3138,9 +3160,13 @@ const SFX=(()=>{ let ctx=null,master=null,muted=false;
     win(){[523,659,784,1046].forEach((f,i)=>tone({f,type:'triangle',d:.45,v:.2,delay:i*.13})); tone({f:1318,type:'triangle',d:.8,v:.14,delay:.55});},
     lose(){[392,330,262,196].forEach((f,i)=>tone({f,d:.5,v:.18,delay:i*.16}));},
   };
-  const api={};
+  const api={}; let vol=.5;
   Object.keys(S).forEach(k=>api[k]=function(){ if(muted)return; try{S[k]();}catch(e){} });
   api.toggle=()=>{ muted=!muted; return muted; };
+  api.isMuted=()=>muted;
+  api.setMuted=(m)=>{ muted=!!m; };
+  api.setVolume=(v)=>{ vol=Math.max(0,Math.min(1,v)); ac(); if(master)master.gain.value=vol; };
+  api.getVolume=()=>vol;
   api.unlock=()=>{ try{ac();}catch(e){} };
   return api;
 })();
@@ -3374,10 +3400,37 @@ document.addEventListener('mouseover',e=>{
 document.addEventListener('mouseout',e=>{
   if(e.target.closest&&e.target.closest('.cell.target,.minpill.target,.crest-target'))FX.clearAim();
 });
-// sound toggle
-(()=>{ const b=document.createElement('button'); b.id='sndBtn'; b.title='Sound on/off'; b.textContent='🔊';
-  b.addEventListener('click',()=>{ b.textContent=SFX.toggle()?'🔇':'🔊'; });
-  document.body.appendChild(b); })();
+// settings: gear button → overlay (volume / mute, board angle, surrender)
+let BOARD_ANGLE=(()=>{ try{return localStorage.getItem('srd.angle')||'tilt';}catch(e){return 'tilt';} })();
+function setBoardAngle(a){ BOARD_ANGLE=a;
+  document.body.classList.remove('board-topdown','board-tilt','board-extreme'); document.body.classList.add('board-'+a);
+  try{localStorage.setItem('srd.angle',a);}catch(e){}
+  const grp=$('setAngles'); if(grp)grp.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.a===a));
+  if(typeof fitBoard==='function')fitBoard(); }
+function surrenderMatch(){ if(!confirm('Surrender and quit this match to the main menu?'))return;
+  G.over=true; const ov=$('settingsOverlay'); if(ov)ov.style.display='none';
+  if(typeof showMainMenu==='function')showMainMenu(); }
+(()=>{
+  const b=document.createElement('button'); b.id='setBtn'; b.title='Settings'; b.textContent='⚙'; document.body.appendChild(b);
+  const ov=document.createElement('div'); ov.id='settingsOverlay'; ov.style.display='none';
+  ov.innerHTML=`<div class="setbox">
+    <div class="ptitle">⚙ Settings</div>
+    <div class="setrow"><span class="setlab">Volume</span><input type="range" id="setVol" min="0" max="100" value="${Math.round(SFX.getVolume()*100)}"></div>
+    <div class="setrow"><span class="setlab">Sound</span><button id="setMute">${SFX.isMuted()?'🔇 Muted':'🔊 On'}</button></div>
+    <div class="setrow"><span class="setlab">Board angle</span><div id="setAngles" class="setangles">
+      <button data-a="topdown">Top-down</button><button data-a="tilt">Tilt</button><button data-a="extreme">Extreme</button></div></div>
+    <div class="setrow"><button id="setSurrender" class="setsurr">🏳 Surrender / quit match</button></div>
+    <button class="pclose" id="setClose">Close</button></div>`;
+  document.body.appendChild(ov);
+  b.addEventListener('click',()=>{ ov.style.display = ov.style.display==='none' ? 'flex' : 'none'; });
+  ov.addEventListener('click',e=>{ if(e.target===ov)ov.style.display='none'; });
+  $('setClose').addEventListener('click',()=>ov.style.display='none');
+  $('setVol').addEventListener('input',e=>{ SFX.setVolume(e.target.value/100); if(SFX.isMuted()&&e.target.value>0){SFX.setMuted(false);$('setMute').textContent='🔊 On';} });
+  $('setMute').addEventListener('click',()=>{ const m=SFX.toggle(); $('setMute').textContent=m?'🔇 Muted':'🔊 On'; });
+  $('setSurrender').addEventListener('click',surrenderMatch);
+  $('setAngles').querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>setBoardAngle(btn.dataset.a)));
+  setBoardAngle(BOARD_ANGLE);
+})();
 /* ---------- v18: fullscreen fit, hand fan, rotate prompt ---------- */
 // size cells so the entire field + fan always fits the viewport — never scroll
 function fitBoard(){
