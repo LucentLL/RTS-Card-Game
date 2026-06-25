@@ -249,7 +249,8 @@
   /* the raised castle wall covers the near-side deck (it rides the back line under the right tower) — fade it while the wall is up */
   body:has(.hand:hover) #youBack .deckslot, body:has(.hc.selected) #youBack .deckslot, body.wall-open #youBack .deckslot{opacity:0;pointer-events:none;}
   .centerrow{margin:2px 0;}
-  .cell.centergap{border:none!important;background:transparent!important;box-shadow:none!important;pointer-events:none;}
+  .cell.centerlane{box-shadow:inset 0 0 14px rgba(227,180,90,.10);border-color:rgba(227,180,90,.30)!important;}     /* the open lanes monsters fight through (cols 1,3,5) */
+  .cell.centerstruct{border-style:solid!important;border-color:rgba(150,140,120,.22)!important;background:rgba(34,30,24,.42)!important;} /* buildable ground flanking the lanes (cols 0,2,4,6) */
   .cell.centercell{border-style:solid;border-color:rgba(82,198,236,.28);background:rgba(82,198,236,.06);box-shadow:inset 0 0 10px rgba(82,198,236,.08);}
   .cell.mineHere{box-shadow:inset 0 0 0 2px rgba(217,176,74,.4);}
   .cell.foeHere{box-shadow:inset 0 0 0 2px rgba(63,163,224,.4);}
@@ -870,10 +871,12 @@
 
 <script>
 const C=7, SLOTS=7;
-const CENTER_LANES=[1,3,5];          // the contested center has real slots only at these columns
+const CENTER_LANES=[1,3,5];          // the contested center is a mountain pass: monster lanes at 1/3/5, structure slots at 0/2/4/6
 const isLane=i=>CENTER_LANES.includes(i);
 const BASE_COL=3;                    // the keep sits at back-center (column 3)
 function colReach(aCol,tCol){ return Math.abs(aCol-tCol)<=1; } // a unit reaches columns C-1,C,C+1
+// center placement: monsters fight in the lanes (1/3/5); structures build on the flanking ground (0/2/4/6)
+function centerSlotOK(which,slot,isBld){ return which!=='center' || (isBld ? !isLane(slot) : isLane(slot)); }
 let uid=1;
 /* ---------- ELEMENTS (7) ----------
    The 7 attributes (Spell & Trap are NOT elements — they stay color:null/neutral).
@@ -971,9 +974,9 @@ const ART={
    one cost-3 strikes first). Fire & Water keep their hand-drawn art; the rest use parametric
    element-tinted placeholders until art files are dropped in. ---------- */
 // FIRE — Detonate (parting blast)
-const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Emberfly',c:1,a:1,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',1)},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Scorchling',c:2,a:3,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',2)},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing},{nm:'Infernox',c:5,a:5,h:4,up:3,kw:'detonate',det:3,art:phArt('fire','cre',5)},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw}];
+const EMBER=[{nm:'Sparkimp',c:1,a:1,h:1,up:1,art:ART.sparkimp},{nm:'Emberfly',c:1,a:1,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',1)},{nm:'Cinderling',c:2,a:2,h:2,up:1,art:ART.cinderling},{nm:'Scorchling',c:2,a:3,h:1,up:1,kw:'detonate',det:2,art:phArt('fire','cre',2)},{nm:'Ashfang',c:3,a:3,h:2,fs:true,up:2,art:ART.ashfang,subtype:'Warrior'},{nm:'Pyrewing',c:4,a:3,h:4,up:2,art:ART.pyrewing,tribe:'Dragon',subtype:'Warrior'},{nm:'Infernox',c:5,a:5,h:4,up:3,kw:'detonate',det:3,art:phArt('fire','cre',5)},{nm:'Magmaw',c:6,a:6,h:5,up:3,art:ART.magmaw,tribe:'Dragon'}];
 // WATER — Undertow (bounce the attacker)
-const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Brinekin',c:1,a:1,h:2,up:1,art:phArt('water','cre',1)},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Undertow',c:2,a:1,h:3,up:1,kw:'undertow',art:phArt('water','cre',2)},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Maelstrom',c:5,a:3,h:5,up:3,kw:'undertow',art:phArt('water','cre',5)},{nm:'Leviath',c:6,a:4,h:7,up:3,kw:'undertow',art:ART.leviath}];
+const TIDE =[{nm:'Mistling',c:1,a:1,h:2,up:1,art:ART.mistling},{nm:'Brinekin',c:1,a:1,h:2,up:1,art:phArt('water','cre',1)},{nm:'Rippler',c:2,a:2,h:2,up:1,art:ART.rippler},{nm:'Undertow',c:2,a:1,h:3,up:1,kw:'undertow',art:phArt('water','cre',2)},{nm:'Tidecaller',c:3,a:1,h:4,fs:true,up:2,art:ART.tidecaller,subtype:'Wizard'},{nm:'Surgeling',c:4,a:4,h:3,up:2,art:ART.surgeling},{nm:'Maelstrom',c:5,a:3,h:5,up:3,kw:'undertow',art:phArt('water','cre',5)},{nm:'Leviath',c:6,a:4,h:7,up:3,kw:'undertow',art:ART.leviath,tribe:'Dragon'}];
 // EARTH — Entrench (immovable wall)
 const EARTH =[{nm:'Pebbling',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Gravelkin',c:1,a:1,h:2,up:1,art:phArt('earth','cre',1)},{nm:'Mosshide',c:2,a:1,h:3,up:1,kw:'entrench',entrench:true,art:phArt('earth','cre',2)},{nm:'Loamhide',c:2,a:1,h:4,up:1,art:phArt('earth','cre',2)},{nm:'Cragtooth',c:3,a:1,h:4,fs:true,up:2,art:phArt('earth','cre',3)},{nm:'Bouldroot',c:4,a:2,h:5,up:2,kw:'entrench',entrench:true,art:phArt('earth','cre',4)},{nm:'Monolith',c:5,a:3,h:6,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)},{nm:'Titanore',c:6,a:4,h:8,up:3,kw:'entrench',entrench:true,art:phArt('earth','cre',5)}];
 // WIND — Scour (flier; ignores interceptors, cracks the back row)
@@ -981,17 +984,21 @@ const WIND  =[{nm:'Gustling',c:1,a:2,h:1,up:1,art:phArt('wind','cre',1)},{nm:'Br
 // FOREST — Chrysalis (cocoon → hatch)
 const FOREST=[{nm:'Sapling',c:1,a:1,h:2,up:1,art:phArt('forest','cre',1)},{nm:'Thornling',c:1,a:2,h:1,up:1,art:phArt('forest','cre',1)},{nm:'Sap Pod',c:2,a:0,h:3,up:1,kw:'chrysalis',grow:1,hatch:3,into:{nm:'Canopy Beast',a:5,h:4},art:phArt('forest','cre',2)},{nm:'Vinewhip',c:2,a:2,h:2,up:1,art:phArt('forest','cre',2)},{nm:'Pouncer',c:3,a:3,h:2,fs:true,up:2,art:phArt('forest','cre',3)},{nm:'Grovekeep',c:4,a:2,h:5,up:2,art:phArt('forest','cre',4)},{nm:'Maulhorn',c:5,a:5,h:4,up:3,art:phArt('forest','cre',5)},{nm:'Hive Cradle',c:6,a:3,h:6,up:3,kw:'chrysalis',grow:1,hatch:2,into:{nm:'Broodtitan',a:8,h:7},art:phArt('forest','cre',5)}];
 // ELECTRIC — Overcharge (bank ◆, discharge on attack)
-const ELECTRIC=[{nm:'Spark',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Jolt',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Volt',c:2,a:2,h:2,up:1,kw:'overcharge',art:phArt('electric','cre',2)},{nm:'Crackle',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Surge',c:3,a:4,h:1,fs:true,up:2,art:phArt('electric','cre',3)},{nm:'Thunderhead',c:4,a:4,h:3,up:2,kw:'overcharge',art:phArt('electric','cre',4)},{nm:'Stormcall',c:5,a:6,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5)},{nm:'Galvanwyrm',c:6,a:8,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5)}];
+const ELECTRIC=[{nm:'Spark',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Jolt',c:1,a:2,h:1,up:1,art:phArt('electric','cre',1)},{nm:'Volt',c:2,a:2,h:2,up:1,kw:'overcharge',art:phArt('electric','cre',2)},{nm:'Crackle',c:2,a:3,h:1,up:1,art:phArt('electric','cre',2)},{nm:'Surge',c:3,a:4,h:1,fs:true,up:2,art:phArt('electric','cre',3)},{nm:'Thunderhead',c:4,a:4,h:3,up:2,kw:'overcharge',art:phArt('electric','cre',4)},{nm:'Stormcall',c:5,a:6,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5)},{nm:'Galvanwyrm',c:6,a:8,h:3,up:3,kw:'overcharge',art:phArt('electric','cre',5),tribe:'Dragon'}];
 // LIGHT — Ward (token blocker)
 const LIGHT =[{nm:'Dawnmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Sunmote',c:1,a:1,h:2,up:1,art:phArt('light','cre',1)},{nm:'Gleamward',c:2,a:1,h:3,up:1,kw:'ward',wardhp:2,art:phArt('light','cre',2)},{nm:'Radiant',c:2,a:2,h:2,up:1,art:phArt('light','cre',2)},{nm:'Lumenfang',c:3,a:2,h:3,fs:true,up:2,art:phArt('light','cre',3)},{nm:'Aegisol',c:4,a:3,h:4,up:2,kw:'ward',wardhp:3,art:phArt('light','cre',4)},{nm:'Solstice',c:5,a:4,h:5,up:3,art:phArt('light','cre',5)},{nm:'Seraphine',c:6,a:5,h:6,up:3,kw:'ward',wardhp:4,art:phArt('light','cre',5)}];
 // DARK — Reap (raise a Shade on death)
-const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',1)},{nm:'Shadeling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Grimfang',c:2,a:3,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,kw:'reap',reap:2,art:phArt('dark','cre',4)},{nm:'Maledict',c:5,a:7,h:2,up:3,kw:'reap',reap:3,art:phArt('dark','cre',5)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,kw:'reap',reap:4,art:phArt('dark','cre',5)}];
+const DARK  =[{nm:'Wraithling',c:1,a:2,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',1)},{nm:'Shadeling',c:1,a:2,h:1,up:1,art:phArt('dark','cre',1)},{nm:'Gravelurk',c:2,a:3,h:1,up:1,art:phArt('dark','cre',2)},{nm:'Grimfang',c:2,a:3,h:1,up:1,kw:'reap',reap:1,art:phArt('dark','cre',2)},{nm:'Nightstalker',c:3,a:4,h:1,fs:true,up:2,art:phArt('dark','cre',3)},{nm:'Dreadmaw',c:4,a:5,h:2,up:2,kw:'reap',reap:2,art:phArt('dark','cre',4)},{nm:'Maledict',c:5,a:7,h:2,up:3,kw:'reap',reap:3,art:phArt('dark','cre',5)},{nm:'Voidwyrm',c:6,a:9,h:2,up:3,kw:'reap',reap:4,art:phArt('dark','cre',5),tribe:'Dragon'}];
 const POOLS={fire:EMBER,water:TIDE,earth:EARTH,wind:WIND,forest:FOREST,electric:ELECTRIC,light:LIGHT,dark:DARK};
 /* Divine roster reserved for future Ace / Boss / God cards — not a deckable pool. */
 const DIVINE=[{nm:'Cherub',c:1,a:1,h:2,up:1,art:phArt('divine','cre',1)},{nm:'Valkar',c:3,a:3,h:2,fs:true,up:2,art:phArt('divine','cre',3)},{nm:'Archon',c:4,a:4,h:3,up:2,art:phArt('divine','cre',4)},{nm:'Empyrean',c:6,a:6,h:5,up:3,art:phArt('divine','cre',5)}];
 const FORGE_NAMES={fire:'Emberforge',water:'Tidewell',earth:'Stonewell',wind:'Galewell',forest:'Thornwell',electric:'Stormforge',light:'Dawnwell',dark:'Gloomwell',divine:'Empyreum'};
 const FORGE_ART={fire:ART.emberforge,water:ART.tidewell};
 const WORKER={nm:'Worker',c:0,a:0,h:2,art:ART.villager};
+/* ===== creature types: tribe (lineage) + subtype (class) — both optional, single-valued strings ===== */
+const TRIBES=['Human','Dragon'];
+const SUBTYPES=['Wizard','Warrior'];
+function typeLine(o){ return o ? [o.tribe||'',o.subtype||''].filter(Boolean).join(' ') : ''; }
 /* ===== RTS build menu — structures are NOT deck cards. The commander builds them from a menu,
    paying MANA, gated by a prerequisite tech tree:
        Foundry  →  element Forges + Longhouse  →  Bulwark + Grand Forges
@@ -1338,7 +1345,8 @@ function expandDeck(deck){
   return d;
 }
 function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art,
-  kw:t.kw||null,det:t.det||0,ward:t.ward||0,wardhp:t.wardhp||2,reap:t.reap||0,grow:t.grow||0,hatch:t.hatch||0,into:t.into||null,cnt:t.cnt||0,oc:t.oc||0,entrench:!!t.entrench,token:!!t.token};}
+  kw:t.kw||null,det:t.det||0,ward:t.ward||0,wardhp:t.wardhp||2,reap:t.reap||0,grow:t.grow||0,hatch:t.hatch||0,into:t.into||null,cnt:t.cnt||0,oc:t.oc||0,entrench:!!t.entrench,token:!!t.token,
+  tribe:t.tribe||null,subtype:t.subtype||null};}
 function mkVil(owner){return mkCre({nm:'Worker',a:0,h:2,c:0,up:0,art:ART.villager},owner,true);}
 function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0,bid:t.bid||null};}
 
@@ -1362,7 +1370,7 @@ function removeUnitFromBoard(unit){
   for(const o of ['you','foe']) for(const w of ['back','front','center']){ const p=G.P[o].min[w]; const i=p.indexOf(unit); if(i>=0){p.splice(i,1);return o;} }
   return null; }
 function handcardFromCreature(cr){ return {kind:'handcard',id:uid++,type:'creature',color:cr.color,nm:cr.nm,a:cr.a,h:cr.maxh??cr.h,c:cr.c,fs:cr.fs,up:cr.up,art:cr.art,
-  kw:cr.kw,det:cr.det,ward:cr.ward,wardhp:cr.wardhp,reap:cr.reap,grow:cr.grow,hatch:cr.hatch,into:cr.into,entrench:cr.entrench}; }
+  kw:cr.kw,det:cr.det,ward:cr.ward,wardhp:cr.wardhp,reap:cr.reap,grow:cr.grow,hatch:cr.hatch,into:cr.into,entrench:cr.entrench,tribe:cr.tribe,subtype:cr.subtype}; }
 function mkToken(owner,nm,a,h,color){ const t=mkCre({nm,a,h,c:0,up:0},owner,false); t.token=true; t.color=color||G.P[owner].color; return t; }
 function effA(c){ return (c?(c.a||0):0)+((c&&c._dis)||0); } // effective attack (Overcharge discharge bonus)
 
@@ -1467,6 +1475,7 @@ window.buildPick=function(bid,color){ const def=resolveStruct(bid,color||null); 
   setHint(`Raising <b>${escHtml(def.nm)}</b> (◆${def.c}) — tap an open space in your rows. <button onclick="cancelBuild()">cancel</button>`); render(); };
 window.cancelBuild=function(){ G.build=null; defaultHint(); render(); };
 function placeBuild(which,i){ const def=G.build; if(!def)return;
+  if(which==='center'&&isLane(i)){ setHint(`Build on the dark flanking slots — the glowing lanes are for monsters. <button onclick="cancelBuild()">cancel</button>`); render(); return; }
   if(cellArr('you',which)[i]||!placeRowOK('you',which,def)){ setHint(`That row can't support <b>${escHtml(def.nm)}</b> (needs ⚒ to spare). Pick another space. <button onclick="cancelBuild()">cancel</button>`); render(); return; }
   if(!canBuild('you',def)){ G.build=null; defaultHint(); render(); return; }
   payAny('you',def.c); cellArr('you',which)[i]=mkBld(def,'you');
@@ -1493,7 +1502,7 @@ function aiBuild(owner){
 function toGrave(owner,obj){
   if(!obj)return; let rec;
   if(obj.kind==='creature') rec={type:obj.worker?'villager':'creature',nm:obj.nm,a:obj.a,h:obj.maxh??obj.h,c:obj.c,up:obj.up,fs:obj.fs,art:obj.art,color:obj.color,token:!!obj.token,
-    kw:obj.token?null:obj.kw,det:obj.det,ward:obj.ward,wardhp:obj.wardhp,reap:obj.reap,grow:obj.grow,hatch:obj.hatch,into:obj.into,entrench:obj.entrench};
+    kw:obj.token?null:obj.kw,det:obj.det,ward:obj.ward,wardhp:obj.wardhp,reap:obj.reap,grow:obj.grow,hatch:obj.hatch,into:obj.into,entrench:obj.entrench,tribe:obj.tribe||null,subtype:obj.subtype||null};
   else if(obj.kind==='building') rec={type:'building',nm:obj.nm,h:obj.maxh??obj.h,c:obj.c,eff:obj.eff,val:obj.val,sup:obj.sup,ic:obj.ic};
   else if(obj.kind==='charge') rec={type:obj.ctype||'creature',nm:obj.card.nm,a:obj.card.a,h:obj.card.h,c:obj.card.c,up:obj.card.up,sup:obj.card.sup,eff:obj.card.eff,val:obj.card.val,ic:obj.card.ic};
   else if(obj.kind==='trap') rec={type:'spell',nm:obj.card.nm,c:obj.card.c,trap:true,effect:obj.card.effect,val:obj.card.val,ic:obj.card.ic};
@@ -1610,7 +1619,7 @@ function cardStat(e){ return e.type==='creature'?`⚔${e.tpl.a} / ♥${e.tpl.h}`
   :e.type==='building'?((e.tpl.eff==='mana'?('◆+'+e.tpl.val+' / turn'):'⚒ trains')+` · ♥${e.tpl.h}`)
   :(e.tpl.trap?'⚠ Trap':'✦ Spell'); }
 function cardBlurb(e){ const t=e.tpl;
-  if(e.type==='creature'){ const p=[]; if(t.fs)p.push('Strikes first (First Strike).'); if(t.up)p.push(`Upkeep ⚒-${t.up} — costs workers to field.`); return (p.join(' ')||'A line creature.')+` ⚔${t.a} / ♥${t.h}.`; }
+  if(e.type==='creature'){ const tl=typeLine(t); const p=[]; if(t.fs)p.push('Strikes first (First Strike).'); if(t.up)p.push(`Upkeep ⚒-${t.up} — costs workers to field.`); return (tl?`<b>${tl}.</b> `:'')+(p.join(' ')||'A line creature.')+` ⚔${t.a} / ♥${t.h}.`; }
   if(e.type==='building'){ return (t.eff==='mana'?`Structure — yields ◆${t.val} each turn.`:'Structure — trains a worker each turn.')+` Adds ⚒+${t.sup||0} workers to its row.`; }
   if(t.trap) return 'Trap — set face-down for free; springs when your opponent summons a creature, dragging it down.';
   if(t.effect==='burn') return `Spell — deal ${t.val} damage to an enemy creature, structure, or face-down.`;
@@ -1718,7 +1727,7 @@ function dealOpening(o){ // your command center is pre-placed, so the opening ha
   G.P[o].hand=[]; for(let i=0;i<4;i++)drawCard(o);
 }
 function drawCard(o){if(G.P[o].deck.length){const t=G.P[o].deck.pop();G.P[o].hand.push({kind:'handcard',id:uid++,type:t.type,color:t.type==='spell'?null:(t.color||G.P[o].color),nm:t.nm,a:t.a,h:t.h,c:t.c,fs:t.fs,up:t.up,sup:t.sup,eff:t.eff,val:t.val,ic:t.ic,art:t.art,trap:t.trap,effect:t.effect,target:t.target,trigger:t.trigger,
-  kw:t.kw,det:t.det,ward:t.ward,wardhp:t.wardhp,reap:t.reap,grow:t.grow,hatch:t.hatch,into:t.into,entrench:t.entrench});}}
+  kw:t.kw,det:t.det,ward:t.ward,wardhp:t.wardhp,reap:t.reap,grow:t.grow,hatch:t.hatch,into:t.into,entrench:t.entrench,tribe:t.tribe,subtype:t.subtype});}}
 function log(html,cls=''){const p=document.createElement('p');if(cls)p.className=cls;p.innerHTML=html;$('log').prepend(p);}
 window.toggleLog=function(on){ $('logPanel').style.display=on?'flex':'none'; };
 window.toggleRules=function(on){ $('rulesPanel').style.display=on?'flex':'none'; };
@@ -1946,8 +1955,8 @@ function renderCenter(){
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   el.appendChild(wkSlotEl('you','center',aiming)); // your contested-center workers on the left
   for(let i=0;i<SLOTS;i++){
-    if(!isLane(i)){ const gap=document.createElement('div'); gap.className='cell centergap'; el.appendChild(gap); continue; }
-    const cell=document.createElement('div'); cell.className='cell centercell';
+    // the contested center is a mountain pass: 3 monster lanes (cols 1/3/5) flanked by 4 structure slots (cols 0/2/4/6)
+    const cell=document.createElement('div'); cell.className='cell centercell '+(isLane(i)?'centerlane':'centerstruct');
     const o=G.center[i];
     const persp=o?o.owner:'center';
     if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); attachSprite(cell,o,me); }
@@ -2011,12 +2020,12 @@ function decorate(cell,owner,which,i,o){
     if(mine&&(o.kind==='creature'||o.kind==='building')){ cell.classList.add('target'); cell.addEventListener('click',()=>doSendMana(which,i)); return; }
     cell.addEventListener('click',cancelSendMana); return;
   }
-  if(G.build){ if(owner==='you'&&!o&&canDeploy('you',which)&&placeRowOK('you',which,G.build)) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(owner,which,i,o)); return; }
+  if(G.build){ if(owner==='you'&&!o&&canDeploy('you',which)&&placeRowOK('you',which,G.build)&&!(which==='center'&&isLane(i))) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(owner,which,i,o)); return; }
   const handSel=G.sel&&G.sel.kind==='hand';
   if(mine&&o.kind==='creature'&&inAtk(which,i)) cell.classList.add('selected');
   if(mine&&o.kind==='creature'&&!o.sick&&!o.tapped&&!handSel) cell.classList.add('tappable');
   if(mine&&o.kind==='charge'&&G.atk.length===0&&!handSel) cell.classList.add('tappable');
-  if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&canDeploy(owner,which)) cell.classList.add('tappable');
+  if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&canDeploy(owner,which)&&centerSlotOK(which,i,(G.P.you.hand[G.sel.idx]||{}).type==='building')) cell.classList.add('tappable');
   if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0) cell.classList.add('target');
   if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
   if(G.atk.length){ if(foe&&canAttack()&&colReach(G.atk[0].i,i)) cell.classList.add('target'); } // ±1 column reach
@@ -2140,7 +2149,7 @@ function onCell(owner,which,i,o){
 function place(idx,mode,which,slot){
   const card=G.P.you.hand[idx];
   const where=which==='center'?'the contested center':(which==='front'?'front line':'base');
-  if(which==='center'&&!isLane(slot)){ setHint('The contested center has lanes only at its three marked columns.'); render(); return; }
+  if(!centerSlotOK(which,slot,card.type==='building')){ setHint(card.type==='building'?'Build on the dark flanking slots — the glowing lanes are for monsters.':'Monsters fight in the glowing lanes (columns 1, 3, 5).'); render(); return; }
   const arr=cellArr('you',which);
   const occ=arr[slot];
   // play face-up ON TOP of one of your cards that holds banked ◆ (summon/build only)
@@ -2187,7 +2196,7 @@ function place(idx,mode,which,slot){
     G.P.you.hand.splice(idx,1);
     const ctype=card.type;
     const cdata=ctype==='building'?{nm:card.nm,c:card.c,h:card.h,eff:card.eff,val:card.val,sup:card.sup,ic:card.ic,art:card.art}:{nm:card.nm,a:card.a,h:card.h,c:card.c,fs:card.fs,up:card.up,art:card.art,
-      kw:card.kw,det:card.det,ward:card.ward,wardhp:card.wardhp,reap:card.reap,grow:card.grow,hatch:card.hatch,into:card.into,entrench:card.entrench};
+      kw:card.kw,det:card.det,ward:card.ward,wardhp:card.wardhp,reap:card.reap,grow:card.grow,hatch:card.hatch,into:card.into,entrench:card.entrench,tribe:card.tribe,subtype:card.subtype};
     arr[slot]={kind:'charge',owner:'you',w:which,ctype,card:cdata,inv:0,setTurn:G.turnNo};
     log(`<span class="y">You set a face-down ${ctype==='building'?'structure':'card'} in ${where}.</span>`,'y');
   }
@@ -2710,7 +2719,7 @@ function reviveFromGrave(owner){
   for(let k=g.length-1;k>=0;k--){ const r=g[k];
     if(r&&r.type==='creature'&&!r.token){ g.splice(k,1);
       G.P[owner].hand.push({kind:'handcard',id:uid++,type:'creature',color:r.color||G.P[owner].color,nm:r.nm,a:r.a,h:r.h,c:r.c,fs:r.fs,up:r.up,art:r.art,
-        kw:r.kw,det:r.det,ward:r.ward,wardhp:r.wardhp,reap:r.reap,grow:r.grow,hatch:r.hatch,into:r.into,entrench:r.entrench});
+        kw:r.kw,det:r.det,ward:r.ward,wardhp:r.wardhp,reap:r.reap,grow:r.grow,hatch:r.hatch,into:r.into,entrench:r.entrench,tribe:r.tribe,subtype:r.subtype});
       log(`<span class="${owner==='you'?'y':'e'}">The Reliquary returns ${r.nm} to ${owner==='you'?'your':'their'} hand.</span>`,owner==='you'?'y':'e');
       return true; }
   }
@@ -3031,7 +3040,7 @@ function inspectRef(owner,which,i){
   { const kt=kwText(o); if(kt) abilities.push(kt); }
   const eff=abilities.length?abilities.join('<br>'):'No special ability.';
   const tags=[]; if(o.sick)tags.push('summoning-sick'); if(o.tapped)tags.push('tapped'); if(o.moved)tags.push('moved this turn'); if(o.bank>0)tags.push(`◆${o.bank} banked`); if(which==='center')tags.push('contesting the center');
-  showInspect(`${o.nm} · ${role}${o.fs?' · First Strike':''}`,
+  showInspect(`${o.nm}${(!o.worker&&typeLine(o))?' · '+typeLine(o):''} · ${role}${o.fs?' · First Strike':''}`,
     `${bigArt(o)}Cost <b>◆${o.c}</b> · ⚔${o.a} / ♥${o.h}/${o.maxh}<br>${eff}<br><i>Taps when it attacks, extracts, or intercepts. May move once per turn to an open adjacent space — base, front line, or the contested center. Attacks target any row; if more than one row away, the strike can be intercepted in the rows it crosses.</i>${tags.length?`<br>Now: ${tags.join(', ')}.`:''}`);
 }
 function inspectHand(i){
@@ -3048,7 +3057,7 @@ function inspectHand(i){
   }
   const stat=isB?`♥${c.h}${c.sup?` · ⚒+${c.sup} cap`:''}`:`⚔${c.a} / ♥${c.h}${c.up?` · ⚒-${c.up} cap`:''}`;
   const eff=isB?bldEffectText(c.eff,c.val,c.sup):([c.up?`<b>Upkeep ⚒-${c.up}.</b> Consumes ${c.up} worker cap while it stands.`:'',kwText(c)].filter(Boolean).join('<br>')||'No special ability.');
-  showInspect(`${c.nm} · ${isB?'Structure':'Creature'} (in hand)`,
+  showInspect(`${c.nm}${(!isB&&typeLine(c))?' · '+typeLine(c):''} · ${isB?'Structure':'Creature'} (in hand)`,
     `${bigArt(c)}Cost <b>◆${c.c}</b> · ${stat}<br>${eff}<br><i>${isB?'Build':'Summon'} face-up (pay now), or <b>Set</b> face-down for free, into any empty slot — front line or base.${isB?' Structures are your lifeline: lose them all and you lose.':''}</i>`);
 }
 
