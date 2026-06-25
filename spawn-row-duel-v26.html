@@ -101,7 +101,7 @@
      contained, perspective-tilted PLAYFIELD (Master Duel style). */
   .mat{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:0;padding:2px clamp(4px,1vw,12px);
     background:repeating-linear-gradient(45deg,rgba(0,0,0,.18) 0 2px,transparent 2px 9px),linear-gradient(160deg,#3a2c12,#241a0a 55%,#1a1208);
-    border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);perspective:1550px;perspective-origin:50% 15%;overflow:visible;}
+    border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);perspective:none;perspective-origin:50% 15%;overflow:visible;}  /* orthographic: rotateX tilt with no vanishing-point convergence — every column stays perfectly vertical */
   .rowlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;text-align:center;margin:3px 0 5px;color:var(--ink-dim);}
   .rowlabel.spawn{color:var(--spawn);font-size:10px;text-shadow:0 0 10px rgba(82,198,236,.4);}
   .centerwrap{flex:1;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;align-items:stretch;padding:0 6px;}
@@ -1348,7 +1348,7 @@ function expandDeck(deck){
   return d;
 }
 function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!worker,color:t.color||G.P[owner].color,nm:t.nm,a:t.a,h:t.h,maxh:t.h,c:t.c,fs:!!t.fs,up:t.up||0,sick:false,tapped:false,moved:false,bank:0,art:t.art,
-  kw:t.kw||null,det:t.det||0,ward:t.ward||0,wardhp:t.wardhp||2,reap:t.reap||0,grow:t.grow||0,hatch:t.hatch||0,into:t.into||null,cnt:t.cnt||0,oc:t.oc||0,entrench:!!t.entrench,token:!!t.token,
+  kw:t.kw||null,det:t.det||0,ward:t.ward||0,wardhp:t.wardhp||2,reap:t.reap||0,grow:t.grow||0,hatch:t.hatch||0,into:t.into||null,cnt:t.cnt||0,oc:t.oc||0,entrench:!!t.entrench,token:!!t.token,blocked:false,
   tribe:t.tribe||null,subtype:t.subtype||null};}
 function mkVil(owner){return mkCre({nm:'Worker',a:0,h:1000,c:0,up:0,art:ART.villager},owner,true);}
 function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0,bid:t.bid||null};}
@@ -2346,7 +2346,8 @@ function rowsStrictlyBetween(aIdx,tIdx){ const lo=Math.min(aIdx,tIdx),hi=Math.ma
 // untapped creatures in `key` NOT owned by the attacker (enemy or contesting-center units) — eligible to interpose
 function untappedInterceptors(key,attackerOwner,aCol){ const out=[];
   // a slotted defender may interpose only if its column is within ±1 of the attacker's column
-  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.tapped&&c.owner!==attackerOwner&&(aCol==null||colReach(i,aCol))) out.push({key,i,c}); });
+  // a creature may block on the opponent's turn even if it tapped (attacked) on its own — once per turn, gated by the `blocked` flag
+  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.blocked&&!c.sick&&c.owner!==attackerOwner&&(aCol==null||colReach(i,aCol))) out.push({key,i,c}); });
   // worker stacks have no column — they screen their whole row
   minionsInRow(key).forEach(g=>{ if(g.owner!==attackerOwner&&!g.c.tapped&&!g.c.sick) out.push({key,c:g.c}); });
   return out;
@@ -2539,7 +2540,7 @@ function attackMinionStack(key,owner,which){
     const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
     const chosen=aiChooseInterceptors(attackers,{kind:'creature',elig});
     if(chosen.length){
-      chosen.forEach(r=>r.c.tapped=true);
+      chosen.forEach(r=>{r.c.tapped=true;r.c.blocked=true;});
       log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike is met midway.</span>`,'e');
       resolveCombat(attackers,chosen.map(r=>r.c)); clearAtk(); render(); checkWin(); return;
     }
@@ -2598,7 +2599,7 @@ function doAttack(which,ti){
     const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
     const chosen=aiChooseInterceptors(attackers,{kind:tgt.kind,cc:!!tgt.cc,elig});
     if(chosen.length){
-      chosen.forEach(r=>r.c.tapped=true);
+      chosen.forEach(r=>{r.c.tapped=true;r.c.blocked=true;});
       log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike is met midway, the target spared.</span>`,'e');
       resolveCombat(attackers,chosen.map(r=>r.c)); clearDischarge(attackers); clearAtk(); render(); checkWin(); return;
     }
@@ -2626,7 +2627,7 @@ function attackBase(defOwner){
     const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
     const chosen=aiChooseInterceptors(attackers,{kind:'building',cc:true,elig});
     if(chosen.length){
-      chosen.forEach(r=>r.c.tapped=true);
+      chosen.forEach(r=>{r.c.tapped=true;r.c.blocked=true;});
       log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike at the keep is met midway.</span>`,'e');
       resolveCombat(attackers,chosen.map(r=>r.c)); clearAtk(); render(); checkWin(); return;
     }
@@ -2710,7 +2711,7 @@ function cleanup(){
 function buildingUpkeep(owner){
   const P=G.P[owner]; let revived=false;
   const tick=o=>{ if(o&&o.kind==='building'){
-    if(o.eff==='mana'){P.mana=Math.min(20,P.mana+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ◆${o.val}.</span>`,owner==='you'?'y':'e');}
+    if(o.eff==='mana'){const mc=o.color||CCS[P.cc].colors[0];P.cmana[mc]=Math.min(20,P.cmana[mc]+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ${manaGlyph(mc)}${o.val} ${cap(mc)}.</span>`,owner==='you'?'y':'e');}
     else if(o.eff==='damage'){buildingDamage(owner,o.val||0,o.nm);}
     else if(o.eff==='revive'){ if(!revived) revived=reviveFromGrave(owner); } // once per turn, regardless of count
   }};
@@ -2743,8 +2744,8 @@ function drainMana(owner){ const P=G.P[owner]; const keep=Math.min(vaultCap(owne
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
   P.mana=Math.min(20,P.mana+1); P.firstExtract=true;
-  ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o._dis=0;}}));
-  G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o._dis=0;}});
+  ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}}));
+  G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}});
   chrysalisUpkeep(owner);   // cocoons swell (and re-sick so they can't attack) or hatch into their grown form
   overchargeUpkeep(owner);  // Electric creatures bank ◆ for their next discharge
   buildingUpkeep(owner);
@@ -2950,7 +2951,7 @@ async function foeTurn(){
         blk=await askBlock({attacker:m,elig,title:'Incoming Attack',desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${tgtName}.`});
       }
     }
-    if(blk.length){ const defs=blk.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean); defs.forEach(d=>d.tapped=true); log(`<span class="y">You interpose ${defs.length}!</span>`,'y'); resolveCombat([m],defs); }
+    if(blk.length){ const defs=blk.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean); defs.forEach(d=>{d.tapped=true;d.blocked=true;}); log(`<span class="y">You interpose ${defs.length}!</span>`,'y'); resolveCombat([m],defs); }
     else { const o=tref.o;
       if(o.kind==='creature'||o.kind==='building') springAttackTrap('you',[m],o); // your attack-trigger trap
       if(o.kind==='charge'){ provokeFaceDown('you',tref.key,tref.i,[m]); }
