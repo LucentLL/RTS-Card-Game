@@ -1,0 +1,15 @@
+{
+  "name": "Spawn Row Duel",
+  "short_name": "Spawn Row",
+  "description": "A 7-column RTS card duel.",
+  "start_url": "./spawn-row-duel-v26.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0d0b12",
+  "theme_color": "#15121d",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
