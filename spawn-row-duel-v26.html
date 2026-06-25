@@ -108,7 +108,7 @@
   .rowlabel.vert{position:absolute;left:calc(var(--cw)*-.02);top:0;bottom:0;z-index:2;pointer-events:none;
     writing-mode:vertical-rl;transform:rotate(180deg);margin:0;display:flex;align-items:center;justify-content:center;
     width:var(--cw);letter-spacing:.26em;font-size:clamp(7px,calc(var(--cw)*.12),9px);opacity:.85;overflow:hidden;white-space:nowrap;}
-  .row{flex:1;min-height:0;display:flex;justify-content:center;align-items:stretch;gap:clamp(3px,.7vw,9px);}
+  .row{flex:1;min-height:0;display:flex;justify-content:center;align-items:center;gap:clamp(3px,.7vw,9px);}
   .wkslot{width:clamp(40px,5vw,58px);flex:none;display:flex;align-items:center;justify-content:center;}
   .side{flex:2;min-height:0;display:flex;}
   #youSide{flex-direction:row-reverse;}
@@ -161,8 +161,8 @@
      far edge (opponent) narrower at the top. Height-driven cells set the floor
      width; the box fills the mat and the deck zones are JS-pinned to the corner cells. */
   .matmain{flex:none;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:center;
-    width:100%;height:103%;
-    transform:translateY(-9%) rotateX(32deg);transform-origin:50% 50%;}
+    width:100%;height:100%;
+    transform:none;transform-origin:50% 50%;}                /* flat board: every slot the same size, columns perfectly in line (was rotateX(32deg)) */
   /* the worker rail — off-board token wells aligned to the five rows */
   .wrail{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;display:flex;flex-direction:column;align-items:stretch;}
   .wrail-spacer{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;}
@@ -193,7 +193,7 @@
   #foeBack .cell:not(.mineHere):not(.foeHere),#foeFront .cell:not(.mineHere):not(.foeHere){border-color:rgba(82,160,236,.3);}
   #youFront .cell:not(.mineHere):not(.foeHere),#youBack .cell:not(.mineHere):not(.foeHere){border-color:rgba(236,120,60,.3);}
 
-  .cell{position:relative;container-type:size;aspect-ratio:1;height:100%;width:auto;flex:none;border-radius:8px;border:1px dashed rgba(255,255,255,.12);background:rgba(0,0,0,.28);
+  .cell{position:relative;container-type:size;width:var(--cw);height:var(--ch);flex:none;border-radius:8px;border:1px dashed rgba(255,255,255,.12);background:rgba(0,0,0,.28);
     display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .12s,border-color .12s;overflow:hidden;}
   .cell.spawncell{border-style:solid;border-color:rgba(82,198,236,.22);background:rgba(82,198,236,.05);}
   .cell.tappable{cursor:pointer;border-color:rgba(217,176,74,.7);box-shadow:0 0 0 1px rgba(217,176,74,.45),0 0 15px rgba(217,176,74,.28);}
@@ -1228,9 +1228,12 @@ function syncWorkers(owner){
     const target=Math.max(0,rowWorkers(owner,which));
     const pool=G.P[owner].min[which];
     while(pool.length>target) pool.pop();
-    while(pool.length<target){ const w=mkVil(owner); w.sick=false; pool.push(w); }
+    while(pool.length<target){ const w=mkVil(owner); w.sick=true; pool.push(w); } // new workers are summoning-sick: a structure can't harvest the turn it makes them
   });
 }
+// workers settle (become harvestable) at the START of the turn, AFTER upkeep + deficit balancing.
+// Because this runs only at turn start, workers a structure adds mid-turn stay sick until next turn.
+function readyWorkers(owner){ ['back','front','center'].forEach(w=>G.P[owner].min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;})); }
 // rows of `owner` that are short on workers (must be fixed at the owner's turn start)
 function deficitRows(owner){ return ['back','front','center'].filter(w=>rowWorkers(owner,w)<0); }
 function creaturesInRow(owner,which){
@@ -1544,6 +1547,7 @@ function startGame(youId,foeId,youDeck,foeDeck){
   G.P.you.ccUnit=mkCC(cy,'you'); G.P.foe.ccUnit=mkCC(cf,'foe');
   G.P.you.back[BASE_COL]=G.P.you.ccUnit; G.P.foe.back[BASE_COL]=G.P.foe.ccUnit;
   syncWorkers('you'); syncWorkers('foe');
+  readyWorkers('you'); readyWorkers('foe'); // the opening workforce is settled and ready to harvest on turn 1
   G.P.you.deck=youDeck||deckOf(cy.colors); G.P.foe.deck=foeDeck||deckOf(cf.colors);
   dealOpening('you'); dealOpening('foe');
   applyCharacterUI();
@@ -1816,7 +1820,7 @@ function placeCardMenu(){
   } else {
     el.classList.remove('handmenu');
     const row=m.w==='center'?$('center'):$('you'+(m.w==='front'?'Front':'Back'));
-    cell=row&&row.children[m.i];
+    cell=rowCellEl(row,m.i);
     if(!cell||!cellArr('you',m.w)[m.i]){ el.style.display='none'; G.cardMenu=null; return; }
   }
   el.innerHTML=m.html;
@@ -2747,13 +2751,13 @@ function startTurn(owner){
   cleanup(); // sweep anything a damage-tower just killed
   drawCard(owner);
   syncWorkers(owner); // workers re-derived from the cards now in each row
-  ['back','front','center'].forEach(w=>P.min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;}));
+  readyWorkers(owner); // settle this turn's workers so they can harvest (workers a later build adds stay sick)
   if(owner==='you'){
     const dr=deficitRows('you');
     if(dr.length){ G.deficit=true; render(); promptDeficit(); return; }
     log(`<span class="y">— Your turn (◆${P.mana}) —</span>`);defaultHint();
   } else {
-    aiFixDeficit('foe');
+    aiFixDeficit('foe'); readyWorkers('foe'); // re-settle after the AI balances any negative rows
   }
 }
 // ----- start-of-turn deficit: a row's workers are negative; shed monsters until 0+ -----
@@ -2796,7 +2800,7 @@ window.deficitSac=function(which,i){
 };
 function afterDeficitAction(){
   if(deficitRows('you').length){ promptDeficit(); render(); }
-  else { G.deficit=false; log(`<span class="y">— Your turn (◆${G.P.you.mana}) —</span>`); defaultHint(); render(); }
+  else { G.deficit=false; readyWorkers('you'); log(`<span class="y">— Your turn (◆${G.P.you.mana}) —</span>`); defaultHint(); render(); }
 }
 const MOVE_ADJ={back:['front'],front:['back','center'],center:['front']};
 function aiMoveCreature(owner,which,i,to){
@@ -3202,9 +3206,11 @@ const FX=(()=>{
 
 /* DOM cell for a live unit object — board slots first, then minion pill strips */
 const FX_STRIP={foeBack:'wellFoeBack',foeFront:'wellFoeFront',center:'wellCenter',youFront:'wellYouFront',youBack:'wellYouBack'};
+// the nth board CELL of a row element — skips the worker-slot(s) so the index lines up with the column
+function rowCellEl(row,i){ return (row && row.querySelectorAll('.cell')[i])||null; }
 function cellElFor(obj){
   if(!obj)return null;
-  for(const key of ROWS){ const i=rowArr(key).indexOf(obj); if(i>=0){ const row=$(key); return (row&&row.children[i])||null; } }
+  for(const key of ROWS){ const i=rowArr(key).indexOf(obj); if(i>=0){ return rowCellEl($(key),i); } }
   for(const o of ['you','foe']) for(const w of ['back','front','center']){
     if(G.P[o].min[w].indexOf(obj)>=0){
       const key=w==='center'?'center':(o==='you'?(w==='front'?'youFront':'youBack'):(w==='front'?'foeFront':'foeBack'));
@@ -3246,11 +3252,11 @@ function fxLunge(srcEls,tEl,after){
   FX.arrow(fxRect(srcEls[0]),tr); FX.clearAim(); SFX.whoosh();
   setTimeout(()=>{ _atkBusy=false; after(); },280);
 }
-const fxAtkSrcs=()=>G.atk.map(s=>{ const row=$(mineKey(s.w)); return row&&row.children[s.i]; }).filter(Boolean);
+const fxAtkSrcs=()=>G.atk.map(s=>rowCellEl($(mineKey(s.w)),s.i)).filter(Boolean);
 const _doAttack=doAttack;
 doAttack=function(which,ti){
   if(_atkBusy)return;
-  const row=$(rowKeyFor('foe',which)); const tEl=row&&row.children[ti];
+  const row=$(rowKeyFor('foe',which)); const tEl=rowCellEl(row,ti);
   fxLunge(fxAtkSrcs(),tEl,()=>_doAttack(which,ti));
 };
 const _attackMinionStack=attackMinionStack;
@@ -3263,7 +3269,7 @@ attackMinionStack=function(key,owner,which){
 const _place=place;
 place=function(idx,mode,which,slot){
   const handEl=document.querySelector('.hc.selected');
-  const row=$(mineKey(which)); const destEl=row&&row.children[slot];
+  const row=$(mineKey(which)); const destEl=rowCellEl(row,slot);
   const fr=fxRect(handEl), tr=fxRect(destEl), html=handEl?handEl.outerHTML:null;
   const n0=G.P.you.hand.length;
   _place(idx,mode,which,slot);
@@ -3287,14 +3293,14 @@ flip=function(owner,which,slot){
 // spells, traps, powers
 const _castSpell=castSpell;
 castSpell=function(idx,which,i){
-  const row=$(rowKeyFor('foe',which)); const tr=fxRect(row&&row.children[i]);
+  const row=$(rowKeyFor('foe',which)); const tr=fxRect(rowCellEl(row,i));
   const n0=G.P.you.hand.length;
   _castSpell(idx,which,i);
   if(G.P.you.hand.length<n0){ SFX.spell(); FX.slash(tr); FX.burstRect(tr,'#c9a0ff'); }
 };
 const _springTrap=springTrap;
 springTrap=function(defOwner,key,slot,attackers){
-  try{ const row=$(key); FX.burstRect(fxRect(row&&row.children[slot]),'#f0b89a',12); SFX.trap(); }catch(e){}
+  try{ const row=$(key); FX.burstRect(fxRect(rowCellEl(row,slot)),'#f0b89a',12); SFX.trap(); }catch(e){}
   _springTrap(defOwner,key,slot,attackers);
 };
 // economy beats
@@ -3361,7 +3367,7 @@ document.addEventListener('mouseover',e=>{
   if(!e.target.closest)return;
   const tgt=e.target.closest('.cell.target,.minpill.target,.crest-target');
   if(!tgt||!G.atk||!G.atk.length)return;
-  const row=$(mineKey(G.atk[0].w)); const src=row&&row.children[G.atk[0].i];
+  const row=$(mineKey(G.atk[0].w)); const src=rowCellEl(row,G.atk[0].i);
   if(src)FX.aimArrow(fxRect(src),fxRect(tgt));
 });
 document.addEventListener('mouseout',e=>{
