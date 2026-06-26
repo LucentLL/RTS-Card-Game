@@ -653,8 +653,10 @@
   body.board-tilt .mat{perspective:none;}
   body.board-topdown .matmain{transform:none;height:100%;}
   body.board-topdown .mat{perspective:none;}
-  body.board-extreme .matmain{transform:translateY(-2%) rotateX(52deg);height:118%;}
-  body.board-extreme .mat{perspective:760px;}
+  /* extreme: perspective is vh-relative so the projection scales with the board on any screen
+     and the foreshortened field stays inside the flat box fitBoard already sized (no row falls off) */
+  body.board-extreme .matmain{transform:translateY(-6%) rotateX(50deg);transform-origin:50% 50%;height:100%;}
+  body.board-extreme .mat{perspective:112vh;perspective-origin:50% 44%;}
   /* battle cut-in (DS-Yu-Gi-Oh style): the cards involved flash up on a clash */
   #battleView{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;}
   #battleView.show{animation:bvshow 1.1s ease forwards;}
