@@ -529,9 +529,11 @@
   #cpanel .pacts button:active:not(:disabled){transform:translatey(2px);}
   #cpanel .pclose{margin-top:4px;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
   .banner{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.86);backdrop-filter:blur(3px);}
-  #charsel,#soloSelect{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.96);backdrop-filter:blur(3px);padding:18px;overflow-y:auto;}
+  /* align-items:flex-start + margin:auto on the box = centred when it fits, but scrollable (top reachable)
+     when the deck list is taller than the screen. align-items:center here would clip the top unscrollably. */
+  #charsel,#soloSelect{position:fixed;inset:0;z-index:40;display:none;align-items:flex-start;justify-content:center;background:rgba(4,3,8,.96);backdrop-filter:blur(3px);padding:18px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
   #soloSelect{z-index:43;}
-  #charsel .csbox,#soloSelect .csbox{max-width:560px;width:100%;text-align:center;}
+  #charsel .csbox,#soloSelect .csbox{max-width:560px;width:100%;text-align:center;margin:auto;}
   #charsel h1,#soloSelect h1{font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--gold);margin:4px 0 4px;}
   #charsel .cssub,#soloSelect .cssub{font-size:12.5px;color:var(--ink-dim);margin-bottom:16px;}
   #charsel .csrow,#soloSelect .csrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 14px;}
@@ -3496,9 +3498,21 @@ function setBoardAngle(a){ BOARD_ANGLE=a;
   const grp=$('setAngles'); if(grp)grp.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.a===a));
   if(typeof render==='function')render();
   if(typeof fitBoard==='function')fitBoard(); }
-function surrenderMatch(){ if(!confirm('Surrender and quit this match to the main menu?'))return;
-  G.over=true; const ov=$('settingsOverlay'); if(ov)ov.style.display='none';
+function doSurrender(){ G.over=true; const ov=$('settingsOverlay'); if(ov)ov.style.display='none';
   if(typeof showMainMenu==='function')showMainMenu(); }
+function resetSurrenderRow(){ const row=$('setSurrenderRow'); if(!row)return;
+  row.innerHTML='<button id="setSurrender" class="setsurr">🏳 Surrender / quit match</button>';
+  $('setSurrender').addEventListener('click',surrenderMatch); }
+function surrenderMatch(){
+  // in-app confirm — a native confirm() can misbehave or close the window inside an installed PWA
+  const row=$('setSurrenderRow'); if(!row){ doSurrender(); return; }
+  row.innerHTML='<div style="width:100%">'+
+    '<div class="setlab" style="color:#e0a59a;margin-bottom:6px;text-align:center">Surrender this match to the main menu?</div>'+
+    '<button id="setSurrYes" class="setsurr" style="margin-bottom:6px">🏳 Yes, quit to menu</button>'+
+    '<button id="setSurrNo" class="pclose" style="margin:0;width:100%">Cancel</button></div>';
+  $('setSurrYes').addEventListener('click',doSurrender);
+  $('setSurrNo').addEventListener('click',resetSurrenderRow);
+}
 (()=>{
   const b=document.createElement('button'); b.id='setBtn'; b.title='Settings'; b.textContent='⚙'; document.body.appendChild(b);
   const ov=document.createElement('div'); ov.id='settingsOverlay'; ov.style.display='none';
@@ -3509,10 +3523,10 @@ function surrenderMatch(){ if(!confirm('Surrender and quit this match to the mai
     <div class="setrow"><span class="setlab">Board angle</span><div id="setAngles" class="setangles">
       <button data-a="topdown">Top-down</button><button data-a="tilt">Tilt</button><button data-a="extreme">Extreme</button></div></div>
     <div class="setrow"><span class="setlab">Battle cut-ins</span><button id="setCutins">${BATTLE_CUTINS?'On':'Off'}</button></div>
-    <div class="setrow"><button id="setSurrender" class="setsurr">🏳 Surrender / quit match</button></div>
+    <div class="setrow" id="setSurrenderRow"><button id="setSurrender" class="setsurr">🏳 Surrender / quit match</button></div>
     <button class="pclose" id="setClose">Close</button></div>`;
   document.body.appendChild(ov);
-  b.addEventListener('click',()=>{ ov.style.display = ov.style.display==='none' ? 'flex' : 'none'; });
+  b.addEventListener('click',()=>{ const open=ov.style.display==='none'; ov.style.display = open ? 'flex' : 'none'; if(open)resetSurrenderRow(); });
   ov.addEventListener('click',e=>{ if(e.target===ov)ov.style.display='none'; });
   $('setClose').addEventListener('click',()=>ov.style.display='none');
   $('setVol').addEventListener('input',e=>{ SFX.setVolume(e.target.value/100); if(SFX.isMuted()&&e.target.value>0){SFX.setMuted(false);$('setMute').textContent='🔊 On';} });
@@ -3542,6 +3556,13 @@ function fitBoard(){
     if(!overY&&!overX)break;
     ch-=3; root.style.setProperty('--ch',ch.toFixed(1)+'px');
   }
+  // Cell WIDTH: portrait by default, but widen cells to fill the row on wide/short screens so the board
+  // stops stranding big empty side-margins (the complaint on landscape phones). Art is object-fit:cover,
+  // so a wider slot just crops wider — no stretch. Floor = portrait (.74·ch); cap = 1.5·ch (mild landscape).
+  const wkW=Math.min(58,Math.max(40,innerWidth*0.05)), gpW=Math.min(9,Math.max(3,innerWidth*0.007));
+  const rowAvail=innerWidth - 2*wkW - 28 - 8*gpW;               // mat width minus the 2 worker rails, padding and 8 gaps
+  const cw=Math.max(ch*0.74, Math.min(rowAvail/7, ch*1.5));
+  root.style.setProperty('--cw', cw.toFixed(1)+'px');
   // the handwrap now spans the full viewport (left:0;right:0) and its .hand child self-centers,
   // so no manual horizontal offset is needed (writing inline left here would fight the CSS right:0).
 }
