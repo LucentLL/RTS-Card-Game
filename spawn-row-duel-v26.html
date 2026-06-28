@@ -42,7 +42,7 @@
     --ch: clamp(50px, calc((100dvh - 70px)/5.4), 196px); --cw: calc(var(--ch)*.74);
     --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
     --peek: clamp(34px, calc(var(--hch)*.27), 58px);
-    --topzone: clamp(30px, 5vh, 58px);              /* room at the top for the opponent's hand */
+    --topzone: clamp(12px, 2.4vh, 28px);            /* room at the top for the opponent's hand (peeks ~14-24px) */
     --handpad: calc(var(--peek) + 16px);}           /* at rest only the name+cost strip is reserved; the wall rises over it on hover */
   @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
   .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
@@ -171,8 +171,8 @@
      far edge (opponent) narrower at the top. Height-driven cells set the floor
      width; the box fills the mat and the deck zones are JS-pinned to the corner cells. */
   .matmain{flex:none;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:center;
-    width:100%;height:103%;
-    transform:translateY(-9%) rotateX(32deg);transform-origin:50% 50%;}  /* perspective tilt restored; fixed-size cells keep every row's slots aligned in a clean grid */
+    width:100%;height:106%;
+    transform:translateY(calc(-6% + var(--wallY,0%))) rotateX(32deg);transform-origin:50% 50%;}  /* perspective tilt restored; fixed-size cells keep every row's slots aligned in a clean grid */
   /* the worker rail — off-board token wells aligned to the five rows */
   .wrail{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;display:flex;flex-direction:column;align-items:stretch;}
   .wrail-spacer{width:clamp(40px,calc(var(--cw)*.82),64px);flex:none;}
@@ -649,15 +649,30 @@
   .setsurr{width:100%;background:linear-gradient(180deg,#6a2a2a,#3a1414)!important;color:#ffd0c0!important;border-color:#7a3a3a!important;}
   #settingsOverlay .pclose{display:block;width:100%;margin-top:12px;padding:8px;border-radius:8px;cursor:pointer;border:1px solid #3d3450;background:#1a1622;color:var(--ink-dim);font-family:'Cinzel',serif;}
   /* board-angle modes (toggled in Settings; static .matmain rule below is the 'tilt' default) */
-  body.board-tilt .matmain{transform:translateY(-9%) rotateX(32deg);height:103%;}
+  /* each mode's translateY folds in --wallY (0 by default) so the whole field can lift when the
+     castle wall raises — without re-stating rotateX (CSS transforms are not additive). */
+  body.board-tilt .matmain{transform:translateY(calc(-6% + var(--wallY,0%))) rotateX(32deg);height:106%;}
   body.board-tilt .mat{perspective:none;}
-  body.board-topdown .matmain{transform:none;height:100%;}
+  body.board-topdown .matmain{transform:translateY(var(--wallY,0%));height:100%;}
   body.board-topdown .mat{perspective:none;}
   /* extreme: perspective is vh-relative so the projection scales with the board on any screen
      and the foreshortened field stays inside the flat box fitBoard already sized (no row falls off) */
   body.board-extreme{--tiltx:50deg;}
-  body.board-extreme .matmain{transform:translateY(-6%) rotateX(var(--tiltx));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
-  body.board-extreme .mat{perspective:112vh;perspective-origin:50% 44%;}
+  body.board-extreme .matmain{transform:translateY(calc(-8% + var(--wallY,0%))) rotateX(var(--tiltx));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
+  body.board-extreme .mat{perspective:140vh;perspective-origin:50% 44%;}
+  /* (D) raise the field when the castle wall / hand opens — hover sets .wall-open, touch selects a card
+     (:has(.hc.selected)); a drag also selects, so the board makes room mid-drag. */
+  .matmain{transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
+  body.wall-open,body:has(.hc.selected){--wallY:-13%;}
+  body.board-extreme.wall-open,body.board-extreme:has(.hc.selected){--wallY:-11%;}
+  /* drag-and-drop: a ghost follows the pointer; cards/cells own the touch gesture (no scroll) */
+  .hc,.cell{touch-action:none;}
+  .dragghost{position:fixed;z-index:9999;left:0;top:0;pointer-events:none;opacity:.92;
+    transform:translate(-50%,-56%) rotate(-2deg) scale(1.05);filter:drop-shadow(0 10px 18px rgba(0,0,0,.65));
+    border-radius:8px;will-change:left,top;}
+  .dragghost .inspect,.dragghost .spritewrap{display:none;}
+  body.dragging{cursor:grabbing;}
+  .cell.draghover{outline:2px solid var(--gold);outline-offset:-2px;border-radius:8px;}
   /* diorama: the field lies in perspective but creature figures STAND upright (billboard) like
      standees on a tilted board (DS-Yu-Gi-Oh look). Keep a 3D context all the way down to the
      sprite so it can pop out of the board plane, then cancel the tilt on the figure itself. */
@@ -1183,21 +1198,35 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   w.SPRITES_ON = true;                     // toggled in-game by the 🧍 Figures button
   w.spriteBase = function(n){ return w.SPRITE_DIR + w.slugify(n) + '_sprite'; };
   w.spritePath = function(n){ var s=w.slugify(n); return w.EMBEDDED_SPRITES[s] || (w.spriteBase(n)+'.'+w.SPRITE_EXTS[0]); };
+  // ON-FIELD figure art: prefer a "_fieldart" cut-out (assets/cards/<slug>_fieldart.<ext>) for a
+  // creature standing on the board; if none exists, borrow the square card art as a framed standee.
+  w.FIELD_EXTS = ['png','webp','jpg'];
+  w.EMBEDDED_FIELD = {};                       // slug -> data URI (filled by tools/embed-art.py for the portable build)
+  w.FIELD_MISS = {};                           // slug -> true once we know there's no field cut-out (skip the 404 on later renders)
+  w.fieldBase = function(n){ return w.ART_DIR + w.slugify(n) + '_fieldart'; };
+  w.fieldPath = function(n){ var s=w.slugify(n); return w.EMBEDDED_FIELD[s] || (w.fieldBase(n)+'.'+w.FIELD_EXTS[0]); };
   w.spriteImg = function(card){
-    var nm = card && card.nm ? card.nm : '';
-    return '<img class="spritefig" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" data-ext="0" src="'+w.spritePath(nm)+'" onerror="spriteFallback(this)">';
+    var nm = card && card.nm ? card.nm : ''; var s = w.slugify(nm);
+    if(w.FIELD_MISS[s] && !w.EMBEDDED_FIELD[s])   // known: no field cut-out — borrow the card art straight away (no 404)
+      return '<img class="spritefig fromart" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" data-stage="cardart" data-ext="0" src="'+w.artPath(nm)+'" onerror="spriteFallback(this)">';
+    return '<img class="spritefig" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" data-stage="field" data-ext="0" src="'+w.fieldPath(nm)+'" onerror="spriteFallback(this)">';
   };
-  // 404 chain: remaining sprite exts -> the card art (borrowed) -> built-in placeholder
+  // 404 chain: remaining _fieldart exts -> the square card art (borrowed, framed) -> built-in placeholder
   w.spriteFallback = function(img){
     var nm = (img.getAttribute && img.getAttribute('data-card')) || '';
     var s = w.slugify(nm);
+    var stage = img.getAttribute('data-stage') || 'field';
     var ei = (parseInt(img.getAttribute('data-ext'),10) || 0) + 1;
-    if(w.EMBEDDED_SPRITES[s] && ei===1){ img.onerror=null; img.src=w.EMBEDDED_SPRITES[s]; return; }
-    if(ei < w.SPRITE_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.spriteBase(nm) + '.' + w.SPRITE_EXTS[ei]; return; }
-    // no dedicated sprite — borrow the card art (looks like a framed standee until a cut-out is added)
-    img.classList.add('fromart'); img.setAttribute('data-ext','0');
-    img.onerror = function(){ artFallback(img); };
-    img.src = w.artPath(nm);
+    if(stage==='field'){
+      if(ei < w.FIELD_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.fieldBase(nm) + '.' + w.FIELD_EXTS[ei]; return; }
+      w.FIELD_MISS[s] = true;                   // no field cut-out for this card — stop re-requesting it every render
+      img.classList.add('fromart'); img.setAttribute('data-stage','cardart'); img.setAttribute('data-ext','0');
+      img.src = w.artPath(nm); return;
+    }
+    // cardart stage: walk the remaining card-art exts, then the built-in placeholder
+    if(w.EMBEDDED[s]){ img.onerror=null; img.src=w.EMBEDDED[s]; return; }
+    if(ei < w.ART_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.artBase(nm) + '.' + w.ART_EXTS[ei]; return; }
+    img.onerror = null; var ph = w.PLACEHOLDERS[nm]; if(ph) img.src = ph; else img.removeAttribute('src');
   };
   /* placeholder map auto-synced from the pools above — the always-works safety net */
   var add = function(t){ if(t && t.nm && t.art) w.PLACEHOLDERS[t.nm] = t.art; };
@@ -1975,6 +2004,7 @@ function renderRow(elId,owner,which){
   el.appendChild(wkSlotEl(me?owner:null,which,aiming)); // your workers sit on the left of the slots
   for(let i=0;i<SLOTS;i++){
     const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
+    cell.dataset.owner=owner; cell.dataset.which=which; cell.dataset.slot=i;   // drag-drop coordinates
     const o=G.P[owner][which][i];
     // the command center stands on the board as a full card (its corner zone keeps only the figure)
     if(o&&o.kind==='building'&&o.cc) cell.classList.add('cccell');
@@ -2020,6 +2050,7 @@ function renderCenter(){
     const cell=document.createElement('div'); cell.className='cell centercell '+(isLane(i)?'centerlane':'centerstruct');
     const o=G.center[i];
     const persp=o?o.owner:'center';
+    cell.dataset.owner=o?o.owner:'you'; cell.dataset.which='center'; cell.dataset.slot=i;   // drag-drop coords (empty center deploys as yours)
     if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); attachSprite(cell,o,me); }
     decorate(cell,persp,'center',i,o);
     el.appendChild(cell);
@@ -2037,7 +2068,7 @@ function renderFoeHand(){
 function renderHand(){
   const el=$('hand');el.innerHTML='';
   G.P.you.hand.forEach((card,i)=>{
-    const d=document.createElement('div');
+    const d=document.createElement('div'); d.dataset.hand=i;   // drag-drop source id
     const isB=card.type==='building'; const isS=card.type==='spell';
     d.className=`hc ${isB?'hcb':isS?'hcs':clsOf[card.color]}`+(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i?' selected':'');
     const statLine=isS?`<span class="eff">${card.trap?'⚠ Trap':'✦ Spell'}</span>`
@@ -3496,17 +3527,18 @@ function surrenderMatch(){ if(!confirm('Surrender and quit this match to the mai
 function fitBoard(){
   const root=document.querySelector('.wrap'); if(!root)return;
   const topChrome=6;                                            // no header/status anymore
-  const handReserve=Math.min(160,Math.max(80,innerHeight*.20));  // hand peeks at the bottom; small reserve
+  const handReserve=Math.min(150,Math.max(64,innerHeight*.16));  // hand peeks at the bottom; small reserve
   const boardChrome=28;                                          // mat padding + center gap
-  let ch=Math.min(240,
-    (innerHeight-topChrome-handReserve-boardChrome)/5.05,        // 5 rows + a little center gap
+  let ch=Math.min(280,
+    (innerHeight-topChrome-handReserve-boardChrome)/4.7,         // 5 rows + a little center gap — fill more vertical space
     ((innerWidth-150)/9.5)/.74);                                 // 7 columns + a deck slot per side
   ch=Math.max(30,ch);
   root.style.setProperty('--ch',ch.toFixed(1)+'px');
+  const ext=document.body.classList.contains('board-extreme');   // extreme's standing 3D figures project past the flat box — that width overflow is expected, don't shrink the whole board for it
   for(let i=0;i<12&&ch>30;i++){
     const overY=document.documentElement.scrollHeight>innerHeight+1;
     const m=document.querySelector('.main');
-    const overX=m&&m.scrollWidth>m.clientWidth+1;
+    const overX=!ext && m&&m.scrollWidth>m.clientWidth+1;
     if(!overY&&!overX)break;
     ch-=3; root.style.setProperty('--ch',ch.toFixed(1)+'px');
   }
@@ -3543,6 +3575,93 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
       else if(e.clientY <= 28) setF(true);
     });
   }
+})();
+// ---- pointer drag-and-drop: drag a hand card onto a legal slot to SUMMON, or drag a placed
+//      creature to a legal cell to MOVE. Reuses the click pipeline (onCell/place + startMove/doMove)
+//      so every rule, mana cost, trap, win-check, animation and SFX stays identical. Pointer events
+//      give mouse + touch parity (the game is played on phones). Tap still works: a drag only begins
+//      once the pointer crosses a small threshold, otherwise the normal click fires.
+(function(){
+  if(typeof onCell!=='function'||typeof cellArr!=='function') return;
+  let drag=null, justDragged=false; const TH=7;
+  function clearHover(){ document.querySelectorAll('.cell.draghover').forEach(c=>c.classList.remove('draghover')); }
+  function cellUnder(x,y){ const el=document.elementFromPoint(x,y); return el&&el.closest?el.closest('.cell'):null; }
+  function makeGhost(){
+    const vis = drag.kind==='hand' ? drag.src : (drag.src.querySelector('.card')||drag.src);
+    const r=vis.getBoundingClientRect(); const node=vis.cloneNode(true);
+    if(node.classList) node.classList.remove('selected');
+    const g=document.createElement('div'); g.className='dragghost';
+    g.style.width=r.width+'px'; g.style.height=r.height+'px'; g.appendChild(node);
+    document.body.appendChild(g); return g;
+  }
+  function begin(e){
+    justDragged=false;
+    if(!e.isPrimary || (e.button!=null&&e.button>0)) return;
+    if(G.turn!=='you'||G.busy||G.over||G.deficit) return;
+    if(e.target.closest('.inspect')||e.target.closest('button')) return;
+    const hand=e.target.closest('.hc');
+    if(hand && hand.dataset.hand!=null){ drag={kind:'hand', idx:+hand.dataset.hand, src:hand, x0:e.clientX, y0:e.clientY, on:false}; return; }
+    const cell=e.target.closest('.cell');
+    if(cell && cell.dataset.which){
+      const w=cell.dataset.which, owner=cell.dataset.owner, i=+cell.dataset.slot;
+      if(w!=='center' && owner!=='you') return;                 // only your own units are draggable
+      const arr=cellArr('you',w), o=arr?arr[i]:null;
+      if(o&&o.kind==='creature'&&(w!=='center'||o.owner==='you')&&typeof canMoveCard==='function'&&canMoveCard(w,i)){
+        drag={kind:'board', w, i, src:cell, x0:e.clientX, y0:e.clientY, on:false};
+      }
+    }
+  }
+  function startDrag(){
+    if(drag.kind==='hand'){
+      const card=G.P.you.hand[drag.idx]; if(!card){ drag=null; return; }
+      const mode=card.type==='building'?'build':card.type==='spell'?(card.trap?'settrap':'cast'):'summon';
+      // mirror the action menu's disabled-button gate: don't begin a drag we couldn't legally drop
+      if((mode==='summon'||mode==='build') && typeof canPay==='function' && !canPay('you',card)){ if(typeof setHint==='function')setHint(`<b style="color:var(--ink)">${card.nm}</b> — not enough mana.`); drag=null; return; }
+      if(mode==='cast' && typeof spellHasTarget==='function' && !spellHasTarget(card)){ if(typeof setHint==='function')setHint(`<b style="color:var(--ink)">${card.nm}</b> — no legal target.`); drag=null; return; }
+      drag.on=true; drag.ghost=makeGhost(); document.body.classList.add('dragging');
+      G.sel={kind:'hand',idx:drag.idx,mode}; G.cardMenu=null; G.atk=[]; G.moveFrom=null; G.minSel=null;
+      render();                                                 // lights the legal target slots
+    } else {
+      drag.on=true; drag.ghost=makeGhost(); document.body.classList.add('dragging');
+      window.startMove(drag.w, drag.i);                         // sets G.moveFrom + lights legal destinations
+    }
+  }
+  function dropOn(e){
+    const c=cellUnder(e.clientX,e.clientY);
+    if(c && c.dataset.which){
+      const w=c.dataset.which, i=+c.dataset.slot, owner=c.dataset.owner||'you';
+      if(drag.kind==='hand'){ const arr=cellArr(owner,w), occ=arr?arr[i]:null; onCell(owner,w,i,occ); return true; }
+      if(c.classList.contains('tappable')){ doMove(w,i); return true; }   // board move: only onto a lit legal destination
+      return false;                                                        // otherwise fall through and cancel the move
+    }
+    return false;
+  }
+  function cancelSel(){
+    if(drag.kind==='hand'){ G.sel=null; G.cardMenu=null; if(typeof defaultHint==='function')defaultHint(); render(); }
+    else if(window.cancelMove){ window.cancelMove(); }
+  }
+  function end(e,aborted){
+    if(drag && drag.on){
+      drag.ghost&&drag.ghost.remove(); document.body.classList.remove('dragging'); clearHover();
+      let ok=false; try{ if(!aborted&&e) ok=dropOn(e); }catch(_){ ok=false; }
+      if(!ok) cancelSel();
+      justDragged=true;                                         // suppress the click this pointer sequence emits
+    }
+    drag=null;
+  }
+  document.addEventListener('pointerdown', begin, true);
+  document.addEventListener('pointermove', e=>{
+    if(!drag) return;
+    if(!drag.on){ if(Math.abs(e.clientX-drag.x0)+Math.abs(e.clientY-drag.y0)>TH) startDrag(); else return; }
+    if(!drag||!drag.on) return;                                 // startDrag may have aborted (unaffordable) → drag is null
+    e.preventDefault();
+    drag.ghost.style.left=e.clientX+'px'; drag.ghost.style.top=e.clientY+'px';
+    clearHover(); const c=cellUnder(e.clientX,e.clientY);
+    if(c&&(c.classList.contains('tappable')||c.classList.contains('target'))) c.classList.add('draghover');
+  }, {passive:false});
+  document.addEventListener('pointerup', e=>{ if(drag) end(e,false); });
+  document.addEventListener('pointercancel', e=>{ if(drag) end(e,true); });
+  document.addEventListener('click', e=>{ if(justDragged){ justDragged=false; e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 // stack the resting hand left-to-right so the peek headers overlap cleanly (the fan arc is
 // dropped — it fought the flat name+cost peek strip; per-card hover/select still pops on top)

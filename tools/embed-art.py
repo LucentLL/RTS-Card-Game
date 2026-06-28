@@ -93,19 +93,25 @@ def inject(html, key, entries):
     return html[:lb] + obj + html[rb + 1:]
 
 
-# Card art (assets/cards/<slug>_cardart.<ext>) and floating sprites (assets/sprites/<slug>_sprite.<ext>)
-art_entries,    art_done,    art_skip    = scan(ARTDIR,    SUFFIX,    "magmaw" + SUFFIX + ".png")
-sprite_entries, sprite_done, sprite_skip = scan(SPRITEDIR, "_sprite", "magmaw_sprite.png")
+# Card art (assets/cards/<slug>_cardart.<ext>), on-field cut-outs (<slug>_fieldart.<ext>) and floating sprites
+art_entries,    art_done,    art_skip    = scan(ARTDIR,    SUFFIX,      "magmaw" + SUFFIX + ".png")
+field_entries,  field_done,  field_skip  = scan(ARTDIR,    "_fieldart", "aegisol_fieldart.png")
+sprite_entries, sprite_done, sprite_skip = scan(SPRITEDIR, "_sprite",   "magmaw_sprite.png")
+# the cardart and fieldart scans share assets/cards, so each reports the other's files as "wrong suffix" — drop that cross-noise
+art_skip   = [s for s in art_skip   if "_fieldart" not in s]
+field_skip = [s for s in field_skip if "_cardart"  not in s]
 
 out_html = inject(html, "w.EMBEDDED =", art_entries)
+out_html = inject(out_html, "w.EMBEDDED_FIELD =", field_entries)
 out_html = inject(out_html, "w.EMBEDDED_SPRITES =", sprite_entries)
 
 with io.open(OUT, "w", encoding="utf-8") as f:
     f.write(out_html)
 
 print("Embedded %d card art image(s): %s" % (len(art_done), ", ".join(art_done) or "none"))
+print("Embedded %d field cut-out(s): %s" % (len(field_done), ", ".join(field_done) or "none"))
 print("Embedded %d sprite image(s): %s" % (len(sprite_done), ", ".join(sprite_done) or "none"))
-skipped = art_skip + sprite_skip
+skipped = art_skip + field_skip + sprite_skip
 if skipped:
     print("Skipped: " + "; ".join(skipped))
 print("Wrote %s (%d KB)" % (os.path.basename(OUT), len(out_html.encode("utf-8")) // 1024))
