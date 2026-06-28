@@ -375,6 +375,8 @@
     clip-path:polygon(0% 0%, 0% 93%, 5.9% 93%, 5.9% 80%, 9.55% 80%, 9.55% 93%, 15.45% 93%, 15.45% 80%, 19.1% 80%, 19.1% 93%, 25.0% 93%, 25% 44%, 25% 55%, 29.66% 55%, 29.66% 44%, 32.56% 44%, 32.56% 55%, 37.22% 55%, 37.22% 44%, 40.11% 44%, 40.11% 55%, 44.78% 55%, 44.78% 44%, 47.67% 44%, 47.67% 55%, 52.33% 55%, 52.33% 44%, 55.22% 44%, 55.22% 55%, 59.89% 55%, 59.89% 44%, 62.78% 44%, 62.78% 55%, 67.44% 55%, 67.44% 44%, 70.34% 44%, 70.34% 55%, 75.0% 55%, 75% 80%, 75% 93%, 80.9% 93%, 80.9% 80%, 84.55% 80%, 84.55% 93%, 90.45% 93%, 90.45% 80%, 94.1% 80%, 94.1% 93%, 100.0% 93%, 100% 0%);}
   body:has(#hudbarFoe:hover) #hudbarFoe, body.foewall-open #hudbarFoe{transform:translateY(0);}
   body:has(.foehand:hover) #hudbarFoe{transform:translateY(0);}
+  /* only ONE wall open at a time — a held/selected player card (or a pinned player wall) forces the foe wall shut */
+  body:has(.hc.selected) #hudbarFoe, body.wall-open #hudbarFoe{transform:translateY(calc(-100% + 46px))!important;}
   body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull{display:block;}
   /* hovering the foe wall (or reaching the top edge) also fans the opponent's hand down */
   body:has(#hudbarFoe:hover) .foehand .fb, body.foewall-open .foehand .fb{height:var(--hch);}
@@ -660,7 +662,7 @@
   /* extreme: perspective is vh-relative so the projection scales with the board on any screen
      and the foreshortened field stays inside the flat box fitBoard already sized (no row falls off) */
   body.board-extreme{--tiltx:50deg;}
-  body.board-extreme .matmain{transform:translateY(calc(-8% + var(--wallY,0%))) rotateX(var(--tiltx));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
+  body.board-extreme .matmain{transform:translateY(calc(-8% + var(--wallY,0%))) rotateX(var(--tiltx)) scale(var(--extscale,1));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
   body.board-extreme .mat{perspective:140vh;perspective-origin:50% 44%;}
   /* (D) raise the field when the castle wall / hand opens — hover sets .wall-open, touch selects a card
      (:has(.hc.selected)); a drag also selects, so the board makes room mid-drag. */
@@ -3563,6 +3565,19 @@ function fitBoard(){
   const rowAvail=innerWidth - 2*wkW - 28 - 8*gpW;               // mat width minus the 2 worker rails, padding and 8 gaps
   const cw=Math.max(ch*0.74, Math.min(rowAvail/7, ch*1.5));
   root.style.setProperty('--cw', cw.toFixed(1)+'px');
+  // Extreme's 3D magnification makes the near (bottom) row widest — wide enough to push the worker rails
+  // and back-row corners off the screen edges. Scale the whole board down just enough that the near row
+  // (incl. its rails) fits the viewport width. Measured each fit so it adapts to any device/aspect.
+  if(ext){
+    const back=document.getElementById('youBack'), mm=document.querySelector('.matmain');
+    if(back && mm){
+      const savedT=mm.style.transition; mm.style.transition='none';     // measure the SETTLED tilt, not a mid-animation frame
+      root.style.setProperty('--extscale','1'); void mm.offsetWidth;
+      const w=back.getBoundingClientRect().width;
+      root.style.setProperty('--extscale', w>innerWidth-10 ? Math.max(0.6,(innerWidth-10)/w).toFixed(3) : '1');
+      void mm.offsetWidth; mm.style.transition=savedT;
+    } else root.style.setProperty('--extscale','1');
+  } else root.style.setProperty('--extscale','1');
   // the handwrap now spans the full viewport (left:0;right:0) and its .hand child self-centers,
   // so no manual horizontal offset is needed (writing inline left here would fight the CSS right:0).
 }
@@ -3596,6 +3611,29 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
       else if(e.clientY <= 28) setF(true);
     });
   }
+})();
+// ---- touch + off-click castle-wall control (the hover IIFE above drives mouse). On touch there is no
+//      hover, so tapping a wall band raises it; only one wall opens at a time; a tap on the empty board
+//      retracts the wall AND deselects a held card (closing its summon/set menu). ----
+(function(){
+  const EDGE=36;
+  function openWall(side){ document.body.classList.toggle('wall-open',side==='you'); document.body.classList.toggle('foewall-open',side==='foe'); }
+  // TOUCH: tap the bottom edge to raise YOUR wall, the top edge to raise the FOE wall (mutually exclusive)
+  document.addEventListener('pointerdown', e=>{
+    if(e.pointerType==='mouse') return;
+    if(e.target&&e.target.closest&&e.target.closest('button,.inspect,.wallzone,.wallvit,#cardActions')) return;
+    const y=e.clientY;
+    if(y >= innerHeight - EDGE) openWall('you');
+    else if(y <= EDGE) openWall('foe');
+  }, true);
+  // OFF-CLICK (all devices): a click on the empty board retracts both walls and deselects a held card + its menu
+  document.addEventListener('click', e=>{
+    if(!e.target||!e.target.closest||e.target.closest('.hc,.cell,.wkslot,#cardActions,.wallzone,.wallvit,button,.inspect,#hudbar,#hudbarFoe,#settingsOverlay,#mainMenu,#charsel,#soloSelect,#deckBuilder,#buildPanel,#cpanel,#viewerPanel,#banner,.cmdzone')) return;
+    let re=false;
+    if(typeof G!=='undefined' && (G.sel||G.cardMenu)){ G.sel=null; G.cardMenu=null; G.atk=[]; G.moveFrom=null; if(typeof defaultHint==='function')defaultHint(); re=true; }
+    document.body.classList.remove('wall-open','foewall-open');
+    if(re && typeof render==='function') render();
+  });
 })();
 // ---- pointer drag-and-drop: drag a hand card onto a legal slot to SUMMON, or drag a placed
 //      creature to a legal cell to MOVE. Reuses the click pipeline (onCell/place + startMove/doMove)
