@@ -2701,7 +2701,7 @@ function doAttack(which,ti){
   if(tgt.kind==='creature'||tgt.kind==='building') springAttackTrap('foe',attackers,tgt); // foe's attack-trigger trap
   if(tgt.kind==='charge'){ provokeFaceDown('foe',tgtKey,ti,attackers); }
   else if(tgt.kind==='trap'){ springTrap('foe',tgtKey,ti,attackers); }
-  else if(tgt.kind==='building'){ log(`<span class="y">You strike the enemy ${tgt.nm}.</span>`,'y'); applyDmg(focusFire(attackers,[tgt])); cleanup(); }
+  else if(tgt.kind==='building'){ log(`<span class="y">You strike the enemy ${tgt.nm}.</span>`,'y'); clashFx(attackers,[tgt]); applyDmg(focusFire(attackers,[tgt])); cleanup(); }
   else { log(`<span class="y">You attack ${tgt.nm} with ${attackers.length} creature(s).</span>`,'y'); resolveCombat(attackers,[tgt]); }
   if(scour && attackers[0]){ scourStrike(attackers[0],'foe'); cleanup(); }
   clearDischarge(attackers);
@@ -2727,7 +2727,7 @@ function attackBase(defOwner){
     }
   }
   log(`<span class="y">You strike the enemy keep with ${attackers.length} creature(s).</span>`,'y');
-  applyDmg(focusFire(attackers,[cc])); cleanup();
+  clashFx(attackers,[cc]); applyDmg(focusFire(attackers,[cc])); cleanup();
   clearAtk(); render(); checkWin();
 }
 /* The player chooses interceptors when the AI's strike travels through rows they hold. Refs are {key,i}. */
@@ -3331,13 +3331,14 @@ applyDmg=function(map){
 // ---- battle cut-in: flash the cards involved, DS-Yu-Gi-Oh style ----
 let BATTLE_CUTINS=(()=>{ try{return localStorage.getItem('srd.cutins')!=='off';}catch(e){return true;} })();
 function battleCardHTML(o){ const art=o.art?cardArtImg(o):''; const tl=(typeof typeLine==='function'?typeLine(o):'');
+  const lead=o.kind==='building'?(o.eff==='mana'?('◆+'+(o.val||0)):o.eff==='damage'?('⚔'+(o.val||0)):'⌂'):('⚔'+(o.a||0));
   return `<div class="bvcard ${clsOf[o.color]||''}"><div class="bvname">${o.nm}</div><div class="bvart">${art}</div>`+
-    `${tl?`<div class="bvtype">${tl}</div>`:''}<div class="bvstats"><span>⚔${o.a}</span><span>♥${o.h}</span></div></div>`; }
+    `${tl?`<div class="bvtype">${tl}</div>`:''}<div class="bvstats"><span>${lead}</span><span>♥${o.h}</span></div></div>`; }
 function showBattle(A,B){
   if(!BATTLE_CUTINS)return;
-  const live=arr=>(arr||[]).filter(c=>c&&c.kind==='creature'&&!c.worker&&!c.token);
+  const live=arr=>(arr||[]).filter(c=>c&&(c.kind==='creature'||c.kind==='building')&&!c.worker&&!c.token);
   const a=live(A).slice(0,3), b=live(B).slice(0,3);
-  if(!a.length||!b.length)return;                         // only for creature-vs-creature clashes
+  if(!a.length||!b.length)return;                         // need a card on each side (creatures or a struck structure/keep)
   let ov=$('battleView'); if(!ov){ ov=document.createElement('div'); ov.id='battleView'; document.body.appendChild(ov); }
   ov.innerHTML=`<div class="bvinner"><div class="bvside left">${a.map(battleCardHTML).join('')}</div>`+
     `<div class="bvvs">⚔</div><div class="bvside right">${b.map(battleCardHTML).join('')}</div></div>`;
@@ -3345,11 +3346,9 @@ function showBattle(A,B){
   clearTimeout(showBattle._t); showBattle._t=setTimeout(()=>{ ov.classList.remove('show'); },1100);
 }
 // clash flash + sound + battle cut-in at the defender's cell
+function clashFx(A,B){ try{ showBattle(A,B); SFX.clash(); FX.shake(); const b0=B&&B[0]&&cellElFor(B[0]); if(b0)FX.slash(fxRect(b0)); }catch(e){} }
 const _resolveCombat=resolveCombat;
-resolveCombat=function(A,B){
-  try{ showBattle(A,B); SFX.clash(); FX.shake(); const b0=B&&B[0]&&cellElFor(B[0]); if(b0)FX.slash(fxRect(b0)); }catch(e){}
-  _resolveCombat(A,B);
-};
+resolveCombat=function(A,B){ clashFx(A,B); _resolveCombat(A,B); };
 // every death routes through toGrave → one place for death FX
 const _toGrave=toGrave;
 toGrave=function(owner,obj){
@@ -3630,7 +3629,9 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   document.addEventListener('click', e=>{
     if(!e.target||!e.target.closest||e.target.closest('.hc,.cell,.wkslot,#cardActions,.wallzone,.wallvit,button,.inspect,#hudbar,#hudbarFoe,#settingsOverlay,#mainMenu,#charsel,#soloSelect,#deckBuilder,#buildPanel,#cpanel,#viewerPanel,#banner,.cmdzone')) return;
     let re=false;
-    if(typeof G!=='undefined' && (G.sel||G.cardMenu)){ G.sel=null; G.cardMenu=null; G.atk=[]; G.moveFrom=null; if(typeof defaultHint==='function')defaultHint(); re=true; }
+    // deselect ONLY a held hand card (closes its summon/set menu); never touch attack (G.atk) or
+    // move (G.moveFrom) selections — a stray cell-miss must not cancel an attack/move mid-action.
+    if(typeof G!=='undefined' && G.sel && G.sel.kind==='hand'){ G.sel=null; G.cardMenu=null; if(typeof defaultHint==='function')defaultHint(); re=true; }
     document.body.classList.remove('wall-open','foewall-open');
     if(re && typeof render==='function') render();
   });
@@ -3711,7 +3712,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   document.addEventListener('pointerdown', begin, true);
   document.addEventListener('pointermove', e=>{
     if(!drag) return;
-    if(!drag.on){ if(Math.abs(e.clientX-drag.x0)+Math.abs(e.clientY-drag.y0)>TH) startDrag(); else return; }
+    if(!drag.on){ const th=(e.pointerType==='touch')?15:TH; if(Math.abs(e.clientX-drag.x0)+Math.abs(e.clientY-drag.y0)>th) startDrag(); else return; }  // higher threshold on touch so a tap (to select/attack) isn't read as a drag-to-move
     if(!drag||!drag.on) return;                                 // startDrag may have aborted (unaffordable) → drag is null
     e.preventDefault();
     drag.ghost.style.left=e.clientX+'px'; drag.ghost.style.top=e.clientY+'px';
