@@ -905,19 +905,21 @@
 <div id="harvestPanel" onclick="if(event.target===this)hvCancel()"><div class="box"></div></div>
 <div id="buildPanel" onclick="if(event.target===this)closeBuild()"><div class="box"></div></div>
 <div id="viewerPanel" onclick="if(event.target===this)closeViewer()"><div class="box"></div></div>
-<div class="banner" id="banner"><div><div class="msg" id="bannerMsg"></div><button onclick="location.reload()">Duel Again</button></div></div>
+<div class="banner" id="banner"><div><div class="msg" id="bannerMsg"></div><div id="bannerActs"><button onclick="location.reload()">Duel Again</button></div></div></div>
 <div id="charsel"><div class="csbox"></div></div>
 <div id="mainMenu"><div class="mmbox">
   <div class="mmtitle">SPAWN ROW DUEL</div>
   <div class="mmsub">raze their base · hold the center · feed the army</div>
   <div class="mmbtns">
     <button class="mmbtn" onclick="menuPlaySolo()">Play · Solo</button>
+    <button class="mmbtn" onclick="menuCampaign()">Campaign</button>
     <button class="mmbtn" onclick="menuDeckBuilder()">Deck Builder</button>
     <button class="mmbtn off" disabled>Multiplayer<span class="soon">coming soon</span></button>
     <button class="mmbtn ghost" onclick="toggleRules(true)">Rules</button>
   </div>
 </div></div>
 <div id="soloSelect"><div class="csbox"></div></div>
+<div id="campaign"></div>
 <div id="deckBuilder"><div class="dbbox">
   <div class="dbbar">
     <div class="dbtitle">Deck Builder</div>
@@ -1678,10 +1680,195 @@ function renderCharSel(){
 function showCharSelect(){ csStep=1; renderCharSel(); $('charsel').style.display='flex'; }
 
 /* ===== main menu / deck builder / solo screens ===== */
-function hideAllScreens(){ ['mainMenu','charsel','soloSelect','deckBuilder'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
+function hideAllScreens(){ ['mainMenu','charsel','soloSelect','deckBuilder','campaign'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
 function showMainMenu(){ hideAllScreens(); $('mainMenu').style.display='flex'; }
 function menuPlaySolo(){ showSoloDeckPick(); }
 function menuDeckBuilder(){ openDeckBuilder(); }
+
+/* ============================ CAMPAIGN MODE ============================
+   World map = the complete graph on the 8 elements (K8): 8 element nodes
+   (vertices) + 28 element-pairing nodes (edges) = 36 regions — exactly the CCS
+   commander roster (solo id=`el`, dual id=`a_b`). Pick a faction element to hold
+   its home region; conquer adjacent regions to spread your color, and take a card
+   from each foe you fell. Battles reuse startGame(); progress persists in
+   localStorage. Adjacency is bipartite: an element node borders only its 7 pairing
+   nodes; a pairing a_b borders only elements a and b — so conquest cascades. */
+const CAMP_KEY='srd.campaign.v1', CAMP_TOTAL=36, CAMP_CARDS_TOTAL=COLORS.length*8;
+let CAMPAIGN=(function(){ try{ const raw=localStorage.getItem(CAMP_KEY); if(raw){ const c=JSON.parse(raw);
+  if(c&&c.faction&&CCS[c.faction]){ c.owned=c.owned||{}; c.owned[c.faction]=true; c.collection=c.collection||{}; c.target=null; return c; } } }catch(e){} return null; })();
+function campSave(){ try{ localStorage.setItem(CAMP_KEY,JSON.stringify(CAMPAIGN)); }catch(e){} }
+function campEl(){ return document.getElementById('campaign'); }
+function campPairs(){ const out=[]; for(let i=0;i<COLORS.length;i++)for(let j=i+1;j<COLORS.length;j++)out.push(COLORS[i]+'_'+COLORS[j]); return out; }
+function campNodeElems(id){ return (CCS[id]&&CCS[id].colors)||[]; }
+function campOwned(id){ return !!(CAMPAIGN&&CAMPAIGN.owned&&CAMPAIGN.owned[id]); }
+function campOwnedCount(){ let n=0; if(CAMPAIGN&&CAMPAIGN.owned)for(const k in CAMPAIGN.owned)if(CAMPAIGN.owned[k])n++; return n; }
+function campCardCount(){ let n=0; if(CAMPAIGN&&CAMPAIGN.collection)for(const k in CAMPAIGN.collection)n+=CAMPAIGN.collection[k].length; return n; }
+function campAdjacent(a,b){ const ea=campNodeElems(a), eb=campNodeElems(b);
+  if(ea.length===1&&eb.length===2) return eb.indexOf(ea[0])>=0;
+  if(ea.length===2&&eb.length===1) return ea.indexOf(eb[0])>=0;
+  return false; }
+function campAttackable(id){ if(campOwned(id))return false;
+  for(const o in CAMPAIGN.owned){ if(CAMPAIGN.owned[o]&&campAdjacent(o,id))return true; } return false; }
+function campGrant(id){ const elems=campNodeElems(id); if(!elems.length)return null;
+  const e=elems[Math.floor(Math.random()*elems.length)]; const pool=POOLS[e]||[]; if(!pool.length)return null;
+  CAMPAIGN.collection=CAMPAIGN.collection||{}; CAMPAIGN.collection[e]=CAMPAIGN.collection[e]||[];
+  const have=CAMPAIGN.collection[e]; const fresh=pool.filter(c=>have.indexOf(c.nm)<0); const src=fresh.length?fresh:pool;
+  const pick=src[Math.floor(Math.random()*src.length)]; const isNew=have.indexOf(pick.nm)<0; if(isNew)have.push(pick.nm);
+  return {el:e, card:pick, isNew}; }
+
+function menuCampaign(){ if(CAMPAIGN&&CAMPAIGN.faction) showCampaignMap(); else showFactionSelect(); }
+function showFactionSelect(){ hideAllScreens(); renderFactionSelect(); campEl().style.display='flex'; }
+function renderFactionSelect(){
+  const cards=COLORS.map(e=>{ const E=ELEMENTS[e];
+    return `<button class="cschar" onclick="campStart('${e}')"><div class="cn" style="color:${E.color}">${elemBadge(e,16)} ${E.name}</div>`+
+      `<div class="cp">${E.lore}</div><div class="cpow">♥ <b>${E.hp}</b> · ⚒ <b>${E.wk}</b> workers · ${E.name} banner</div></button>`;
+  }).join('');
+  campEl().innerHTML=`<div class="campscroll"><div class="csbox"><h1>Choose Your Banner</h1>`+
+    `<div class="cssub">Campaign — hold one home region, then conquer the map. Every foe you fell yields a card from their element for your War Chest.</div>`+
+    `<div class="csrow">${cards}</div><button class="csback" onclick="showMainMenu()">← menu</button></div></div>`;
+}
+function campStart(e){ if(!CCS[e])return; CAMPAIGN={faction:e, owned:{}, collection:{}, target:null}; CAMPAIGN.owned[e]=true; campSave(); showCampaignMap(); }
+
+function showCampaignMap(){ if(!CAMPAIGN){ showFactionSelect(); return; } CAMPAIGN.target=null; campSave(); hideAllScreens(); renderCampaignMap(); campEl().style.display='flex'; }
+function campElemNode(e,P,fac,FC){ const E=ELEMENTS[e]; const owned=campOwned(e); const home=(e===fac); const att=campAttackable(e);
+  const st=owned?'own':(att?'att':'lock'); const fill=owned?FC:E.color; const r=40;
+  return `<g class="cnode ${st}" data-node="${e}" transform="translate(${P.x.toFixed(1)} ${P.y.toFixed(1)})">`+
+    `<circle r="${r+8}" class="cring"/><circle r="${r}" class="cdisc" style="fill:${fill}"/>`+
+    `<text class="cglyph" y="14">${E.glyph}</text>`+
+    (home?`<text class="chome" y="${r+24}">◆ HOME</text>`:'')+
+    `<text class="clabel" y="${r+(home?42:24)}">${E.name}</text></g>`; }
+function campPairNode(id,P,fac,FC){ const el=campNodeElems(id); const a=el[0],b=el[1]; const A=ELEMENTS[a],B=ELEMENTS[b];
+  const owned=campOwned(id); const att=campAttackable(id); const st=owned?'own':(att?'att':'lock');
+  const fa=owned?FC:A.color, fb=owned?FC:B.color; const r=24;
+  return `<g class="cnode pair ${st}" data-node="${id}" transform="translate(${P.x.toFixed(1)} ${P.y.toFixed(1)})">`+
+    `<circle r="${r+7}" class="cring"/>`+
+    `<g clip-path="url(#cp_${id})"><rect x="${-r}" y="${-r}" width="${r}" height="${2*r}" style="fill:${fa}"/><rect x="0" y="${-r}" width="${r}" height="${2*r}" style="fill:${fb}"/></g>`+
+    `<circle r="${r}" class="cpairstroke"/>`+
+    `<text class="cglyphS" x="${(-r*0.45).toFixed(1)}" y="6">${A.glyph}</text><text class="cglyphS" x="${(r*0.45).toFixed(1)}" y="6">${B.glyph}</text></g>`; }
+function renderCampaignMap(){
+  const el=campEl(); const fac=CAMPAIGN.faction, FC=ELEMENTS[fac].color;
+  const cx=500, cy=440, Ro=345, Ri=200, VBW=1000, VBH=910;
+  const epos={}; COLORS.forEach((e,i)=>{ const th=-Math.PI/2 + i*(Math.PI/4); epos[e]={x:cx+Ro*Math.cos(th), y:cy+Ro*Math.sin(th)}; });
+  const bis=id=>{ const el2=campNodeElems(id), a=el2[0], b=el2[1]; const mx=(epos[a].x+epos[b].x)/2-cx, my=(epos[a].y+epos[b].y)/2-cy;
+    if(Math.abs(mx)<2&&Math.abs(my)<2){ return -Math.PI/2 + COLORS.indexOf(a)*(Math.PI/4); } return Math.atan2(my,mx); };
+  const prs=campPairs().slice().sort((p,q)=>bis(p)-bis(q));
+  const ppos={}; prs.forEach((id,k)=>{ const th=-Math.PI/2 + k*(2*Math.PI/28); ppos[id]={x:cx+Ri*Math.cos(th), y:cy+Ri*Math.sin(th)}; });
+  let lines=''; campPairs().forEach(id=>{ const P=ppos[id]; const e2=campNodeElems(id);
+    [e2[0],e2[1]].forEach(e=>{ const E=epos[e]; const own=campOwned(id)&&campOwned(e);
+      lines+=`<line x1="${P.x.toFixed(1)}" y1="${P.y.toFixed(1)}" x2="${E.x.toFixed(1)}" y2="${E.y.toFixed(1)}" class="cline${own?' own':''}"${own?` style="stroke:${FC}"`:''}/>`; }); });
+  let defs='<defs>'; campPairs().forEach(id=>{ defs+=`<clipPath id="cp_${id}"><circle r="24"/></clipPath>`; }); defs+='</defs>';
+  let nodes=''; COLORS.forEach(e=>{ nodes+=campElemNode(e, epos[e], fac, FC); }); campPairs().forEach(id=>{ nodes+=campPairNode(id, ppos[id], fac, FC); });
+  const svg=`<svg viewBox="0 0 ${VBW} ${VBH}" class="campsvg" xmlns="http://www.w3.org/2000/svg">${defs}<g class="clines">${lines}</g><g class="cnodes">${nodes}</g></svg>`;
+  const held=campOwnedCount(), cards=campCardCount(), done=held>=CAMP_TOTAL;
+  const hud=`<div class="camphud"><div class="camphudl">`+
+    `<span class="campfac" style="color:${FC}">${elemBadge(fac,18)} ${ELEMENTS[fac].name} banner</span>`+
+    `<span class="campstat">Regions <b>${held}/${CAMP_TOTAL}</b></span></div>`+
+    `<div class="camphudr"><button class="campbtn" onclick="campChestOpen()">🎴 War Chest ${cards}/${CAMP_CARDS_TOTAL}</button>`+
+    `<button class="campbtn ghost" onclick="campReset()">New</button><button class="campbtn ghost" onclick="showMainMenu()">Menu</button></div></div>`;
+  const tip=`<div class="camptip">${done?'<b style="color:var(--gold)">The map is yours.</b> Every region flies your banner.':'Tap a <b style="color:var(--gold)">glowing</b> region bordering your lands to attack — win to spread your color and claim a card.'}</div>`;
+  el.innerHTML=hud+`<div class="campwrap">${svg}</div>`+tip+
+    `<div id="campConfirm" class="campoverlay" onclick="if(event.target===this)campCloseConfirm()"></div>`+
+    `<div id="campChest" class="campoverlay" onclick="if(event.target===this)campChestClose()"></div>`+
+    `<div id="campToast"></div>`;
+  const svgEl=el.querySelector('.campsvg');
+  if(svgEl) svgEl.addEventListener('click',ev=>{ const g=ev.target.closest&&ev.target.closest('[data-node]'); if(g) campNodeClick(g.getAttribute('data-node')); });
+}
+function campNodeClick(id){ if(!CAMPAIGN||!CCS[id])return;
+  if(campOwned(id)){ campToast(`<b>${CCS[id].name}</b> — held. Your banner flies here.`); return; }
+  if(!campAttackable(id)){ campToast(`<b>${CCS[id].name}</b> — locked. Take a bordering region first.`); return; }
+  campConfirm(id); }
+function campConfirm(id){ const box=campEl().querySelector('#campConfirm'); if(!box)return;
+  const elems=campNodeElems(id), col=ELEMENTS[elems[0]].color, c=CCS[id];
+  box.innerHTML=`<div class="campconfbox"><div class="campconftitle" style="color:${col}">${elems.map(e=>elemBadge(e,18)).join('')} ${c.name}</div>`+
+    `<div class="campconfsub">Defended command center — ♥ <b>${c.hp}</b> · ⚒ <b>${c.wk}</b> workers · ${elems.map(cap).join(' + ')} mana.</div>`+
+    `<div class="campconfsub">Win to raise your banner here and seize a <b>${cap(elems[elems.length-1])}</b> card for your War Chest.</div>`+
+    `<div class="campconfacts"><button class="campgo" onclick="campAttack('${id}')">⚔ Attack</button><button class="campcancel" onclick="campCloseConfirm()">Cancel</button></div></div>`;
+  box.style.display='flex'; }
+function campCloseConfirm(){ const b=campEl().querySelector('#campConfirm'); if(b){ b.style.display='none'; b.innerHTML=''; } }
+function campAttack(id){ if(!CAMPAIGN||!CCS[id])return; campCloseConfirm(); CAMPAIGN.target=id; campSave();
+  startGame(CAMPAIGN.faction, id, deckOf([CAMPAIGN.faction]), undefined); }
+function campResolve(win){ if(!CAMPAIGN||!CAMPAIGN.target)return; const id=CAMPAIGN.target; const c=CCS[id]; let sub='';
+  if(win){ CAMPAIGN.owned[id]=true; const rw=campGrant(id); const done=campOwnedCount()>=CAMP_TOTAL;
+    $('bannerMsg').textContent=done?'THE MAP IS YOURS':'REGION SEIZED'; $('bannerMsg').style.color='var(--gold)';
+    sub=`You raise your banner over <b>${c.name}</b>.`;
+    if(rw) sub+=`<br>War chest: <b>${rw.card.nm}</b> <span style="color:${ELEMENTS[rw.el].color}">(${ELEMENTS[rw.el].name})</span>${rw.isNew?' — new!':' — spare'}.`;
+    if(done) sub+='<br><b style="color:var(--gold)">The whole map flies your colors. The realm is united.</b>';
+  } else { $('bannerMsg').textContent='ASSAULT REPELLED'; $('bannerMsg').style.color='#e35b4f';
+    sub=`Your forces break against <b>${c.name}</b>. The region holds — regroup and try again.`; }
+  CAMPAIGN.target=null; campSave();
+  const bm=$('bannerMsg'); let d=bm.nextElementSibling; if(d&&d.className==='bsub')d.remove();
+  d=document.createElement('div'); d.className='bsub'; d.style.cssText='font-size:14px;color:var(--ink);margin-top:6px;'; d.innerHTML=sub; bm.after(d);
+  const acts=$('bannerActs'); if(acts)acts.innerHTML='<button onclick="campReturn()">↩ World Map</button>'; }
+function campReturn(){ $('banner').style.display='none'; const a=$('bannerActs'); if(a)a.innerHTML='<button onclick="location.reload()">Duel Again</button>'; showCampaignMap(); }
+function campReset(){ const box=campEl().querySelector('#campConfirm'); if(!box)return;
+  box.innerHTML=`<div class="campconfbox"><div class="campconftitle" style="color:#e0a59a">Abandon this campaign?</div>`+
+    `<div class="campconfsub">Your conquered regions and War Chest will be lost.</div>`+
+    `<div class="campconfacts"><button class="campgo" style="background:linear-gradient(180deg,#7a2420,#5a1814);border-color:#c0463c" onclick="campDoReset()">Start over</button>`+
+    `<button class="campcancel" onclick="campCloseConfirm()">Keep playing</button></div></div>`;
+  box.style.display='flex'; }
+function campDoReset(){ CAMPAIGN=null; try{localStorage.removeItem(CAMP_KEY);}catch(e){} campCloseConfirm(); showFactionSelect(); }
+function campChestOpen(){ const box=campEl().querySelector('#campChest'); if(!box)return;
+  const rows=COLORS.map(e=>{ const have=(CAMPAIGN.collection&&CAMPAIGN.collection[e])||[]; const pool=POOLS[e]||[];
+    const chips=pool.map(cd=>{ const got=have.indexOf(cd.nm)>=0; return `<span class="chestcard${got?' got':''}"${got?` style="border-color:${ELEMENTS[e].color}"`:''}>${cd.nm}</span>`; }).join('');
+    return `<div class="chestrow"><div class="chestel" style="color:${ELEMENTS[e].color}">${elemBadge(e,16)} ${ELEMENTS[e].name} <span class="chestcount">${have.length}/${pool.length}</span></div><div class="chestcards">${chips}</div></div>`;
+  }).join('');
+  box.innerHTML=`<div class="chestbox"><div class="chesthead">War Chest — ${campCardCount()}/${CAMP_CARDS_TOTAL} cards won</div><div class="chestscroll">${rows}</div><button class="pclose" onclick="campChestClose()">Close</button></div>`;
+  box.style.display='flex'; }
+function campChestClose(){ const b=campEl().querySelector('#campChest'); if(b)b.style.display='none'; }
+let campToastT=null;
+function campToast(msg){ const t=campEl().querySelector('#campToast'); if(!t)return; t.innerHTML=msg; t.style.display='block'; clearTimeout(campToastT); campToastT=setTimeout(()=>{ t.style.display='none'; },2400); }
+(function injectCampaignCSS(){ const s=document.createElement('style'); s.textContent=`
+#campaign{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;
+  background:radial-gradient(1200px 820px at 50% -12%,#241a36 0%,transparent 60%),radial-gradient(900px 600px at 50% 118%,#2a1410 0%,transparent 55%),rgba(4,3,8,.985);
+  backdrop-filter:blur(3px);padding:8px 10px 6px;overflow:hidden;}
+.campscroll{width:100%;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:flex-start;justify-content:center;padding:6px;}
+.camphud{width:100%;max-width:1120px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:2px 4px 6px;}
+.camphudl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.campfac{font-family:'Cinzel',serif;font-size:16px;letter-spacing:.05em;display:inline-flex;align-items:center;gap:6px;}
+.campstat{font-family:'EB Garamond',serif;color:var(--ink);font-size:14px;}
+.campstat b{color:var(--gold);}
+.camphudr{display:flex;gap:8px;flex-wrap:wrap;}
+.campbtn{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em;color:var(--ink);background:rgba(30,24,44,.85);border:1px solid rgba(180,160,220,.35);border-radius:8px;padding:7px 11px;cursor:pointer;}
+.campbtn:hover{border-color:var(--gold);color:#fff;}
+.campbtn.ghost{background:transparent;color:var(--ink-dim);}
+.campwrap{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;}
+.campsvg{width:auto;height:100%;max-width:100%;max-height:100%;display:block;touch-action:manipulation;}
+.camptip{font-family:'EB Garamond',serif;color:var(--ink-dim);font-size:13px;text-align:center;padding:4px 8px 2px;}
+.cnode{cursor:pointer;}
+.cnode .cdisc{stroke:rgba(0,0,0,.55);stroke-width:2;transition:opacity .2s;}
+.cnode .cring{fill:none;stroke:transparent;stroke-width:5;}
+.cnode.att .cring{stroke:var(--gold);animation:camppulse 1.4s ease-in-out infinite;}
+.cnode.own .cdisc,.cnode.own .cpairstroke{stroke:#fff;stroke-width:2.5;}
+.cnode.lock{opacity:.5;filter:saturate(.45);}
+.cnode.att:hover .cdisc,.cnode.att:hover .cpairstroke{stroke:var(--gold);}
+.cpairstroke{fill:none;stroke:rgba(0,0,0,.55);stroke-width:2;}
+.cglyph{font-family:serif;font-weight:700;font-size:36px;text-anchor:middle;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:1.5px;}
+.cglyphS{font-family:serif;font-weight:700;font-size:16px;text-anchor:middle;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:1px;}
+.clabel{font-family:'Cinzel',serif;font-size:15px;text-anchor:middle;fill:var(--ink);letter-spacing:.04em;}
+.chome{font-family:'Cinzel',serif;font-size:12px;text-anchor:middle;fill:var(--gold);letter-spacing:.12em;}
+.cline{stroke:rgba(200,190,230,.13);stroke-width:2;}
+.cline.own{stroke-width:3.5;opacity:.85;}
+@keyframes camppulse{0%,100%{stroke-opacity:.3;}50%{stroke-opacity:1;}}
+.campoverlay{position:fixed;inset:0;z-index:41;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(2px);padding:18px;}
+.campconfbox,.chestbox{background:linear-gradient(180deg,#1c1630,#120c1e);border:1px solid rgba(180,160,220,.4);border-radius:14px;padding:18px 20px;max-width:440px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.6);}
+.campconftitle{font-family:'Cinzel',serif;font-size:18px;letter-spacing:.03em;display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.campconfsub{font-family:'EB Garamond',serif;color:var(--ink);font-size:14px;margin-bottom:8px;line-height:1.4;}
+.campconfacts{display:flex;gap:10px;margin-top:12px;}
+.campgo{flex:1;font-family:'Cinzel',serif;font-size:14px;letter-spacing:.05em;color:#fff;background:linear-gradient(180deg,#8a6b1e,#6a4f12);border:1px solid var(--gold);border-radius:9px;padding:11px;cursor:pointer;}
+.campgo:hover{filter:brightness(1.15);}
+.campcancel{font-family:'Cinzel',serif;font-size:13px;color:var(--ink-dim);background:transparent;border:1px solid rgba(180,160,220,.3);border-radius:9px;padding:11px 16px;cursor:pointer;}
+.chestbox{max-width:660px;}
+.chesthead{font-family:'Cinzel',serif;font-size:16px;color:var(--gold);letter-spacing:.05em;margin-bottom:10px;text-align:center;}
+.chestscroll{max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.chestrow{margin-bottom:10px;}
+.chestel{font-family:'Cinzel',serif;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.chestcount{color:var(--ink-dim);font-size:12px;}
+.chestcards{display:flex;flex-wrap:wrap;gap:5px;}
+.chestcard{font-family:'EB Garamond',serif;font-size:12px;color:var(--ink-dim);border:1px solid rgba(120,110,140,.3);border-radius:6px;padding:3px 7px;opacity:.55;}
+.chestcard.got{opacity:1;color:var(--ink);background:rgba(255,255,255,.05);}
+#campToast{position:fixed;left:50%;bottom:54px;transform:translateX(-50%);z-index:42;display:none;font-family:'EB Garamond',serif;font-size:14px;color:var(--ink);background:rgba(12,9,20,.95);border:1px solid rgba(180,160,220,.4);border-radius:10px;padding:9px 16px;max-width:80vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+`; document.head.appendChild(s); })();
+/* ========================== end campaign mode ========================== */
 
 /* -- deck builder -- */
 let dbState=null;
@@ -3079,6 +3266,7 @@ function checkWin(){
     const bm=$('bannerMsg'); if(bm.nextElementSibling&&bm.nextElementSibling.className==='bsub')bm.nextElementSibling.remove();
     if(sub){ const d=document.createElement('div'); d.className='bsub'; d.style.cssText='font-size:14px;color:var(--ink);margin-top:6px;font-style:italic'; d.textContent=sub; bm.after(d); }
     $('banner').style.display='flex';
+    if(typeof CAMPAIGN!=='undefined' && CAMPAIGN && CAMPAIGN.target) campResolve(win);   // campaign duel → seize/lose the region, then route back to the map
   }
 }
 /* ---------- tap-to-inspect: every card explains itself ---------- */
@@ -3467,7 +3655,7 @@ const _checkWin=checkWin;
 checkWin=function(){
   const was=G.over;
   _checkWin();
-  if(!was&&G.over){ const win=$('bannerMsg').textContent==='VICTORY';
+  if(!was&&G.over){ const win=!findCC('foe')&&!!findCC('you');   // read the outcome from state — campResolve() may have rewritten the banner text (REGION SEIZED, etc.)
     if(win){ SFX.win(); FX.confetti(); } else SFX.lose(); }
 };
 // title treatment on the character-select menu
@@ -3500,6 +3688,10 @@ function setBoardAngle(a){ BOARD_ANGLE=a;
   if(typeof render==='function')render();
   if(typeof fitBoard==='function')fitBoard(); }
 function doSurrender(){ G.over=true; const ov=$('settingsOverlay'); if(ov)ov.style.display='none';
+  // Surrender bypasses checkWin(), so a campaign attack's target would otherwise linger and be
+  // wrongly resolved by the NEXT match's checkWin. Clear it here; route campaign quits to the map.
+  if(typeof CAMPAIGN!=='undefined' && CAMPAIGN && CAMPAIGN.target){ CAMPAIGN.target=null; if(typeof campSave==='function')campSave();
+    if(typeof showCampaignMap==='function'){ showCampaignMap(); return; } }
   if(typeof showMainMenu==='function')showMainMenu(); }
 function resetSurrenderRow(){ const row=$('setSurrenderRow'); if(!row)return;
   row.innerHTML='<button id="setSurrender" class="setsurr">🏳 Surrender / quit match</button>';
@@ -3507,9 +3699,10 @@ function resetSurrenderRow(){ const row=$('setSurrenderRow'); if(!row)return;
 function surrenderMatch(){
   // in-app confirm — a native confirm() can misbehave or close the window inside an installed PWA
   const row=$('setSurrenderRow'); if(!row){ doSurrender(); return; }
+  const campaign = typeof CAMPAIGN!=='undefined' && CAMPAIGN && CAMPAIGN.target;
   row.innerHTML='<div style="width:100%">'+
-    '<div class="setlab" style="color:#e0a59a;margin-bottom:6px;text-align:center">Surrender this match to the main menu?</div>'+
-    '<button id="setSurrYes" class="setsurr" style="margin-bottom:6px">🏳 Yes, quit to menu</button>'+
+    '<div class="setlab" style="color:#e0a59a;margin-bottom:6px;text-align:center">Surrender this match'+(campaign?' and return to the world map?':' to the main menu?')+'</div>'+
+    '<button id="setSurrYes" class="setsurr" style="margin-bottom:6px">🏳 '+(campaign?'Yes, abandon the assault':'Yes, quit to menu')+'</button>'+
     '<button id="setSurrNo" class="pclose" style="margin:0;width:100%">Cancel</button></div>';
   $('setSurrYes').addEventListener('click',doSurrender);
   $('setSurrNo').addEventListener('click',resetSurrenderRow);
@@ -3644,6 +3837,12 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
 (function(){
   if(typeof onCell!=='function'||typeof cellArr!=='function') return;
   let drag=null, justDragged=false; const TH=7;
+  // On touch/pen the pointerdown target gets IMPLICIT pointer capture; startDrag() then re-renders
+  // (render()/startMove) and removes that node, which fires pointercancel and self-aborts the drag.
+  // Move the capture onto <html> (never removed) so the gesture survives the re-render. (Harmless on mouse.)
+  const CAP=document.documentElement;
+  function grabCapture(){ try{ if(drag&&drag.pid!=null&&CAP.setPointerCapture) CAP.setPointerCapture(drag.pid); }catch(_){} }
+  function dropCapture(pid){ try{ if(pid!=null&&CAP.releasePointerCapture) CAP.releasePointerCapture(pid); }catch(_){} }
   function clearHover(){ document.querySelectorAll('.cell.draghover').forEach(c=>c.classList.remove('draghover')); }
   function cellUnder(x,y){ const el=document.elementFromPoint(x,y); return el&&el.closest?el.closest('.cell'):null; }
   function makeGhost(){
@@ -3660,14 +3859,14 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     if(G.turn!=='you'||G.busy||G.over||G.deficit) return;
     if(e.target.closest('.inspect')||e.target.closest('button')) return;
     const hand=e.target.closest('.hc');
-    if(hand && hand.dataset.hand!=null){ drag={kind:'hand', idx:+hand.dataset.hand, src:hand, x0:e.clientX, y0:e.clientY, on:false}; return; }
+    if(hand && hand.dataset.hand!=null){ drag={kind:'hand', idx:+hand.dataset.hand, src:hand, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId}; return; }
     const cell=e.target.closest('.cell');
     if(cell && cell.dataset.which){
       const w=cell.dataset.which, owner=cell.dataset.owner, i=+cell.dataset.slot;
       if(w!=='center' && owner!=='you') return;                 // only your own units are draggable
       const arr=cellArr('you',w), o=arr?arr[i]:null;
       if(o&&o.kind==='creature'&&(w!=='center'||o.owner==='you')&&typeof canMoveCard==='function'&&canMoveCard(w,i)){
-        drag={kind:'board', w, i, src:cell, x0:e.clientX, y0:e.clientY, on:false};
+        drag={kind:'board', w, i, src:cell, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId};
       }
     }
   }
@@ -3679,10 +3878,12 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
       if((mode==='summon'||mode==='build') && typeof canPay==='function' && !canPay('you',card)){ if(typeof setHint==='function')setHint(`<b style="color:var(--ink)">${card.nm}</b> — not enough mana.`); drag=null; return; }
       if(mode==='cast' && typeof spellHasTarget==='function' && !spellHasTarget(card)){ if(typeof setHint==='function')setHint(`<b style="color:var(--ink)">${card.nm}</b> — no legal target.`); drag=null; return; }
       drag.on=true; drag.ghost=makeGhost(); document.body.classList.add('dragging');
+      grabCapture();                                            // keep the gesture alive through the re-render below (touch)
       G.sel={kind:'hand',idx:drag.idx,mode}; G.cardMenu=null; G.atk=[]; G.moveFrom=null; G.minSel=null;
       render();                                                 // lights the legal target slots
     } else {
       drag.on=true; drag.ghost=makeGhost(); document.body.classList.add('dragging');
+      grabCapture();                                            // keep the gesture alive through startMove's re-render (touch)
       window.startMove(drag.w, drag.i);                         // sets G.moveFrom + lights legal destinations
     }
   }
@@ -3701,17 +3902,19 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     else if(window.cancelMove){ window.cancelMove(); }
   }
   function end(e,aborted){
+    const pid=drag&&drag.pid;
     if(drag && drag.on){
       drag.ghost&&drag.ghost.remove(); document.body.classList.remove('dragging'); clearHover();
       let ok=false; try{ if(!aborted&&e) ok=dropOn(e); }catch(_){ ok=false; }
       if(!ok) cancelSel();
       justDragged=true;                                         // suppress the click this pointer sequence emits
     }
-    drag=null;
+    drag=null; dropCapture(pid);
   }
   document.addEventListener('pointerdown', begin, true);
+  const mine=e=>drag && (drag.pid==null || e.pointerId===drag.pid);  // only the pointer that began (and holds capture) drives the drag — a 2nd finger can't hijack or end it
   document.addEventListener('pointermove', e=>{
-    if(!drag) return;
+    if(!mine(e)) return;
     if(!drag.on){ const th=(e.pointerType==='touch')?15:TH; if(Math.abs(e.clientX-drag.x0)+Math.abs(e.clientY-drag.y0)>th) startDrag(); else return; }  // higher threshold on touch so a tap (to select/attack) isn't read as a drag-to-move
     if(!drag||!drag.on) return;                                 // startDrag may have aborted (unaffordable) → drag is null
     e.preventDefault();
@@ -3719,8 +3922,8 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     clearHover(); const c=cellUnder(e.clientX,e.clientY);
     if(c&&(c.classList.contains('tappable')||c.classList.contains('target'))) c.classList.add('draghover');
   }, {passive:false});
-  document.addEventListener('pointerup', e=>{ if(drag) end(e,false); });
-  document.addEventListener('pointercancel', e=>{ if(drag) end(e,true); });
+  document.addEventListener('pointerup', e=>{ if(mine(e)) end(e,false); });
+  document.addEventListener('pointercancel', e=>{ if(mine(e)) end(e,true); });
   document.addEventListener('click', e=>{ if(justDragged){ justDragged=false; e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 // stack the resting hand left-to-right so the peek headers overlap cleanly (the fan arc is
