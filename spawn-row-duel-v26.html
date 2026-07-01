@@ -661,9 +661,12 @@
   body.board-topdown .mat{perspective:none;}
   /* extreme: perspective is vh-relative so the projection scales with the board on any screen
      and the foreshortened field stays inside the flat box fitBoard already sized (no row falls off) */
-  body.board-extreme{--tiltx:50deg;}
-  body.board-extreme .matmain{transform:translateY(calc(-8% + var(--wallY,0%))) rotateX(var(--tiltx)) scale(var(--extscale,1));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
-  body.board-extreme .mat{perspective:140vh;perspective-origin:50% 44%;}
+  /* Tilted view: a flatter perspective (less near-row fish-eye magnification → less auto-shrink) and a
+     slightly gentler tilt fill far more of the screen; -2% keeps the field low so it isn't stranded high
+     above the hand. Was 50deg / 140vh / -8% which letterboxed ~100px side + ~150px bottom on landscape. */
+  body.board-extreme{--tiltx:45deg;}
+  body.board-extreme .matmain{transform:translateY(calc(-2% + var(--wallY,0%))) rotateX(var(--tiltx)) scale(var(--extscale,1));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
+  body.board-extreme .mat{perspective:260vh;perspective-origin:50% 44%;}
   /* (D) raise the field when the castle wall / hand opens — hover sets .wall-open, touch selects a card
      (:has(.hc.selected)); a drag also selects, so the board makes room mid-drag. */
   .matmain{transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
@@ -3768,7 +3771,9 @@ document.addEventListener('mouseout',e=>{
   if(e.target.closest&&e.target.closest('.cell.target,.minpill.target,.crest-target'))FX.clearAim();
 });
 // settings: gear button → overlay (volume / mute, board angle, surrender)
-let BOARD_ANGLE=(()=>{ try{return localStorage.getItem('srd.angle')||'tilt';}catch(e){return 'tilt';} })();
+// Only two angles now: Top-Down and Tilted (Tilted == the former "Extreme" diorama). Any legacy
+// 'tilt'/'extreme'/missing value folds into Tilted; only an explicit 'topdown' stays top-down.
+let BOARD_ANGLE=(()=>{ try{return localStorage.getItem('srd.angle')==='topdown'?'topdown':'extreme';}catch(e){return 'extreme';} })();
 function setBoardAngle(a){ BOARD_ANGLE=a;
   document.body.classList.remove('board-topdown','board-tilt','board-extreme'); document.body.classList.add('board-'+a);
   try{localStorage.setItem('srd.angle',a);}catch(e){}
@@ -3804,7 +3809,7 @@ function surrenderMatch(){
     <div class="setrow"><span class="setlab">Volume</span><input type="range" id="setVol" min="0" max="100" value="${Math.round(SFX.getVolume()*100)}"></div>
     <div class="setrow"><span class="setlab">Sound</span><button id="setMute">${SFX.isMuted()?'🔇 Muted':'🔊 On'}</button></div>
     <div class="setrow"><span class="setlab">Board angle</span><div id="setAngles" class="setangles">
-      <button data-a="topdown">Top-down</button><button data-a="tilt">Tilt</button><button data-a="extreme">Extreme</button></div></div>
+      <button data-a="topdown">Top-Down</button><button data-a="extreme">Tilted</button></div></div>
     <div class="setrow"><span class="setlab">Battle cut-ins</span><button id="setCutins">${BATTLE_CUTINS?'On':'Off'}</button></div>
     <div class="setrow" id="setSurrenderRow"><button id="setSurrender" class="setsurr">🏳 Surrender / quit match</button></div>
     <button class="pclose" id="setClose">Close</button></div>`;
