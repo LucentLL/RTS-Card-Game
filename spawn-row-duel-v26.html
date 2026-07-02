@@ -69,7 +69,7 @@
   .heart{color:#e35b4f;} .mana{color:var(--spawn);}
   .bct{color:#caa15a;} .wct{color:#9ad17f;} .vit .bct,.vit .wct{font-size:13px;}
   /* ===== on-board overlay controls (Arena-style) ===== */
-  #boardBtns{position:absolute;right:8px;top:auto;bottom:clamp(86px,16vh,150px);transform:none;z-index:24;display:flex;flex-direction:column;align-items:flex-end;gap:7px;pointer-events:none;}
+  #boardBtns{position:absolute;right:4px;top:44%;bottom:auto;transform:translateY(-50%);z-index:24;display:flex;flex-direction:column;align-items:flex-end;gap:7px;pointer-events:none;}  /* phase/turn controls hug the screen edge, mid-height (Master Duel coin position) */
   #boardBtns>*{pointer-events:auto;}
   .turnlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;text-align:center;
     background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:999px;padding:3px 10px;}
@@ -88,6 +88,11 @@
   .cmdzone .cmdvit .mc{margin:0 5px 0 1px;}
   .cmdzone .cmdvit.sub{font-size:11.5px;gap:3px;color:#d9c7a0;}
   .cmdzone .cmdvit.sub .bct{color:#caa15a;} .cmdzone .cmdvit.sub .wct{color:#9ad17f;}
+  /* per-row worker chips on the castle wall (replaces the board-side rails): tap yours to harvest */
+  .cmdworkers{display:flex;gap:4px;justify-content:center;align-items:center;margin-top:4px;pointer-events:auto;flex-wrap:nowrap;}
+  .cmdworkers .wtok{padding:2px 6px;font-size:10.5px;gap:3px;}
+  .cmdworkers .wtok .wklab{font-size:.7em;letter-spacing:.06em;text-transform:uppercase;opacity:.75;margin-right:1px;}
+  .cmdworkers .wtok.none{opacity:.55;}
   .cmdzone .cmdbuild{margin-top:5px;pointer-events:auto;cursor:pointer;
     font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:6px 14px;border-radius:999px;
     color:#1a140a;background:linear-gradient(180deg,#e4c878,#a8842e);border:1px solid #f0d68a;box-shadow:0 3px 0 #4d3a10,0 4px 12px rgba(0,0,0,.45);}
@@ -114,12 +119,16 @@
     border:none;box-shadow:inset 0 0 60px rgba(0,0,0,.75);perspective:none;perspective-origin:50% 15%;overflow:visible;}  /* orthographic: rotateX tilt with no vanishing-point convergence — every column stays perfectly vertical */
   .rowlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;text-align:center;margin:3px 0 5px;color:var(--ink-dim);}
   .rowlabel.spawn{color:var(--spawn);font-size:10px;text-shadow:0 0 10px rgba(82,198,236,.4);}
-  .centerwrap{flex:1;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(4px,calc(var(--ch)*.1),12px) 0;align-items:stretch;padding:0 6px;}
+  .centerwrap{flex:1;min-height:0;position:relative;display:flex;gap:6px;margin:clamp(3px,.7vw,9px) 0;align-items:stretch;padding:0 6px;}  /* same gap as the row stacks — 5 evenly spaced rows (Master Duel proportions) */
   .rowlabel.vert{position:absolute;left:calc(var(--cw)*-.02);top:0;bottom:0;z-index:2;pointer-events:none;
     writing-mode:vertical-rl;transform:rotate(180deg);margin:0;display:flex;align-items:center;justify-content:center;
     width:var(--cw);letter-spacing:.26em;font-size:clamp(7px,calc(var(--cw)*.12),9px);opacity:.85;overflow:hidden;white-space:nowrap;}
-  .row{flex:1;min-height:0;display:flex;justify-content:center;align-items:center;gap:clamp(3px,.7vw,9px);}
-  .wkslot{width:clamp(40px,5vw,58px);flex:none;display:flex;align-items:center;justify-content:center;}
+  .row{flex:1;min-height:0;display:flex;justify-content:center;align-items:center;gap:clamp(3px,.7vw,9px);position:relative;}
+  /* worker rails are gone from the board sides (workers live on the castle walls now — see .cmdworkers).
+     A .wkslot only appears as a floating chip over the row's outer edge when actionable: an enemy
+     stack you can strike mid-aim, or a shortfall warning. No layout width — the rows use the full width. */
+  .wkslot{position:absolute;top:50%;transform:translateY(-50%);z-index:7;display:flex;align-items:center;justify-content:center;pointer-events:auto;}
+  .wkslot.youSide{left:3px;} .wkslot.foeSide{right:3px;}
   .side{flex:2;min-height:0;display:flex;}
   #youSide{flex-direction:row-reverse;}
   .rowsbox{flex:1;min-width:0;display:flex;flex-direction:column;gap:clamp(3px,.7vw,9px);}
@@ -147,7 +156,8 @@
   /* the commander figure = the KEEP (off-board command center) standing on the castle wall */
   .cmdzone{position:absolute;z-index:24;display:flex;flex-direction:column;align-items:center;pointer-events:none;width:auto;}
   .cmdzone.foe{top:48px;right:14px;}
-  .cmdzone.you{bottom:8px;left:16px;}  /* the player's keep stands in the HUD frame's left (map) zone */
+  .cmdzone.you{bottom:24px;left:2.2%;width:max(16.6%,130px);justify-content:center;}  /* the player's info cluster fills the wall's left tower window */
+  .cmdzone.you .keepname{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cmdzone .keephp{margin-top:1px;font-family:'Cinzel',serif;font-weight:900;font-size:12.5px;color:#ff9a8a;text-shadow:0 1px 3px #000;line-height:1;}
   .cmdzone .keephp .heart{color:#ff6a5a;margin-right:1px;}
   .cmdzone.keepTarget{cursor:pointer;border-radius:10px;box-shadow:0 0 0 2px rgba(227,91,79,.8),0 0 16px rgba(227,91,79,.55);animation:pulse 1.1s ease-in-out infinite;}
@@ -223,9 +233,9 @@
   .spriteshadow{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);width:58cqw;height:12cqh;border-radius:50%;
     background:radial-gradient(ellipse at center,rgba(0,0,0,.55),rgba(0,0,0,0) 72%);}
   .spritebob{position:absolute;left:50%;bottom:11%;animation:spritebob 3.4s ease-in-out infinite;transform-origin:50% 100%;will-change:transform;}
-  .spritefig{display:block;height:150cqh;width:auto;max-width:165cqw;object-fit:contain;object-position:bottom;
-    filter:drop-shadow(0 7px 5px rgba(0,0,0,.5));}
-  .spritefig.fromart{height:104cqh;border-radius:9px;box-shadow:0 5px 12px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.14);}
+  .spritefig{display:block;height:min(150cqh,120cqw);width:auto;max-width:165cqw;object-fit:contain;object-position:bottom;
+    filter:drop-shadow(0 7px 5px rgba(0,0,0,.5));}  /* cqw cap: extreme-mode cells grow DEEP to fill the tilt — don't let standees inflate with the depth */
+  .spritefig.fromart{height:min(104cqh,84cqw);border-radius:9px;box-shadow:0 5px 12px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.14);}
   @keyframes spritebob{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-7%);}}
   .card .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(7px,16cqmin,16px);text-align:center;text-shadow:0 1px 2px #000;line-height:1.06;}
   .card .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(8px,21cqmin,19px);}
@@ -260,7 +270,16 @@
   body:has(.hand:hover) #youBack .deckslot, body:has(.hc.selected) #youBack .deckslot, body.wall-open #youBack .deckslot{opacity:0;pointer-events:none;}
   .centerrow{margin:2px 0;}
   .cell.centerlane{box-shadow:inset 0 0 14px rgba(227,180,90,.10);border-color:rgba(227,180,90,.30)!important;}     /* the open lanes monsters fight through (cols 1,3,5) */
-  .cell.centerstruct{border-style:solid!important;border-color:rgba(150,140,120,.22)!important;background:rgba(34,30,24,.42)!important;} /* buildable ground flanking the lanes (cols 0,2,4,6) */
+  /* buildable ground flanking the lanes (cols 0,2,4,6) — reads as BARE GROUND (no slot drawn, like the
+     empty center columns in Master Duel); the slot appears only when occupied or when it becomes a live
+     build/spell/intercept target. The cell still holds its place so all 7 columns stay grid-aligned. */
+  .cell.centercell.centerstruct{border-color:transparent;background:transparent;box-shadow:none;}
+  .cell.centercell.centerstruct.mineHere{border-style:solid;border-color:rgba(150,140,120,.3);background:rgba(34,30,24,.5);box-shadow:inset 0 0 0 2px rgba(217,176,74,.4);}
+  .cell.centercell.centerstruct.foeHere{border-style:solid;border-color:rgba(150,140,120,.3);background:rgba(34,30,24,.5);box-shadow:inset 0 0 0 2px rgba(63,163,224,.4);}
+  .cell.centercell.centerstruct.tappable{border-style:solid;cursor:pointer;border-color:rgba(217,176,74,.7);background:rgba(34,30,24,.5);box-shadow:0 0 0 1px rgba(217,176,74,.45),0 0 15px rgba(217,176,74,.28);}
+  .cell.centercell.centerstruct.target{border-style:solid;cursor:pointer;border-color:rgba(227,91,79,.8);background:rgba(34,30,24,.5);box-shadow:0 0 0 1px rgba(227,91,79,.6),0 0 15px rgba(227,91,79,.4);}
+  .cell.centercell.centerstruct.intercept{border-style:solid;cursor:pointer;border-color:rgba(99,200,236,.9);background:rgba(34,30,24,.5);box-shadow:0 0 0 1px rgba(99,200,236,.7),0 0 14px rgba(99,200,236,.45);}
+  .cell.centercell.centerstruct.selected{border:2px solid var(--gold);background:rgba(34,30,24,.5);box-shadow:0 0 18px rgba(217,176,74,.6);}
   .cell.centercell{border-style:solid;border-color:rgba(82,198,236,.28);background:rgba(82,198,236,.06);box-shadow:inset 0 0 10px rgba(82,198,236,.08);}
   .cell.mineHere{box-shadow:inset 0 0 0 2px rgba(217,176,74,.4);}
   .cell.foeHere{box-shadow:inset 0 0 0 2px rgba(63,163,224,.4);}
@@ -340,7 +359,7 @@
      studs; faint element glyph ornaments at each end (set per the player's commander). */
   /* the wall is a crenellated battlement: tall towers on the LEFT and RIGHT, dipping to a low
      wall across the MIDDLE where the hand cards are displayed. Silhouette via clip-path. */
-  #hudbar{position:fixed;left:0;right:0;bottom:0;height:clamp(150px,23vh,222px);z-index:23;pointer-events:none;transform:translateY(calc(100% - 18px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  #hudbar{position:fixed;left:0;right:0;bottom:0;height:clamp(170px,26vh,250px);z-index:23;pointer-events:none;transform:translateY(calc(100% - 18px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
   #hudbar .wallstone{position:absolute;inset:0;z-index:0;pointer-events:none;
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--youelem,#caa05a) 30%, transparent) 0, transparent 34%),
@@ -349,7 +368,14 @@
       radial-gradient(120% 140% at 50% 0,#544d44 0,#322d27 38%,#16130e 100%);
     box-shadow:inset 0 3px 0 rgba(255,255,255,.1), inset 0 -16px 30px rgba(0,0,0,.65), inset 0 0 0 2px rgba(0,0,0,.4);
     filter:drop-shadow(0 -5px 11px rgba(0,0,0,.55));
-    clip-path:polygon(0% 100%, 0% 7%, 5.9% 7%, 5.9% 20%, 9.55% 20%, 9.55% 7%, 15.45% 7%, 15.45% 20%, 19.1% 20%, 19.1% 7%, 25.0% 7%, 25% 56%, 25% 45%, 29.66% 45%, 29.66% 56%, 32.56% 56%, 32.56% 45%, 37.22% 45%, 37.22% 56%, 40.11% 56%, 40.11% 45%, 44.78% 45%, 44.78% 56%, 47.67% 56%, 47.67% 45%, 52.33% 45%, 52.33% 56%, 55.22% 56%, 55.22% 45%, 59.89% 45%, 59.89% 56%, 62.78% 56%, 62.78% 45%, 67.44% 45%, 67.44% 56%, 70.34% 56%, 70.34% 45%, 75.0% 45%, 75% 20%, 75% 7%, 80.9% 7%, 80.9% 20%, 84.55% 20%, 84.55% 7%, 90.45% 7%, 90.45% 20%, 94.1% 20%, 94.1% 7%, 100.0% 7%, 100% 100%);}
+    clip-path:polygon(0% 100%, 0% 6%, 4.6% 6%, 4.6% 18%, 7.7% 18%, 7.7% 6%, 13.3% 6%, 13.3% 18%, 16.4% 18%, 16.4% 6%, 21% 6%, 21% 48%, 23.87% 48%, 23.87% 40%, 28.87% 40%, 28.87% 48%, 31.75% 48%, 31.75% 40%, 36.75% 40%, 36.75% 48%, 39.62% 48%, 39.62% 40%, 44.62% 40%, 44.62% 48%, 47.5% 48%, 47.5% 40%, 52.5% 40%, 52.5% 48%, 55.37% 48%, 55.37% 40%, 60.37% 40%, 60.37% 48%, 63.25% 48%, 63.25% 40%, 68.25% 40%, 68.25% 48%, 71.12% 48%, 71.12% 40%, 76.12% 40%, 76.12% 48%, 79% 48%, 79% 6%, 83.6% 6%, 83.6% 18%, 86.7% 18%, 86.7% 6%, 92.3% 6%, 92.3% 18%, 95.4% 18%, 95.4% 6%, 100% 6%, 100% 100%);}
+  /* the dark framed "window" set into each tower square: left = player info, right = deck + graveyard */
+  .twin{position:absolute;z-index:1;pointer-events:none;border-radius:7px;
+    background:linear-gradient(180deg,rgba(6,7,12,.9),rgba(11,13,21,.84));
+    box-shadow:inset 0 0 0 2px rgba(0,0,0,.6),inset 0 3px 10px rgba(0,0,0,.8),0 0 0 2px rgba(96,86,70,.4),0 0 0 3px rgba(0,0,0,.35);}
+  #hudbar .twin{top:16%;bottom:8%;}
+  #hudbarFoe .twin{top:8%;bottom:16%;}
+  .twin.l{left:1.6%;width:17.8%;} .twin.r{right:1.6%;width:17.8%;}
   /* castle wall RISES with the hand; at rest only its top rail (+ the name/cost strip & vitals) shows.
      body.wall-open is set by JS to KEEP it raised while the cursor is anywhere over the wall band,
      so you can move off the cards onto the commander/Build without it retracting. */
@@ -363,7 +389,7 @@
     color:var(--youelem,#caa05a);opacity:.09;pointer-events:none;text-shadow:0 0 18px var(--youelem,#caa05a);}
   #hudbar .hudglyph.l{left:1.6%;} #hudbar .hudglyph.r{right:1.6%;}
   /* ---- FOE castle wall: a vertical mirror of #hudbar at the top of the screen ---- */
-  #hudbarFoe{position:fixed;left:0;right:0;top:0;height:clamp(118px,18vh,180px);z-index:23;pointer-events:none;transform:translateY(calc(-100% + 46px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  #hudbarFoe{position:fixed;left:0;right:0;top:0;height:clamp(140px,21vh,210px);z-index:23;pointer-events:none;transform:translateY(calc(-100% + 46px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
   #hudbarFoe .wallstone{position:absolute;inset:0;z-index:0;pointer-events:none;
     background:
       linear-gradient(0deg, color-mix(in srgb, var(--foeelem,#7aa0c8) 28%, transparent) 0, transparent 34%),
@@ -372,7 +398,7 @@
       radial-gradient(120% 140% at 50% 100%,#544d44 0,#322d27 38%,#16130e 100%);
     box-shadow:inset 0 -3px 0 rgba(255,255,255,.08), inset 0 16px 30px rgba(0,0,0,.6), inset 0 0 0 2px rgba(0,0,0,.4);
     filter:drop-shadow(0 5px 11px rgba(0,0,0,.55));
-    clip-path:polygon(0% 0%, 0% 93%, 5.9% 93%, 5.9% 80%, 9.55% 80%, 9.55% 93%, 15.45% 93%, 15.45% 80%, 19.1% 80%, 19.1% 93%, 25.0% 93%, 25% 44%, 25% 55%, 29.66% 55%, 29.66% 44%, 32.56% 44%, 32.56% 55%, 37.22% 55%, 37.22% 44%, 40.11% 44%, 40.11% 55%, 44.78% 55%, 44.78% 44%, 47.67% 44%, 47.67% 55%, 52.33% 55%, 52.33% 44%, 55.22% 44%, 55.22% 55%, 59.89% 55%, 59.89% 44%, 62.78% 44%, 62.78% 55%, 67.44% 55%, 67.44% 44%, 70.34% 44%, 70.34% 55%, 75.0% 55%, 75% 80%, 75% 93%, 80.9% 93%, 80.9% 80%, 84.55% 80%, 84.55% 93%, 90.45% 93%, 90.45% 80%, 94.1% 80%, 94.1% 93%, 100.0% 93%, 100% 0%);}
+    clip-path:polygon(0% 0%, 0% 94%, 4.6% 94%, 4.6% 82%, 7.7% 82%, 7.7% 94%, 13.3% 94%, 13.3% 82%, 16.4% 82%, 16.4% 94%, 21% 94%, 21% 52%, 23.87% 52%, 23.87% 60%, 28.87% 60%, 28.87% 52%, 31.75% 52%, 31.75% 60%, 36.75% 60%, 36.75% 52%, 39.62% 52%, 39.62% 60%, 44.62% 60%, 44.62% 52%, 47.5% 52%, 47.5% 60%, 52.5% 60%, 52.5% 52%, 55.37% 52%, 55.37% 60%, 60.37% 60%, 60.37% 52%, 63.25% 52%, 63.25% 60%, 68.25% 60%, 68.25% 52%, 71.12% 52%, 71.12% 60%, 76.12% 60%, 76.12% 52%, 79% 52%, 79% 94%, 83.6% 94%, 83.6% 82%, 86.7% 82%, 86.7% 94%, 92.3% 94%, 92.3% 82%, 95.4% 82%, 95.4% 94%, 100% 94%, 100% 0%);}
   body:has(#hudbarFoe:hover) #hudbarFoe, body.foewall-open #hudbarFoe{transform:translateY(0);}
   body:has(.foehand:hover) #hudbarFoe{transform:translateY(0);}
   /* only ONE wall open at a time — a held/selected player card (or a pinned player wall) forces the foe wall shut */
@@ -388,23 +414,26 @@
   /* foe vitals ride the wall's LEFT tower (mirrors the player's left-tower commander), visible on the rail at rest */
   .wallvit.foe{position:absolute;bottom:5px;left:1.5%;width:23%;z-index:3;pointer-events:auto;text-align:center;
     font-size:12px;color:#e9dcc0;text-shadow:0 1px 3px #000;line-height:1.25;}
+  /* wall open → the vitals settle into the left tower's framed window */
+  body:has(#hudbarFoe:hover) .wallvit.foe, body.foewall-open .wallvit.foe, body:has(.foehand:hover) .wallvit.foe{
+    left:2.6%;width:15.8%;top:8%;bottom:20%;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:13px;}
   .wallvit.foe .who{font-family:'Cinzel',serif;font-weight:700;font-size:11px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .wallvit.foe .vit{font-size:11.5px;white-space:nowrap;} .wallvit.foe .vit b{color:#fff;}
-  /* deck + graveyard widgets ride the RIGHT tower of each wall; count sits on the visible rail, fuller art on raise */
-  .wallzone{position:absolute;z-index:2;pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;
-    width:clamp(44px,6.2vw,66px);height:46%;border-radius:9px;background:rgba(8,10,16,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:background .15s;}
+  /* deck + graveyard live INSIDE the right tower's framed window — two selectable piles, side by side */
+  .wallzone{position:absolute;z-index:2;pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    width:max(8.2%,44px);border-radius:7px;background:rgba(8,10,16,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:background .15s;}
   .wallzone:hover{background:rgba(20,26,40,.5);}
-  #hudbar .wallzone{top:auto;bottom:12px;display:none;} #hudbar .wallzone.deck{right:20%;} #hudbar .wallzone.grave{right:7%;}
+  #hudbar .wallzone{top:22%;bottom:12%;display:none;} #hudbar .wallzone.deck{right:calc(2.4% + max(8.2%,44px) + 6px);} #hudbar .wallzone.grave{right:2.4%;}
   body:has(.hand:hover) #hudbar .wallzone, body:has(.hc.selected) #hudbar .wallzone, body.wall-open #hudbar .wallzone{display:flex;}
   .decline{position:absolute;right:5%;top:2px;z-index:4;pointer-events:none;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;color:#e7eefb;text-shadow:0 1px 3px #000;white-space:nowrap;}
   .decline b{color:#fff;} #foeDeckLine{top:auto;bottom:2px;color:#cfe0f5;}
   body:has(.hand:hover) #youDeckLine, body:has(.hc.selected) #youDeckLine, body.wall-open #youDeckLine{display:none;}
   body:has(.foehand:hover) #foeDeckLine, body:has(#hudbarFoe:hover) #foeDeckLine, body.foewall-open #foeDeckLine{display:none;}
-  #hudbarFoe .wallzone{bottom:12px;top:auto;flex-direction:column-reverse;justify-content:flex-start;display:none;} #hudbarFoe .wallzone.deck{right:20%;} #hudbarFoe .wallzone.grave{right:7%;}
+  #hudbarFoe .wallzone{top:12%;bottom:22%;flex-direction:column-reverse;justify-content:center;display:none;} #hudbarFoe .wallzone.deck{right:calc(2.4% + max(8.2%,44px) + 6px);} #hudbarFoe .wallzone.grave{right:2.4%;}
   body:has(.foehand:hover) #hudbarFoe .wallzone, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone, body.foewall-open #hudbarFoe .wallzone{display:flex;}
   .wallzone .wzl{font-family:'Cinzel',serif;letter-spacing:.1em;text-transform:uppercase;font-size:9px;color:#9fb6d6;opacity:.85;}
   .wallzone.grave .wzl{color:#b9b2a0;}
-  .wallzone .wzc{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(15px,2vw,23px);color:#dfeaf8;text-shadow:0 1px 3px #000;line-height:1;}
+  .wallzone .wzc{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(16px,2.2vw,26px);color:#dfeaf8;text-shadow:0 1px 3px #000;line-height:1;}
   .wallzone.grave .wzc{color:#d2d0d8;}
   .wallzone .wzfull{width:78%;aspect-ratio:.72;margin-top:2px;border-radius:5px;display:none;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.5);}
   .wallzone .wzfull img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -413,7 +442,7 @@
   body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone .wzfull, body.foewall-open #hudbarFoe .wallzone .wzfull{display:block;}
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
   /* help text lives on the right margin, off the board */
-  .handhint{position:fixed;right:10px;top:46%;transform:translateY(-50%);text-align:left;z-index:60;
+  .handhint{position:fixed;right:10px;top:auto;bottom:16%;transform:none;text-align:left;z-index:60;  /* below the edge-hugging phase cluster */
     width:clamp(150px,17vw,250px);font-style:italic;color:var(--ink-dim);font-size:11.5px;line-height:1.4;min-height:0;
     background:rgba(13,11,18,.9);border:1px solid rgba(58,52,80,.7);border-radius:9px;padding:8px 11px;box-shadow:0 4px 16px rgba(0,0,0,.55);pointer-events:auto;}
   .handhint:empty{display:none;}
@@ -442,6 +471,12 @@
   .hc .hcbody{flex:1;min-height:0;flex-direction:column;justify-content:space-between;padding:5px 7px 6px;} /* display toggled by the resting/hover rules above */
   .hc .hcbody .bic{flex:1;display:flex;align-items:center;justify-content:center;font-size:clamp(22px,calc(var(--hcw)*.42),50px);opacity:.82;text-shadow:0 2px 6px rgba(0,0,0,.6);}
   .hc .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(10px,calc(var(--hcw)*.125),16px);}
+  /* keep the fanned hand in the CENTER span of the castle wall (between the two tower squares);
+     cards shrink evenly instead of spilling over the deck/info towers. Phones keep the full width. */
+  @media (min-width:700px){
+    .hand{max-width:58vw;}
+    .hc{width:auto;flex:1 1 var(--hcw);max-width:var(--hcw);min-width:44px;}  /* floor keeps a full 10-card hand tappable; a very full hand may lap the tower edges slightly rather than shrink below touch size */
+  }
 
   .log{height:min(56vh,420px);overflow-y:auto;padding:7px 11px;border-radius:10px;background:#0d0b12;border:1px solid #241f2d;font-size:12.5px;line-height:1.5;text-align:left;}
   .log p{margin:0 0 3px;} .log .e{color:#e35b4f;} .log .y{color:var(--gold);} .log .s{color:var(--spawn);} .log .p{color:#b79bе8;}
@@ -667,11 +702,15 @@
   body.board-extreme{--tiltx:45deg;}
   body.board-extreme .matmain{transform:translateY(calc(-2% + var(--wallY,0%))) rotateX(var(--tiltx)) scale(var(--extscale,1));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
   body.board-extreme .mat{perspective:260vh;perspective-origin:50% 44%;}
-  /* (D) raise the field when the castle wall / hand opens — hover sets .wall-open, touch selects a card
-     (:has(.hc.selected)); a drag also selects, so the board makes room mid-drag. */
+  /* (D) shift the field to make room for whichever castle wall extends, then re-center on retract:
+     the FOE wall (top) pushes the board DOWN; the player's wall (bottom) lifts it UP. Hover sets
+     .wall-open/.foewall-open, touch selects a card (:has(.hc.selected)); a drag also selects, so the
+     board makes room mid-drag. Player-side rules come last so they win if both ever apply. */
   .matmain{transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
-  body.wall-open,body:has(.hc.selected){--wallY:-13%;}
-  body.board-extreme.wall-open,body.board-extreme:has(.hc.selected){--wallY:-11%;}
+  body.foewall-open,body:has(#hudbarFoe:hover),body:has(.foehand:hover){--wallY:9%;}
+  body.board-extreme.foewall-open,body.board-extreme:has(#hudbarFoe:hover),body.board-extreme:has(.foehand:hover){--wallY:8%;}
+  body.wall-open,body:has(.hc.selected){--wallY:-14%;}
+  body.board-extreme.wall-open,body.board-extreme:has(.hc.selected){--wallY:-12%;}
   /* drag-and-drop: a ghost follows the pointer; cards/cells own the touch gesture (no scroll) */
   .hc,.cell{touch-action:none;}
   .dragghost{position:fixed;z-index:9999;left:0;top:0;pointer-events:none;opacity:.92;
@@ -857,17 +896,19 @@
   <!-- FOE castle wall (top): foe vitals + deck + graveyard, mirroring the player's wall -->
   <div id="hudbarFoe">
     <div class="wallstone"></div>
+    <div class="twin l"></div><div class="twin r"></div>
     <span class="hudglyph l" id="hudGlyphFL"></span><span class="hudglyph r" id="hudGlyphFR"></span>
     <div class="wallvit foe" id="foeBadge">
       <div class="who" id="foeName" style="color:var(--tide)"><span class="cdot" style="background:var(--tide)"></span>The Tide Spire</div>
       <div class="vit"><span class="heart">♥</span><b id="foeLife">22</b> <span id="foeManaStr"></span> <span class="bct">⌂</span><b id="foeStruct">0</b> <span class="wct">⚒</span><b id="foeCap">0/2</b></div>
+      <div id="foeWorkerChips"></div>
     </div>
     <div class="wallzone deck" id="foeWallDeck" onclick="openViewer('deck','foe')"></div>
     <div class="wallzone grave" id="foeWallGrave" onclick="openViewer('grave','foe')"></div>
     <div class="decline" id="foeDeckLine"></div>
   </div>
   <!-- WC3-style themed stone command wall (bottom): commander (left tower), hand (center), deck/grave (right tower) -->
-  <div id="hudbar"><div class="wallstone"></div><span class="hudglyph l" id="hudGlyphL"></span><span class="hudglyph r" id="hudGlyphR"></span>
+  <div id="hudbar"><div class="wallstone"></div><div class="twin l"></div><div class="twin r"></div><span class="hudglyph l" id="hudGlyphL"></span><span class="hudglyph r" id="hudGlyphR"></span>
     <div class="wallzone deck" id="youWallDeck" onclick="openViewer('deck','you')"></div>
     <div class="wallzone grave" id="youWallGrave" onclick="openViewer('grave','you')"></div>
     <div class="decline" id="youDeckLine"></div>
@@ -2141,6 +2182,7 @@ function renderWalls(){
   };
   fill('youWallDeck','you','deck'); fill('youWallGrave','you','grave');
   fill('foeWallDeck','foe','deck'); fill('foeWallGrave','foe','grave');
+  const fw=$('foeWorkerChips'); if(fw){ fw.innerHTML=''; fw.appendChild(workerChipRow('foe')); }  // foe per-row workers on their wall
   const dl=$('youDeckLine'); if(dl) dl.innerHTML=`Deck: <b>${G.P.you.deck.length}</b> &nbsp; GY: <b>${G.P.you.grave.length}</b>`;
   const fl=$('foeDeckLine'); if(fl) fl.innerHTML=`Deck: <b>${G.P.foe.deck.length}</b> &nbsp; GY: <b>${G.P.foe.grave.length}</b>`;
 }
@@ -2242,21 +2284,44 @@ function attachSprite(cell,o,me){
   cell.appendChild(w);
 }
 window.toggleSprites=()=>{ window.SPRITES_ON=!window.SPRITES_ON; const b=$('sprBtn'); if(b)b.classList.toggle('off',!window.SPRITES_ON); render(); };
+// Workers now live on each player's castle wall (see workerChipRow). The board only shows a
+// FLOATING chip over a row's outer edge when it's actionable right there: an enemy stack you can
+// strike mid-aim, or a shortfall warning. Returns null otherwise — rows keep their full width.
 function wkSlotEl(owner,which,aiming){
-  const slot=document.createElement('div'); slot.className='wkslot';
-  if(!owner) return slot; // empty spacer keeps the card slots centered
+  if(!owner) return null;
   const n=rowWorkers(owner,which); const me=owner==='you';
-  const pool=minPool(owner,which); const up=pool.filter(m=>!m.tapped&&!m.sick).length;
+  const pool=minPool(owner,which);
+  const targetable=!me&&aiming&&pool.length&&G.turn==='you'&&!G.busy&&!G.over&&!G.deficit;
+  if(!targetable&&n>=0) return null;
+  const slot=document.createElement('div'); slot.className='wkslot '+(me?'youSide':'foeSide');
   const tok=document.createElement('div');
   tok.className='wtok'+(me?'':' foe')+(n<0?' short':'');
-  tok.innerHTML=`⚒<b>${n}</b>`+(n>0&&up<pool.length?`<span class="wr">${up}✓</span>`:'');
-  tok.title=me?(n<0?'worker shortfall — fix at the start of your turn':(up>0?`${n} worker${n===1?'':'s'} in this row — tap to harvest ◆${up*minYield(which)} mana`:`${n} worker${n===1?'':'s'} in this row — all harvested this turn`)):`enemy workers here: ${n}`;
-  if(G.turn==='you'&&!G.busy&&!G.over&&!G.deficit){
-    if(me&&up>0&&!G.sel&&!G.moveFrom&&!G.moveMana){ tok.classList.add('tappable'); tok.addEventListener('click',()=>harvestRow(which)); }
-    else if(!me&&aiming&&pool.length){ tok.classList.add('target'); const rowId=which==='center'?'center':(owner==='foe'?'foe':'you')+(which==='front'?'Front':'Back'); tok.addEventListener('click',()=>attackMinionStack(rowId,owner,which)); }
-  }
+  tok.innerHTML=`⚒<b>${n}</b>`;
+  tok.title=n<0?(me?'worker shortfall — fix at the start of your turn':'enemy worker shortfall'):`enemy workers here: ${n} — tap to strike the stack`;
+  if(targetable){ tok.classList.add('target'); const rowId=which==='center'?'center':(owner==='foe'?'foe':'you')+(which==='front'?'Front':'Back'); tok.addEventListener('click',()=>attackMinionStack(rowId,owner,which)); }
   tok.addEventListener('contextmenu',e=>{e.preventDefault();inspectMinion(owner,which);});
   slot.appendChild(tok); return slot;
+}
+// the per-row worker chips shown on a player's castle wall: Back / Front / Center counts,
+// tappable to harvest (yours), right-click to inspect the stack — the old rail pills' duties
+function workerChipRow(owner){
+  const box=document.createElement('div'); box.className='cmdworkers'+(owner==='you'?'':' foe');
+  const LBL={back:'Back',front:'Front',center:'Center'};
+  const me=owner==='you';
+  for(const which of ['back','front','center']){
+    const n=rowWorkers(owner,which);
+    const pool=minPool(owner,which); const up=pool.filter(m=>!m.tapped&&!m.sick).length;
+    const tok=document.createElement('div');
+    tok.className='wtok'+(me?'':' foe')+(n<0?' short':'')+(n===0?' none':'');
+    tok.innerHTML=`<span class="wklab">${LBL[which]}</span>⚒<b>${n}</b>`+(n>0&&up<pool.length?`<span class="wr">${up}✓</span>`:'');
+    tok.title=me?(n<0?'worker shortfall — fix at the start of your turn':(up>0?`${n} worker${n===1?'':'s'} in your ${LBL[which].toLowerCase()} row — tap to harvest ◆${up*minYield(which)} mana`:`${n} worker${n===1?'':'s'} in this row — all harvested this turn`)):`enemy ${LBL[which].toLowerCase()} row workers: ${n}`;
+    if(me&&G.turn==='you'&&!G.busy&&!G.over&&!G.deficit&&up>0&&!G.sel&&!G.moveFrom&&!G.moveMana){
+      tok.classList.add('tappable'); tok.addEventListener('click',()=>harvestRow(which));
+    }
+    tok.addEventListener('contextmenu',e=>{e.preventDefault();inspectMinion(owner,which);});
+    box.appendChild(tok);
+  }
+  return box;
 }
 // pin the deck/graveyard zones to the floor's corner cells so they ride the tilted
 // plane (your deck off the bottom-right corner, opponent's off the top-left corner)
@@ -2284,7 +2349,6 @@ function positionGrave(grave,deck,owner){
 function renderRow(elId,owner,which){
   const el=$(elId);el.innerHTML='';const me=owner==='you';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
-  el.appendChild(wkSlotEl(me?owner:null,which,aiming)); // your workers sit on the left of the slots
   for(let i=0;i<SLOTS;i++){
     const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
     cell.dataset.owner=owner; cell.dataset.which=which; cell.dataset.slot=i;   // drag-drop coordinates
@@ -2295,7 +2359,7 @@ function renderRow(elId,owner,which){
     decorate(cell,owner,which,i,o);
     el.appendChild(cell);
   }
-  el.appendChild(wkSlotEl(me?null:owner,which,aiming)); // foe workers sit on the right
+  const wc=wkSlotEl(owner,which,aiming); if(wc) el.appendChild(wc); // floating chip only when actionable
   // (deck + graveyard now live in the castle walls — see renderWalls — not on the board plane)
 }
 const GUARDIAN_SVG=`<svg viewBox="0 0 48 62" xmlns="http://www.w3.org/2000/svg">
@@ -2322,12 +2386,12 @@ function renderCmdZone(owner){
   const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'fire':'water')})`;
   el.innerHTML=`<div class="keepname" style="color:${fc}" title="${cc.nm}">♜ ${escHtml(cc.nm)}</div>`+
     `<div class="keephp"><span class="heart">♥</span>${Math.max(0,cc.h)}</div>`+vit;
+  if(me) el.appendChild(workerChipRow('you'));   // per-row worker chips ride the wall (harvest taps)
   el.style.pointerEvents=me?'auto':'none';
 }
 function renderCenter(){
   const el=$('center'); el.innerHTML='';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
-  el.appendChild(wkSlotEl('you','center',aiming)); // your contested-center workers on the left
   for(let i=0;i<SLOTS;i++){
     // the contested center is a mountain pass: 3 monster lanes (cols 1/3/5) flanked by 4 structure slots (cols 0/2/4/6)
     const cell=document.createElement('div'); cell.className='cell centercell '+(isLane(i)?'centerlane':'centerstruct');
@@ -2338,7 +2402,8 @@ function renderCenter(){
     decorate(cell,persp,'center',i,o);
     el.appendChild(cell);
   }
-  el.appendChild(wkSlotEl('foe','center',aiming)); // foe contested-center workers on the right
+  const wy=wkSlotEl('you','center',aiming); if(wy) el.appendChild(wy);   // floating chips only when actionable
+  const wf=wkSlotEl('foe','center',aiming); if(wf) el.appendChild(wf);
 }
 function renderFoeHand(){
   const el=$('foeHand'); if(!el)return;
@@ -3833,12 +3898,12 @@ function fitBoard(){
   const boardChrome=28;                                          // mat padding + center gap
   let ch=Math.min(280,
     (innerHeight-topChrome-handReserve-boardChrome)/4.7,         // 5 rows + a little center gap — fill more vertical space
-    ((innerWidth-150)/9.5)/.74);                                 // 7 columns + a deck slot per side
+    ((innerWidth-60)/7.4)/.74);                                  // 7 columns edge to edge (worker rails are gone — they live on the walls)
   ch=Math.max(30,ch);
   root.style.setProperty('--ch',ch.toFixed(1)+'px');
-  const ext=document.body.classList.contains('board-extreme');   // extreme's standing 3D figures project past the flat box — that width overflow is expected, don't shrink the whole board for it
+  const ext=document.body.classList.contains('board-extreme');   // extreme fits itself below (projection ≠ flat layout) — the flat guards would fight it
   for(let i=0;i<12&&ch>30;i++){
-    const overY=document.documentElement.scrollHeight>innerHeight+1;
+    const overY=!ext && document.documentElement.scrollHeight>innerHeight+1;
     const m=document.querySelector('.main');
     const overX=!ext && m&&m.scrollWidth>m.clientWidth+1;
     if(!overY&&!overX)break;
@@ -3847,23 +3912,41 @@ function fitBoard(){
   // Cell WIDTH: portrait by default, but widen cells to fill the row on wide/short screens so the board
   // stops stranding big empty side-margins (the complaint on landscape phones). Art is object-fit:cover,
   // so a wider slot just crops wider — no stretch. Floor = portrait (.74·ch); cap = 1.5·ch (mild landscape).
-  const wkW=Math.min(58,Math.max(40,innerWidth*0.05)), gpW=Math.min(9,Math.max(3,innerWidth*0.007));
-  const rowAvail=innerWidth - 2*wkW - 28 - 8*gpW;               // mat width minus the 2 worker rails, padding and 8 gaps
-  const cw=Math.max(ch*0.74, Math.min(rowAvail/7, ch*1.5));
-  root.style.setProperty('--cw', cw.toFixed(1)+'px');
-  // Extreme's 3D magnification makes the near (bottom) row widest — wide enough to push the worker rails
-  // and back-row corners off the screen edges. Scale the whole board down just enough that the near row
-  // (incl. its rails) fits the viewport width. Measured each fit so it adapts to any device/aspect.
+  const gpW=Math.min(9,Math.max(3,innerWidth*0.007));
+  const rowAvail=innerWidth - 36 - 6*gpW;                        // mat width minus padding and the 6 column gaps
+  const setCW=v=>{ const c=Math.max(v*0.74, Math.min(rowAvail/7, v*1.5)); root.style.setProperty('--cw', c.toFixed(1)+'px'); };
+  setCW(ch);
+  // Tilted (extreme): rotateX compresses the projection, which stranded big gaps above and below the
+  // field. DEEPEN the cells until the projected board fills the mat's height, then scale down only if
+  // the magnified near row overruns the viewport width. Measured settled each fit — adapts to any screen.
   if(ext){
-    const back=document.getElementById('youBack'), mm=document.querySelector('.matmain');
-    if(back && mm){
+    const back=document.getElementById('youBack'), mm=document.querySelector('.matmain'), mat=document.querySelector('.mat');
+    if(back && mm && mat){
       const savedT=mm.style.transition; mm.style.transition='none';     // measure the SETTLED tilt, not a mid-animation frame
-      root.style.setProperty('--extscale','1'); void mm.offsetWidth;
-      const w=back.getBoundingClientRect().width;
-      root.style.setProperty('--extscale', w>innerWidth-10 ? Math.max(0.6,(innerWidth-10)/w).toFixed(3) : '1');
+      root.style.setProperty('--extscale','1');
+      const availW=innerWidth-10;
+      // The 45° projection compresses depth ~1.4:1, so the FLAT field must be ~142% of the mat for the
+      // tilted image to fill it top to bottom (board-tilt does the same trick with 106%). The rows are
+      // flex children of the field, so cells size to the row boxes (offsetHeight = flat layout, not the
+      // projected rect). The near row's perspective magnification then forces a uniform shrink; a
+      // couple of passes grow the flat field to cancel that shrink until it converges.
+      let hf=1.36, s=1;
+      for(let p=0;p<3;p++){
+        mm.style.height=(hf*100).toFixed(1)+'%'; void mm.offsetWidth;
+        const che=Math.max(40, back.offsetHeight-2);
+        root.style.setProperty('--ch',che.toFixed(1)+'px');
+        root.style.setProperty('--cw', Math.min(rowAvail/7, che*1.5).toFixed(1)+'px');
+        void mm.offsetWidth;
+        s=Math.max(0.6, Math.min(1, availW/back.getBoundingClientRect().width));
+        const want=Math.min(1.7, 1.36/s);
+        if(Math.abs(want-hf)<0.02) break;
+        hf=want;
+      }
+      root.style.setProperty('--extscale', s.toFixed(3));
       void mm.offsetWidth; mm.style.transition=savedT;
     } else root.style.setProperty('--extscale','1');
-  } else root.style.setProperty('--extscale','1');
+  } else { const mm=document.querySelector('.matmain'); if(mm) mm.style.height='';   // clear the extreme-mode flat-height override so Top-Down keeps its own sizing
+    root.style.setProperty('--extscale','1'); }
   // the handwrap now spans the full viewport (left:0;right:0) and its .hand child self-centers,
   // so no manual horizontal offset is needed (writing inline left here would fight the CSS right:0).
 }
