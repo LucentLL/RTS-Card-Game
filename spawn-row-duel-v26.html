@@ -73,10 +73,11 @@
   #boardBtns>*{pointer-events:auto;}
   .turnlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;text-align:center;
     background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:999px;padding:3px 10px;}
-  #endBtn{font-family:'Cinzel',serif;letter-spacing:.07em;font-weight:900;font-size:12.5px;padding:9px 18px;border-radius:999px;cursor:pointer;
+  #endBtn,#harvestBtn{font-family:'Cinzel',serif;letter-spacing:.07em;font-weight:900;font-size:12.5px;padding:9px 18px;border-radius:999px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:2px solid #f0d68a;
     box-shadow:0 4px 0 #4d3a10,0 0 18px rgba(217,176,74,.35),0 8px 20px rgba(0,0,0,.55);}
-  #endBtn:active{transform:translatey(2px);box-shadow:0 2px 0 #4d3a10;}
+  #harvestBtn{background:linear-gradient(180deg,#9ad17f,#4f8a3a);border-color:#c2e8a8;box-shadow:0 4px 0 #23401a,0 0 18px rgba(120,200,110,.35),0 8px 20px rgba(0,0,0,.55);}
+  #endBtn:active,#harvestBtn:active{transform:translatey(2px);box-shadow:0 2px 0 #4d3a10;}
   #endBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:0 6px 16px rgba(0,0,0,.5);border-color:#555;}
   #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
     color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
@@ -223,8 +224,9 @@
 
   .card{position:absolute;inset:3px;border-radius:5px;padding:5px;display:flex;flex-direction:column;justify-content:space-between;animation:pop .18s ease;}
   @keyframes pop{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
-  /* the opponent's cards face the opponent — rotated 180° from the player (Master Duel style) */
-  #foeBack .card,#foeFront .card,.centercell.foeHere .card{transform:rotate(180deg);animation:popfoe .18s ease;}
+  /* the opponent's cards face the opponent — rotated 180° from the player (Master Duel style).
+     Owner-tagged per cell: the middle rows are contested, so either side's cards can stand anywhere. */
+  .cell.foeHere .card{transform:rotate(180deg);animation:popfoe .18s ease;}
   @keyframes popfoe{from{transform:rotate(180deg) scale(.7);opacity:0;}to{transform:rotate(180deg) scale(1);opacity:1;}}
   /* floating standee sprites — a figure that hovers above a creature's card (Duel Links style).
      Sized in cell container-query units (the .cell is a size container) so they track the board. */
@@ -884,6 +886,7 @@
 
   <div id="boardBtns">
     <div class="turnlabel" id="turnLabel">Your Turn</div>
+    <button id="harvestBtn" onclick="doHarvest()" style="display:none">⛏ Harvest</button>
     <button id="endBtn">End Turn</button>
     <button id="conscriptBtn">⚒ Train</button>
     <div class="btnrow">
@@ -926,12 +929,12 @@
     <div class="box">
       <div class="ltitle">How to Play</div>
       <div class="cmdname" id="cmdName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
-      <div class="cmdpass" id="cmdPass">Your command center holds the base — it cannot move or attack, and no spell can raze or burn it. It falls only when a strike reaches it through the rows. If it falls, you lose.</div>
-      <p><b>Win — raze the command center.</b> Each side anchors its base with a <b>command center</b>: the structure you chose at the start. It sets your starting health, your starting workers, and your <b>mana colors</b>. It cannot move or attack — and the moment it is destroyed, its owner <b>loses</b>. Everything else on the field exists to protect yours and reach theirs.</p>
-      <p><b>The board.</b> Five rows stack between the two keeps: the enemy base and front line up top, your front line and base below, and a single <b>contested center</b> that belongs to no one. You may place into any of your three rows. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
+      <div class="cmdpass" id="cmdPass">Your back row IS your stronghold. An undefended strike into any open back-row column drains your ♥ life pool — when it empties, you lose.</div>
+      <p><b>Win — breach the back row.</b> Your element choice sets your <b>life pool</b> (♥), your base workers, and your <b>mana colors</b>. There is no command-center card: attacks aimed at an <b>open column of the enemy back row</b> that go unintercepted deal their full ⚔ to the defender's life. Bodies standing in the back row must be fought instead.</p>
+      <p><b>The board.</b> Five rows: each side's back row is its own soil — <b>the enemy may never enter yours</b>, only attack it. The three middle rows (both fronts + the center) are <b>contested</b>: either army may advance into them, marching one row per move. New cards deploy only in your <b>back or front</b> row. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
       <p><b>Building (RTS).</b> Structures are <b>not in your deck</b> — your commander <b>builds</b> them. Tap your command center or the <b>⚒ Build</b> button to open the menu, then tap an open space to raise it. Building costs <b>mana</b> and follows a <b>tech tree</b>: a <b>Foundry</b> first, which unlocks the element <b>Forges</b> (a forge lets its row harvest that element's mana) and the <b>Longhouse</b>; a forge in turn unlocks the <b>Bulwark</b> and <b>Grand Forges</b>. Build as often as you can afford it.</p>
-      <p><b>Workers &amp; the rail.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2), so a row holding both sits at ⚒+1. Workers are not trained and never move; they simply follow the cards. Tap a row's worker on the rail to <b>Harvest</b> the whole row at once (◆1 per worker at the base, ◆2 at the front or center); a pop-up then lets you <b>distribute</b> the haul across the colors among that row's units, with the remainder kept as generic ◆. At the <b>start of your turn</b>, any row whose number has gone <b>negative</b> (for example because a supporting structure was razed) must be brought back to <b>0 or higher</b> by moving its monsters to a row that can support them, or sacrificing them — you resolve this before you can act. You may overextend on your own turn; the bill comes due at the start of the next.</p>
-      <p><b>Colored mana.</b> Extraction yields <b>generic ◆</b> — or mana of <b>any color among your units in that row</b> (a red dragon on the front line lets front workers pull red; your command center counts for its own colors in its row). A colored creature or spell needs <b>1 mana of its color</b> in its cost; the rest takes any mix. Structures take anything. <i>Mana of every kind drains at end of turn — bank it on face-downs to keep it.</i></p>
+      <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). Your turn opens with an <b>upkeep phase</b>: reposition creatures if you wish (this uses their move for the turn), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (◆1 at the base, ◆2 at the front or center) and one panel lets you set each row's <b>color ratio</b>. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first: move the monsters back, sacrifice them, or simply <b>pay ◆ equal to the shortfall</b> — Harvest pays it for you when you can afford it.</p>
+      <p><b>Colored mana.</b> Extraction yields <b>generic ◆</b> — or mana of <b>any color among your units in that row</b> (a red dragon on the front line lets front workers pull red; your command center counts for its own colors in its row). A colored creature or spell needs <b>1 mana of its color</b> in its cost; the rest takes any mix. Structures take anything. <i>Mana persists between turns — it keeps building until you spend it (or spend it keeping over-extended lines fed).</i></p>
       <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Flips from a funded face-down <b>waive the color pip</b> — secrecy's discount. Face-down a full turn? It flips with haste.</p>
       <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group), then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
       <p><b>Note:</b> a prototype. Open questions, deliberately parked: the exact colored-cost rule (currently 1 pip + any remainder), storage structures that convert colors, a <i>Ranged</i> keyword, and the soldier-production model.</p>
@@ -1189,7 +1192,7 @@ const CC_ART={}, CCS={};
 })();
 function mkCC(def,owner){ return {kind:'building',cc:true,id:uid++,owner,color:def.colors[0],colors:def.colors.slice(),
   nm:def.name,h:def.hp,maxh:def.hp,c:0,eff:'command',val:0,sup:def.wk,ic:'♜',art:CC_ART[def.id],bank:0}; }
-function findCC(o){ const cc=G.P[o]&&G.P[o].ccUnit; return (cc&&cc.h>0)?cc:null; } // the off-board keep on the castle wall
+function findCC(o){ return null; } // command centers removed — the back row itself is the stronghold (life pool)
 const poolFor=color=>POOLS[color]||EMBER;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 /* ===========================================================================
@@ -1325,7 +1328,7 @@ function canDeploy(owner,which){return which==='center'||owner==='you';}
 const MINE=['youBack','youFront','center'];
 function mineKey(which){return which==='center'?'center':(which==='front'?'youFront':'youBack');}
 // ---- minion pools (workers live in a per-row pool, NOT in board slots) ----
-function minPool(owner,which){return G.P[owner].min[which];}
+function minPool(owner,which){return G.P[owner].min[which]||[];} // 'raid' has no pool — no support behind enemy lines
 // every minion logically occupying row `key`, as {owner,which,c}. Center holds both sides' minions.
 function minionsInRow(key){
   const out=[];
@@ -1344,18 +1347,24 @@ function whichForKey(owner,key){ // which pool of `owner` corresponds to row key
 }
 // ---- worker capacity (structures +support, monsters -upkeep; minions live within the cap) ----
 
-function ownUnits(owner){ const out=[]; ['front','back'].forEach(w=>G.P[owner][w].forEach(o=>{if(o)out.push(o);})); G.center.forEach(o=>{if(o&&o.owner===owner)out.push(o);}); return out; }
+function ownUnits(owner){ const out=[]; ROWS.forEach(k=>rowArr(k).forEach(o=>{if(o&&o.owner===owner)out.push(o);})); return out; } // fronts are contested — always filter by the unit's own tag
 function structuresOf(owner){ return ownUnits(owner).filter(o=>o.kind==='building'); }
 function structSupport(owner){ return structuresOf(owner).reduce((s,b)=>s+(b.sup||0),0); }
 function monsterUpkeep(owner){ return ownUnits(owner).reduce((s,o)=>s+((o.kind==='creature'&&!o.worker)?(o.up||0):0),0); }
 function workerCap(owner){ return structSupport(owner) - monsterUpkeep(owner); } // CC supplies the base via its support
 // ===== NEW MODEL: workers are a per-row figure = Σ(structure support) − Σ(monster upkeep) in that row.
 //   They are NOT trained and do NOT move; the rail pool is auto-derived from the cards in each row.
+// Worker ZONES per owner: back / front / center / raid — 'raid' is the ENEMY front row, where your
+// units stand with no structures behind them: its figure is never positive, so an army camped there
+// must be paid for (or pulled back) at every upkeep. zoneKey maps a zone to the global row it reads.
+const ZONES=['back','front','center','raid'];
+function zoneKey(owner,z){ return z==='center'?'center':z==='raid'?(owner==='you'?'foeFront':'youFront'):rowKeyFor(owner,z); }
 function rowWorkers(owner,which){
   let s=0;
-  const tally=o=>{ if(!o||o.owner&&o.owner!==owner)return; if(o.kind==='building')s+=(o.sup||0)+(o.eff==='villager'?(o.val||0):0); else if(o.kind==='creature'&&!o.worker)s-=(o.up||0); };
-  if(which==='center') G.center.forEach(o=>{if(o&&o.owner===owner)tally(o);});
-  else G.P[owner][which].forEach(tally); // the keep now stands in back[BASE_COL] and is tallied here
+  rowArr(zoneKey(owner,which)).forEach(o=>{ if(!o||o.owner!==owner)return;
+    if(o.kind==='building')s+=(o.sup||0)+(o.eff==='villager'?(o.val||0):0);
+    else if(o.kind==='creature'&&!o.worker)s-=(o.up||0); });
+  if(which==='back') s+=CCS[G.P[owner].cc].wk;  // the homeland itself staffs the back row (the old keep's workers)
   return s;
 }
 function totalWorkers(owner){ return ['back','front','center'].reduce((s,w)=>s+Math.max(0,rowWorkers(owner,w)),0); }
@@ -1371,12 +1380,12 @@ function syncWorkers(owner){
 // workers settle (become harvestable) at the START of the turn, AFTER upkeep + deficit balancing.
 // Because this runs only at turn start, workers a structure adds mid-turn stay sick until next turn.
 function readyWorkers(owner){ ['back','front','center'].forEach(w=>G.P[owner].min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;})); }
-// rows of `owner` that are short on workers (must be fixed at the owner's turn start)
-function deficitRows(owner){ return ['back','front','center'].filter(w=>rowWorkers(owner,w)<0); }
+// zones of `owner` that are short on workers (settled — moved, paid, or sacrificed — at upkeep)
+function deficitRows(owner){ return ZONES.filter(w=>rowWorkers(owner,w)<0); }
+function totalDeficit(owner){ return ZONES.reduce((s,w)=>s+Math.max(0,-rowWorkers(owner,w)),0); }
 function creaturesInRow(owner,which){
-  const out=[];
-  if(which==='center'){ G.center.forEach((o,i)=>{if(o&&o.owner===owner&&o.kind==='creature'&&!o.worker)out.push({which:'center',i,o});}); }
-  else G.P[owner][which].forEach((o,i)=>{if(o&&o.kind==='creature'&&!o.worker)out.push({which,i,o});});
+  const out=[]; const k=zoneKey(owner,which);
+  rowArr(k).forEach((o,i)=>{if(o&&o.owner===owner&&o.kind==='creature'&&!o.worker)out.push({which,key:k,i,o});});
   return out;
 }
 /* ---------- colored mana ----------
@@ -1403,7 +1412,7 @@ function extractColors(owner,which){
     if(x.kind==='building'&&x.cc)(x.colors||[]).forEach(c=>set.add(c));
     if(x.kind==='building'&&!x.cc&&x.eff==='mana'&&x.color)set.add(x.color); // a built forge lets its row harvest its element's mana
   }});
-  if(which==='back'){ const cc=G.P[owner].ccUnit; if(cc&&cc.h>0)(cc.colors||[]).forEach(c=>set.add(c)); } // the keep's colors harvest from the back row
+  if(which==='back'){ (CCS[G.P[owner].cc].colors||[]).forEach(c=>set.add(c)); } // the homeland's colors harvest from the back row
   return [...set];
 }
 function minionCount(owner){ const m=G.P[owner].min; return m.back.length+m.front.length+m.center.length; }
@@ -1495,18 +1504,15 @@ function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.
 function kwOf(o){ return (o&&o.kind==='creature'&&!o.worker)?(o.kw||null):null; }
 function ekc(o){ return (o&&o.owner==='you')?'y':'e'; }
 function enemyOf(owner){ return owner==='you'?'foe':'you'; }
-function liveEnemyCreatures(owner){ const f=enemyOf(owner),out=[];
-  ['front','back'].forEach(w=>G.P[f][w].forEach(o=>{ if(o&&o.kind==='creature'&&!o.worker&&o.h>0)out.push(o); }));
-  G.center.forEach(o=>{ if(o&&o.owner===f&&o.kind==='creature'&&!o.worker&&o.h>0)out.push(o); }); return out; }
-function liveEnemyStructures(owner){ const f=enemyOf(owner),out=[];
-  ['front','back'].forEach(w=>G.P[f][w].forEach(o=>{ if(o&&o.kind==='building'&&!o.cc&&o.h>0)out.push(o); }));
-  G.center.forEach(o=>{ if(o&&o.owner===f&&o.kind==='building'&&!o.cc&&o.h>0)out.push(o); }); return out; }
+function liveEnemyCreatures(owner){ const f=enemyOf(owner);
+  return ownUnits(f).filter(o=>o.kind==='creature'&&!o.worker&&o.h>0); }
+function liveEnemyStructures(owner){ const f=enemyOf(owner);
+  return ownUnits(f).filter(o=>o.kind==='building'&&o.h>0); }
 function firstEmptyCell(owner){
-  for(const w of ['back','front']){ const a=G.P[owner][w]; const i=a.findIndex((x,idx)=>!x&&!(w==='back'&&idx===BASE_COL)); if(i>=0)return {arr:a,i}; }
+  for(const w of ['back','front']){ const a=G.P[owner][w]; const i=a.findIndex(x=>!x); if(i>=0)return {arr:a,i}; }
   const ci=G.center.findIndex((x,idx)=>!x&&isLane(idx)); if(ci>=0)return {arr:G.center,i:ci}; return null; }
 function removeUnitFromBoard(unit){
-  for(const o of ['you','foe']) for(const w of ['front','back']){ const a=G.P[o][w]; const i=a.indexOf(unit); if(i>=0){a[i]=null;return o;} }
-  const ci=G.center.indexOf(unit); if(ci>=0){ const ow=unit.owner; G.center[ci]=null; return ow; }
+  for(const key of ROWS){ const a=rowArr(key); const i=a.indexOf(unit); if(i>=0){ a[i]=null; return unit.owner; } }
   for(const o of ['you','foe']) for(const w of ['back','front','center']){ const p=G.P[o].min[w]; const i=p.indexOf(unit); if(i>=0){p.splice(i,1);return o;} }
   return null; }
 function handcardFromCreature(cr){ return {kind:'handcard',id:uid++,type:'creature',color:cr.color,nm:cr.nm,a:cr.a,h:cr.maxh??cr.h,c:cr.c,fs:cr.fs,up:cr.up,art:cr.art,
@@ -1542,7 +1548,7 @@ function applyUndertow(groupA,groupB){
 }
 // UPKEEP (Chrysalis cocoons swell and hatch)
 function chrysalisUpkeep(owner){
-  const all=[]; ['front','back'].forEach(w=>G.P[owner][w].forEach(o=>{if(o)all.push(o);})); G.center.forEach(o=>{if(o&&o.owner===owner)all.push(o);});
+  const all=ownUnits(owner);
   all.forEach(o=>{ if(kwOf(o)==='chrysalis'){
     o.cnt=(o.cnt||0)+(o.grow||1);
     if(o.cnt>=(o.hatch||3)){ const into=o.into||{};
@@ -1552,7 +1558,7 @@ function chrysalisUpkeep(owner){
 }
 // UPKEEP (Overcharge creatures bank ◆ each turn, up to 3) — Electric identity, simple v1
 function overchargeUpkeep(owner){
-  const all=[]; ['front','back'].forEach(w=>G.P[owner][w].forEach(o=>{if(o)all.push(o);})); G.center.forEach(o=>{if(o&&o.owner===owner)all.push(o);});
+  const all=ownUnits(owner);
   all.forEach(o=>{ if(kwOf(o)==='overcharge'){ o.oc=Math.min(3,(o.oc||0)+1); log(`<span class="${ekc(o)}">${o.nm} overcharges (◆${o.oc}).</span>`,ekc(o)); } });
 }
 // ATTACK prep: Overcharge attackers discharge their banked ◆ as bonus attack for this strike only
@@ -1594,7 +1600,7 @@ function placeRowOK(owner,which,def){ return (def.sup||0)>=0 || (rowWorkers(owne
 function hasPlacement(owner,def){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x)&&placeRowOK(owner,w,def); }); }
 function canBuild(owner,def){ return manaTotal(owner)>=def.c && prereqMet(owner,def) && hasPlacement(owner,def); }
 function resolveStruct(bid,color){ if(bid==='forge')return forgeDef(color); if(bid==='grandforge')return grandForgeDef(color); return STRUCT_DEFS[bid]||null; }
-window.openBuildMenu=function(){ if(G.turn!=='you'||G.busy||G.over||G.deficit)return; G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null; $('buildPanel').style.display='flex'; drawBuild(); render(); };
+window.openBuildMenu=function(){ if(G.turn!=='you'||G.busy||G.over||G.upkeep)return; G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null; $('buildPanel').style.display='flex'; drawBuild(); render(); };
 function drawBuild(){
   const list=buildList(G.P.you.cc), have=manaTotal('you');
   const rows=list.map(def=>{
@@ -1677,12 +1683,10 @@ function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
   Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
   Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
-  G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;
+  G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.upkeep=false;
   G.center=Array(SLOTS).fill(null);
-  // command centers now stand ON the board at back-center (column 3); ccUnit is the same object,
-  // so it still anchors the back row's workers + colors and remains the win/loss structure.
-  G.P.you.ccUnit=mkCC(cy,'you'); G.P.foe.ccUnit=mkCC(cf,'foe');
-  G.P.you.back[BASE_COL]=G.P.you.ccUnit; G.P.foe.back[BASE_COL]=G.P.foe.ccUnit;
+  // no command-center card: the WHOLE back row is each player's stronghold. Life is the standalone
+  // pool an undefended strike into the back row drains; the element still sets colors + base workers.
   syncWorkers('you'); syncWorkers('foe');
   readyWorkers('you'); readyWorkers('foe'); // the opening workforce is settled and ready to harvest on turn 1
   G.P.you.deck=youDeck||deckOf(cy.colors); G.P.foe.deck=foeDeck||deckOf(cf.colors);
@@ -1690,8 +1694,8 @@ function startGame(youId,foeId,youDeck,foeDeck){
   applyCharacterUI();
   hideAllScreens();
   $('log').innerHTML='';
-  log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Raze the enemy command center to win — lose yours and the duel is over.</span>`);
-  defaultHint(); render();
+  log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Break through to the enemy back row and drain their ♥ to win — protect your own.</span>`);
+  G.upkeep=true; upkeepHint(); render();   // turn 1 opens at upkeep too — ⛏ Harvest starts the duel
 }
 let selYou='fire', selFoe='water', csStep=1;
 function csCard(c,col,on){
@@ -2152,7 +2156,7 @@ function manaStr(o){const P=G.P[o];let out='';
   CCS[P.cc].colors.forEach(c=>{out+=`${elemBadge(c,14)}<b class="mc" style="color:var(--${c})">${P.cmana[c]}</b>`;});
   return out;} // generic mana removed — only colored mana exists
 function render(){
-  ['you','foe'].forEach(o=>{const cc=findCC(o); G.P[o].life=cc?Math.max(0,cc.h):0;});
+  // life is a standalone pool now (no command-center card) — undefended back-row strikes drain it
   $('foeLife').textContent=G.P.foe.life; $('youLife').textContent=G.P.you.life;
   $('foeManaStr').innerHTML=manaStr('foe'); $('youManaStr').innerHTML=manaStr('you');
   $('foeStruct').textContent=structuresOf('foe').length; $('youStruct').textContent=structuresOf('you').length;
@@ -2160,7 +2164,8 @@ function render(){
   {const a=$('foeDeckN');if(a)a.textContent=G.P.foe.deck.length;} {const b=$('youDeckN');if(b)b.textContent=G.P.you.deck.length;}
   {const a=$('foeGraveN');if(a)a.textContent=G.P.foe.grave.length;} {const b=$('youGraveN');if(b)b.textContent=G.P.you.grave.length;}
   $('turnLabel').textContent=G.turn==='you'?'Your Turn':'Opponent…';
-  $('endBtn').disabled=G.turn!=='you'||G.busy||G.over||G.deficit;
+  $('endBtn').disabled=G.turn!=='you'||G.busy||G.over||G.upkeep;
+  { const hb=$('harvestBtn'); if(hb) hb.style.display=(G.turn==='you'&&G.upkeep&&!G.busy&&!G.over)?'':'none'; }
   const cb=$('conscriptBtn'); if(cb)cb.style.display='none';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   renderRow('foeBack','foe','back'); renderRow('foeFront','foe','front');
@@ -2230,9 +2235,9 @@ function placeCardMenu(){
     el.classList.add('handmenu');
   } else {
     el.classList.remove('handmenu');
-    const row=m.w==='center'?$('center'):$('you'+(m.w==='front'?'Front':'Back'));
+    const row=$(m.k);                        // card menus anchor by GLOBAL row key (fronts are contested)
     cell=rowCellEl(row,m.i);
-    if(!cell||!cellArr('you',m.w)[m.i]){ el.style.display='none'; G.cardMenu=null; return; }
+    if(!cell||!rowArr(m.k)[m.i]){ el.style.display='none'; G.cardMenu=null; return; }
   }
   el.innerHTML=m.html;
   el.style.display='block';
@@ -2287,11 +2292,24 @@ window.toggleSprites=()=>{ window.SPRITES_ON=!window.SPRITES_ON; const b=$('sprB
 // Workers now live on each player's castle wall (see workerChipRow). The board only shows a
 // FLOATING chip over a row's outer edge when it's actionable right there: an enemy stack you can
 // strike mid-aim, or a shortfall warning. Returns null otherwise — rows keep their full width.
+function zoneForRow(owner,key){ // which of `owner`'s worker zones lives in global row `key` (null if none)
+  if(key==='center')return 'center';
+  if(owner==='you') return key==='youBack'?'back':key==='youFront'?'front':key==='foeFront'?'raid':null;
+  return key==='foeBack'?'back':key==='foeFront'?'front':key==='youFront'?'raid':null;
+}
+function rowFloatChips(key,aiming){
+  const out=[];
+  ['you','foe'].forEach(owner=>{
+    const z=zoneForRow(owner,key); if(!z)return;
+    const c=wkSlotEl(owner,z,aiming); if(c)out.push(c);
+  });
+  return out;
+}
 function wkSlotEl(owner,which,aiming){
   if(!owner) return null;
   const n=rowWorkers(owner,which); const me=owner==='you';
   const pool=minPool(owner,which);
-  const targetable=!me&&aiming&&pool.length&&G.turn==='you'&&!G.busy&&!G.over&&!G.deficit;
+  const targetable=!me&&aiming&&pool.length&&G.turn==='you'&&!G.busy&&!G.over&&!G.upkeep;
   if(!targetable&&n>=0) return null;
   const slot=document.createElement('div'); slot.className='wkslot '+(me?'youSide':'foeSide');
   const tok=document.createElement('div');
@@ -2314,13 +2332,16 @@ function workerChipRow(owner){
     const tok=document.createElement('div');
     tok.className='wtok'+(me?'':' foe')+(n<0?' short':'')+(n===0?' none':'');
     tok.innerHTML=`<span class="wklab">${LBL[which]}</span>⚒<b>${n}</b>`+(n>0&&up<pool.length?`<span class="wr">${up}✓</span>`:'');
-    tok.title=me?(n<0?'worker shortfall — fix at the start of your turn':(up>0?`${n} worker${n===1?'':'s'} in your ${LBL[which].toLowerCase()} row — tap to harvest ◆${up*minYield(which)} mana`:`${n} worker${n===1?'':'s'} in this row — all harvested this turn`)):`enemy ${LBL[which].toLowerCase()} row workers: ${n}`;
-    if(me&&G.turn==='you'&&!G.busy&&!G.over&&!G.deficit&&up>0&&!G.sel&&!G.moveFrom&&!G.moveMana){
-      tok.classList.add('tappable'); tok.addEventListener('click',()=>harvestRow(which));
-    }
+    tok.title=me?(n<0?'worker shortfall — settle it at your upkeep (move, sacrifice, or pay)':(up>0?`${n} worker${n===1?'':'s'} — harvests ◆${up*minYield(which)} automatically at your upkeep`:`${n} worker${n===1?'':'s'} — already harvested this turn`)):`enemy ${LBL[which].toLowerCase()} row workers: ${n}`;
     tok.addEventListener('contextmenu',e=>{e.preventDefault();inspectMinion(owner,which);});
     box.appendChild(tok);
   }
+  { const raid=rowWorkers(owner,'raid');   // an army camped in the ENEMY front row — pure upkeep, paid or pulled back
+    if(raid<0){ const tok=document.createElement('div');
+      tok.className='wtok short'+(me?'':' foe');
+      tok.innerHTML=`<span class="wklab">Raid</span>⚒<b>${raid}</b>`;
+      tok.title=(me?'your':'enemy')+' creatures behind enemy lines — their keep (◆'+(-raid)+') is paid at each upkeep';
+      box.appendChild(tok); } }
   return box;
 }
 // pin the deck/graveyard zones to the floor's corner cells so they ride the tilted
@@ -2347,19 +2368,18 @@ function positionGrave(grave,deck,owner){
   grave.style.top=(owner==='you'? (dtop-gh-gap) : (dtop+dh+gap))+'px';
 }
 function renderRow(elId,owner,which){
-  const el=$(elId);el.innerHTML='';const me=owner==='you';
+  const el=$(elId);el.innerHTML='';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   for(let i=0;i<SLOTS;i++){
-    const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
-    cell.dataset.owner=owner; cell.dataset.which=which; cell.dataset.slot=i;   // drag-drop coordinates
     const o=G.P[owner][which][i];
-    // the command center stands on the board as a full card (its corner zone keeps only the figure)
-    if(o&&o.kind==='building'&&o.cc) cell.classList.add('cccell');
-    if(o){ cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); attachSprite(cell,o,me); }
-    decorate(cell,owner,which,i,o);
+    const me=!!(o&&o.owner==='you');
+    const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
+    cell.dataset.key=elId; cell.dataset.owner=o?o.owner:owner; cell.dataset.which=which; cell.dataset.slot=i;   // drag-drop coordinates
+    if(o){ cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); attachSprite(cell,o,me); }
+    decorate(cell,elId,i,o);
     el.appendChild(cell);
   }
-  const wc=wkSlotEl(owner,which,aiming); if(wc) el.appendChild(wc); // floating chip only when actionable
+  rowFloatChips(elId,aiming).forEach(c=>el.appendChild(c)); // floating chips only when actionable
   // (deck + graveyard now live in the castle walls — see renderWalls — not on the board plane)
 }
 const GUARDIAN_SVG=`<svg viewBox="0 0 48 62" xmlns="http://www.w3.org/2000/svg">
@@ -2373,20 +2393,19 @@ const GUARDIAN_SVG=`<svg viewBox="0 0 48 62" xmlns="http://www.w3.org/2000/svg">
   <path d="M16 36 L24 33 L32 36 L24 39 Z" fill="#fff2cf" opacity=".35"/></svg>`;
 function renderCmdZone(owner){
   const el=$(owner+'Cmd'); if(!el)return;
-  const cc=findCC(owner);
-  if(!cc){ el.innerHTML=''; el.className='cmdzone '+owner; el.style.pointerEvents='none'; return; }
+  const P=G.P[owner]; const def=CCS[P.cc];
+  if(!def){ el.innerHTML=''; el.className='cmdzone '+owner; el.style.pointerEvents='none'; return; }
   const me=owner==='you';
   el.className='cmdzone '+owner;
-  // the keep now stands ON the board at back-center — strike it there. The corner zone keeps only the
-  // player's vitals (mana orbs, workers, structures) + the Build entry; the foe corner is a HP readout.
-  const canBuild=G.turn==='you'&&!G.busy&&!G.over&&!G.deficit;
+  // no command-center card: the cluster shows the player's element, LIFE POOL, vitals + Build entry
+  const canBuild=G.turn==='you'&&!G.busy&&!G.over&&!G.upkeep;
   const vit=me?(`<div class="cmdvit">${manaStr('you')}</div>`
     +`<div class="cmdvit sub"><span class="bct">⌂</span><b>${structuresOf('you').length}</b><span class="wct">⚒</span><b>${totalWorkers('you')}</b></div>`
-    +`<button class="cmdbuild" ${canBuild?'':'disabled'} onclick="openBuildMenu()" title="Build a structure (commander)">⚒ Build</button>`):'';
-  const fc=`var(--${cc.colors&&cc.colors[0]?cc.colors[0]:(owner==='you'?'fire':'water')})`;
-  el.innerHTML=`<div class="keepname" style="color:${fc}" title="${cc.nm}">♜ ${escHtml(cc.nm)}</div>`+
-    `<div class="keephp"><span class="heart">♥</span>${Math.max(0,cc.h)}</div>`+vit;
-  if(me) el.appendChild(workerChipRow('you'));   // per-row worker chips ride the wall (harvest taps)
+    +`<button class="cmdbuild" ${canBuild?'':'disabled'} onclick="openBuildMenu()" title="Build a structure">⚒ Build</button>`):'';
+  const fc=`var(--${def.colors[0]})`;
+  el.innerHTML=`<div class="keepname" style="color:${fc}" title="${def.name}">♜ ${escHtml(def.name)}</div>`+
+    `<div class="keephp"><span class="heart">♥</span>${Math.max(0,P.life)}</div>`+vit;
+  if(me) el.appendChild(workerChipRow('you'));   // per-row worker chips ride the wall
   el.style.pointerEvents=me?'auto':'none';
 }
 function renderCenter(){
@@ -2396,14 +2415,12 @@ function renderCenter(){
     // the contested center is a mountain pass: 3 monster lanes (cols 1/3/5) flanked by 4 structure slots (cols 0/2/4/6)
     const cell=document.createElement('div'); cell.className='cell centercell '+(isLane(i)?'centerlane':'centerstruct');
     const o=G.center[i];
-    const persp=o?o.owner:'center';
-    cell.dataset.owner=o?o.owner:'you'; cell.dataset.which='center'; cell.dataset.slot=i;   // drag-drop coords (empty center deploys as yours)
+    cell.dataset.key='center'; cell.dataset.owner=o?o.owner:'you'; cell.dataset.which='center'; cell.dataset.slot=i;   // drag-drop coords
     if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); attachSprite(cell,o,me); }
-    decorate(cell,persp,'center',i,o);
+    decorate(cell,'center',i,o);
     el.appendChild(cell);
   }
-  const wy=wkSlotEl('you','center',aiming); if(wy) el.appendChild(wy);   // floating chips only when actionable
-  const wf=wkSlotEl('foe','center',aiming); if(wf) el.appendChild(wf);
+  rowFloatChips('center',aiming).forEach(c=>el.appendChild(c));   // floating chips only when actionable
 }
 function renderFoeHand(){
   const el=$('foeHand'); if(!el)return;
@@ -2432,44 +2449,44 @@ function renderHand(){
     el.appendChild(d);
   });
 }
-function selCres(){return G.atk.map(s=>cellArr('you',s.w)[s.i]).filter(x=>x&&x.kind==='creature'&&x.owner==='you');}
+function selCres(){return G.atk.map(s=>rowArr(s.k)[s.i]).filter(x=>x&&x.kind==='creature'&&x.owner==='you');}
 function canAttack(){const c=selCres();return c.length>0&&c.every(x=>!x.worker&&!x.sick&&!x.tapped);}
 function canExtract(){return false;} // creatures no longer extract mana — only workers harvest their row
-function inAtk(w,i){return G.atk.some(s=>s.w===w&&s.i===i);}
-function decorate(cell,owner,which,i,o){
+function inAtk(key,i){return G.atk.some(s=>s.k===key&&s.i===i);}
+function decorate(cell,key,i,o){
   if(G.turn!=='you'||G.busy||G.over)return;
   const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
-  if(G.deficit){
-    const inDef=deficitRows('you').includes(which);
-    if(mine&&o.kind==='creature'&&inDef){
-      if(G.sel&&G.sel.kind==='deficit'&&G.sel.which===which&&G.sel.i===i)cell.classList.add('selected');
-      else cell.classList.add('tappable');
-      cell.addEventListener('click',()=>pickDeficit(which,i));
-    }
-    return;
-  }
+  const which=whichOf(key);
+  const deployKey=key==='youBack'||key==='youFront';   // new cards enter only your back + front rows
   if(G.moveFrom){
     const mf=G.moveFrom;
-    if(mine&&which===mf.w&&i===mf.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelMove); return; }
-    if(!o&&canDeploy(owner,which)&&adjacent(mf.w,mf.i,which,i)){ cell.classList.add('tappable'); cell.addEventListener('click',()=>doMove(which,i)); }
+    if(mine&&key===mf.k&&i===mf.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelMove); return; }
+    if(!o&&adjacentK('you',mf.k,mf.i,key,i)){ cell.classList.add('tappable'); cell.addEventListener('click',()=>doMove(key,i)); }
+    return;
+  }
+  if(G.upkeep){ // upkeep: reposition (uses the creature's move) or sacrifice — attacks/deploys wait for Harvest
+    if(mine&&o.kind==='creature'&&!o.moved){ cell.classList.add('tappable'); cell.addEventListener('click',()=>upkeepPick(key,i)); }
     return;
   }
   if(G.moveMana){
     const mm=G.moveMana;
-    if(mine&&which===mm.w&&i===mm.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelSendMana); return; }
-    if(mine&&(o.kind==='creature'||o.kind==='building')){ cell.classList.add('target'); cell.addEventListener('click',()=>doSendMana(which,i)); return; }
+    if(mine&&key===mm.k&&i===mm.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelSendMana); return; }
+    if(mine&&(o.kind==='creature'||o.kind==='building')){ cell.classList.add('target'); cell.addEventListener('click',()=>doSendMana(key,i)); return; }
     cell.addEventListener('click',cancelSendMana); return;
   }
-  if(G.build){ if(owner==='you'&&!o&&canDeploy('you',which)&&placeRowOK('you',which,G.build)&&!(which==='center'&&isLane(i))) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(owner,which,i,o)); return; }
+  if(G.build){ const ok=(deployKey||(key==='center'&&!isLane(i)))&&!o&&placeRowOK('you',which,G.build); if(ok) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(key,i,o)); return; }
   const handSel=G.sel&&G.sel.kind==='hand';
-  if(mine&&o.kind==='creature'&&inAtk(which,i)) cell.classList.add('selected');
+  if(mine&&o.kind==='creature'&&inAtk(key,i)) cell.classList.add('selected');
   if(mine&&o.kind==='creature'&&!o.sick&&!o.tapped&&!handSel) cell.classList.add('tappable');
   if(mine&&o.kind==='charge'&&G.atk.length===0&&!handSel) cell.classList.add('tappable');
-  if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&canDeploy(owner,which)&&centerSlotOK(which,i,(G.P.you.hand[G.sel.idx]||{}).type==='building')) cell.classList.add('tappable');
-  if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0) cell.classList.add('target');
+  if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&deployKey) cell.classList.add('tappable');
+  if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0&&deployKey) cell.classList.add('target');
   if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
-  if(G.atk.length){ if(foe&&canAttack()&&colReach(G.atk[0].i,i)) cell.classList.add('target'); } // ±1 column reach
-  cell.addEventListener('click',()=>onCell(owner,which,i,o));
+  if(G.atk.length&&canAttack()&&colReach(G.atk[0].i,i)){ // ±1 column reach
+    if(foe) cell.classList.add('target');
+    else if(!o&&key==='foeBack') cell.classList.add('target');   // an open stronghold column — strike it for life damage
+  }
+  cell.addEventListener('click',()=>onCell(key,i,o));
 }
 function setHint(html){$('hint').innerHTML=html;}
 function extractYield(which){return which==='back'?1:2;}
@@ -2477,7 +2494,7 @@ function defaultHint(){setHint('');}
 
 /* ---------- input ---------- */
 function onHand(i){
-  if(G.powerMode||G.deficit)return;
+  if(G.powerMode||G.upkeep)return;   // hand plays wait until the upkeep harvest resolves
   G.atk=[]; G.moveFrom=null; G.moveMana=null; G.minSel=null;
   if(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i){G.sel=null;G.cardMenu=null;defaultHint();render();return;}
   const card=G.P.you.hand[i];
@@ -2512,8 +2529,7 @@ window.chooseMode=function(m){
   render();
 };
 function spellHasTarget(card){
-  for(const w of ['front','back']) for(let i=0;i<SLOTS;i++){ const o=G.P.foe[w][i]; if(o&&validSpellTarget(card,o)) return true; }
-  for(let i=0;i<SLOTS;i++){ const o=G.center[i]; if(o&&o.owner==='foe'&&validSpellTarget(card,o)) return true; }
+  for(const key of ROWS) for(let i=0;i<SLOTS;i++){ const o=rowArr(key)[i]; if(o&&o.owner==='foe'&&validSpellTarget(card,o)) return true; }
   return false;
 }
 function validSpellTarget(card,o){
@@ -2537,52 +2553,55 @@ function spellText(card){
 function spellRec(card){return {type:'spell',nm:card.nm,c:card.c,trap:!!card.trap,effect:card.effect,val:card.val,ic:card.ic};}
 function clearAtk(){G.atk=[];G.cardMenu=null;G.minSel=null;defaultHint();}
 
-function onCell(owner,which,i,o){
+function onCell(key,i,o){
   G.cardMenu=null; G.minSel=null;
   const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
+  const which=whichOf(key);
+  const deployKey=key==='youBack'||key==='youFront';   // new cards enter only your back + front rows
+  if(G.upkeep){ if(mine&&o.kind==='creature'&&!o.moved&&!G.moveFrom) upkeepPick(key,i); return; }
   if(G.build){ // placing a structure from the build menu
-    if(owner==='you'&&!o&&canDeploy('you',which)){ placeBuild(which,i); } else { G.build=null; defaultHint(); render(); }
+    if((deployKey||key==='center')&&!o){ placeBuild(which,i); } else { G.build=null; defaultHint(); render(); }
     return;
   }
   if(G.sel&&G.sel.kind==='hand'){
     const sc=G.P.you.hand[G.sel.idx];
-    if(G.sel.mode==='cast'){ if(foe&&sc&&validSpellTarget(sc,o)){ castSpell(G.sel.idx,which,i); } else { G.sel=null; defaultHint(); render(); } return; }
-    if(G.sel.mode==='settrap'&&!o&&canDeploy(owner,which)){ place(G.sel.idx,'settrap',which,i); return; }
-    if((G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0){ place(G.sel.idx,G.sel.mode,which,i); return; }
-    if(G.sel.mode&&G.sel.mode!=='cast'&&!o&&canDeploy(owner,which)){ place(G.sel.idx,G.sel.mode,which,i); return; }
+    if(G.sel.mode==='cast'){ if(foe&&sc&&validSpellTarget(sc,o)){ castSpell(G.sel.idx,key,i); } else { G.sel=null; defaultHint(); render(); } return; }
+    if(G.sel.mode==='settrap'&&!o&&deployKey){ place(G.sel.idx,'settrap',which,i); return; }
+    if((G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0&&deployKey){ place(G.sel.idx,G.sel.mode,which,i); return; }
+    if(G.sel.mode&&G.sel.mode!=='cast'&&!o&&deployKey){ place(G.sel.idx,G.sel.mode,which,i); return; }
     G.sel=null; defaultHint(); render(); return;
   }
   if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.'); return; }
-  if(mine&&o.kind==='charge'){ if(G.atk.length===0) openCharge(which,i); return; }
+  if(mine&&o.kind==='charge'){ if(G.atk.length===0) openCharge(key,i); return; }
   if(mine&&o.kind==='building'){
-    if(o.cc){ openBuildMenu(); return; } // tap your command center to open the RTS build menu
-    if(o.bank>0){ G.cardMenu={w:which,i,html:`<button onclick="startSendMana('${which}',${i})">◆ Send ${o.bank}</button><span class="taphint">stored mana — move it, or play a card on top to spend it</span>`}; setHint('Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
+    if(o.bank>0){ G.cardMenu={k:key,i,html:`<button onclick="startSendMana('${key}',${i})">◆ Send ${o.bank}</button><span class="taphint">stored mana — move it, or play a card on top to spend it</span>`}; setHint('Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
     else setHint('Structures hold the base — they don\u2019t move or fight.');
     render(); return;
   }
   if(mine&&o.kind==='creature'){
-    const mv=moveBtn(which,i);
-    const send=o.bank>0?`<button onclick="startSendMana('${which}',${i})">◆ Send ${o.bank}</button>`:'';
-    if(o.sick){ const h=`${mv}${send}`; if(h)G.cardMenu={w:which,i,html:`${h}<span class="taphint">summoning-sick — acts next turn</span>`}; setHint('Summoning-sick — it can act next turn.'); render(); return; }
-    if(o.tapped){ const h=`${mv}${send}`; if(h)G.cardMenu={w:which,i,html:`${h}<span class="taphint">tapped until your next turn</span>`}; setHint('Tapped until your next turn.'); render(); return; }
+    const mv=moveBtn(key,i);
+    const send=o.bank>0?`<button onclick="startSendMana('${key}',${i})">◆ Send ${o.bank}</button>`:'';
+    if(o.sick){ const h=`${mv}${send}`; if(h)G.cardMenu={k:key,i,html:`${h}<span class="taphint">summoning-sick — acts next turn</span>`}; setHint('Summoning-sick — it can act next turn.'); render(); return; }
+    if(o.tapped){ const h=`${mv}${send}`; if(h)G.cardMenu={k:key,i,html:`${h}<span class="taphint">tapped until your next turn</span>`}; setHint('Tapped until your next turn.'); render(); return; }
     // soldier
-    const k=G.atk.findIndex(s=>s.w===which&&s.i===i);
-    if(k>=0){ G.atk.splice(k,1); }
+    const k2=G.atk.findIndex(s=>s.k===key&&s.i===i);
+    if(k2>=0){ G.atk.splice(k2,1); }
     else {
-      if(G.atk.length&&G.atk[0].w!==which){ setHint('Group attackers must share a row.'); render(); return; }
-      G.atk.push({w:which,i});
+      if(G.atk.length&&G.atk[0].k!==key){ setHint('Group attackers must share a row.'); render(); return; }
+      G.atk.push({k:key,i});
     }
     if(G.atk.length===1){
-      const s=G.atk[0]; const su=cellArr('you',s.w)[s.i]; const sd=su.bank>0?`<button onclick="startSendMana('${s.w}',${s.i})">◆ Send ${su.bank}</button>`:'';
-      G.cardMenu={w:s.w,i:s.i,html:`${moveBtn(s.w,s.i)}${sd}<span class="taphint">⚔ tap an enemy unit or structure to strike</span>`};
+      const s=G.atk[0]; const su=rowArr(s.k)[s.i]; const sd=su.bank>0?`<button onclick="startSendMana('${s.k}',${s.i})">◆ Send ${su.bank}</button>`:'';
+      G.cardMenu={k:s.k,i:s.i,html:`${moveBtn(s.k,s.i)}${sd}<span class="taphint">⚔ tap an enemy unit — or an open enemy back-row column — to strike</span>`};
       setHint('<b>1</b> ready — strike a foe, or use an action above the card.');
     } else if(G.atk.length){
-      setHint(`<b>${G.atk.length}</b> ready — tap an enemy unit or structure to strike. (Move is solo only.)`);
+      setHint(`<b>${G.atk.length}</b> ready — tap an enemy unit, structure, or open back-row column to strike. (Move is solo only.)`);
     } else defaultHint();
     render(); return;
   }
-  if(G.atk.length){
-    if(foe&&canAttack()){ doAttack(which,i); return; }
+  if(G.atk.length&&canAttack()){
+    if(foe){ doAttack(key,i); return; }
+    if(!o&&key==='foeBack'){ attackBackRow('foe',i); return; }
   }
 }
 
@@ -2643,8 +2662,9 @@ function place(idx,mode,which,slot){
   G.sel=null;defaultHint();afterDeploy('you');render();checkWin();
 }
 /* ---------- spells & traps ---------- */
-function resolveSpell(card,towner,w,i){
-  const arr=cellArr(towner,w); const o=arr[i]; if(!o)return false;
+function resolveSpell(card,key,i){
+  const arr=rowArr(key); const o=arr[i]; if(!o)return false;
+  const towner=o.owner;
   const ownerWord=towner==='you'?'your':'the enemy';
   if(card.effect==='burn'){
     if(o.kind==='charge'){ log(`<span class="${towner==='you'?'e':'y'}">${card.nm} bursts ${ownerWord} face-down card!</span>`,towner==='you'?'e':'y'); toGrave(towner,o); arr[i]=null; }
@@ -2666,11 +2686,11 @@ function resolveSpell(card,towner,w,i){
   } else return false;
   cleanup(); return true;
 }
-function castSpell(idx,which,i){
+function castSpell(idx,key,i){
   const card=G.P.you.hand[idx]; if(!card||card.type!=='spell'||card.trap)return;
   if(manaTotal('you')<card.c){setHint('Not enough mana.');return;}
   if(!canPay('you',card)){setHint(`${card.nm} needs ◆${card.c}.`);return;}
-  if(!resolveSpell(card,'foe',which,i)){setHint('Not a legal target for that spell.');return;}
+  if(!resolveSpell(card,key,i)){setHint('Not a legal target for that spell.');return;}
   payCost('you',card); G.P.you.hand.splice(idx,1); G.P.you.grave.push(spellRec(card));
   G.sel=null; defaultHint(); render(); checkWin();
 }
@@ -2712,11 +2732,11 @@ function playerTrapOnSummon(cr,w,i){
 }
 
 /* ---------- move banked ◆ from one board card to another ---------- */
-window.startSendMana=(w,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; const c=cellArr('you',w)[i]; if(!c||!(c.bank>0))return; G.moveMana={w,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveFrom=null; setHint(`Move ◆${c.bank} — tap one of your creatures or structures to store it there (or tap this card to cancel).`); render(); };
+window.startSendMana=(key,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; const c=rowArr(key)[i]; if(!c||!(c.bank>0))return; G.moveMana={k:key,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveFrom=null; setHint(`Move ◆${c.bank} — tap one of your creatures or structures to store it there (or tap this card to cancel).`); render(); };
 window.cancelSendMana=()=>{ G.moveMana=null; defaultHint(); render(); };
-function doSendMana(toW,toI){
-  if(!G.moveMana)return; const {w,i}=G.moveMana; const src=cellArr('you',w)[i]; const dst=cellArr('you',toW)[toI];
-  if(!src||!dst||(w===toW&&i===toI)||dst.owner!=='you'||!(dst.kind==='creature'||dst.kind==='building')){ G.moveMana=null; defaultHint(); render(); return; }
+function doSendMana(toK,toI){
+  if(!G.moveMana)return; const {k,i}=G.moveMana; const src=rowArr(k)[i]; const dst=rowArr(toK)[toI];
+  if(!src||!dst||(k===toK&&i===toI)||dst.owner!=='you'||!(dst.kind==='creature'||dst.kind==='building')){ G.moveMana=null; defaultHint(); render(); return; }
   const amt=src.bank||0; dst.bank=(dst.bank||0)+amt; src.bank=0;
   log(`<span class="y">Moved ◆${amt} of stored mana from ${src.nm} to ${dst.nm}.</span>`,'y');
   G.moveMana=null; defaultHint(); render();
@@ -2724,8 +2744,8 @@ function doSendMana(toW,toI){
 
 /* ---------- charging panel (creatures & structures, either row) ---------- */
 let cs=null, camt=0;
-function chSel(){ return cs?cellArr('you',cs.w)[cs.i]:null; }
-window.openCharge=function(which,slot){ if(G.turn!=='you'||G.busy||G.over)return; cs={w:which,i:slot}; camt=0; $('cpanel').style.display='flex'; drawPanel(); };
+function chSel(){ return cs?rowArr(cs.k)[cs.i]:null; }
+window.openCharge=function(key,slot){ if(G.turn!=='you'||G.busy||G.over)return; cs={k:key,i:slot}; camt=0; $('cpanel').style.display='flex'; drawPanel(); };
 function drawPanel(){
   const ch=chSel(); if(!ch||ch.kind!=='charge'){closePanel();return;}
   const mana=manaTotal('you'); if(camt>mana)camt=mana; if(camt<0)camt=0;
@@ -2748,10 +2768,10 @@ window.camtAdj=d=>{camt+=d;drawPanel();};
 window.camtFill=()=>{const ch=chSel();camt=Math.max(0,Math.min(manaTotal('you'),ch.card.c-ch.inv));drawPanel();};
 window.camtMax=()=>{camt=manaTotal('you');drawPanel();};
 window.camtPour=()=>{const ch=chSel();const p=Math.min(camt,manaTotal('you'));if(p<=0)return;payAny('you',p);ch.inv+=p;log(`<span class="y">Poured ◆${p} (now ◆${ch.inv}/${ch.card.c}).</span>`,'y');camt=0;render();drawPanel();};
-window.camtFlip=()=>{const ch=chSel();if(!ch||ch.inv<ch.card.c)return;flip('you',cs.w,cs.i);closePanel();render();};
+window.camtFlip=()=>{const ch=chSel();if(!ch||ch.inv<ch.card.c)return;flip('you',cs.k,cs.i);closePanel();render();};
 window.closePanel=()=>{$('cpanel').style.display='none';cs=null;camt=0;};
-function flip(owner,which,slot){
-  const arr=cellArr(owner,which);
+function flip(owner,key,slot){
+  const arr=rowArr(key);
   const ch=arr[slot];
   if(ch.ctype==='building'){
     const b=mkBld(ch.card,owner); b.bank=Math.max(0,ch.inv-ch.card.c);
@@ -2862,7 +2882,7 @@ function provokeFaceDown(defOwner, key, slot, attackers){
     toGrave(defOwner,o); arr[slot]=null; cleanup(); return;
   }
   log(`<span class="${ey}">Provoked! ${defOwner==='you'?'Your':'Their'} face-down erupts to meet the attack.</span>`,ey);
-  flip(defOwner, whichOf(key), slot);          // consumes cost, banks surplus, becomes a live unit
+  flip(defOwner, key, slot);                   // consumes cost, banks surplus, becomes a live unit
   const now=arr[slot];
   if(now&&now.kind==='creature'){ resolveCombat(attackers,[now]); }      // it swings back, simultaneous
   else if(now){ applyDmg(focusFire(attackers,[now])); cleanup(); }       // a structure just takes the hit
@@ -2988,45 +3008,48 @@ function attackMinionStack(key,owner,which){
   clearAtk(); render(); checkWin();
 }
 
-/* ---------- movement (once/turn; across your base ↔ front ↔ contested center) ---------- */
-const MOVEZONES=['back','front','center']; // your side, far → near → contested
+/* ---------- movement (once/turn; the three MIDDLE rows are contested — both sides may enter,
+   neither may enter the opponent's back row) ---------- */
+function moveChainOf(owner){ return owner==='you'?['youBack','youFront','center','foeFront']:['foeBack','foeFront','center','youFront']; }
 // a real, standable slot exists everywhere on the side rows; the center only has slots at its lanes
-function slotExists(w,i){ return i>=0&&i<SLOTS&&(w!=='center'||isLane(i)); }
-// legal one-step destinations: full-width lateral within the row, or the same column in an adjacent zone
-function adjCells(w,i){ const out=[];
-  for(let j=0;j<SLOTS;j++){ if(j!==i&&slotExists(w,j)) out.push([w,j]); }      // lateral: any other column in the row
-  const k=MOVEZONES.indexOf(w);
-  if(k>0&&slotExists(MOVEZONES[k-1],i)) out.push([MOVEZONES[k-1],i]);          // step backward (same column)
-  if(k>=0&&k<MOVEZONES.length-1&&slotExists(MOVEZONES[k+1],i)) out.push([MOVEZONES[k+1],i]); // step forward (same column)
+function slotExists(w,i){ return i>=0&&i<SLOTS&&(w!=='center'||isLane(i)); }  // works for zone names AND global keys
+// legal one-step destinations for `owner`: lateral within the row, or the same column one row along the chain
+function adjCells(owner,key,i){ const out=[];
+  for(let j=0;j<SLOTS;j++){ if(j!==i&&slotExists(key,j)) out.push([key,j]); }  // lateral: any other column in the row
+  const ch=moveChainOf(owner), k=ch.indexOf(key);
+  if(k>0&&slotExists(ch[k-1],i)) out.push([ch[k-1],i]);                        // step back (same column)
+  if(k>=0&&k<ch.length-1&&slotExists(ch[k+1],i)) out.push([ch[k+1],i]);        // step forward (same column)
   return out;
 }
-function adjacent(w1,i1,w2,i2){ return adjCells(w1,i1).some(([w,i])=>w===w2&&i===i2); }
-// first free, deployable slot in a row (skips the keep's back-center column and center non-lanes)
+function adjacentK(owner,k1,i1,k2,i2){ return adjCells(owner,k1,i1).some(([k,i])=>k===k2&&i===i2); }
+// first free, deployable slot in an own row (center only has lane slots for creatures)
 function freeDeploySlot(owner,which){ const a=cellArr(owner,which); if(!a)return -1;
-  return a.findIndex((x,i)=>!x&&!(which==='back'&&i===BASE_COL)&&!(which==='center'&&!isLane(i))); }
-// AI deploy preference: contest the center lanes, push the front toward the base columns (3/4/5)
+  return a.findIndex((x,i)=>!x&&!(which==='center'&&!isLane(i))); }
+// AI deploy preference: push the front toward the middle columns
 function aiPickDeploySlot(owner,which){ const a=cellArr(owner,which); if(!a)return -1;
   const order=which==='center'?[3,1,5]:which==='front'?[3,4,2,5,1,6,0]:[2,4,3,1,5,0,6];
-  for(const i of order){ if(i<SLOTS&&!a[i]&&!(which==='back'&&i===BASE_COL)&&slotExists(which,i)) return i; }
+  for(const i of order){ if(i<SLOTS&&!a[i]&&slotExists(which,i)) return i; }
   return freeDeploySlot(owner,which); }
-function canMoveCard(w,i){ const c=cellArr('you',w)[i]; if(!c||c.kind!=='creature'||c.moved)return false; return adjCells(w,i).some(([aw,ai])=>!cellArr('you',aw)[ai]); }
-function moveBtn(w,i){ return canMoveCard(w,i)?` <button onclick="startMove('${w}',${i})">⤧ Move</button>`:''; }
-window.startMove=(w,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(w,i))return; G.moveFrom={w,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null; setHint('Tap an open adjacent space — base, front line, or the contested center — to reposition (or tap the unit again to cancel).'); render(); };
-window.cancelMove=()=>{ G.moveFrom=null; defaultHint(); render(); };
-function doMove(toW,toI){
-  if(!G.moveFrom)return; const {w,i}=G.moveFrom; const c=cellArr('you',w)[i];
+function canMoveCard(key,i){ const c=rowArr(key)[i]; if(!c||c.kind!=='creature'||c.owner!=='you'||c.moved)return false; return adjCells('you',key,i).some(([k,j])=>!rowArr(k)[j]); }
+function moveBtn(key,i){ return canMoveCard(key,i)?` <button onclick="startMove('${key}',${i})">⤧ Move</button>`:''; }
+window.startMove=(key,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(key,i))return; G.moveFrom={k:key,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null; setHint('Tap an open adjacent space — forward as far as the enemy front line, but never their back row (or tap the unit again to cancel).'); render(); };
+window.cancelMove=()=>{ G.moveFrom=null; if(G.upkeep)upkeepHint(); else defaultHint(); render(); };
+function doMove(toK,toI){
+  if(!G.moveFrom)return; const {k,i}=G.moveFrom; const c=rowArr(k)[i];
   if(!c||c.kind!=='creature'||c.moved){ G.moveFrom=null; defaultHint(); render(); return; }
-  if(cellArr('you',toW)[toI]||!adjacent(w,i,toW,toI)){ setHint('Pick an open adjacent space.'); return; }
-  cellArr('you',w)[i]=null; c.moved=true; c.owner='you'; cellArr('you',toW)[toI]=c;
-  log(`<span class="y">${c.nm} repositions to ${toW==='center'?'the contested center':(toW==='front'?'your front line':'your base')}.</span>`,'y');
-  G.moveFrom=null; defaultHint(); render();
+  if(rowArr(toK)[toI]||!adjacentK('you',k,i,toK,toI)){ setHint('Pick an open adjacent space.'); return; }
+  rowArr(k)[i]=null; c.moved=true; rowArr(toK)[toI]=c;
+  log(`<span class="y">${c.nm} repositions to ${rowName(toK)}.</span>`,'y');
+  G.moveFrom=null; syncWorkers('you');
+  if(G.upkeep){ upkeepHint(); } else defaultHint();
+  render();
 }
-function attackerRowKey(){ return G.atk.length?mineKey(G.atk[0].w):'youFront'; }
-function doAttack(which,ti){
+function attackerRowKey(){ return G.atk.length?G.atk[0].k:'youFront'; }
+function doAttack(tgtKey,ti){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
   const aCol=G.atk.length?G.atk[0].i:ti;                 // the attacker's column governs reach
-  const tgtKey=rowKeyFor('foe',which); const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
+  const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
   const tgt=unitAt(tgtKey,ti); if(!tgt){clearAtk();render();return;}
   if(!colReach(aCol,ti)){ setHint('Out of column — a unit reaches only its own column and the two beside it.'); render(); return; }
   attackers.forEach(a=>a.tapped=true);
@@ -3051,27 +3074,31 @@ function doAttack(which,ti){
   clearDischarge(attackers);
   clearAtk(); render(); checkWin();
 }
-// strike the enemy's keep (their off-board command center on the castle wall). Treated as sitting
-// behind the enemy back row — same row-distance / interception rules as before.
-function attackBase(defOwner){
+// strike an OPEN column of the enemy back row — the stronghold itself. Same row-distance /
+// interception rules as any traveling attack; undefended, the blow drains the defender's life pool.
+function attackBackRow(defOwner,col){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
-  const cc=G.P[defOwner].ccUnit; if(!cc||cc.h<=0){clearAtk();render();return;}
-  const aCol=G.atk.length?G.atk[0].i:BASE_COL;
-  if(!colReach(aCol,BASE_COL)){ setHint('Out of column — only a unit in columns 2–4 can reach the keep.'); render(); return; }
+  const aCol=G.atk.length?G.atk[0].i:col;
+  if(!colReach(aCol,col)){ setHint('Out of column — a unit reaches only its own column and the two beside it.'); render(); return; }
   const tgtKey=defOwner==='foe'?'foeBack':'youBack'; const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
   attackers.forEach(a=>a.tapped=true);
-  if(Math.abs(aIdx-tIdx)>1){
+  const scour=groupIsScour(attackers);
+  dischargeOvercharge(attackers);
+  if(!scour&&Math.abs(aIdx-tIdx)>1){
     const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
-    const chosen=aiChooseInterceptors(attackers,{kind:'building',cc:true,elig});
+    const chosen=aiChooseInterceptors(attackers,{kind:'base',cc:true,elig});
     if(chosen.length){
       chosen.forEach(r=>{r.c.tapped=true;r.c.blocked=true;});
-      log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike at the keep is met midway.</span>`,'e');
-      resolveCombat(attackers,chosen.map(r=>r.c)); clearAtk(); render(); checkWin(); return;
+      log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike at the stronghold is met midway.</span>`,'e');
+      resolveCombat(attackers,chosen.map(r=>r.c)); clearDischarge(attackers); clearAtk(); render(); checkWin(); return;
     }
   }
-  log(`<span class="y">You strike the enemy keep with ${attackers.length} creature(s).</span>`,'y');
-  clashFx(attackers,[cc]); applyDmg(focusFire(attackers,[cc])); cleanup();
+  const dmg=sumA(attackers);
+  G.P[defOwner].life=Math.max(0,G.P[defOwner].life-dmg);
+  log(`<span class="y">You breach the enemy line — ⚔${dmg} strikes the stronghold! (♥${G.P[defOwner].life} remains)</span>`,'y');
+  if(scour&&attackers[0]){ scourStrike(attackers[0],defOwner); cleanup(); }
+  clearDischarge(attackers);
   clearAtk(); render(); checkWin();
 }
 /* The player chooses interceptors when the AI's strike travels through rows they hold. Refs are {key,i}. */
@@ -3118,7 +3145,7 @@ function askBlock(opts){
 function applyRes(base,owner,creature,type){
   const P=G.P[owner]; const v=base;
   if(!type||type==='gen') type=CCS[P.cc].colors[0]; // no generic — default to the keep's primary colour
-  P.cmana[type]=Math.min(20,P.cmana[type]+v);
+  P.cmana[type]=Math.min(99,P.cmana[type]+v);   // mana persists between turns — generous cap
   log(`&nbsp;&nbsp;<span class="s">+${v} ${cap(type)} ${manaGlyph(type)}.</span>`,'s'); P.firstExtract=false;
 }
 
@@ -3131,15 +3158,11 @@ function cleanup(){
   let any=true, guard=0;
   while(any && guard++<40){
     any=false;
-    ['you','foe'].forEach(o=>{['front','back'].forEach(w=>{const b=G.P[o][w];
+    ROWS.forEach(key=>{const b=rowArr(key);
       for(let i=0;i<SLOTS;i++){const c=b[i];
-        if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0&&!c.cc){
+        if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0){const o=c.owner;   // fronts are contested — attribute by the unit's own tag
           log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} ${c.kind==='building'?'is razed':'falls'}.`);
-          b[i]=null; if(c.kind==='creature'&&!c.worker) onCreatureDeath(c,o); toGrave(o,c); any=true; }}});});
-    for(let i=0;i<SLOTS;i++){const c=G.center[i];
-      if(c&&(c.kind==='creature'||c.kind==='building')&&c.h<=0&&!c.cc){const o=c.owner;
-        log(`&nbsp;&nbsp;${o==='you'?'Your':'Their'} ${c.nm} falls in the center.`);
-        G.center[i]=null; if(c.kind==='creature'&&!c.worker) onCreatureDeath(c,o); toGrave(o,c); any=true; }}
+          b[i]=null; if(c.kind==='creature'&&!c.worker) onCreatureDeath(c,o); toGrave(o,c); any=true; }}});
     ['you','foe'].forEach(o=>['back','front','center'].forEach(w=>{const pool=G.P[o].min[w];
       for(let i=pool.length-1;i>=0;i--){if(pool[i].h<=0){toGrave(o,pool[i]);pool.splice(i,1);any=true;}}}));
   }
@@ -3149,7 +3172,7 @@ function cleanup(){
 function buildingUpkeep(owner){
   const P=G.P[owner]; let revived=false;
   const tick=o=>{ if(o&&o.kind==='building'){
-    if(o.eff==='mana'){const mc=o.color||CCS[P.cc].colors[0];P.cmana[mc]=Math.min(20,P.cmana[mc]+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ${manaGlyph(mc)}${o.val} ${cap(mc)}.</span>`,owner==='you'?'y':'e');}
+    if(o.eff==='mana'){const mc=o.color||CCS[P.cc].colors[0];P.cmana[mc]=Math.min(99,P.cmana[mc]+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ${manaGlyph(mc)}${o.val} ${cap(mc)}.</span>`,owner==='you'?'y':'e');}
     else if(o.eff==='damage'){buildingDamage(owner,o.val||0,o.nm);}
     else if(o.eff==='revive'){ if(!revived) revived=reviveFromGrave(owner); } // once per turn, regardless of count
   }};
@@ -3185,8 +3208,7 @@ function drainMana(owner){ const P=G.P[owner]; const cap=vaultCap(owner); P.mana
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
   P.firstExtract=true; // no generic income — mana comes from worker harvest + forge yields (all colored)
-  ['front','back'].forEach(w=>P[w].forEach(o=>{if(o&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}}));
-  G.center.forEach(o=>{if(o&&o.owner===owner&&o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}});
+  ownUnits(owner).forEach(o=>{if(o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}});
   chrysalisUpkeep(owner);   // cocoons swell (and re-sick so they can't attack) or hatch into their grown form
   overchargeUpkeep(owner);  // Electric creatures bank ◆ for their next discharge
   buildingUpkeep(owner);
@@ -3195,152 +3217,176 @@ function startTurn(owner){
   syncWorkers(owner); // workers re-derived from the cards now in each row
   readyWorkers(owner); // settle this turn's workers so they can harvest (workers a later build adds stay sick)
   if(owner==='you'){
-    const dr=deficitRows('you');
-    if(dr.length){ G.deficit=true; render(); promptDeficit(); return; }
-    log(`<span class="y">— Your turn (◆${P.mana}) —</span>`);defaultHint();
+    G.upkeep=true;   // upkeep phase: reposition / pay / sacrifice, then ⛏ Harvest collects automatically
+    log(`<span class="y">— Your turn · upkeep — reposition if you wish, then ⛏ Harvest —</span>`);
+    upkeepHint();
   } else {
     aiFixDeficit('foe'); readyWorkers('foe'); // re-settle after the AI balances any negative rows
   }
 }
-// ----- start-of-turn deficit: a row's workers are negative; shed monsters until 0+ -----
-function promptDeficit(){
-  const dr=deficitRows('you');
-  if(!dr.length){ G.deficit=false; defaultHint(); render(); return; }
-  const names=dr.map(rowName).join(', ');
-  setHint(`<b style="color:#ff8a7a">Worker shortfall — ${names}.</b> Tap a monster in a short row to <b>move</b> it to a row that can support it, or <b>sacrifice</b> it. Resolve before you can act.`);
-  log(`<span class="y">A row can't sustain its monsters — move or sacrifice until it's not negative.</span>`,'y');
+// ----- UPKEEP (start of your turn): free repositioning (uses the creature's move), shortfalls are
+//       settled by moving, sacrificing, or PAYING their cost when ⛏ Harvest is pressed. -----
+function upkeepHint(){
+  const dz=deficitRows('you'); const owe=totalDeficit('you');
+  setHint(dz.length
+    ? `<b style="color:#ff8a7a">Upkeep — shortfall ⚒${owe} (${dz.map(z=>rowName(zoneKey('you',z))).join(', ')}).</b> Move creatures back (uses their move), sacrifice them, or let <b>⛏ Harvest</b> pay ◆${owe} to keep them in place.`
+    : `<b>Upkeep.</b> Reposition creatures now if you wish (uses their move), then press <b>⛏ Harvest</b> to collect mana and begin.`);
 }
-window.pickDeficit=function(which,i){
-  if(!G.deficit)return;
-  const o=cellArr('you',which)[i]; if(!o||o.kind!=='creature')return;
-  G.sel={kind:'deficit',which,i};
-  const order=['back','front','center'];
-  const k=order.indexOf(which);
-  const moves=[];
-  [order[k-1],order[k+1]].filter(Boolean).forEach(to=>{ if(rowHasSpace('you',to)) moves.push(to); });
-  const mv=moves.map(to=>`<button onclick="deficitMove('${which}',${i},'${to}')">▸ Move to ${rowName(to)}</button>`).join(' ');
-  setHint(`<b style="color:var(--ink)">${o.nm}</b> (⚒-${o.up||0}) &nbsp;${mv} <button class="set" onclick="deficitSac('${which}',${i})">✖ Sacrifice</button> <button class="set" onclick="promptDeficit2()">Back</button>`);
+window.upkeepPick=function(key,i){
+  if(!G.upkeep)return;
+  const o=rowArr(key)[i]; if(!o||o.kind!=='creature'||o.owner!=='you')return;
+  G.cardMenu={k:key,i,html:`${moveBtn(key,i)}<button class="set" onclick="upkeepSac('${key}',${i})">✖ Sacrifice</button><span class="taphint">upkeep — reposition or sacrifice</span>`};
   render();
 };
-window.promptDeficit2=()=>{ G.sel=null; promptDeficit(); render(); };
-function rowHasSpace(owner,which){ return freeDeploySlot(owner,which)>=0; }
-window.deficitMove=function(which,i,to){
-  const o=cellArr('you',which)[i]; if(!o)return;
-  const arr=which==='center'?G.center:G.P.you[which];
-  const dst=to==='center'?G.center:G.P.you[to];
-  let slot=freeDeploySlot('you',to); if(slot<0)return;
-  arr[i]=null; o.moved=true; if(to==='center')o.owner='you'; dst[slot]=o;
-  log(`<span class="y">${o.nm} repositions to ${rowName(to)}.</span>`,'y');
-  G.sel=null; syncWorkers('you'); afterDeficitAction();
-};
-window.deficitSac=function(which,i){
-  const o=cellArr('you',which)[i]; if(!o)return;
-  const arr=which==='center'?G.center:G.P.you[which];
-  arr[i]=null; toGrave('you',o);
+window.upkeepSac=function(key,i){
+  const o=rowArr(key)[i]; if(!o||o.owner!=='you')return;
+  rowArr(key)[i]=null; toGrave('you',o);
   log(`<span class="y">${o.nm} is sacrificed to ease the workforce.</span>`,'y');
-  G.sel=null; syncWorkers('you'); afterDeficitAction();
+  G.cardMenu=null; syncWorkers('you'); upkeepHint(); render();
 };
-function afterDeficitAction(){
-  if(deficitRows('you').length){ promptDeficit(); render(); }
-  else { G.deficit=false; readyWorkers('you'); log(`<span class="y">— Your turn (◆${G.P.you.mana}) —</span>`); defaultHint(); render(); }
+// ⛏ Harvest: pays any remaining shortfall (or blocks), then every settled worker extracts
+// automatically — one ratio panel lets you choose each row's colors, the rest arrives generic.
+let hvR=null;
+window.doHarvest=function(){
+  if(!G.upkeep||G.turn!=='you'||G.busy||G.over)return;
+  const owe=totalDeficit('you');
+  if(owe>0){
+    if(manaTotal('you')<owe){ setHint(`<b style="color:#ff8a7a">Short ⚒${owe} with only ◆${manaTotal('you')} banked.</b> Move or sacrifice creatures until the upkeep is affordable.`); render(); return; }
+    payAny('you',owe);
+    log(`<span class="y">You pay ◆${owe} to keep your over-extended lines fed.</span>`,'y');
+  }
+  const zones=[];
+  for(const z of ['back','front','center']){
+    const pool=minPool('you',z); const up=pool.filter(m=>!m.tapped&&!m.sick).length;
+    if(up<=0)continue;
+    zones.push({z,total:up*minYield(z),cols:extractColors('you',z),alloc:{}});
+    pool.forEach(m=>{ if(!m.sick) m.tapped=true; });
+  }
+  G.upkeep=false; G.moveFrom=null; G.cardMenu=null;
+  if(!zones.length){ log(`<span class="y">— No workers to harvest (◆${manaTotal('you')} banked) —</span>`,'y'); defaultHint(); render(); return; }
+  if(zones.every(zz=>!zz.cols.length)){
+    let sum=0; zones.forEach(zz=>{G.P.you.mana+=zz.total; sum+=zz.total;});
+    log(`<span class="y">Harvest: ◆${sum} (total ◆${manaTotal('you')}).</span>`,'y'); defaultHint(); render(); return;
+  }
+  hvR=zones; drawRatio(); $('harvestPanel').style.display='flex'; render();
+};
+function rAlloc(zi){ const z=hvR[zi]; return z.cols.reduce((s,c)=>s+(z.alloc[c]||0),0); }
+window.rAdj=function(zi,col,d){ const z=hvR[zi];
+  if(d>0&&rAlloc(zi)>=z.total)return;
+  z.alloc[col]=Math.max(0,(z.alloc[col]||0)+d); drawRatio(); };
+function drawRatio(){
+  const box=$('harvestPanel').querySelector('.box');
+  let html=`<div class="ptitle">⛏ Harvest</div><div class="pmeta">Set each row's colors — the remainder arrives as generic ◆. Mana keeps between turns.</div>`;
+  hvR.forEach((z,zi)=>{
+    const rem=z.total-rAlloc(zi);
+    html+=`<div class="hvrow"><div class="hvlab">${cap(z.z)} · ◆${z.total}</div><div class="hvstep">`+
+      z.cols.map(c=>`<button onclick="rAdj(${zi},'${c}',-1)">−</button><span style="color:var(--${c})">◆${z.alloc[c]||0} ${cap(c)}</span><button onclick="rAdj(${zi},'${c}',1)">+</button>`).join(' ')+
+      `<span style="opacity:.7">◆${rem} generic</span></div></div>`;
+  });
+  html+=`<div class="pacts" style="margin-top:10px"><button class="flip" onclick="rConfirm()">Collect</button></div>`;
+  box.innerHTML=html;
 }
-const MOVE_ADJ={back:['front'],front:['back','center'],center:['front']};
-function aiMoveCreature(owner,which,i,to){
-  const arr=which==='center'?G.center:G.P[owner][which];
-  const dst=to==='center'?G.center:G.P[owner][to];
-  const o=arr[i]; if(!o)return false;
-  const slot=freeDeploySlot(owner,to); if(slot<0)return false;
-  arr[i]=null; o.moved=true; o.owner=owner; dst[slot]=o; return true;
+window.rConfirm=function(){
+  const parts=[];
+  hvR.forEach((z,zi)=>{
+    z.cols.forEach(c=>{ const n=z.alloc[c]||0; if(n>0){ G.P.you.cmana[c]=Math.min(99,G.P.you.cmana[c]+n); parts.push(`◆${n} ${cap(c)}`);} });
+    const rem=z.total-rAlloc(zi); if(rem>0){ G.P.you.mana+=rem; parts.push(`◆${rem} generic`); }
+  });
+  log(`<span class="y">Harvest: ${parts.join(', ')||'nothing'} (total ◆${manaTotal('you')}).</span>`,'y');
+  hvR=null; $('harvestPanel').style.display='none'; defaultHint(); render();
+};
+window.hvCancel=function(){ if(hvR)return; $('harvestPanel').style.display='none'; }; // the ratio panel must resolve via Collect
+// ----- AI upkeep: rebalance by moving, then PAY the rest (mana persists), sacrificing only when broke -----
+const MOVE_ADJ={back:['front'],front:['back','center'],center:['front'],raid:['center']}; // zone graph ('raid' = the enemy front)
+function aiMoveCreature(owner,fromZ,i,toZ){
+  const arr=rowArr(zoneKey(owner,fromZ)); const o=arr[i]; if(!o)return false;
+  const dstKey=zoneKey(owner,toZ); const dst=rowArr(dstKey);
+  let slot=-1; for(let j=0;j<SLOTS;j++){ if(!dst[j]&&slotExists(dstKey,j)){slot=j;break;} }
+  if(slot<0)return false;
+  arr[i]=null; o.moved=true; dst[slot]=o; return true;
 }
 function aiFixDeficit(owner){
   let guard=0;
-  while(deficitRows(owner).length && guard++<60){
+  while(deficitRows(owner).length&&guard++<40){       // 1) rebalance into rows that can absorb the upkeep
     const which=deficitRows(owner)[0];
-    // try the highest-upkeep monster first
+    const cres=creaturesInRow(owner,which).sort((a,b)=>(b.o.up||0)-(a.o.up||0));
+    if(!cres.length)break;
+    const {i,o}=cres[0]; let moved=false;
+    for(const to of (MOVE_ADJ[which]||[])){
+      if(to==='raid')continue;                         // never rebalance INTO the enemy front
+      if(rowWorkers(owner,to)-(o.up||0)>=0&&aiMoveCreature(owner,which,i,to)){
+        log(`<span class="e">${o.nm} repositions to ${rowName(zoneKey(owner,to))} to balance the workforce.</span>`,'e');
+        moved=true; break;
+      }
+    }
+    if(!moved)break;
+    syncWorkers(owner);
+  }
+  guard=0;                                             // 2) sacrifice only while the bill is unaffordable
+  while(totalDeficit(owner)>manaTotal(owner)&&guard++<40){
+    const which=deficitRows(owner)[0]; if(!which)break;
     const cres=creaturesInRow(owner,which).sort((a,b)=>(b.o.up||0)-(a.o.up||0));
     if(!cres.length)break;
     const {i,o}=cres[0];
-    // 1) relocate one row forward/back to a row that can fully absorb its upkeep
-    let moved=false;
-    for(const to of (MOVE_ADJ[which]||[])){
-      if(!rowHasSpace(owner,to))continue;
-      if(rowWorkers(owner,to)-(o.up||0) >= 0){
-        if(aiMoveCreature(owner,which,i,to)){
-          log(`<span class="e">${o.nm} repositions to ${rowName(to)} to balance the workforce.</span>`,'e');
-          moved=true; break;
-        }
-      }
-    }
-    // 2) only sacrifice when no adjacent row can support it
-    if(!moved){
-      const arr=which==='center'?G.center:G.P[owner][which];
-      arr[i]=null; toGrave(owner,o);
-      log(`<span class="e">The enemy sacrifices ${o.nm} — no row can sustain it.</span>`,'e');
-    }
+    rowArr(zoneKey(owner,which))[i]=null; toGrave(owner,o);
+    log(`<span class="e">The enemy sacrifices ${o.nm} — it cannot pay its keep.</span>`,'e');
     syncWorkers(owner);
   }
+  const owe=totalDeficit(owner);                       // 3) pay what remains
+  if(owe>0&&manaTotal(owner)>=owe){ payAny(owner,owe); log(`<span class="e">The enemy pays ◆${owe} to sustain its over-extended lines.</span>`,'e'); }
 }
 $('endBtn').addEventListener('click',endTurn);
 // Train Worker removed — workers are now auto-derived from the cards in each row.
 function endTurn(){
   if(G.turn!=='you'||G.busy||G.over)return;
-  if(G.deficit){ promptDeficit(); render(); return; }
-  { const d=drainMana('you'); if(d.lost>0) log(`<span class="y">◆${d.lost} unspent mana drains away${d.keep?` — your vaults keep ◆${d.keep}`:''}.</span>`,'y'); }
+  if(G.upkeep){ upkeepHint(); render(); return; }   // harvest first — the turn begins at ⛏
+  // mana PERSISTS between turns now — no drain
   G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.busy=true;render();
   startTurn('foe');log('<span class="e">— Opponent\'s turn —</span>','e');render();
   setTimeout(foeTurn,650);
 }
-/* enumerate AI attackers (foe front line + any foe units contesting the center) */
+/* enumerate AI attackers (any untapped foe creature — the middle rows are all contested now) */
 function aiAttackers(){ const out=[];
-  G.P.foe.front.forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped) out.push({key:'foeFront',i}); });
-  G.center.forEach((c,i)=>{ if(c&&c.owner==='foe'&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped) out.push({key:'center',i}); });
+  ROWS.forEach(key=>rowArr(key).forEach((c,i)=>{ if(c&&c.owner==='foe'&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped) out.push({key,i}); }));
   return out;
 }
-/* everything of the player's that an attack could land on */
+/* everything of the player's that an attack could land on — anywhere on the board */
 function yourFieldTargets(){ const out=[];
-  ['youFront','youBack'].forEach(key=>rowArr(key).forEach((o,i)=>{ if(o) out.push({key,i,o}); }));
-  G.center.forEach((o,i)=>{ if(o&&o.owner==='you') out.push({key:'center',i,o}); });
+  ROWS.forEach(key=>rowArr(key).forEach((o,i)=>{ if(o&&o.owner==='you') out.push({key,i,o}); }));
   return out;
 }
 function aiPickTarget(m,aCol){
-  // column-aware: an attacker at column aCol can only reach targets within ±1 column (the keep excluded here)
-  const fld=yourFieldTargets().filter(t=>!t.o.cc&&colReach(aCol,t.i));
+  // column-aware: an attacker at column aCol can only reach targets within ±1 column
+  const fld=yourFieldTargets().filter(t=>colReach(aCol,t.i));
   const ch=fld.filter(t=>t.o.kind==='charge'&&t.o.inv>=2).sort((a,b)=>b.o.inv-a.o.inv)[0];
   if(ch&&Math.random()<0.6) return ch;
   const kill=fld.filter(t=>t.o.kind==='creature'&&!t.o.worker&&m.a>=t.o.h).sort((a,b)=>a.o.h-b.o.h)[0];
   if(kill) return kill;
   const bld=fld.filter(t=>t.o.kind==='building').sort((a,b)=>a.o.h-b.o.h)[0];
   if(bld&&Math.random()<0.3) return bld;
-  // otherwise march on the keep — now a board unit at youBack[BASE_COL], reachable only from columns 2–4
-  const cc=G.P.you.back[BASE_COL];
-  if(cc&&cc.cc&&cc.h>0&&colReach(aCol,BASE_COL)) return {key:'youBack',i:BASE_COL,o:cc};
+  // otherwise march on the stronghold — strike any OPEN back-row column within reach for life damage
+  for(const c of [aCol,aCol-1,aCol+1]){ if(c>=0&&c<SLOTS&&!G.P.you.back[c]) return {key:'youBack',i:c,base:true,o:null}; }
   return kill||bld||ch||fld[0]||null;
 }
 async function foeTurn(){
   const F=G.P.foe,Y=G.P.you;
   // fuel charges (front line + contested center)
-  for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','front',i);}}
+  for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','foeFront',i);}}
   for(let i=0;i<SLOTS;i++){const ch=G.center[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','center',i);}}
-  // (worker training removed — workers are auto-derived per row)
-  // extract positionally: minions (base ◆1, front/center ◆2), plus idle front soldiers when mana is thin
-  let harvested=0;
-  const harvesters=[];
-  F.min.back.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'back'});});
-  F.min.front.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'front'});});
-  F.min.center.forEach(c=>{if(!c.sick&&!c.tapped)harvesters.push({c,w:'center'});});
-  // (creatures no longer extract — only workers harvest)
+  // AUTOMATIC harvest — every settled worker extracts (base ◆1, front/center ◆2); mana persists
   const aiExtractType=(w)=>{
     const opts=extractColors('foe',w);
-    if(!opts.length)return CCS[F.cc].colors[0]; // no generic — default to the keep's primary colour
+    if(!opts.length)return CCS[F.cc].colors[0]; // no generic — default to the homeland's primary colour
     for(const card of F.hand){ if(colorNeed(card)&&F.cmana[card.color]<1&&opts.includes(card.color))return card.color; }
     return opts[0];
   };
-  for(const {c,w} of harvesters){
-    if(harvested>=3)break;
-    c.tapped=true; const base=w==='back'?1:2; const ty=aiExtractType(w);
-    log(`<span class="e">${c.worker?'A worker':c.nm} harvests ◆${base} from ${w==='center'?'the center':('the '+w)}.</span>`,'e');
-    applyRes(base,'foe',c,ty);
-    harvested++; render();
+  for(const w of ['back','front','center']){
+    const ups=F.min[w].filter(c=>!c.sick&&!c.tapped);
+    if(!ups.length)continue;
+    const total=ups.length*minYield(w); const ty=aiExtractType(w);
+    ups.forEach(c=>c.tapped=true);
+    log(`<span class="e">Enemy workers harvest ◆${total} from ${w==='center'?'the center':('the '+w)}.</span>`,'e');
+    applyRes(total,'foe',null,ty); render();
   }
   cleanup();
   // build a structure sometimes
@@ -3348,14 +3394,13 @@ async function foeTurn(){
   if(aiBuild('foe')) aiBuild('foe');
   // cast a raze spell on one of your structures
   let rzi=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='raze'&&canPay('foe',c));
-  if(rzi>=0){ let tk=null,ti=-1; ['youBack','youFront'].forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.kind==='building'&&!o.cc){tk=key;ti=j;}}));
-    if(tk!==null){ const card=F.hand[rzi]; payCost('foe',card); F.hand.splice(rzi,1); resolveSpell(card,'you',whichOf(tk),ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
-  // burn your strongest soldier
+  if(rzi>=0){ let tk=null,ti=-1; ROWS.forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.owner==='you'&&o.kind==='building'){tk=key;ti=j;}}));
+    if(tk!==null){ const card=F.hand[rzi]; payCost('foe',card); F.hand.splice(rzi,1); resolveSpell(card,tk,ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
+  // burn your strongest soldier — wherever it stands
   let bni=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='burn'&&canPay('foe',c));
   if(bni>=0){ let best=-1,tk=null,ti=-1;
-    ['youFront','youBack'].forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.kind==='creature'&&!o.worker&&o.a>best){best=o.a;tk=key;ti=j;}}));
-    G.center.forEach((o,j)=>{if(o&&o.owner==='you'&&o.kind==='creature'&&!o.worker&&o.a>best){best=o.a;tk='center';ti=j;}});
-    if(tk!==null){ const card=F.hand[bni]; payCost('foe',card); F.hand.splice(bni,1); resolveSpell(card,'you',whichOf(tk),ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
+    ROWS.forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.owner==='you'&&o.kind==='creature'&&!o.worker&&o.a>best){best=o.a;tk=key;ti=j;}}));
+    if(tk!==null){ const card=F.hand[bni]; payCost('foe',card); F.hand.splice(bni,1); resolveSpell(card,tk,ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
   // arm a trap if it holds one and a slot is open
   { const tpi=F.hand.findIndex(c=>c.type==='spell'&&c.trap);
     if(tpi>=0){ let w='back',s=F.back.findIndex(x=>!x); if(s<0){w='front';s=F.front.findIndex(x=>!x);}
@@ -3367,12 +3412,11 @@ async function foeTurn(){
   let cands=F.hand.map((c,i)=>({c,i})).filter(x=>x.c.type==='creature'&&canPay('foe',x.c)).sort((a,b)=>b.c.c-a.c.c);
   for(const {c} of cands){ if(guard++>6)break;
     const idx=F.hand.indexOf(c); if(idx<0||!canPay('foe',c))continue;
-    let key='foeFront', empty=aiPickDeploySlot('foe','front');
-    const cEmpty=aiPickDeploySlot('foe','center');
-    if(cEmpty>=0&&(empty<0||Math.random()<0.4)){ key='center'; empty=cEmpty; }
+    let key='foeFront', empty=aiPickDeploySlot('foe','front');           // new cards enter only the AI's own back + front
+    if(empty<0){ key='foeBack'; empty=aiPickDeploySlot('foe','back'); }
     if(empty<0)continue;
     payCost('foe',c);F.hand.splice(idx,1);const cr=mkCre(c,'foe',false);cr.sick=true;rowArr(key)[empty]=cr;
-    log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h})${key==='center'?' into the contested center':''}.</span>`,'e'); onCreatureEnter(cr,'foe'); syncWorkers('foe'); render();
+    log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h}).</span>`,'e'); onCreatureEnter(cr,'foe'); syncWorkers('foe'); render();
     await playerTrapOnSummon(cr,whichOf(key),empty); if(G.over)return; }
   render();
   // attack — strikes travel across rows; you may interpose units in any row they cross
@@ -3388,11 +3432,16 @@ async function foeTurn(){
     if(!scour && Math.abs(aIdx-tIdx)>1){
       const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);
       if(elig.length){
-        const tgtName='your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
+        const tgtName=tref.base?'your STRONGHOLD':'your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
         blk=await askBlock({attacker:m,elig,title:'Incoming Attack',desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${tgtName}.`});
       }
     }
     if(blk.length){ const defs=blk.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean); defs.forEach(d=>{d.tapped=true;d.blocked=true;}); log(`<span class="y">You interpose ${defs.length}!</span>`,'y'); resolveCombat([m],defs); }
+    else if(tref.base){
+      const dmg=effA(m); G.P.you.life=Math.max(0,G.P.you.life-dmg);
+      log(`<span class="e">${m.nm} breaches your line — ⚔${dmg} strikes your stronghold! (♥${G.P.you.life} remains)</span>`,'e');
+      if(scour){ scourStrike(m,'you'); cleanup(); }
+    }
     else { const o=tref.o;
       if(o.kind==='creature'||o.kind==='building') springAttackTrap('you',[m],o); // your attack-trigger trap
       if(o.kind==='charge'){ provokeFaceDown('you',tref.key,tref.i,[m]); }
@@ -3406,20 +3455,20 @@ async function foeTurn(){
   }
   cleanup();render();checkWin();
   if(G.over)return;
-  { const d=drainMana('foe'); if(d.lost>0) log(`<span class="e">Opponent's ◆${d.lost} unspent mana drains away${d.keep?` — vaults keep ◆${d.keep}`:''}.</span>`,'e'); } render();
+  // mana persists between turns — no drain
   setTimeout(()=>{G.busy=false;startTurn('you');render();},650);
 }
 
 function checkWin(){
   if(G.over)return;
-  // the duel ends the moment a command center falls
-  const youOut=!findCC('you');
-  const foeOut=!findCC('foe');
+  // the duel ends the moment a stronghold's life pool empties
+  const youOut=G.P.you.life<=0;
+  const foeOut=G.P.foe.life<=0;
   if(foeOut||youOut){
     G.over=true; const win=foeOut&&!youOut;
     $('bannerMsg').textContent=win?'VICTORY':'DEFEAT';
     $('bannerMsg').style.color=win?'var(--gold)':'#e35b4f';
-    let sub=win?'The enemy command center is razed.':'Your command center has fallen.';
+    let sub=win?'The enemy stronghold has fallen.':'Your stronghold has fallen.';
     const bm=$('bannerMsg'); if(bm.nextElementSibling&&bm.nextElementSibling.className==='bsub')bm.nextElementSibling.remove();
     if(sub){ const d=document.createElement('div'); d.className='bsub'; d.style.cssText='font-size:14px;color:var(--ink);margin-top:6px;font-style:italic'; d.textContent=sub; bm.after(d); }
     $('banner').style.display='flex';
@@ -3438,7 +3487,7 @@ function bldEffectText(eff,val,sup){
   if(eff==='villager') return `<b>Longhouse.</b> Trains a free <b>Minion</b> (0/2 ⚒) into its owner's base pool at the start of its owner's turn.${supTxt}`;
   if(eff==='wall') return `<b>Bulwark.</b> A heavy body that screens the line — it can intercept and be raided, but never moves or attacks.${supTxt}`;
   if(eff==='damage') return `<b>Cannon Tower.</b> Strikes the nearest enemy creature for <b>${val}</b> at the start of its owner's turn.${supTxt}`;
-  if(eff==='vault') return `<b>Mana Vault.</b> Keeps up to <b>◆${val}</b> of unspent mana across the turn instead of letting it drain.${supTxt}`;
+  if(eff==='vault') return `<b>Mana Vault.</b> A relic of leaner times — mana now persists between turns on its own.${supTxt}`;
   if(eff==='revive') return `<b>Reliquary.</b> Once per turn at upkeep, returns your most recently fallen creature to your hand.${supTxt}`;
   return `Structure with no upkeep effect.${supTxt}`;
 }
@@ -3714,12 +3763,18 @@ function fxLunge(srcEls,tEl,after){
   FX.arrow(fxRect(srcEls[0]),tr); FX.clearAim(); SFX.whoosh();
   setTimeout(()=>{ _atkBusy=false; after(); },280);
 }
-const fxAtkSrcs=()=>G.atk.map(s=>rowCellEl($(mineKey(s.w)),s.i)).filter(Boolean);
+const fxAtkSrcs=()=>G.atk.map(s=>rowCellEl($(s.k),s.i)).filter(Boolean);
 const _doAttack=doAttack;
-doAttack=function(which,ti){
+doAttack=function(tgtKey,ti){
   if(_atkBusy)return;
-  const row=$(rowKeyFor('foe',which)); const tEl=rowCellEl(row,ti);
-  fxLunge(fxAtkSrcs(),tEl,()=>_doAttack(which,ti));
+  const row=$(tgtKey); const tEl=rowCellEl(row,ti);
+  fxLunge(fxAtkSrcs(),tEl,()=>_doAttack(tgtKey,ti));
+};
+const _attackBackRow=attackBackRow;
+attackBackRow=function(defOwner,col){
+  if(_atkBusy)return;
+  const row=$(defOwner==='foe'?'foeBack':'youBack'); const tEl=rowCellEl(row,col);
+  fxLunge(fxAtkSrcs(),tEl,()=>_attackBackRow(defOwner,col));
 };
 const _attackMinionStack=attackMinionStack;
 attackMinionStack=function(key,owner,which){
@@ -3743,9 +3798,9 @@ place=function(idx,mode,which,slot){
 };
 // flips: summon ring; big or First-Strike reveals get the Master-Duel splash
 const _flip=flip;
-flip=function(owner,which,slot){
-  const arr=cellArr(owner,which);
-  const r=_flip(owner,which,slot);
+flip=function(owner,key,slot){
+  const arr=rowArr(key);
+  const r=_flip(owner,key,slot);
   try{ const now=arr[slot]; const cellR=fxRect(cellElFor(now));
     if(now&&now.kind==='creature'){ SFX.summon(); FX.ring(cellR); if(now.c>=4||now.fs)FX.splash(now,owner); }
     else if(now&&now.kind==='building'){ SFX.raise(); FX.ring(cellR); if(now.c>=4)FX.splash(now,owner); }
@@ -3754,10 +3809,10 @@ flip=function(owner,which,slot){
 };
 // spells, traps, powers
 const _castSpell=castSpell;
-castSpell=function(idx,which,i){
-  const row=$(rowKeyFor('foe',which)); const tr=fxRect(rowCellEl(row,i));
+castSpell=function(idx,key,i){
+  const row=$(key); const tr=fxRect(rowCellEl(row,i));
   const n0=G.P.you.hand.length;
-  _castSpell(idx,which,i);
+  _castSpell(idx,key,i);
   if(G.P.you.hand.length<n0){ SFX.spell(); FX.slash(tr); FX.burstRect(tr,'#c9a0ff'); }
 };
 const _springTrap=springTrap;
@@ -3812,7 +3867,7 @@ const _checkWin=checkWin;
 checkWin=function(){
   const was=G.over;
   _checkWin();
-  if(!was&&G.over){ const win=!findCC('foe')&&!!findCC('you');   // read the outcome from state — campResolve() may have rewritten the banner text (REGION SEIZED, etc.)
+  if(!was&&G.over){ const win=G.P.foe.life<=0&&G.P.you.life>0;   // read the outcome from state — campResolve() may have rewritten the banner text (REGION SEIZED, etc.)
     if(win){ SFX.win(); FX.confetti(); } else SFX.lose(); }
 };
 // title treatment on the character-select menu
@@ -3829,7 +3884,7 @@ document.addEventListener('mouseover',e=>{
   if(!e.target.closest)return;
   const tgt=e.target.closest('.cell.target,.minpill.target,.crest-target');
   if(!tgt||!G.atk||!G.atk.length)return;
-  const row=$(mineKey(G.atk[0].w)); const src=rowCellEl(row,G.atk[0].i);
+  const row=$(G.atk[0].k); const src=rowCellEl(row,G.atk[0].i);
   if(src)FX.aimArrow(fxRect(src),fxRect(tgt));
 });
 document.addEventListener('mouseout',e=>{
@@ -4033,17 +4088,16 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   function begin(e){
     justDragged=false;
     if(!e.isPrimary || (e.button!=null&&e.button>0)) return;
-    if(G.turn!=='you'||G.busy||G.over||G.deficit) return;
+    if(G.turn!=='you'||G.busy||G.over) return;
     if(e.target.closest('.inspect')||e.target.closest('button')) return;
     const hand=e.target.closest('.hc');
-    if(hand && hand.dataset.hand!=null){ drag={kind:'hand', idx:+hand.dataset.hand, src:hand, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId}; return; }
+    if(hand && hand.dataset.hand!=null){ if(G.upkeep)return; drag={kind:'hand', idx:+hand.dataset.hand, src:hand, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId}; return; }
     const cell=e.target.closest('.cell');
-    if(cell && cell.dataset.which){
-      const w=cell.dataset.which, owner=cell.dataset.owner, i=+cell.dataset.slot;
-      if(w!=='center' && owner!=='you') return;                 // only your own units are draggable
-      const arr=cellArr('you',w), o=arr?arr[i]:null;
-      if(o&&o.kind==='creature'&&(w!=='center'||o.owner==='you')&&typeof canMoveCard==='function'&&canMoveCard(w,i)){
-        drag={kind:'board', w, i, src:cell, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId};
+    if(cell && cell.dataset.key){
+      const k=cell.dataset.key, i=+cell.dataset.slot;
+      const arr=rowArr(k), o=arr?arr[i]:null;
+      if(o&&o.kind==='creature'&&o.owner==='you'&&typeof canMoveCard==='function'&&canMoveCard(k,i)){
+        drag={kind:'board', k, i, src:cell, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId};
       }
     }
   }
@@ -4061,15 +4115,15 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     } else {
       drag.on=true; drag.ghost=makeGhost(); document.body.classList.add('dragging');
       grabCapture();                                            // keep the gesture alive through startMove's re-render (touch)
-      window.startMove(drag.w, drag.i);                         // sets G.moveFrom + lights legal destinations
+      window.startMove(drag.k, drag.i);                         // sets G.moveFrom + lights legal destinations
     }
   }
   function dropOn(e){
     const c=cellUnder(e.clientX,e.clientY);
-    if(c && c.dataset.which){
-      const w=c.dataset.which, i=+c.dataset.slot, owner=c.dataset.owner||'you';
-      if(drag.kind==='hand'){ const arr=cellArr(owner,w), occ=arr?arr[i]:null; onCell(owner,w,i,occ); return true; }
-      if(c.classList.contains('tappable')){ doMove(w,i); return true; }   // board move: only onto a lit legal destination
+    if(c && c.dataset.key){
+      const k=c.dataset.key, i=+c.dataset.slot;
+      if(drag.kind==='hand'){ const arr=rowArr(k), occ=arr?arr[i]:null; onCell(k,i,occ); return true; }
+      if(c.classList.contains('tappable')){ doMove(k,i); return true; }   // board move: only onto a lit legal destination
       return false;                                                        // otherwise fall through and cancel the move
     }
     return false;
