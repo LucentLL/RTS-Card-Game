@@ -73,6 +73,15 @@
   #boardBtns>*{pointer-events:auto;}
   .turnlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;text-align:center;
     background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:999px;padding:3px 10px;}
+  /* the turn-phase tracker: a compact vertical list that lights the current phase */
+  #phaseTrack{display:flex;flex-direction:column;align-items:stretch;gap:3px;background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:11px;padding:5px 5px;pointer-events:auto;min-width:74px;}
+  #phaseTrack .phstep{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;text-align:center;color:#8a8298;
+    padding:3px 8px;border-radius:999px;border:1px solid transparent;line-height:1.1;transition:color .12s,background .12s,border-color .12s;position:relative;}
+  #phaseTrack .phstep.sub{font-size:8.5px;letter-spacing:.09em;margin-left:11px;} /* Combat sits indented — a sub-phase of Action */
+  #phaseTrack .phstep.sub::before{content:'↳';position:absolute;left:2px;top:50%;transform:translateY(-50%);opacity:.5;font-size:9px;}
+  #phaseTrack .phstep.done{color:#6a8a5f;}
+  #phaseTrack .phstep.on{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border-color:#f0d68a;font-weight:900;box-shadow:0 0 12px rgba(217,176,74,.4);}
+  #phaseTrack .phstep.sub.on{background:linear-gradient(180deg,#e79a6a,#b5623a);border-color:#f2b98a;color:#160d08;}
   #endBtn,#harvestBtn{font-family:'Cinzel',serif;letter-spacing:.07em;font-weight:900;font-size:12.5px;padding:9px 18px;border-radius:999px;cursor:pointer;
     color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:2px solid #f0d68a;
     box-shadow:0 4px 0 #4d3a10,0 0 18px rgba(217,176,74,.35),0 8px 20px rgba(0,0,0,.55);}
@@ -94,6 +103,14 @@
   .cmdworkers .wtok{padding:2px 6px;font-size:10.5px;gap:3px;}
   .cmdworkers .wtok .wklab{font-size:.7em;letter-spacing:.06em;text-transform:uppercase;opacity:.75;margin-right:1px;}
   .cmdworkers .wtok.none{opacity:.55;}
+  /* vertical variant: FIVE worker rows stacked, one per board row, filling the left tower window */
+  .cmdworkers.vcol{flex-direction:column;gap:3px;width:100%;flex-wrap:nowrap;margin-top:5px;}
+  .cmdworkers.vcol .vrow{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;box-sizing:border-box;
+    padding:2px 8px;border-radius:6px;font-size:11px;background:rgba(13,11,18,.55);}
+  .cmdworkers.vcol .vrow .wklab{flex:1;text-align:left;font-size:.72em;letter-spacing:.05em;text-transform:uppercase;opacity:.78;margin:0;white-space:nowrap;}
+  .cmdworkers.vcol .vrow .wval{font-family:'Cinzel',serif;font-weight:700;}
+  .cmdworkers.vcol .vrow.none{opacity:.5;}
+  .cmdworkers.vcol .vrow.short{background:rgba(60,18,20,.9);}
   .cmdzone .cmdbuild{margin-top:5px;pointer-events:auto;cursor:pointer;
     font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:6px 14px;border-radius:999px;
     color:#1a140a;background:linear-gradient(180deg,#e4c878,#a8842e);border:1px solid #f0d68a;box-shadow:0 3px 0 #4d3a10,0 4px 12px rgba(0,0,0,.45);}
@@ -384,6 +401,16 @@
   body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar, body.wall-open #hudbar{transform:translateY(0);}
   body:has(.hand:hover) .cmdzone.you, body:has(.hc.selected) .cmdzone.you, body.wall-open .cmdzone.you{transform:translateY(0);}
   .cmdzone.you{transform:translateY(150%);transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
+  /* DRAW + UPKEEP: keep the player's wall raised so the deck and the worker readout stay in view */
+  body.phase-draw #hudbar, body.phase-upkeep #hudbar{transform:translateY(0);}
+  body.phase-draw .cmdzone.you, body.phase-upkeep .cmdzone.you{transform:translateY(0);}
+  body.phase-draw #hudbar .wallzone, body.phase-upkeep #hudbar .wallzone{display:flex;}
+  body.phase-draw #hudbar .wallzone .wzfull, body.phase-upkeep #hudbar .wallzone .wzfull{display:block;}
+  body.phase-draw #youDeckLine, body.phase-upkeep #youDeckLine{display:none;}
+  body.phase-draw, body.phase-upkeep{--wallY:-14%;}
+  body.board-extreme.phase-draw, body.board-extreme.phase-upkeep{--wallY:-12%;}
+  /* the deck pulses only in the Draw phase — click it to draw */
+  body.phase-draw #youWallDeck{cursor:pointer;border-radius:8px;box-shadow:0 0 0 2px var(--gold),0 0 18px rgba(217,176,74,.6);animation:pulse 1.4s ease-in-out infinite;}
   #hudbar::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;pointer-events:none;
     background:repeating-linear-gradient(90deg, var(--youelem,#caa05a) 0 5px, transparent 5px 24px);opacity:.55;
     -webkit-mask:linear-gradient(180deg,#000,transparent);mask:linear-gradient(180deg,#000,transparent);}
@@ -886,6 +913,13 @@
 
   <div id="boardBtns">
     <div class="turnlabel" id="turnLabel">Your Turn</div>
+    <div id="phaseTrack" aria-label="turn phases">
+      <div class="phstep" data-phase="draw">Draw</div>
+      <div class="phstep" data-phase="upkeep">Upkeep</div>
+      <div class="phstep" data-phase="action">Action</div>
+      <div class="phstep sub" data-phase="combat">Combat</div>
+      <div class="phstep" data-phase="end">End</div>
+    </div>
     <button id="harvestBtn" onclick="doHarvest()" style="display:none">⛏ Harvest</button>
     <button id="endBtn">End Turn</button>
     <button id="conscriptBtn">⚒ Train</button>
@@ -912,7 +946,7 @@
   </div>
   <!-- WC3-style themed stone command wall (bottom): commander (left tower), hand (center), deck/grave (right tower) -->
   <div id="hudbar"><div class="wallstone"></div><div class="twin l"></div><div class="twin r"></div><span class="hudglyph l" id="hudGlyphL"></span><span class="hudglyph r" id="hudGlyphR"></span>
-    <div class="wallzone deck" id="youWallDeck" onclick="openViewer('deck','you')"></div>
+    <div class="wallzone deck" id="youWallDeck" onclick="youDeckClick()"></div>
     <div class="wallzone grave" id="youWallGrave" onclick="openViewer('grave','you')"></div>
     <div class="decline" id="youDeckLine"></div>
   </div>
@@ -933,7 +967,8 @@
       <p><b>Win — breach the back row.</b> Your element choice sets your <b>life pool</b> (♥), your base workers, and your <b>mana colors</b>. There is no command-center card: attacks aimed at an <b>open column of the enemy back row</b> that go unintercepted deal their full ⚔ to the defender's life. Bodies standing in the back row must be fought instead.</p>
       <p><b>The board.</b> Five rows: each side's back row is its own soil — <b>the enemy may never enter yours</b>, only attack it. The three middle rows (both fronts + the center) are <b>contested</b>: either army may advance into them, marching one row per move. New cards deploy only in your <b>back or front</b> row. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
       <p><b>Building (RTS).</b> Structures are <b>not in your deck</b> — your commander <b>builds</b> them. Tap your command center or the <b>⚒ Build</b> button to open the menu, then tap an open space to raise it. Building costs <b>mana</b> and follows a <b>tech tree</b>: a <b>Foundry</b> first, which unlocks the element <b>Forges</b> (a forge lets its row harvest that element's mana) and the <b>Longhouse</b>; a forge in turn unlocks the <b>Bulwark</b> and <b>Grand Forges</b>. Build as often as you can afford it.</p>
-      <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). Your turn opens with an <b>upkeep phase</b>: reposition creatures if you wish (this uses their move for the turn), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (◆1 at the base, ◆2 at the front or center) and one panel lets you set each row's <b>color ratio</b>. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first: move the monsters back, sacrifice them, or simply <b>pay ◆ equal to the shortfall</b> — Harvest pays it for you when you can afford it.</p>
+      <p><b>Turn phases.</b> Each turn runs through set phases, shown in the tracker by the End Turn button. <b>Draw</b> — click your <b>deck</b> to draw a card and begin. <b>Upkeep</b> — settle your workforce, then press <b>⛏ Harvest</b>. <b>Action</b> — summon, move, build, and attack freely. <b>Combat</b> is a sub-phase of Action: it opens each time you declare an attacker and can repeat with different attackers. <b>End</b> — end-of-turn effects resolve, then the turn passes to your opponent.</p>
+      <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). At <b>Upkeep</b> you may reposition creatures (this uses their move for the turn), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (<b>◆1 each, the same in every row</b>) and one panel lets you set each row's <b>color ratio</b>. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first: move the monsters back, sacrifice them, or simply <b>pay ◆ equal to the shortfall</b> — Harvest pays it for you when you can afford it. Your left tower lists each row's worker count, stacked to match the board.</p>
       <p><b>Colored mana.</b> Extraction yields <b>generic ◆</b> — or mana of <b>any color among your units in that row</b> (a red dragon on the front line lets front workers pull red; your command center counts for its own colors in its row). A colored creature or spell needs <b>1 mana of its color</b> in its cost; the rest takes any mix. Structures take anything. <i>Mana persists between turns — it keeps building until you spend it (or spend it keeping over-extended lines fed).</i></p>
       <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Flips from a funded face-down <b>waive the color pip</b> — secrecy's discount. Face-down a full turn? It flips with haste.</p>
       <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group), then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
@@ -1294,6 +1329,7 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 const G={
   turn:'you',busy:false,over:false,turnNo:1,
+  phase:'action', upkeep:false,   // phase: draw → upkeep → action (combat = a sub-phase while attackers are declared) → end
   sel:null, atk:[], moveFrom:null, moveMana:null,
   center:Array(SLOTS).fill(null),
   P:{
@@ -1600,7 +1636,7 @@ function placeRowOK(owner,which,def){ return (def.sup||0)>=0 || (rowWorkers(owne
 function hasPlacement(owner,def){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x)&&placeRowOK(owner,w,def); }); }
 function canBuild(owner,def){ return manaTotal(owner)>=def.c && prereqMet(owner,def) && hasPlacement(owner,def); }
 function resolveStruct(bid,color){ if(bid==='forge')return forgeDef(color); if(bid==='grandforge')return grandForgeDef(color); return STRUCT_DEFS[bid]||null; }
-window.openBuildMenu=function(){ if(G.turn!=='you'||G.busy||G.over||G.upkeep)return; G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null; $('buildPanel').style.display='flex'; drawBuild(); render(); };
+window.openBuildMenu=function(){ if(!acting())return; G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null; $('buildPanel').style.display='flex'; drawBuild(); render(); };
 function drawBuild(){
   const list=buildList(G.P.you.cc), have=manaTotal('you');
   const rows=list.map(def=>{
@@ -1683,7 +1719,7 @@ function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
   Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
   Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
-  G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.upkeep=false;
+  G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.phase='draw';G.upkeep=false;
   G.center=Array(SLOTS).fill(null);
   // no command-center card: the WHOLE back row is each player's stronghold. Life is the standalone
   // pool an undefended strike into the back row drains; the element still sets colors + base workers.
@@ -1695,7 +1731,7 @@ function startGame(youId,foeId,youDeck,foeDeck){
   hideAllScreens();
   $('log').innerHTML='';
   log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Break through to the enemy back row and drain their ♥ to win — protect your own.</span>`);
-  G.upkeep=true; upkeepHint(); render();   // turn 1 opens at upkeep too — ⛏ Harvest starts the duel
+  setPhase('draw'); drawHint(); render();   // turn 1 opens at the Draw phase — click your deck to begin
 }
 let selYou='fire', selFoe='water', csStep=1;
 function csCard(c,col,on){
@@ -2164,8 +2200,9 @@ function render(){
   {const a=$('foeDeckN');if(a)a.textContent=G.P.foe.deck.length;} {const b=$('youDeckN');if(b)b.textContent=G.P.you.deck.length;}
   {const a=$('foeGraveN');if(a)a.textContent=G.P.foe.grave.length;} {const b=$('youGraveN');if(b)b.textContent=G.P.you.grave.length;}
   $('turnLabel').textContent=G.turn==='you'?'Your Turn':'Opponent…';
-  $('endBtn').disabled=G.turn!=='you'||G.busy||G.over||G.upkeep;
-  { const hb=$('harvestBtn'); if(hb) hb.style.display=(G.turn==='you'&&G.upkeep&&!G.busy&&!G.over)?'':'none'; }
+  $('endBtn').disabled=!acting();   // End Turn only in the Action phase (draw/upkeep resolve via their own steps)
+  { const hb=$('harvestBtn'); if(hb) hb.style.display=(G.turn==='you'&&G.phase==='upkeep'&&!G.busy&&!G.over)?'':'none'; }
+  renderPhaseTrack();
   const cb=$('conscriptBtn'); if(cb)cb.style.display='none';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
   renderRow('foeBack','foe','back'); renderRow('foeFront','foe','front');
@@ -2190,6 +2227,22 @@ function renderWalls(){
   const fw=$('foeWorkerChips'); if(fw){ fw.innerHTML=''; fw.appendChild(workerChipRow('foe')); }  // foe per-row workers on their wall
   const dl=$('youDeckLine'); if(dl) dl.innerHTML=`Deck: <b>${G.P.you.deck.length}</b> &nbsp; GY: <b>${G.P.you.grave.length}</b>`;
   const fl=$('foeDeckLine'); if(fl) fl.innerHTML=`Deck: <b>${G.P.foe.deck.length}</b> &nbsp; GY: <b>${G.P.foe.grave.length}</b>`;
+}
+// the phase tracker: lights the current phase (Combat lit alongside Action while attackers are declared)
+function renderPhaseTrack(){
+  const track=$('phaseTrack'); if(!track)return;
+  const yours=G.turn==='you'&&!G.over;   // stays lit through the busy End-phase beat; blank only on the opponent's turn
+  const cur=yours?shownPhase():null;   // no highlight while the opponent acts
+  track.querySelectorAll('.phstep').forEach(el=>{
+    const p=el.dataset.phase;
+    const on = yours && ( p===cur || (cur==='combat'&&p==='action') );   // combat is a sub-phase of action → both light up
+    el.classList.toggle('on',!!on);
+    el.classList.toggle('done', yours && p!=='combat' && PHASE_ORDER.indexOf(p)>-1 && PHASE_ORDER.indexOf(p)<PHASE_ORDER.indexOf(G.phase));
+  });
+  // body phase class drives the draw-phase deck pulse + keeps the wall open so the deck is reachable
+  const b=document.body.classList;
+  ['phase-draw','phase-upkeep','phase-action','phase-end'].forEach(c=>b.remove(c));
+  if(yours) b.add('phase-'+G.phase);
 }
 function renderMinions(){
   const wells=[['wellFoeBack','foeBack'],['wellFoeFront','foeFront'],['wellCenter','center'],['wellYouFront','youFront'],['wellYouBack','youBack']];
@@ -2309,7 +2362,7 @@ function wkSlotEl(owner,which,aiming){
   if(!owner) return null;
   const n=rowWorkers(owner,which); const me=owner==='you';
   const pool=minPool(owner,which);
-  const targetable=!me&&aiming&&pool.length&&G.turn==='you'&&!G.busy&&!G.over&&!G.upkeep;
+  const targetable=!me&&aiming&&pool.length&&G.turn==='you'&&!G.busy&&!G.over&&G.phase==='action';
   if(!targetable&&n>=0) return null;
   const slot=document.createElement('div'); slot.className='wkslot '+(me?'youSide':'foeSide');
   const tok=document.createElement('div');
@@ -2342,6 +2395,29 @@ function workerChipRow(owner){
       tok.innerHTML=`<span class="wklab">Raid</span>⚒<b>${raid}</b>`;
       tok.title=(me?'your':'enemy')+' creatures behind enemy lines — their keep (◆'+(-raid)+') is paid at each upkeep';
       box.appendChild(tok); } }
+  return box;
+}
+// the player's worker readout for the castle wall's LEFT tower: FIVE rows stacked vertically, aligned
+// to the board top→bottom (enemy base · raid · center · your front · your base) for at-a-glance reading.
+function workerColumn(){
+  const box=document.createElement('div'); box.className='cmdworkers vcol';
+  // [label, zone, harvests?] — zone null = the enemy base row, where you can never staff workers
+  const rows=[['Enemy Base',null,false],['Raid','raid',false],['Center','center',true],['Front','front',true],['Base','back',true]];
+  for(const [lab,z,harvests] of rows){
+    const row=document.createElement('div');
+    if(z===null){ row.className='wtok vrow none'; row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">—</span>`; row.title='the enemy stronghold — you hold no workers here'; box.appendChild(row); continue; }
+    const n=rowWorkers('you',z);
+    const pool=harvests?minPool('you',z):[]; const up=pool.filter(m=>!m.tapped&&!m.sick).length;
+    row.className='wtok vrow'+(n<0?' short':'')+(n===0?' none':'');
+    const ready=(harvests&&n>0&&up<pool.length)?`<span class="wr">${up}✓</span>`:'';
+    row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">⚒<b>${n}</b></span>${ready}`;
+    row.title = z==='raid'
+      ? (n<0?`creatures behind enemy lines — their upkeep (◆${-n}) is paid every turn`:'no units raiding the enemy front')
+      : (n<0?'worker shortfall — settle it at upkeep (move, sacrifice, or pay)'
+           : (up>0?`${n} worker${n===1?'':'s'} — harvests ◆${up*minYield(z)} at upkeep`
+                 : `${n} worker${n===1?'':'s'}`));
+    box.appendChild(row);
+  }
   return box;
 }
 // pin the deck/graveyard zones to the floor's corner cells so they ride the tilted
@@ -2398,14 +2474,14 @@ function renderCmdZone(owner){
   const me=owner==='you';
   el.className='cmdzone '+owner;
   // no command-center card: the cluster shows the player's element, LIFE POOL, vitals + Build entry
-  const canBuild=G.turn==='you'&&!G.busy&&!G.over&&!G.upkeep;
+  const canBuild=acting();
   const vit=me?(`<div class="cmdvit">${manaStr('you')}</div>`
     +`<div class="cmdvit sub"><span class="bct">⌂</span><b>${structuresOf('you').length}</b><span class="wct">⚒</span><b>${totalWorkers('you')}</b></div>`
     +`<button class="cmdbuild" ${canBuild?'':'disabled'} onclick="openBuildMenu()" title="Build a structure">⚒ Build</button>`):'';
   const fc=`var(--${def.colors[0]})`;
   el.innerHTML=`<div class="keepname" style="color:${fc}" title="${def.name}">♜ ${escHtml(def.name)}</div>`+
     `<div class="keephp"><span class="heart">♥</span>${Math.max(0,P.life)}</div>`+vit;
-  if(me) el.appendChild(workerChipRow('you'));   // per-row worker chips ride the wall
+  if(me) el.appendChild(workerColumn());   // five-row vertical worker readout in the left tower
   el.style.pointerEvents=me?'auto':'none';
 }
 function renderCenter(){
@@ -2455,6 +2531,7 @@ function canExtract(){return false;} // creatures no longer extract mana — onl
 function inAtk(key,i){return G.atk.some(s=>s.k===key&&s.i===i);}
 function decorate(cell,key,i,o){
   if(G.turn!=='you'||G.busy||G.over)return;
+  if(G.phase==='draw'||G.phase==='end')return;   // no board interaction during draw / end phases
   const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
   const which=whichOf(key);
   const deployKey=key==='youBack'||key==='youFront';   // new cards enter only your back + front rows
@@ -2489,12 +2566,12 @@ function decorate(cell,key,i,o){
   cell.addEventListener('click',()=>onCell(key,i,o));
 }
 function setHint(html){$('hint').innerHTML=html;}
-function extractYield(which){return which==='back'?1:2;}
+function extractYield(which){return 1;}   // all rows equal — no positional bonus
 function defaultHint(){setHint('');}
 
 /* ---------- input ---------- */
 function onHand(i){
-  if(G.powerMode||G.upkeep)return;   // hand plays wait until the upkeep harvest resolves
+  if(G.powerMode||G.phase!=='action')return;   // hand plays only in the Action phase
   G.atk=[]; G.moveFrom=null; G.moveMana=null; G.minSel=null;
   if(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i){G.sel=null;G.cardMenu=null;defaultHint();render();return;}
   const card=G.P.you.hand[i];
@@ -2554,6 +2631,7 @@ function spellRec(card){return {type:'spell',nm:card.nm,c:card.c,trap:!!card.tra
 function clearAtk(){G.atk=[];G.cardMenu=null;G.minSel=null;defaultHint();}
 
 function onCell(key,i,o){
+  if(G.phase==='draw'||G.phase==='end')return;   // board is inert during draw / end
   G.cardMenu=null; G.minSel=null;
   const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
   const which=whichOf(key);
@@ -2932,7 +3010,7 @@ window.extractSel=()=>{ if(!(G.turn==='you'&&!G.busy&&!G.over&&canExtract()))ret
 window.doExtractAs=t=>{ if(G.turn==='you'&&!G.busy&&!G.over&&canExtract())doExtract(t); };
 
 /* ---------- minions (a per-row pool, not board cards) ---------- */
-function minYield(which){return which==='back'?1:2;}
+function minYield(which){return 1;}   // every row harvests the same — no front/center bonus
 /* ---------- worker harvest: one tap harvests the whole row, a pop-up distributes the haul across colors ---------- */
 let hv=null;
 window.harvestRow=(which)=>{
@@ -3205,6 +3283,13 @@ function drainMana(owner){ const P=G.P[owner]; const cap=vaultCap(owner); P.mana
   const total=COLORS.reduce((s,c)=>s+P.cmana[c],0); const lost=Math.max(0,total-cap);
   let toLose=lost; for(const c of COLORS){ if(toLose<=0)break; const t=Math.min(P.cmana[c],toLose); P.cmana[c]-=t; toLose-=t; } // vaults keep up to their cap of colored mana
   return {keep:Math.min(cap,total),lost}; }
+// ----- PHASES: draw → upkeep → action (combat is a sub-phase of action) → end -----
+const PHASE_ORDER=['draw','upkeep','action','end'];
+const PHASE_LABEL={draw:'Draw',upkeep:'Upkeep',action:'Action',combat:'Combat',end:'End'};
+function setPhase(p){ G.phase=p; G.upkeep=(p==='upkeep'); }
+function acting(){ return G.turn==='you'&&!G.busy&&!G.over&&G.phase==='action'; }  // when the player may summon / move / attack / build
+// the phase shown in the tracker: while attackers are declared during the action phase we're in the Combat sub-phase
+function shownPhase(){ return (G.phase==='action'&&G.atk.length) ? 'combat' : G.phase; }
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
   P.firstExtract=true; // no generic income — mana comes from worker harvest + forge yields (all colored)
@@ -3213,16 +3298,30 @@ function startTurn(owner){
   overchargeUpkeep(owner);  // Electric creatures bank ◆ for their next discharge
   buildingUpkeep(owner);
   cleanup(); // sweep anything a damage-tower just killed
-  drawCard(owner);
   syncWorkers(owner); // workers re-derived from the cards now in each row
   readyWorkers(owner); // settle this turn's workers so they can harvest (workers a later build adds stay sick)
   if(owner==='you'){
-    G.upkeep=true;   // upkeep phase: reposition / pay / sacrifice, then ⛏ Harvest collects automatically
-    log(`<span class="y">— Your turn · upkeep — reposition if you wish, then ⛏ Harvest —</span>`);
-    upkeepHint();
+    setPhase('draw');   // the player's turn opens at the Draw phase — click the deck to draw, then upkeep collects
+    log(`<span class="y">— Your turn · Draw phase — click your deck to draw —</span>`);
+    drawHint();
   } else {
+    drawCard('foe');    // the AI draws automatically at the start of its turn
     aiFixDeficit('foe'); readyWorkers('foe'); // re-settle after the AI balances any negative rows
   }
+}
+function drawHint(){ setHint(`<b>Draw phase.</b> Click your <b>deck</b> to draw a card and begin your turn.`); }
+// clicking the player's deck: draw during the draw phase, otherwise browse it
+window.youDeckClick=function(){
+  if(G.turn==='you'&&!G.busy&&!G.over&&G.phase==='draw'){ doDraw(); return; }
+  openViewer('deck','you');
+};
+function doDraw(){
+  if(G.turn!=='you'||G.busy||G.over||G.phase!=='draw')return;
+  if(G.P.you.deck.length){ drawCard('you'); log(`<span class="y">You draw a card.</span>`,'y'); }
+  else log(`<span class="y">Your deck is empty — nothing to draw.</span>`,'y');
+  setPhase('upkeep');   // draw done → upkeep (balance workers / pay, then ⛏ Harvest)
+  log(`<span class="y">— Upkeep — reposition or settle any shortfall, then ⛏ Harvest —</span>`);
+  upkeepHint(); render();
 }
 // ----- UPKEEP (start of your turn): free repositioning (uses the creature's move), shortfalls are
 //       settled by moving, sacrificing, or PAYING their cost when ⛏ Harvest is pressed. -----
@@ -3248,7 +3347,7 @@ window.upkeepSac=function(key,i){
 // automatically — one ratio panel lets you choose each row's colors, the rest arrives generic.
 let hvR=null;
 window.doHarvest=function(){
-  if(!G.upkeep||G.turn!=='you'||G.busy||G.over)return;
+  if(G.phase!=='upkeep'||G.turn!=='you'||G.busy||G.over)return;
   const owe=totalDeficit('you');
   if(owe>0){
     if(manaTotal('you')<owe){ setHint(`<b style="color:#ff8a7a">Short ⚒${owe} with only ◆${manaTotal('you')} banked.</b> Move or sacrifice creatures until the upkeep is affordable.`); render(); return; }
@@ -3262,7 +3361,7 @@ window.doHarvest=function(){
     zones.push({z,total:up*minYield(z),cols:extractColors('you',z),alloc:{}});
     pool.forEach(m=>{ if(!m.sick) m.tapped=true; });
   }
-  G.upkeep=false; G.moveFrom=null; G.cardMenu=null;
+  setPhase('action'); G.moveFrom=null; G.cardMenu=null;   // upkeep resolved → the Action phase begins
   if(!zones.length){ log(`<span class="y">— No workers to harvest (◆${manaTotal('you')} banked) —</span>`,'y'); defaultHint(); render(); return; }
   if(zones.every(zz=>!zz.cols.length)){
     let sum=0; zones.forEach(zz=>{G.P.you.mana+=zz.total; sum+=zz.total;});
@@ -3339,12 +3438,22 @@ $('endBtn').addEventListener('click',endTurn);
 // Train Worker removed — workers are now auto-derived from the cards in each row.
 function endTurn(){
   if(G.turn!=='you'||G.busy||G.over)return;
-  if(G.upkeep){ upkeepHint(); render(); return; }   // harvest first — the turn begins at ⛏
+  if(G.phase==='draw'){ drawHint(); render(); return; }              // must draw first
+  if(G.phase==='upkeep'){ upkeepHint(); render(); return; }          // harvest first — the turn begins at ⛏
+  if(G.phase!=='action')return;
+  // ACTION → END phase: resolve any end-of-turn effects, then hand off to the opponent
+  G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;
+  setPhase('end'); log('<span class="y">— End phase —</span>','y');
+  endPhaseEffects('you');
   // mana PERSISTS between turns now — no drain
-  G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.busy=true;render();
-  startTurn('foe');log('<span class="e">— Opponent\'s turn —</span>','e');render();
-  setTimeout(foeTurn,650);
+  G.busy=true; render();
+  setTimeout(()=>{
+    startTurn('foe');log('<span class="e">— Opponent\'s turn —</span>','e');render();
+    setTimeout(foeTurn,650);
+  },380);   // brief End-phase beat before the opponent acts
 }
+// end-of-turn effects hook — resolves anything that fires as the owner's turn ends (before the hand-off)
+function endPhaseEffects(owner){ /* reserved for end-of-turn keyword triggers */ }
 /* enumerate AI attackers (any untapped foe creature — the middle rows are all contested now) */
 function aiAttackers(){ const out=[];
   ROWS.forEach(key=>rowArr(key).forEach((c,i)=>{ if(c&&c.owner==='foe'&&c.kind==='creature'&&!c.worker&&!c.sick&&!c.tapped) out.push({key,i}); }));
@@ -3373,7 +3482,7 @@ async function foeTurn(){
   // fuel charges (front line + contested center)
   for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','foeFront',i);}}
   for(let i=0;i<SLOTS;i++){const ch=G.center[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','center',i);}}
-  // AUTOMATIC harvest — every settled worker extracts (base ◆1, front/center ◆2); mana persists
+  // AUTOMATIC harvest — every settled worker extracts ◆1 (same in every row); mana persists
   const aiExtractType=(w)=>{
     const opts=extractColors('foe',w);
     if(!opts.length)return CCS[F.cc].colors[0]; // no generic — default to the homeland's primary colour
@@ -4089,9 +4198,10 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     justDragged=false;
     if(!e.isPrimary || (e.button!=null&&e.button>0)) return;
     if(G.turn!=='you'||G.busy||G.over) return;
+    if(G.phase==='draw'||G.phase==='end') return;   // drags only in upkeep (reposition) / action
     if(e.target.closest('.inspect')||e.target.closest('button')) return;
     const hand=e.target.closest('.hc');
-    if(hand && hand.dataset.hand!=null){ if(G.upkeep)return; drag={kind:'hand', idx:+hand.dataset.hand, src:hand, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId}; return; }
+    if(hand && hand.dataset.hand!=null){ if(G.phase!=='action')return; drag={kind:'hand', idx:+hand.dataset.hand, src:hand, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId}; return; }
     const cell=e.target.closest('.cell');
     if(cell && cell.dataset.key){
       const k=cell.dataset.key, i=+cell.dataset.slot;
