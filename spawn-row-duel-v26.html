@@ -755,8 +755,19 @@
   body.board-extreme .row,body.board-extreme .centerwrap,body.board-extreme .side,
   body.board-extreme .rowsbox,body.board-extreme .cell.hasSprite,
   body.board-extreme .spritewrap,body.board-extreme .spritebob{transform-style:preserve-3d;}
-  body.board-extreme .cell.hasSprite .spritefig{transform:rotateX(calc(-1 * var(--tiltx)));transform-origin:50% 100%;}
+  body.board-extreme .cell.hasSprite:not(.laid):not(.bldSprite) .spritefig{transform:rotateX(calc(-1 * var(--tiltx)));transform-origin:50% 100%;}
   body.board-extreme .cell.hasSprite .spriteshadow{opacity:.85;}   /* shadow stays flat on the ground */
+  /* idle creature (can't act this turn) lies down: in the diorama it stays in the tilted board plane (no billboard); everywhere it dims + stops bobbing */
+  body.board-extreme .cell.hasSprite.laid .spritefig{transform:rotateX(6deg);transform-origin:50% 100%;}
+  body:not(.board-extreme) .cell.hasSprite.laid .spritefig{transform:scale(.86) translateY(6%);transform-origin:50% 100%;}
+  .cell.hasSprite.laid .spritebob{animation:none;}
+  .cell.hasSprite.laid .spritefig{filter:grayscale(.4) brightness(.6) drop-shadow(0 3px 4px rgba(0,0,0,.55));opacity:.9;}
+  .cell.hasSprite.laid .spriteshadow{opacity:.4;}
+  /* structure field-art sits centred ON its card slot (aligned), not popped up like a creature standee */
+  .cell.bldSprite .spritebob{bottom:auto;top:50%;left:50%;transform:translate(-50%,-50%);}
+  .cell.bldSprite .spritefig{height:auto;width:auto;max-width:94cqw;max-height:94cqh;object-position:center;}
+  .cell.bldSprite .spritefig.fromart{max-width:88cqw;max-height:88cqh;}
+  .cell.bldSprite .spriteshadow{display:none;}
   /* battle cut-in (DS-Yu-Gi-Oh style): the cards involved flash up on a clash */
   #battleView{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;}
   #battleView.show{animation:bvshow 1.1s ease forwards;}
@@ -965,13 +976,13 @@
       <div class="ltitle">How to Play</div>
       <div class="cmdname" id="cmdName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
       <div class="cmdpass" id="cmdPass">Your back row IS your stronghold. An undefended strike into any open back-row column drains your ♥ life pool — when it empties, you lose.</div>
-      <p><b>Win — breach the back row.</b> Your element choice sets your <b>life pool</b> (♥), your base workers, and your <b>mana colors</b>. There is no command-center card: attacks aimed at an <b>open column of the enemy back row</b> that go unintercepted deal their full ⚔ to the defender's life. Bodies standing in the back row must be fought instead.</p>
+      <p><b>Win — breach the back row.</b> Your element choice sets your <b>life pool</b> (♥) and your base workers; <b>element</b> is otherwise a synergy attribute (Yu-Gi-Oh style), not a mana cost. There is no command-center card: attacks aimed at an <b>open column of the enemy back row</b> that go unintercepted deal their full ⚔ to the defender's life. Bodies standing in the back row must be fought instead.</p>
       <p><b>The board.</b> Five rows: each side's back row is its own soil — <b>the enemy may never enter yours</b>, only attack it. The three middle rows (both fronts + the center) are <b>contested</b>: either army may advance into them, marching one row per move. New cards deploy only in your <b>back or front</b> row. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
-      <p><b>Building (RTS).</b> Structures are <b>not in your deck</b> — your commander <b>builds</b> them. Tap your command center or the <b>⚒ Build</b> button to open the menu, then tap an open space to raise it. Building costs <b>mana</b> and follows a <b>tech tree</b>: a <b>Foundry</b> first, which unlocks the element <b>Forges</b> (a forge lets its row harvest that element's mana) and the <b>Longhouse</b>; a forge in turn unlocks the <b>Bulwark</b> and <b>Grand Forges</b>. Build as often as you can afford it.</p>
+      <p><b>Building (RTS).</b> Structures are <b>not in your deck</b> — your commander <b>builds</b> them. Tap your command center or the <b>⚒ Build</b> button to open the menu, then tap an open space to raise it. Building costs <b>mana</b> and follows a <b>tech tree</b>: a <b>Foundry</b> first, which unlocks the element <b>Forges</b> (each forge yields ◆ every turn) and the <b>Longhouse</b>; a forge in turn unlocks the <b>Bulwark</b> and <b>Grand Forges</b>. Build as often as you can afford it.</p>
       <p><b>Turn phases.</b> Each turn runs through set phases, shown in the tracker by the End Turn button. <b>Upkeep</b> — settle your workforce (move, sacrifice, or pay), then press <b>⛏ Harvest</b> to collect mana. <b>Draw</b> — click your <b>deck</b> to draw a card. <b>Action</b> — summon, move, build, and attack freely. <b>Combat</b> is a sub-phase of Action: it opens each time you declare an attacker and can repeat with different attackers. <b>End</b> — end-of-turn effects resolve, then the turn passes to your opponent.</p>
-      <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). At <b>Upkeep</b> you may reposition creatures (this uses their move for the turn), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (<b>◆1 each, the same in every row</b>) and one panel lets you set each row's <b>color ratio</b>. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first: move the monsters back, sacrifice them, or simply <b>pay ◆ equal to the shortfall</b> — Harvest pays it for you when you can afford it. Your left tower lists each row's worker count, stacked to match the board.</p>
-      <p><b>Colored mana.</b> Extraction yields <b>generic ◆</b> — or mana of <b>any color among your units in that row</b> (a red dragon on the front line lets front workers pull red; your command center counts for its own colors in its row). A colored creature or spell needs <b>1 mana of its color</b> in its cost; the rest takes any mix. Structures take anything. <i>Mana persists between turns — it keeps building until you spend it (or spend it keeping over-extended lines fed).</i></p>
-      <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Flips from a funded face-down <b>waive the color pip</b> — secrecy's discount. Face-down a full turn? It flips with haste.</p>
+      <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). At <b>Upkeep</b> you may reposition creatures (this uses their move for the turn), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (<b>◆1 each, the same in every row</b>) straight into your mana pool. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first: move the monsters back, sacrifice them, or simply <b>pay ◆ equal to the shortfall</b> — Harvest pays it for you when you can afford it. Your left tower lists each row's worker count, stacked to match the board.</p>
+      <p><b>Mana.</b> Harvesting yields <b>generic ◆</b> — one pool, no colors. Every card costs only its <b>◆ number</b>, whatever its element. <b>Element</b> (Fire, Water, Forest…) is a <b>synergy attribute</b> only, like a Yu-Gi-Oh attribute: it drives card theming and elemental keyword effects, not what mana you need. <i>Mana persists between turns — it keeps building until you spend it (or spend it keeping over-extended lines fed).</i></p>
+      <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Face-down a full turn? It flips with haste.</p>
       <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group), then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
       <p><b>Note:</b> a prototype. Open questions, deliberately parked: the exact colored-cost rule (currently 1 pip + any remainder), storage structures that convert colors, a <i>Ranged</i> keyword, and the soldier-production model.</p>
       <button class="pclose" onclick="toggleRules(false)">Close</button>
@@ -1175,8 +1186,8 @@ const STRUCT_DEFS={
   tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:4000,  eff:'damage',   val:1000, sup:-2,ic:'⤢', prereq:['forge'],   color:null, art:phArt('fire','bld'),  desc:'Guns that never sleep — strikes the nearest enemy creature for 1000 each turn. Needs ⚒2 to crew (build it where a row has the workers to spare).'},
   reliquary:{bid:'reliquary',nm:'Reliquary',  c:5, h:3500,  eff:'revive',    val:0, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:phArt('dark','bld'),  desc:'Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.'},
 };
-function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:2, sup:2, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2, raises ⚒+2, and lets its row harvest '+ELEMENTS[el].name+' mana.'}; }
-function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:3, sup:3, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3, raises ⚒+3, harvests '+ELEMENTS[el].name+' mana.'}; }
+function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:2, sup:2, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2 each turn and raises ⚒+2.'}; }
+function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:3, sup:3, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3 each turn and raises ⚒+3.'}; }
 // the ordered list of structures a given commander can build (its colors expand the forges)
 function buildList(ccId){
   const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];
@@ -1425,33 +1436,17 @@ function creaturesInRow(owner,which){
   rowArr(k).forEach((o,i)=>{if(o&&o.owner===owner&&o.kind==='creature'&&!o.worker)out.push({which,key:k,i,o});});
   return out;
 }
-/* ---------- colored mana ----------
-   Pools: generic (P.mana) + one pool per color (P.cmana). [PROPOSED] cost rule:
-   a colored creature/spell needs 1 mana of its color; the remainder takes any
-   mix. Structures and traps take any mana. Face-down flips pay from the bank
-   and waive the color pip (the secrecy discount). */
-/* COLORS is defined up top, derived from ELEMENTS (all 7 element ids). */
-function manaTotal(o){const P=G.P[o];return P.mana+COLORS.reduce((s,c)=>s+P.cmana[c],0);}
-function colorNeed(card){return (card.type==='creature'||(card.type==='spell'&&!card.trap))&&!!card.color&&card.c>0;}
-function canPay(o,card){const P=G.P[o];if(manaTotal(o)<card.c)return false;
-  if(colorNeed(card)&&P.cmana[card.color]<1)return false;return true;}
-function payAny(o,n){const P=G.P[o];let g=Math.min(P.mana,n);P.mana-=g;n-=g;
-  for(const k of COLORS){const t=Math.min(P.cmana[k],n);P.cmana[k]-=t;n-=t;}return n<=0;}
-function payCost(o,card){const P=G.P[o];let n=card.c;
-  if(colorNeed(card)){P.cmana[card.color]--;n--;}
-  payAny(o,n);}
-function manaGlyph(t){return t==='gen'?'◆':`<span style="color:var(--${t})">◆</span>`;}
-function extractColors(owner,which){
-  const key=which==='center'?'center':rowKeyFor(owner,which);
-  const set=new Set();
-  rowArr(key).forEach(x=>{ if(x&&x.owner===owner){
-    if(x.kind==='creature'&&!x.worker)set.add(x.color);
-    if(x.kind==='building'&&x.cc)(x.colors||[]).forEach(c=>set.add(c));
-    if(x.kind==='building'&&!x.cc&&x.eff==='mana'&&x.color)set.add(x.color); // a built forge lets its row harvest its element's mana
-  }});
-  if(which==='back'){ (CCS[G.P[owner].cc].colors||[]).forEach(c=>set.add(c)); } // the homeland's colors harvest from the back row
-  return [...set];
-}
+/* ---------- mana (generic) ----------
+   One generic pool per player (P.mana). Element / card.color is a synergy +
+   art attribute only (Yugioh-style) — it no longer gates cost. The legacy
+   per-colour pool (P.cmana) is left seeded but inert. */
+function manaTotal(o){return G.P[o].mana;}
+function colorNeed(card){return false;}                       // element no longer gates cost
+function canPay(o,card){return G.P[o].mana>=card.c;}
+function payAny(o,n){const P=G.P[o];const g=Math.min(P.mana,n);P.mana-=g;return g>=n;}
+function payCost(o,card){payAny(o,card.c);}
+function manaGlyph(t){return '◆';}                            // mana is colourless now
+function extractColors(owner,which){ return []; }   // mana is generic — no colour sources to enumerate
 function minionCount(owner){ const m=G.P[owner].min; return m.back.length+m.front.length+m.center.length; }
 function canTrain(owner){ return minionCount(owner) < workerCap(owner); }
 // cull minions down to the cap (exposed front/center first) — the army "feeds" on the workforce
@@ -1745,7 +1740,7 @@ function renderCharSel(){
   const ids=Object.keys(CCS); const box=$('charsel').querySelector('.csbox');
   if(csStep===1){
     const cards=ids.map(id=>csCard(CCS[id],'you',false)).join('');
-    box.innerHTML=`<h1>Choose Your Command Center</h1><div class="cssub">Step 1 of 2 — your keep sets health, workers, and mana colors. Lose it and you lose.</div><div class="csrow">${cards}</div>`;
+    box.innerHTML=`<h1>Choose Your Command Center</h1><div class="cssub">Step 1 of 2 — your keep sets health and workers; its element is a synergy attribute. Lose it and you lose.</div><div class="csrow">${cards}</div>`;
     box.querySelectorAll('.cschar').forEach(b=>b.addEventListener('click',()=>{ selYou=b.dataset.id; csStep=2; renderCharSel(); }));
   } else {
     const cy=CCS[selYou];
@@ -2070,7 +2065,7 @@ function renderDbLeaders(){
 }
 const DB_TYPE_ORDER={creature:0,building:1,spell:2};
 function accentOf(color){ return color?clsOf[color]:'neutral'; } // never clsOf[null]
-function costGlyph(e){ return (e.color?manaGlyph(e.color):'◆')+(e.tpl.c||0); }
+function costGlyph(e){ return '◆'+(e.tpl.c||0); }   // cost is generic mana only
 function cardStat(e){ return e.type==='creature'?`⚔${e.tpl.a} / ♥${e.tpl.h}`
   :e.type==='building'?((e.tpl.eff==='mana'?('◆+'+e.tpl.val+' / turn'):'⚒ trains')+` · ♥${e.tpl.h}`)
   :(e.tpl.trap?'⚠ Trap':'✦ Spell'); }
@@ -2189,9 +2184,7 @@ window.toggleLog=function(on){ $('logPanel').style.display=on?'flex':'none'; };
 window.toggleRules=function(on){ $('rulesPanel').style.display=on?'flex':'none'; };
 
 /* ---------- render ---------- */
-function manaStr(o){const P=G.P[o];let out='';
-  CCS[P.cc].colors.forEach(c=>{out+=`${elemBadge(c,14)}<b class="mc" style="color:var(--${c})">${P.cmana[c]}</b>`;});
-  return out;} // generic mana removed — only colored mana exists
+function manaStr(o){return `<b class="mc" style="color:var(--spawn)">◆${G.P[o].mana}</b>`;} // one generic pool
 function render(){
   // life is a standalone pool now (no command-center card) — undefended back-row strikes drain it
   $('foeLife').textContent=G.P.foe.life; $('youLife').textContent=G.P.you.life;
@@ -2335,12 +2328,14 @@ function cardHTML(o,me){
   return '';
 }
 // a floating standee figure that hovers above a creature's card (Duel Links style)
-function attachSprite(cell,o,me){
+function attachSprite(cell,o,me,key,i){
   // every on-field card gets the _fieldart standee scaffolding (field → card art → placeholder),
   // not just creatures — structures included. Face-downs (traps/charges) and worker tokens stay hidden.
   if(!window.SPRITES_ON||!o||o.worker) return;
   if(o.kind!=='creature'&&o.kind!=='building') return;
   cell.classList.add('hasSprite'); if(o.kind==='building') cell.classList.add('bldSprite');
+  // a creature that can't act right now lies down (up = able to act, down = idle); structures never do
+  if(o.kind==='creature'&&!canActNow(o,key,i)) cell.classList.add('laid');
   const w=document.createElement('div'); w.className='spritewrap'+(me?'':' foe')+(o.kind==='building'?' bld':'');
   w.innerHTML=`<div class="spriteshadow"></div><div class="spritebob">${spriteImg(o)}</div>`;
   cell.appendChild(w);
@@ -2455,7 +2450,7 @@ function renderRow(elId,owner,which){
     const me=!!(o&&o.owner==='you');
     const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
     cell.dataset.key=elId; cell.dataset.owner=o?o.owner:owner; cell.dataset.which=which; cell.dataset.slot=i;   // drag-drop coordinates
-    if(o){ cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); attachSprite(cell,o,me); }
+    if(o){ cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); attachSprite(cell,o,me,elId,i); }
     decorate(cell,elId,i,o);
     el.appendChild(cell);
   }
@@ -2496,7 +2491,7 @@ function renderCenter(){
     const cell=document.createElement('div'); cell.className='cell centercell '+(isLane(i)?'centerlane':'centerstruct');
     const o=G.center[i];
     cell.dataset.key='center'; cell.dataset.owner=o?o.owner:'you'; cell.dataset.which='center'; cell.dataset.slot=i;   // drag-drop coords
-    if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); attachSprite(cell,o,me); }
+    if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); attachSprite(cell,o,me,'center',i); }
     decorate(cell,'center',i,o);
     el.appendChild(cell);
   }
@@ -2723,7 +2718,7 @@ function place(idx,mode,which,slot){
     log(`<span class="y">You build a ${card.nm} (♥${card.h}) in ${where}.</span>`,'y');
   } else if(mode==='summon'){
     if(manaTotal('you')<card.c){setHint('Not enough mana.');return;}
-    if(!canPay('you',card)){setHint(`${card.nm} needs ${manaGlyph(card.color)}1 ${cap(card.color)} in its cost — extract ${cap(card.color)} from a row holding a ${cap(card.color)} unit (your command center counts).`);return;}
+    if(!canPay('you',card)){setHint(`${card.nm} needs ◆${card.c} — you have ◆${manaTotal('you')}. Harvest more workers during your Upkeep.`);return;}
     payCost('you',card); G.P.you.hand.splice(idx,1);
     const cr=mkCre(card,'you',false); cr.sick=true; arr[slot]=cr;
     log(`<span class="y">You summon ${card.nm} (⚔${card.a}/♥${card.h}) to ${where}.</span>`,'y');
@@ -2884,8 +2879,8 @@ function rowsStrictlyBetween(aIdx,tIdx){ const lo=Math.min(aIdx,tIdx),hi=Math.ma
 // untapped creatures in `key` NOT owned by the attacker (enemy or contesting-center units) — eligible to interpose
 function untappedInterceptors(key,attackerOwner,aCol){ const out=[];
   // a slotted defender may interpose only if its column is within ±1 of the attacker's column
-  // a creature may block on the opponent's turn even if it tapped (attacked) on its own — once per turn, gated by the `blocked` flag
-  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.blocked&&!c.sick&&c.owner!==attackerOwner&&(aCol==null||colReach(i,aCol))) out.push({key,i,c}); });
+  // a creature may block on the opponent's turn even if it tapped (attacked) or is summoning-sick — summoning sickness only bars ATTACKING; blocking is gated once-per-turn by the `blocked` flag
+  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.blocked&&c.owner!==attackerOwner&&(aCol==null||colReach(i,aCol))) out.push({key,i,c}); });
   // worker stacks have no column — they screen their whole row
   minionsInRow(key).forEach(g=>{ if(g.owner!==attackerOwner&&!g.c.tapped&&!g.c.sick) out.push({key,c:g.c}); });
   return out;
@@ -3022,41 +3017,14 @@ window.harvestRow=(which)=>{
   const ready=minPool('you',which).filter(m=>!m.tapped&&!m.sick);
   if(!ready.length){setHint('No ready workers in this row.');return;}
   G.sel=null; G.atk=[]; G.moveFrom=null; G.moveMana=null; G.cardMenu=null; G.minSel=null;
-  const total=ready.length*minYield(which);
-  let cols=extractColors('you',which);
-  if(!cols.length) cols=[CCS[G.P.you.cc].colors[0]];                 // no colour source here → workers pull the keep's primary colour
-  if(cols.length===1){ applyHarvest(which,{[cols[0]]:total},total); return; } // one colour — auto-harvest, no popup
-  hv={which,total,cols:cols.slice(),alloc:Object.fromEntries(cols.map(c=>[c,0]))};
-  $('harvestPanel').style.display='flex'; drawHarvest(); render();
+  applyHarvest(which,null,ready.length*minYield(which));   // generic mana — harvest is automatic, no colour popup
 };
-function hvGenRem(){ return hv?hv.total-hv.cols.reduce((s,c)=>s+(hv.alloc[c]||0),0):0; }
-function drawHarvest(){
-  if(!hv){ $('harvestPanel').style.display='none'; return; }
-  const rem=hvGenRem();
-  const where=hv.which==='center'?'contested center':(hv.which==='front'?'front line':'base');
-  const rows=hv.cols.map(c=>`<div class="hvrow"><span class="hvlab" style="color:var(--${c})">${manaGlyph(c)} ${cap(c)}</span>`+
-    `<span class="hvstep"><button onclick="hvAdj('${c}',-1)" ${hv.alloc[c]<=0?'disabled':''}>−</button>`+
-    `<span class="hvval">◆${hv.alloc[c]}</span>`+
-    `<button onclick="hvAdj('${c}',1)" ${rem<=0?'disabled':''}>+</button></span></div>`).join('');
-  $('harvestPanel').querySelector('.box').innerHTML=
-    `<div class="ptitle">⚒ Harvest ◆${hv.total}</div>`+
-    `<div class="pmeta">Workers of the ${where} bring in ${hv.total} mana — set how much of each colour. The remainder goes to ${cap(hv.cols[0])}.</div>`+
-    `<div class="hvgrid">${rows}<div class="hvrow gen"><span class="hvlab" style="color:var(--${hv.cols[0]})">${cap(hv.cols[0])} (rest)</span><span class="hvval">${manaGlyph(hv.cols[0])}${rem}</span></div></div>`+
-    `<div class="pacts"><button onclick="hvConfirm()">Take the haul</button></div>`+
-    `<button class="pclose" onclick="hvCancel()">Cancel</button>`;
-}
-window.hvAdj=(c,d)=>{ if(!hv)return; if(d>0&&hvGenRem()<=0)return; if(d<0&&(hv.alloc[c]||0)<=0)return; hv.alloc[c]=(hv.alloc[c]||0)+d; drawHarvest(); };
-window.hvConfirm=()=>{ if(!hv)return; applyHarvest(hv.which,hv.alloc,hv.total); };
-window.hvCancel=()=>{ hv=null; $('harvestPanel').style.display='none'; defaultHint(); render(); };
 function applyHarvest(which,alloc,total){
   const P=G.P.you;
   minPool('you',which).filter(m=>!m.tapped&&!m.sick).forEach(m=>m.tapped=true);
-  const fb=(extractColors('you',which)[0])||CCS[P.cc].colors[0]; // unallocated remainder defaults to this colour — no generic
-  let rem=total; const parts=[];
-  Object.keys(alloc||{}).forEach(c=>{ const v=alloc[c]||0; if(v>0){ P.cmana[c]=Math.min(20,P.cmana[c]+v); rem-=v; parts.push(`${manaGlyph(c)}${v} ${cap(c)}`); } });
-  if(rem>0){ P.cmana[fb]=Math.min(20,P.cmana[fb]+rem); parts.push(`${manaGlyph(fb)}${rem} ${cap(fb)}`); }
+  P.mana=Math.min(99,P.mana+total);
   const where=which==='center'?'the contested center':(which==='front'?'the front line':'the base');
-  log(`<span class="s">Workers harvest ${where} — ${parts.join(', ')}.</span>`,'s');
+  log(`<span class="s">Workers harvest ${where} — ◆${total} (total ◆${manaTotal('you')}).</span>`,'s');
   P.firstExtract=false;
   hv=null; $('harvestPanel').style.display='none'; defaultHint(); render(); checkWin();
 }
@@ -3065,7 +3033,7 @@ function inspectMinion(owner,which){
   const where=which==='center'?'the contested center':(which==='front'?(owner==='you'?'your front line':'the enemy front'):(owner==='you'?'your base':'the enemy base'));
   const net=rowWorkers(owner,which);
   showInspect(`⚒ Workers · ${where}`,
-    `This row's workers are <b>set by its cards</b>: every structure adds its <b>⚒ support</b>, every monster subtracts its <b>⚒ upkeep</b>. Here that nets to <b>${net}</b> worker${net===1?'':'s'} (${up} ready).<br><b>Harvester.</b> Tap to harvest the <b>whole row at once</b> — ◆1 per worker at the base, ◆2 at the front line or center — then a pop-up lets you <b>split the haul</b> across <b>any colors among your units in that row</b> (your command center counts for its colors), keeping the rest as <b>generic</b> ◆.<br>Workers are <b>not trained and do not move</b> — they simply mirror the cards in the row. They still screen the line: a worker can <b>intercept</b> a strike and can be <b>raided</b>.<br><i>If a row's monsters outweigh its support and it goes <b>negative</b>, you must move or sacrifice monsters at the <b>start of your turn</b> until it is 0 or positive.</i>`);
+    `This row's workers are <b>set by its cards</b>: every structure adds its <b>⚒ support</b>, every monster subtracts its <b>⚒ upkeep</b>. Here that nets to <b>${net}</b> worker${net===1?'':'s'} (${up} ready).<br><b>Harvester.</b> Tap to harvest the <b>whole row at once</b> — <b>◆1 per worker</b>, the same in every row — straight into your <b>generic</b> mana pool, automatically.<br>Workers are <b>not trained and do not move</b> — they simply mirror the cards in the row. They still screen the line: a worker can <b>intercept</b> a strike and can be <b>raided</b>.<br><i>If a row's monsters outweigh its support and it goes <b>negative</b>, you must move or sacrifice monsters at the <b>start of your turn</b> until it is 0 or positive.</i>`);
 }
 // player's attackers strike an enemy minion pool (a stack of 0/2 bodies)
 const WELL2ROW={wellFoeBack:'foeBack',wellFoeFront:'foeFront',wellCenter:'center',wellYouFront:'youFront',wellYouBack:'youBack'};
@@ -3113,6 +3081,17 @@ function aiPickDeploySlot(owner,which){ const a=cellArr(owner,which); if(!a)retu
   for(const i of order){ if(i<SLOTS&&!a[i]&&slotExists(which,i)) return i; }
   return freeDeploySlot(owner,which); }
 function canMoveCard(key,i){ const c=rowArr(key)[i]; if(!c||c.kind!=='creature'||c.owner!=='you'||c.moved)return false; return adjCells('you',key,i).some(([k,j])=>!rowArr(k)[j]); }
+// standee pose — a creature stands "up" when it can do something relevant this turn, lies "down" when it can't.
+function canBlockNow(o){ return !!(o&&o.kind==='creature'&&!o.blocked); }   // summoning-sick may block; tapped may block once; the `blocked` flag gates it
+function canActNow(o,key,i){
+  if(!o||o.kind!=='creature'||o.worker) return true;         // non-creatures / workers have no up-down pose
+  if(G.turn===o.owner){                                      // its controller's turn — can it move or attack?
+    if(o.tapped) return false;
+    if(!o.sick) return true;                                 // ready to attack (and maybe move)
+    return !o.moved && adjCells(o.owner,key,i).some(([k,j])=>!rowArr(k)[j]);  // summoning-sick, but can still reposition
+  }
+  return canBlockNow(o);                                     // opponent's turn — still available as a blocker?
+}
 function moveBtn(key,i){ return canMoveCard(key,i)?` <button onclick="startMove('${key}',${i})">⤧ Move</button>`:''; }
 window.startMove=(key,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(key,i))return; G.moveFrom={k:key,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null; setHint('Tap an open adjacent space — forward as far as the enemy front line, but never their back row (or tap the unit again to cancel).'); render(); };
 window.cancelMove=()=>{ G.moveFrom=null; if(G.upkeep)upkeepHint(); else defaultHint(); render(); };
@@ -3224,11 +3203,9 @@ function askBlock(opts){
   });
 }
 
-function applyRes(base,owner,creature,type){
-  const P=G.P[owner]; const v=base;
-  if(!type||type==='gen') type=CCS[P.cc].colors[0]; // no generic — default to the keep's primary colour
-  P.cmana[type]=Math.min(99,P.cmana[type]+v);   // mana persists between turns — generous cap
-  log(`&nbsp;&nbsp;<span class="s">+${v} ${cap(type)} ${manaGlyph(type)}.</span>`,'s'); P.firstExtract=false;
+function applyRes(base,owner,creature,type){   // deposit harvested mana into the single generic pool (player + AI)
+  const P=G.P[owner]; P.mana=Math.min(99,P.mana+base);   // mana persists between turns — generous cap
+  log(`&nbsp;&nbsp;<span class="s">+${base} ◆.</span>`,'s'); P.firstExtract=false;
 }
 
 /* commander crest, passives, and once-per-game powers removed — the deck does the talking (v19) */
@@ -3254,7 +3231,7 @@ function cleanup(){
 function buildingUpkeep(owner){
   const P=G.P[owner]; let revived=false;
   const tick=o=>{ if(o&&o.kind==='building'){
-    if(o.eff==='mana'){const mc=o.color||CCS[P.cc].colors[0];P.cmana[mc]=Math.min(99,P.cmana[mc]+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ${manaGlyph(mc)}${o.val} ${cap(mc)}.</span>`,owner==='you'?'y':'e');}
+    if(o.eff==='mana'){P.mana=Math.min(99,P.mana+o.val);log(`<span class="${owner==='you'?'y':'e'}">${o.nm} yields ◆${o.val}.</span>`,owner==='you'?'y':'e');}
     else if(o.eff==='damage'){buildingDamage(owner,o.val||0,o.nm);}
     else if(o.eff==='revive'){ if(!revived) revived=reviveFromGrave(owner); } // once per turn, regardless of count
   }};
@@ -3283,11 +3260,10 @@ function buildingDamage(owner,val,nm){
 }
 // mana-storage structures (vaults) keep up to their total `val` in generic mana across the drain
 function vaultCap(owner){ return ownUnits(owner).filter(o=>o.kind==='building'&&o.eff==='vault').reduce((s,o)=>s+(o.val||0),0); }
-function drainMana(owner){ const P=G.P[owner]; const cap=vaultCap(owner); P.mana=0;
-  const total=COLORS.reduce((s,c)=>s+P.cmana[c],0); const lost=Math.max(0,total-cap);
-  let toLose=lost; for(const c of COLORS){ if(toLose<=0)break; const t=Math.min(P.cmana[c],toLose); P.cmana[c]-=t; toLose-=t; } // vaults keep up to their cap of colored mana
-  return {keep:Math.min(cap,total),lost}; }
-// ----- PHASES: draw → upkeep → action (combat is a sub-phase of action) → end -----
+function drainMana(owner){ const P=G.P[owner]; const cap=vaultCap(owner); const lost=Math.max(0,P.mana-cap);
+  P.mana=Math.min(P.mana,cap); // vaults keep up to their cap; the rest drains
+  return {keep:P.mana,lost}; }
+// ----- PHASES: upkeep → draw → action (combat is a sub-phase of action) → end -----
 const PHASE_ORDER=['upkeep','draw','action','end'];
 const PHASE_LABEL={draw:'Draw',upkeep:'Upkeep',action:'Action',combat:'Combat',end:'End'};
 function setPhase(p){ G.phase=p; G.upkeep=(p==='upkeep'); }
@@ -3347,8 +3323,7 @@ window.upkeepSac=function(key,i){
   G.cardMenu=null; syncWorkers('you'); upkeepHint(); render();
 };
 // ⛏ Harvest: pays any remaining shortfall (or blocks), then every settled worker extracts
-// automatically — one ratio panel lets you choose each row's colors, the rest arrives generic.
-let hvR=null;
+// automatically into the single generic mana pool — no colour choice — and the turn advances to Draw.
 window.doHarvest=function(){
   if(G.phase!=='upkeep'||G.turn!=='you'||G.busy||G.over)return;
   const owe=totalDeficit('you');
@@ -3357,47 +3332,20 @@ window.doHarvest=function(){
     payAny('you',owe);
     log(`<span class="y">You pay ◆${owe} to keep your over-extended lines fed.</span>`,'y');
   }
-  const zones=[];
+  let sum=0;
   for(const z of ['back','front','center']){
     const pool=minPool('you',z); const up=pool.filter(m=>!m.tapped&&!m.sick).length;
     if(up<=0)continue;
-    zones.push({z,total:up*minYield(z),cols:extractColors('you',z),alloc:{}});
+    const total=up*minYield(z);
     pool.forEach(m=>{ if(!m.sick) m.tapped=true; });
+    G.P.you.mana=Math.min(99,G.P.you.mana+total); sum+=total;   // generic — no colour split
   }
   setPhase('draw'); G.moveFrom=null; G.cardMenu=null;   // upkeep resolved → the Draw phase (click your deck)
-  if(!zones.length){ log(`<span class="y">— No workers to harvest (◆${manaTotal('you')} banked) —</span>`,'y'); drawHint(); render(); return; }
-  if(zones.every(zz=>!zz.cols.length)){
-    let sum=0; zones.forEach(zz=>{G.P.you.mana+=zz.total; sum+=zz.total;});
-    log(`<span class="y">Harvest: ◆${sum} (total ◆${manaTotal('you')}).</span>`,'y'); drawHint(); render(); return;
-  }
-  hvR=zones; drawRatio(); $('harvestPanel').style.display='flex'; render();
+  if(sum>0) log(`<span class="y">Harvest: ◆${sum} (total ◆${manaTotal('you')}).</span>`,'y');
+  else log(`<span class="y">— No workers to harvest (◆${manaTotal('you')} banked) —</span>`,'y');
+  drawHint(); render();
 };
-function rAlloc(zi){ const z=hvR[zi]; return z.cols.reduce((s,c)=>s+(z.alloc[c]||0),0); }
-window.rAdj=function(zi,col,d){ const z=hvR[zi];
-  if(d>0&&rAlloc(zi)>=z.total)return;
-  z.alloc[col]=Math.max(0,(z.alloc[col]||0)+d); drawRatio(); };
-function drawRatio(){
-  const box=$('harvestPanel').querySelector('.box');
-  let html=`<div class="ptitle">⛏ Harvest</div><div class="pmeta">Set each row's colors — the remainder arrives as generic ◆. Mana keeps between turns.</div>`;
-  hvR.forEach((z,zi)=>{
-    const rem=z.total-rAlloc(zi);
-    html+=`<div class="hvrow"><div class="hvlab">${cap(z.z)} · ◆${z.total}</div><div class="hvstep">`+
-      z.cols.map(c=>`<button onclick="rAdj(${zi},'${c}',-1)">−</button><span style="color:var(--${c})">◆${z.alloc[c]||0} ${cap(c)}</span><button onclick="rAdj(${zi},'${c}',1)">+</button>`).join(' ')+
-      `<span style="opacity:.7">◆${rem} generic</span></div></div>`;
-  });
-  html+=`<div class="pacts" style="margin-top:10px"><button class="flip" onclick="rConfirm()">Collect</button></div>`;
-  box.innerHTML=html;
-}
-window.rConfirm=function(){
-  const parts=[];
-  hvR.forEach((z,zi)=>{
-    z.cols.forEach(c=>{ const n=z.alloc[c]||0; if(n>0){ G.P.you.cmana[c]=Math.min(99,G.P.you.cmana[c]+n); parts.push(`◆${n} ${cap(c)}`);} });
-    const rem=z.total-rAlloc(zi); if(rem>0){ G.P.you.mana+=rem; parts.push(`◆${rem} generic`); }
-  });
-  log(`<span class="y">Harvest: ${parts.join(', ')||'nothing'} (total ◆${manaTotal('you')}).</span>`,'y');
-  hvR=null; $('harvestPanel').style.display='none'; if(G.phase==='draw')drawHint(); else defaultHint(); render();
-};
-window.hvCancel=function(){ if(hvR)return; $('harvestPanel').style.display='none'; }; // the ratio panel must resolve via Collect
+window.hvCancel=function(){ $('harvestPanel').style.display='none'; };
 // ----- AI upkeep: rebalance by moving, then PAY the rest (mana persists), sacrificing only when broke -----
 const MOVE_ADJ={back:['front'],front:['back','center'],center:['front'],raid:['center']}; // zone graph ('raid' = the enemy front)
 function aiMoveCreature(owner,fromZ,i,toZ){
@@ -3485,20 +3433,14 @@ async function foeTurn(){
   // fuel charges (front line + contested center)
   for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','foeFront',i);}}
   for(let i=0;i<SLOTS;i++){const ch=G.center[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','center',i);}}
-  // AUTOMATIC harvest — every settled worker extracts ◆1 (same in every row); mana persists
-  const aiExtractType=(w)=>{
-    const opts=extractColors('foe',w);
-    if(!opts.length)return CCS[F.cc].colors[0]; // no generic — default to the homeland's primary colour
-    for(const card of F.hand){ if(colorNeed(card)&&F.cmana[card.color]<1&&opts.includes(card.color))return card.color; }
-    return opts[0];
-  };
+  // AUTOMATIC harvest — every settled worker extracts ◆1 (same in every row) into the generic pool; mana persists
   for(const w of ['back','front','center']){
     const ups=F.min[w].filter(c=>!c.sick&&!c.tapped);
     if(!ups.length)continue;
-    const total=ups.length*minYield(w); const ty=aiExtractType(w);
+    const total=ups.length*minYield(w);
     ups.forEach(c=>c.tapped=true);
     log(`<span class="e">Enemy workers harvest ◆${total} from ${w==='center'?'the center':('the '+w)}.</span>`,'e');
-    applyRes(total,'foe',null,ty); render();
+    applyRes(total,'foe',null); render();
   }
   cleanup();
   // build a structure sometimes
