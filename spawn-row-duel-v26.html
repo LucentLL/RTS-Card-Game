@@ -787,6 +787,36 @@
   @keyframes fxring{0%{opacity:1;transform:scale(.32);}100%{opacity:0;transform:scale(1.65);}}
   .fx-spark{position:absolute;width:5px;height:5px;border-radius:50%;z-index:61;box-shadow:0 0 6px currentColor;animation:fxspark .62s ease-out forwards;}
   @keyframes fxspark{0%{opacity:1;transform:translate(0,0) scale(1);}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.25);}}
+  /* ===== ELEMFX: elemental impacts — 5 generic motion classes driven by CSS vars ===== */
+  .efx-p{position:absolute;z-index:61;pointer-events:none;will-change:transform;mix-blend-mode:screen;
+    animation:efxmove var(--dur,.6s) cubic-bezier(.2,.7,.4,1) forwards;}
+  .efx-p svg{display:block;}
+  @keyframes efxmove{0%{opacity:1;transform:translate(0,0) rotate(0) scale(1);}
+    100%{opacity:0;transform:translate(var(--dx,0px),var(--dy,0px)) rotate(var(--rot,0deg)) scale(var(--psc,.4));}}
+  .efx-p.grav{animation-name:efxgrav;animation-timing-function:cubic-bezier(.3,.6,.6,1);}
+  @keyframes efxgrav{0%{opacity:1;transform:translate(0,0) rotate(0) scale(1);}
+    46%{opacity:1;transform:translate(var(--dx,0px),var(--dy,-30px)) rotate(var(--rot,0deg)) scale(.9);}
+    100%{opacity:0;transform:translate(calc(var(--dx,0px)*1.3),calc(var(--dy,-30px) + var(--fall,64px))) rotate(var(--rot,0deg)) scale(.5);}}
+  .efx-p.in{animation-name:efxin;animation-timing-function:cubic-bezier(.5,0,.8,.4);}
+  @keyframes efxin{0%{opacity:0;transform:translate(var(--dx,0px),var(--dy,0px)) scale(1);}
+    25%{opacity:1;}100%{opacity:0;transform:translate(0,0) rotate(var(--rot,0deg)) scale(.25);}}
+  .efx-p.sway{animation-name:efxsway;animation-timing-function:ease-in-out;}
+  @keyframes efxsway{0%{opacity:1;transform:translate(0,0) rotate(0);}
+    35%{transform:translate(calc(var(--dx,0px)*.7),calc(var(--dy,40px)*.35)) rotate(var(--rot,50deg));}
+    65%{opacity:.9;transform:translate(calc(var(--dx,0px)*.25),calc(var(--dy,40px)*.7)) rotate(calc(var(--rot,50deg)*-.6));}
+    100%{opacity:0;transform:translate(var(--dx,0px),var(--dy,40px)) rotate(var(--rot,50deg));}}
+  .efx-ray{position:absolute;z-index:61;pointer-events:none;mix-blend-mode:screen;transform-origin:left center;
+    height:2px;background:linear-gradient(90deg,currentColor,transparent);will-change:transform;
+    animation:efxray var(--dur,.5s) ease-out forwards;}
+  @keyframes efxray{0%{opacity:0;transform:rotate(var(--rot,0deg)) scaleX(.2);}
+    30%{opacity:1;}100%{opacity:0;transform:rotate(var(--rot,0deg)) scaleX(1);}}
+  .efx-shot{position:absolute;z-index:62;pointer-events:none;will-change:transform;}
+  .efx-bolt{fill:none;stroke:var(--bc,#f2cf3b);stroke-width:3;stroke-linejoin:miter;
+    filter:drop-shadow(0 0 6px rgba(242,207,59,.9));animation:efxbolt .3s steps(3,end) forwards;}
+  @keyframes efxbolt{0%{opacity:0;}15%{opacity:1;}55%{opacity:.4;}70%{opacity:.95;}100%{opacity:0;}}
+  .efx-whip{fill:none;stroke:#4fae5e;stroke-width:3;stroke-linecap:round;stroke-dasharray:120 200;
+    animation:efxwhip .38s ease-out forwards;}
+  @keyframes efxwhip{0%{stroke-dashoffset:120;opacity:1;}70%{opacity:1;}100%{stroke-dashoffset:0;opacity:0;}}
   .fx-shake{animation:fxshake .3s linear;}
   @keyframes fxshake{0%,100%{transform:translate(0,0);}20%{transform:translate(-4px,2px);}40%{transform:translate(4px,-2px);}60%{transform:translate(-3px,-2px);}80%{transform:translate(3px,1px);}}
   #hurtVig{position:fixed;inset:0;pointer-events:none;z-index:58;opacity:0;
@@ -901,7 +931,7 @@
     text-shadow:0 0 28px rgba(217,176,74,.5),0 2px 4px #000;animation:pulse 3.2s ease-in-out infinite;}
   .fxtitle .t2{font-style:italic;color:var(--ink-dim);font-size:12.5px;margin-top:4px;letter-spacing:.04em;}
   @media (prefers-reduced-motion: reduce){
-    .fx-fly,.fx-slash,.fx-ring,.fx-spark,.fx-conf{display:none;}
+    .fx-fly,.fx-slash,.fx-ring,.fx-spark,.fx-conf,.efx-p,.efx-ray,.efx-shot,.efx-bolt,.efx-whip{display:none;}
     .fx-shake,#hurtVig.on,#turnRibbon.on,#splashFx .spbox{animation:none;}
     #turnRibbon.on{opacity:1;transition:opacity .2s;}
     .mmrays,.mmring{animation:none;}
@@ -1228,6 +1258,49 @@
   .card.vil{padding:3px;justify-content:space-between;}
   .card.ccx{padding:3px 3px 12px;} /* room for the absolute COMMAND ribbon */
   .card.vil .nm{background:none;border-bottom:none;} /* worker tokens keep their plain token look */
+  /* ===== CARD SLEEVES — one procedural back for every face-down surface ================
+     Parameterized by --sleeve (owner's element tint): foe hand backs + face-down set cards
+     read --foeelem / --youelem; the wall deck piles keep resolving their existing --welem.
+     Recipe = the deck pile's shipped look (emblem halo + diagonal weave + tinted body +
+     double border), so the three surfaces now match. This block is LAST in the sheet on
+     purpose — it out-cascades the older per-surface backgrounds without touching them. */
+  .foehand .fb{--sleeve:var(--foeelem,#7aa0c8);}
+  .wzfull.deckpile .wzlayer.top{--sleeve:var(--welem,#7aa0c8);}
+  .card.charge,.facedown{--sleeve:var(--foeelem,#9a5cc6);}
+  .card.charge.mine{--sleeve:var(--youelem,#d9b04a);}
+  .foehand .fb,.wzfull.deckpile .wzlayer.top,.card.charge,.facedown{
+    background:
+      radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--sleeve) 30%,transparent) 0 15%, transparent 16%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,.045) 0 2px, transparent 2px 7px),
+      linear-gradient(160deg, color-mix(in srgb,var(--sleeve) 22%,#131c2e), #0a0f1c 75%);}
+  /* double border = tinted line + black gutter; outer drop shadows differ per surface */
+  .foehand .fb{border-color:color-mix(in srgb,var(--sleeve) 45%,#2c3448);
+    box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.55),
+               inset 0 0 0 2px color-mix(in srgb,var(--sleeve) 26%,#1a2030);}
+  .foehand .fb::after{content:"❖";display:flex;align-items:center;justify-content:center;
+    background:none;border-color:color-mix(in srgb,var(--sleeve) 30%,transparent);
+    font-size:clamp(10px,1.7vw,19px);line-height:1;color:var(--sleeve);opacity:.55;text-shadow:0 1px 2px #000;}
+  .card.charge,.facedown{border:1px solid color-mix(in srgb,var(--sleeve) 50%,#0a090d);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),
+               inset 0 0 0 2px color-mix(in srgb,var(--sleeve) 28%,#141826),
+               inset 0 0 14px color-mix(in srgb,var(--sleeve) 22%,transparent);}
+  .card.charge .q{color:color-mix(in srgb,var(--sleeve) 55%,#efe8f4);
+    text-shadow:0 1px 2px #000,0 0 10px color-mix(in srgb,var(--sleeve) 55%,transparent);}
+  .card.charge .inv{color:#e6e0ee;}
+  .card.charge.trap .q{color:#f0b89a;}   /* traps keep their armed-⚠ read */
+  .card.charge.trap .inv{color:#e6b09a;}
+  .facedown .rune{color:var(--sleeve);text-shadow:0 0 12px var(--sleeve);}
+  /* ---- IMAGE SLEEVE: assets/sleeves/cardback.(png|webp) — html.sleeve-img + --sleeve-back-url
+     are flipped on by probeSleeves() when the file exists; the procedural pattern turns off. */
+  html.sleeve-img .foehand .fb,html.sleeve-img .wzfull.deckpile .wzlayer.top,
+  html.sleeve-img .card.charge,html.sleeve-img .facedown{
+    background:var(--sleeve-back-url) center/cover no-repeat #0a0f1c;}
+  html.sleeve-img .foehand .fb{box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.6);}
+  html.sleeve-img .card.charge,html.sleeve-img .facedown{box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);}
+  html.sleeve-img .foehand .fb::after{content:"";display:none;}
+  html.sleeve-img .wzfull.deckpile .wzlayer.top::after{display:none;}
+  html.sleeve-img .card.charge .q,html.sleeve-img .card.charge .inv,
+  html.sleeve-img .facedown .rune{text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.9);} /* readable over any art */
 </style>
 </head>
 <body>
@@ -1717,6 +1790,60 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   COLORS.forEach(function(el){ add(forgeDef(el)); add(grandForgeDef(el)); });
   Object.keys(CCS).forEach(function(id){ if(CC_ART[id]) w.PLACEHOLDERS[CCS[id].name] = CC_ART[id]; });
   w.PLACEHOLDERS['Worker'] = ART.villager;
+})(window);
+
+/* ===== SLEEVES & FRAMES — optional image skins (assets/sleeves/) ======================
+   probeSleeves() tests for user-supplied art with Image() (no fetch, silent when files
+   are absent) and flips <html> classes + CSS vars once per session:
+     assets/sleeves/cardback.(png|webp)        -> html.sleeve-img        + --sleeve-back-url
+     assets/sleeves/frame_<element>.(png|webp) -> html.frame-img-<el>    + --frame-<el>-url
+   Cards re-render constantly, so all swapping is CSS-driven — no inline styles on cards.
+   The per-element frame rules are injected here (precedent: injectCampaignCSS). */
+(function(w){
+  var DIR='assets/sleeves/', EXTS=['png','webp'];               // probed in this order
+  var FRAME_ELS=Object.keys(ELEMENTS).concat(['neutral']);      // 9 elements + neutral chrome
+  function probe(base,ok){                                      // walk extensions; silent on miss
+    var i=0;
+    (function next(){
+      if(i>=EXTS.length) return;
+      var url=DIR+base+'.'+EXTS[i++], im=new Image();
+      im.onload=function(){ ok(url); };
+      im.onerror=next;
+      im.src=url;
+    })();
+  }
+  var probedOnce=false;
+  w.probeSleeves=function(){                                    // memoized; add files -> reload page
+    if(probedOnce) return; probedOnce=true;
+    var root=document.documentElement;
+    probe('cardback',function(url){
+      root.style.setProperty('--sleeve-back-url','url("'+url+'")');
+      root.classList.add('sleeve-img');
+    });
+    FRAME_ELS.forEach(function(el){
+      probe('frame_'+el,function(url){
+        root.style.setProperty('--frame-'+el+'-url','url("'+url+'")');
+        root.classList.add('frame-img-'+el);
+      });
+    });
+  };
+  /* frame art draws full-bleed UNDER the card chrome: the procedural body gradient turns
+     off, while the name plate / type ribbon / stats bar / --ec rings render on top. */
+  var UNDERLAY='linear-gradient(165deg,#1a1a22,#0c0c12)';       // base under transparent frames
+  var css=Object.keys(ELEMENTS).map(function(el){
+    var sel='html.frame-img-'+el+' .hc.'+el+'-c,html.frame-img-'+el+' .card.'+el+'-c';
+    if(el==='fire')  sel+=',html.frame-img-fire .hc.ember-c,html.frame-img-fire .card.ember-c'; // legacy alias
+    if(el==='water') sel+=',html.frame-img-water .hc.tide-c,html.frame-img-water .card.tide-c'; // legacy alias
+    return sel+'{background:var(--frame-'+el+'-url) center/100% 100% no-repeat,'+UNDERLAY+';}';
+  }).join('\n')
+  /* neutral = element-agnostic chrome: hand structures (.hcb) + spells (.hcs), placed
+     structures (.bld) and worker tokens (.vil). The command center (.ccx) keeps its gold frame. */
+  +'\nhtml.frame-img-neutral .hc.hcb,html.frame-img-neutral .hc.hcs,'
+  +'html.frame-img-neutral .card.bld:not(.ccx),html.frame-img-neutral .card.vil'
+  +'{background:var(--frame-neutral-url) center/100% 100% no-repeat,'+UNDERLAY+';}';
+  var s=document.createElement('style'); s.id='sleeveFrameCSS'; s.textContent=css;
+  document.head.appendChild(s);
+  w.probeSleeves();
 })(window);
 
 const G={
@@ -4326,6 +4453,158 @@ const FX=(()=>{
   return {flyRect,pop,slash,ring,burstRect,shake,hurt,ribbon,arrow,aimArrow,clearAim,splash,confetti,flash,trail};
 })();
 
+/* ---------- ELEMFX: elemental impact FX — element-tinted bursts + attack projectiles ---------- */
+const ELEMFX=(()=>{
+  const RM=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||false;
+  const layer=document.getElementById('fxLayer'); const svg=layer&&layer.querySelector('svg');
+  const NS='http://www.w3.org/2000/svg';
+  const ctr=r=>({x:r.left+r.width/2,y:r.top+r.height/2});
+  const col=k=>(ELEMENTS[k]&&ELEMENTS[k].color)||'#ffd98a';
+  const acc=k=>(ELEMENTS[k]&&ELEMENTS[k].accent)||'#fff3c4';
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  // one particle: a tiny inline-SVG shape ridden by the generic .efx-p motion classes
+  function part(x,y,html,vars,cls='',life=700){
+    if(!layer)return;
+    const d=document.createElement('div'); d.className='efx-p'+(cls?' '+cls:''); d.innerHTML=html;
+    d.style.left=x+'px'; d.style.top=y+'px';
+    for(const k in vars)d.style.setProperty(k,vars[k]);
+    layer.appendChild(d); setTimeout(()=>d.remove(),life);
+  }
+  function ray(x,y,w,color,rot,dur){
+    if(!layer)return;
+    const d=document.createElement('div'); d.className='efx-ray';
+    d.style.left=x+'px'; d.style.top=y+'px'; d.style.width=w+'px'; d.style.color=color;
+    d.style.setProperty('--rot',rot+'deg'); d.style.setProperty('--dur',dur+'s');
+    layer.appendChild(d); setTimeout(()=>d.remove(),dur*1000+140);
+  }
+  // a jagged lightning path in the shared fx svg
+  function bolt(x0,y0,x1,y1,c){
+    if(!svg)return;
+    const p=document.createElementNS(NS,'path'); let d=`M ${x0} ${y0}`;
+    for(let i=1;i<5;i++){ const t=i/5; d+=` L ${(x0+(x1-x0)*t+rnd(-9,9)).toFixed(1)} ${(y0+(y1-y0)*t+rnd(-6,6)).toFixed(1)}`; }
+    d+=` L ${x1} ${y1}`;
+    p.setAttribute('d',d); p.setAttribute('class','efx-bolt'); if(c)p.style.stroke=c;
+    svg.appendChild(p); setTimeout(()=>p.remove(),340);
+  }
+  function whip(cx,cy){ // forest thorn-lash
+    if(!svg)return;
+    const p=document.createElementNS(NS,'path');
+    p.setAttribute('d',`M ${cx-38} ${cy+26} Q ${cx-14} ${cy-34} ${cx+30} ${cy-6} Q ${cx+40} ${cy+2} ${cx+34} ${cy+12}`);
+    p.setAttribute('class','efx-whip'); svg.appendChild(p); setTimeout(()=>p.remove(),420);
+  }
+  /* per-element particle shapes — each well under 300 bytes */
+  const S={
+    tear:(c,a)=>`<svg width="9" height="13" viewBox="0 0 9 13"><path d="M4.5 0C6.4 4.6 9 6.2 9 9a4.5 4 0 1 1-9 0C0 6.2 2.6 4.6 4.5 0Z" fill="${c}"/><path d="M4.5 3.4C5.6 6 7 7 7 9a2.5 2.2 0 1 1-5 0c0-2 1.4-3 2.5-5.6Z" fill="${a}"/></svg>`,
+    plume:(c,a)=>`<svg width="26" height="38" viewBox="0 0 26 38"><path d="M13 0C21 12 26 18 26 27a13 11 0 1 1-26 0C0 18 5 12 13 0Z" fill="${c}"/><path d="M13 9c5 8 8 12 8 18a8 7 0 1 1-16 0c0-6 3-10 8-18Z" fill="${a}"/></svg>`,
+    drop:c=>`<svg width="7" height="10" viewBox="0 0 7 10"><path d="M3.5 0C5 3.4 7 4.8 7 6.8a3.5 3.2 0 1 1-7 0C0 4.8 2 3.4 3.5 0Z" fill="${c}"/></svg>`,
+    puffEl:c=>`<svg width="58" height="16" viewBox="0 0 58 16"><ellipse cx="29" cy="8" rx="28" ry="7" fill="${c}" opacity=".55"/></svg>`,
+    shard:c=>`<svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,0 10,4 7,10 1,8 0,3" fill="${c}"/><polygon points="5,2 8,4.5 6.4,8 2.6,6.6" fill="#0006"/></svg>`,
+    cres:c=>`<svg width="26" height="26" viewBox="0 0 26 26"><path d="M2 13A11 11 0 0 1 24 8 9 9 0 1 0 22 20 11 11 0 0 1 2 13Z" fill="${c}"/></svg>`,
+    streak:c=>`<svg width="16" height="3" viewBox="0 0 16 3"><rect width="16" height="3" rx="1.5" fill="${c}"/></svg>`,
+    leaf:c=>`<svg width="10" height="12" viewBox="0 0 10 12"><path d="M5 0C9 3 10 8 5 12 0 8 1 3 5 0Z" fill="${c}"/><path d="M5 1.6V10.6" stroke="#0007" stroke-width=".8"/></svg>`,
+    bit:c=>`<svg width="5" height="5" viewBox="0 0 5 5"><rect width="5" height="5" fill="${c}"/></svg>`,
+    mote:c=>`<svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${c}"/></svg>`,
+  };
+  /* the signature impact at a defender cell — tinted core + ≤12 particles + one signature piece */
+  function elemBurst(rect,el,big){
+    if(RM||!rect)return;
+    if(!el||!ELEMENTS[el]){ FX.burstRect(rect,'#ffd98a',big?14:10); return; }   // neutral fallback
+    const c=ctr(rect), m=big?1.5:1, K=col(el), A=acc(el);
+    if(el!=='divine')FX.flash(rect,K,big?130:88);                               // tinted core flash
+    switch(el){
+      case 'fire':      // teardrop flames rise + a central plume
+        for(let i=0;i<9;i++) part(c.x+rnd(-16,16)*m,c.y+rnd(-4,8),S.tear(K,A),
+          {'--dx':rnd(-14,14)+'px','--dy':(-rnd(28,66)*m)+'px','--rot':rnd(-40,40)+'deg','--dur':rnd(.5,.72)+'s'},'',860);
+        part(c.x-13*m,c.y-10,S.plume(K,A),{'--dy':(-30*m)+'px','--dur':'.5s','--psc':'1.25'},'',640);
+        break;
+      case 'water':     // droplets arc out then FALL + splash ellipse
+        for(let i=0;i<10;i++){ const dx=rnd(14,40)*m*(i%2?1:-1);
+          part(c.x-3,c.y-4,S.drop(K),{'--dx':dx+'px','--dy':(-rnd(18,42)*m)+'px','--fall':(rnd(46,70)*m)+'px',
+            '--rot':rnd(-30,30)+'deg','--dur':rnd(.55,.75)+'s'},'grav',900); }
+        part(c.x-29,c.y+rect.height*.28,S.puffEl(A),{'--dy':'-4px','--dur':'.45s','--psc':'1.6'},'',580);
+        break;
+      case 'earth':     // tumbling shards under gravity + dust puff
+        for(let i=0;i<9;i++){ const dx=rnd(12,38)*m*(i%2?1:-1);
+          part(c.x-5,c.y-5,S.shard(K),{'--dx':dx+'px','--dy':(-rnd(14,40)*m)+'px','--fall':(rnd(50,78)*m)+'px',
+            '--rot':rnd(-260,260)+'deg','--dur':rnd(.55,.8)+'s'},'grav',940); }
+        FX.flash(rect,'#8a6b42',big?150:110);
+        break;
+      case 'wind':      // spinning crescents + thin streaks
+        for(let i=0;i<3;i++){ const a2=rnd(0,Math.PI*2);
+          part(c.x-13,c.y-13,S.cres(A),{'--dx':Math.cos(a2)*46*m+'px','--dy':Math.sin(a2)*30*m+'px',
+            '--rot':(300+i*40)+'deg','--dur':'.5s','--psc':'.7'},'',620); }
+        for(let i=0;i<8;i++){ const a2=rnd(0,Math.PI*2),v=rnd(30,58)*m;
+          part(c.x-8,c.y-1,S.streak(K),{'--dx':Math.cos(a2)*v+'px','--dy':Math.sin(a2)*v*.5+'px',
+            '--rot':(a2*57.3).toFixed(0)+'deg','--dur':'.36s'},'',480); }
+        break;
+      case 'forest':    // sway-fall leaves + thorn whip
+        for(let i=0;i<9;i++) part(c.x+rnd(-20,20),c.y+rnd(-14,0),S.leaf(i%3?K:A),
+          {'--dx':rnd(-30,30)*m+'px','--dy':rnd(30,56)*m+'px','--rot':rnd(40,90)+'deg','--dur':rnd(.7,.95)+'s'},'sway',1080);
+        whip(c.x,c.y);
+        break;
+      case 'electric':  // bolt STRIKES DOWN onto the cell + square sparks
+        bolt(c.x+rnd(-14,14),c.y-(big?110:78),c.x,c.y,K);
+        for(let i=0;i<10;i++){ const a2=rnd(0,Math.PI*2),v=rnd(20,52)*m;
+          part(c.x-2,c.y-2,S.bit(i%2?K:A),{'--dx':Math.cos(a2)*v+'px','--dy':Math.sin(a2)*v+'px',
+            '--rot':rnd(-90,90)+'deg','--dur':'.32s'},'',440); }
+        break;
+      case 'light':     // ray starburst + rising motes
+        for(let i=0;i<8;i++)ray(c.x,c.y,46*m,i%2?A:K,i*45+rnd(-8,8),.5);
+        for(let i=0;i<5;i++) part(c.x+rnd(-18,18),c.y+rnd(-6,6),S.mote(A),
+          {'--dx':rnd(-8,8)+'px','--dy':(-rnd(26,48)*m)+'px','--dur':rnd(.7,.9)+'s'},'',1020);
+        break;
+      case 'dark':      // IMPLOSION — motes converge, then a violet void ring
+        for(let i=0;i<10;i++){ const a2=(i/10)*Math.PI*2,v=rnd(30,54)*m;
+          part(c.x-3,c.y-3,S.mote(i%2?K:'#3a2050'),{'--dx':Math.cos(a2)*v+'px','--dy':Math.sin(a2)*v+'px',
+            '--rot':'160deg','--dur':'.42s'},'in',560); }
+        setTimeout(()=>{ if(!layer)return; const g=document.createElement('div'); g.className='fx-ring';
+          g.style.left=(c.x-31)+'px'; g.style.top=(c.y-31)+'px'; g.style.borderColor=K;
+          g.style.boxShadow=`0 0 18px ${K}88, inset 0 0 10px ${K}55`;
+          layer.appendChild(g); setTimeout(()=>g.remove(),640); },170);
+        break;
+      case 'divine':    // oversized white flood + gold/white rays
+        FX.flash(rect,'#ffffff',big?170:150);
+        for(let i=0;i<10;i++)ray(c.x,c.y,(big?86:68),i%2?'#ffffff':'#ffd98a',i*36+rnd(-6,6),.6);
+        for(let i=0;i<4;i++) part(c.x+rnd(-16,16),c.y,S.mote('#fff'),
+          {'--dx':rnd(-10,10)+'px','--dy':-rnd(30,56)+'px','--dur':'.85s'},'',980);
+        break;
+    }
+  }
+  /* element-tinted comet attacker→defender (electric: instant jagged bolt instead) */
+  function elemShot(fromRect,toRect,el,ms=260){
+    if(RM||!fromRect||!toRect||!layer)return;
+    if(el&&!ELEMENTS[el])el=null;
+    const a=ctr(fromRect),b=ctr(toRect);
+    if(el==='electric'){ bolt(a.x,a.y,b.x,b.y,col('electric')); return; }
+    const K=el?col(el):'#ffd98a', A=el?acc(el):'#fff3c4';
+    const ang=(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI).toFixed(1);
+    const d=document.createElement('div'); d.className='efx-shot';
+    d.innerHTML=`<svg width="34" height="12" viewBox="0 0 34 12"><path d="M34 6 8 11C3 11 0 8.8 0 6s3-5 8-5Z" fill="${K}" opacity=".5"/><circle cx="27" cy="6" r="5" fill="${K}"/><circle cx="28.5" cy="6" r="2.6" fill="${A}"/></svg>`;
+    d.style.left=(a.x-27)+'px'; d.style.top=(a.y-6)+'px';
+    d.style.transform=`rotate(${ang}deg)`;
+    d.style.transition=`transform ${ms}ms cubic-bezier(.45,0,.7,1),opacity ${ms}ms`;
+    layer.appendChild(d);
+    requestAnimationFrame(()=>{ d.style.transform=`translate(${b.x-a.x}px,${b.y-a.y}px) rotate(${ang}deg)`; d.style.opacity='.25'; });
+    setTimeout(()=>d.remove(),ms+80);
+    [.35,.65].forEach(t=>setTimeout(()=>part(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,S.mote(K),
+      {'--dx':rnd(-6,6)+'px','--dy':rnd(-10,4)+'px','--dur':'.4s'},'',520),ms*t));      // 2 trail embers
+  }
+  /* trap snap — dark/red jaws converge + red ring */
+  function trapSnap(rect){
+    if(RM||!rect||!layer)return;
+    const c=ctr(rect);
+    FX.flash(rect,'#e35b4f',80);
+    for(let i=0;i<10;i++){ const a2=(i/10)*Math.PI*2,v=rnd(28,48);
+      part(c.x-3,c.y-3,S.mote(i%2?'#9a5cc6':'#e35b4f'),{'--dx':Math.cos(a2)*v+'px','--dy':Math.sin(a2)*v+'px',
+        '--rot':'120deg','--dur':'.38s'},'in',520); }
+    setTimeout(()=>{ const g=document.createElement('div'); g.className='fx-ring';
+      g.style.left=(c.x-31)+'px'; g.style.top=(c.y-31)+'px'; g.style.borderColor='#e35b4f';
+      g.style.boxShadow='0 0 18px rgba(227,91,79,.75), inset 0 0 10px rgba(227,91,79,.4)';
+      layer.appendChild(g); setTimeout(()=>g.remove(),640); },140);
+  }
+  return {elemBurst,elemShot,trapSnap};
+})();
+
 /* DOM cell for a live unit object — board slots first, then minion pill strips */
 const FX_STRIP={foeBack:'wellFoeBack',foeFront:'wellFoeFront',center:'wellCenter',youFront:'wellYouFront',youBack:'wellYouBack'};
 // the nth board CELL of a row element — skips the worker-slot(s) so the index lines up with the column
@@ -4366,7 +4645,8 @@ function showBattle(A,B){
   clearTimeout(showBattle._t); showBattle._t=setTimeout(()=>{ ov.classList.remove('show'); },1100);
 }
 // clash flash + sound + battle cut-in at the defender's cell
-function clashFx(A,B){ try{ showBattle(A,B); SFX.clash(); FX.shake(); const b0=B&&B[0]&&cellElFor(B[0]); if(b0)FX.slash(fxRect(b0)); }catch(e){} }
+function clashFx(A,B){ try{ showBattle(A,B); SFX.clash(); FX.shake(); const b0=B&&B[0]&&cellElFor(B[0]);
+  if(b0){ const r=fxRect(b0); FX.slash(r); ELEMFX.elemBurst(r, A&&A[0]&&A[0].color); } }catch(e){} }
 const _resolveCombat=resolveCombat;
 resolveCombat=function(A,B){ clashFx(A,B); _resolveCombat(A,B);
   // a defender that survives the clash rings out a parry — the "block" beat
@@ -4378,38 +4658,46 @@ toGrave=function(owner,obj){
   try{ if(obj){ const r=fxRect(cellElFor(obj));
     if(obj.kind==='building'){ SFX.raze(); FX.burstRect(r,'#cfcfe0',14); FX.shake(); }
     else if(obj.kind==='charge'){ SFX.trap(); FX.burstRect(r,'#9ad0e8'); }
-    else if(obj.kind==='creature'){ FX.burstRect(r, obj.worker?'#e6cf86':'#ff9a8a'); }
+    else if(obj.kind==='creature'){ const dc=(obj.color&&ELEMENTS[obj.color]&&ELEMENTS[obj.color].color)||'#ff9a8a';
+      FX.burstRect(r, obj.worker?'#e6cf86':dc); }
   }}catch(e){}
   _toGrave(owner,obj);
 };
 // player strikes: wind-up lunge + arrow, then the untouched resolution
 let _atkBusy=false;
-function fxLunge(srcEls,tEl,after){
+function fxLunge(srcEls,tEl,after,elKey){
   const tr=fxRect(tEl);
   if(!tr||!srcEls.length){ after(); return; }
   _atkBusy=true;
   srcEls.forEach((el,i)=>setTimeout(()=>FX.flyRect(fxRect(el),tr,el.innerHTML,260),i*70));
   FX.arrow(fxRect(srcEls[0]),tr); FX.clearAim(); SFX.swing();
+  try{ ELEMFX.elemShot(fxRect(srcEls[0]),tr,elKey,240); }catch(e){}
   setTimeout(()=>{ _atkBusy=false; after(); },280);
 }
 const fxAtkSrcs=()=>G.atk.map(s=>rowCellEl($(s.k),s.i)).filter(Boolean);
+const fxAtkEl=()=>{ try{ const s=G.atk&&G.atk[0]; const u=s&&rowArr(s.k)[s.i]; return (u&&u.color)||null; }catch(e){ return null; } };
 const _doAttack=doAttack;
 doAttack=function(tgtKey,ti){
   if(_atkBusy)return;
   const row=$(tgtKey); const tEl=rowCellEl(row,ti);
-  fxLunge(fxAtkSrcs(),tEl,()=>_doAttack(tgtKey,ti));
+  fxLunge(fxAtkSrcs(),tEl,()=>_doAttack(tgtKey,ti),fxAtkEl());
 };
 const _attackBackRow=attackBackRow;
 attackBackRow=function(defOwner,col){
   if(_atkBusy)return;
   const row=$(defOwner==='foe'?'foeBack':'youBack'); const tEl=rowCellEl(row,col);
-  fxLunge(fxAtkSrcs(),tEl,()=>_attackBackRow(defOwner,col));
+  const elKey=fxAtkEl();
+  fxLunge(fxAtkSrcs(),tEl,()=>{
+    const tr=fxRect(tEl), l0=G.P[defOwner].life;
+    _attackBackRow(defOwner,col);
+    if(G.P[defOwner].life<l0){ try{ ELEMFX.elemBurst(tr,elKey,true); FX.shake(); }catch(e){} }   // base breach — heavy
+  },elKey);
 };
 const _attackMinionStack=attackMinionStack;
 attackMinionStack=function(key,owner,which){
   if(_atkBusy)return;
   const wellId=FX_STRIP[key]||key; const s=$(wellId); const tEl=(s&&s.firstElementChild)||s;
-  fxLunge(fxAtkSrcs(),tEl,()=>_attackMinionStack(key,owner,which));
+  fxLunge(fxAtkSrcs(),tEl,()=>_attackMinionStack(key,owner,which),fxAtkEl());
 };
 // deploys: card flies from hand to the slot
 const _place=place;
@@ -4441,14 +4729,13 @@ flip=function(owner,key,slot){
 // spells, traps, powers
 const _castSpell=castSpell;
 castSpell=function(idx,key,i){
-  const row=$(key); const tr=fxRect(rowCellEl(row,i));
   const n0=G.P.you.hand.length;
   _castSpell(idx,key,i);
-  if(G.P.you.hand.length<n0){ SFX.spell(); FX.slash(tr); FX.burstRect(tr,'#c9a0ff'); }
+  if(G.P.you.hand.length<n0)SFX.spell();   // themed visuals fire in the resolveSpell wrapper
 };
 const _springTrap=springTrap;
 springTrap=function(defOwner,key,slot,attackers){
-  try{ const row=$(key); FX.burstRect(fxRect(rowCellEl(row,slot)),'#f0b89a',12); SFX.trap(); }catch(e){}
+  try{ const row=$(key); ELEMFX.trapSnap(fxRect(rowCellEl(row,slot))); SFX.trap(); }catch(e){}
   _springTrap(defOwner,key,slot,attackers);
 };
 // moves — the biggest gap: slide sound + fly + afterimage trail (player tap/drag AND AI reposition)
@@ -4496,8 +4783,24 @@ aiBuild=function(owner){
 // AI spell FX — the player's castSpell wrapper covers you; resolveSpell fires the AI's (guarded by whose turn it is)
 const _resolveSpell=resolveSpell;
 resolveSpell=function(card,key,i){
+  let tr=null, chainT=[];   // capture target rects BEFORE resolution — cleanup() re-renders the rows
+  try{ tr=fxRect(rowCellEl($(key),i));
+    if(card&&card.effect==='chain'){ const o=rowArr(key)[i]; if(o&&o.kind==='creature'&&!o.worker)
+      chainT=liveEnemyCreatures(enemyOf(o.owner)).sort((a,b)=>(b.a-a.a)||(a.h-b.h)).slice(0,2)
+        .map(t=>fxRect(cellElFor(t))).filter(Boolean); }
+  }catch(e){}
   const r=_resolveSpell(card,key,i);
-  if(G.turn==='foe'){ try{ const rr=fxRect(rowCellEl($(key),i)); SFX.spell(); FX.slash(rr); FX.burstRect(rr,'#c9a0ff'); }catch(e){} }
+  if(r){ try{
+    if(G.turn==='foe')SFX.spell();
+    const eff=(card&&card.effect)||'', ec=card&&card.color;
+    if(eff==='burn'&&tr){                       // fire comet in from the caster's side, then flame burst
+      const from={left:tr.left,top:tr.top+(G.turn==='you'?170:-170),width:tr.width,height:tr.height};
+      ELEMFX.elemShot(from,tr,ec||'fire',200); setTimeout(()=>ELEMFX.elemBurst(tr,ec||'fire'),200); }
+    else if(eff==='raze'&&tr){ ELEMFX.elemBurst(tr,ec||'earth',true); FX.shake(); }
+    else if(eff==='chain'){ (chainT.length?chainT:[tr]).forEach((t,n)=>{ if(t)setTimeout(()=>ELEMFX.elemBurst(t,'electric'),n*110); }); }
+    else if(eff==='bounce'&&tr){ ELEMFX.elemBurst(tr,ec||'water'); }
+    else if(tr){ FX.slash(tr); FX.burstRect(tr,'#c9a0ff'); }   // default arcane
+  }catch(e){} }
   return r;
 };
 // player harvest lands mana — echo the AI's applyRes-driven mana beat (doHarvest + worker-tap credit P.mana directly)
