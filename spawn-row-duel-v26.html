@@ -26,6 +26,13 @@
     --forest:#4fae5e; --electric:#f2cf3b; --light:#ece3c0; --dark:#9a5cc6; --divine:#c9d4ec;
     --ember:var(--fire); --tide:var(--water); --verdant:var(--forest); /* legacy aliases */
     --spawn:#52c6ec;
+    /* menu-overhaul tokens */
+    --glass:rgba(19,15,27,.78); --glass-2:rgba(10,8,15,.66);
+    --hairline:rgba(217,176,74,.30); --hairline-dim:rgba(217,176,74,.12);
+    --glow-gold:0 0 18px rgba(217,176,74,.32); --glow-soft:0 12px 34px rgba(0,0,0,.55);
+    --metal:linear-gradient(180deg,#f6e6b2 0%,#d9b04a 40%,#8a6d22 62%,#e9cd7e 100%);
+    --sheen:linear-gradient(105deg,transparent 42%,rgba(255,240,190,.28) 50%,transparent 58%);
+    --ease-pop:cubic-bezier(.22,.9,.3,1); --panel-r:14px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;overflow:hidden;}
@@ -231,7 +238,7 @@
   #foeBack .cell:not(.mineHere):not(.foeHere),#foeFront .cell:not(.mineHere):not(.foeHere){border-color:rgba(82,160,236,.3);}
   #youFront .cell:not(.mineHere):not(.foeHere),#youBack .cell:not(.mineHere):not(.foeHere){border-color:rgba(236,120,60,.3);}
 
-  .cell{position:relative;container-type:size;width:var(--cw);height:var(--ch);flex:none;border-radius:8px;border:1px dashed rgba(255,255,255,.12);background:rgba(0,0,0,.28);
+  .cell{position:relative;container-type:size;width:var(--cw);height:var(--ch);flex:none;border-radius:8px;border:1px dashed rgba(255,255,255,.16);background:rgba(6,4,10,.42);
     display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .12s,border-color .12s;overflow:hidden;}
   .cell.spawncell{border-style:solid;border-color:rgba(82,198,236,.22);background:rgba(82,198,236,.05);}
   .cell.tappable{cursor:pointer;border-color:rgba(217,176,74,.7);box-shadow:0 0 0 1px rgba(217,176,74,.45),0 0 15px rgba(217,176,74,.28);}
@@ -239,7 +246,8 @@
   .cell.tappable:active,.cell.target:active{transform:scale(.95);}
   .cell.selected{border:2px solid var(--gold);box-shadow:0 0 18px rgba(217,176,74,.6);}
 
-  .card{position:absolute;inset:3px;border-radius:5px;padding:5px;display:flex;flex-direction:column;justify-content:space-between;animation:pop .18s ease;}
+  .card{position:absolute;inset:2px;border-radius:6px;padding:0;display:flex;flex-direction:column;animation:pop .18s ease;--ec:#6a6a78;
+    border:1px solid #0a090d;box-shadow:inset 0 0 0 1px var(--ec),inset 0 0 0 2px rgba(0,0,0,.45);}
   @keyframes pop{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
   /* the opponent's cards face the opponent — rotated 180° from the player (Master Duel style).
      Owner-tagged per cell: the middle rows are contested, so either side's cards can stand anywhere. */
@@ -257,10 +265,13 @@
   .spritefig.fromart{height:min(104cqh,84cqw);border-radius:9px;box-shadow:0 5px 12px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.14);}
   .spritewrap.bld .spritebob{animation:none;}  /* structures stand still — no idle bob */
   @keyframes spritebob{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-7%);}}
-  .card .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(7px,16cqmin,16px);text-align:center;text-shadow:0 1px 2px #000;line-height:1.06;}
-  .card .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(8px,21cqmin,19px);}
+  .card .nm{flex:none;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(7px,15cqmin,15px);text-align:center;line-height:1.15;padding:1px 3px;
+    text-shadow:0 1px 2px #000;background:linear-gradient(90deg,transparent,rgba(0,0,0,.38) 15%,rgba(0,0,0,.38) 85%,transparent);
+    border-bottom:1px solid var(--ec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card .stats{flex:none;margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:1px;padding:1px 3px 2px;
+    font-family:'Cinzel',serif;font-weight:700;font-size:clamp(8px,19cqmin,18px);white-space:nowrap;}
   .atk{color:#ffd98a;} .hp{color:#ff9a8a;}
-  .crt{border:1px solid #888;}
+  .crt{}  /* border/ring now carried by .card + the --ec scoping block */
   .vil{background:linear-gradient(165deg,#3a3320,#211c10);border:1px solid #b79a4d;box-shadow:inset 0 0 12px rgba(183,154,77,.18);}
   .vil .wk{position:absolute;top:2px;left:3px;font-size:clamp(7px,16cqmin,13px);color:#e6cf86;}
   .vil .nm{color:#e6cf86;}
@@ -307,7 +318,7 @@
   /* command center sits in its row at normal card size, marked by its gold frame + COMMAND tag */
   .cell.cccell .card{animation:none;}
   .cell.cccell .card.ccx{box-shadow:inset 0 0 0 2px var(--gold-deep),0 0 12px rgba(217,176,74,.4);}
-  .hcb{background:linear-gradient(165deg,#2b2b34,#15151c)!important;border:1px solid #8a8a9a!important;}
+  .hcb{background:linear-gradient(165deg,#2b2b34,#15151c);--ec:#8a8a9a;}
   .hcb .eff{color:var(--spawn);}
   #contestPanel .cbtn.vil{color:#e6cf86;}
   .minstrip{display:flex;gap:6px;flex-wrap:nowrap;height:0;overflow:visible;padding:0 2px;align-items:flex-start;justify-content:center;position:relative;z-index:6;}
@@ -348,7 +359,7 @@
   .charge.trap .q{color:#f0b89a;text-shadow:0 0 10px #b8502e;}
   .charge.trap .inv{color:#e6b09a;}
   .charge.trap.mine{border-color:#d9b04a;}
-  .hcs{background:linear-gradient(165deg,#2e1f4e,#160f28)!important;border:1px solid #9a78d8!important;}
+  .hcs{background:linear-gradient(165deg,#2e1f4e,#160f28);--ec:#9a78d8;}
   .hcs .eff{color:#c9a0ff;}
   .spl .eff{color:#c9a0ff;}
   @keyframes gleam{0%,100%{box-shadow:inset 0 0 14px rgba(217,176,74,.22),0 0 6px rgba(217,176,74,.3);}50%{box-shadow:inset 0 0 18px rgba(217,176,74,.5),0 0 18px rgba(217,176,74,.7);}}
@@ -463,11 +474,41 @@
   body:has(.foehand:hover) #hudbarFoe .wallzone, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone, body.foewall-open #hudbarFoe .wallzone{display:flex;}
   .wallzone .wzl{font-family:'Cinzel',serif;letter-spacing:.1em;text-transform:uppercase;font-size:9px;color:#9fb6d6;opacity:.85;}
   .wallzone.grave .wzl{color:#b9b2a0;}
-  .wallzone .wzc{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(16px,2.2vw,26px);color:#dfeaf8;text-shadow:0 1px 3px #000;line-height:1;}
-  .wallzone.grave .wzc{color:#d2d0d8;}
-  .wallzone .wzfull{width:78%;aspect-ratio:.72;margin-top:2px;border-radius:5px;display:none;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.5);}
-  .wallzone .wzfull img{width:100%;height:100%;object-fit:cover;display:block;}
-  .wallzone.deck .wzfull{background:repeating-linear-gradient(135deg,#1d3a55 0 6px,#16314a 6px 12px),#16314a;box-shadow:0 2px 6px rgba(0,0,0,.5),2px 2px 0 -1px #122638,4px 4px 0 -2px #0e1f30;}
+  /* — REAL card piles: one thin layer per card (capped at 10), the count on a badge riding the
+     top card. Element-tinted via --welem (--youelem / --foeelem). Only 1px edge lines per layer. — */
+  .wallzone .wzfull{position:relative;width:78%;aspect-ratio:.72;display:none;--welem:var(--youelem,#caa05a);}
+  #hudbarFoe .wallzone .wzfull{--welem:var(--foeelem,#7aa0c8);}
+  #hudbar .wallzone .wzfull{margin-top:13px;}       /* headroom: the pile rises UP on your wall */
+  #hudbarFoe .wallzone .wzfull{margin-bottom:13px;} /* …and hangs DOWN on the foe's mirrored wall */
+  .wzfull .wzlayer{position:absolute;inset:0;border-radius:5px;background:#0b1220;
+    transform:translateY(calc(var(--li,0)*-1.2px));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 1px 0 rgba(0,0,0,.85);}
+  #hudbarFoe .wzfull .wzlayer{transform:translateY(calc(var(--li,0)*1.2px));
+    box-shadow:inset 0 -1px 0 rgba(255,255,255,.10),0 -1px 0 rgba(0,0,0,.85);}
+  /* deck: ornamented, element-tinted card BACK on the visible top card */
+  .wzfull.deckpile .wzlayer.top{
+    background:
+      radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--welem) 30%, transparent) 0 15%, transparent 16%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,.045) 0 2px, transparent 2px 7px),
+      linear-gradient(160deg, color-mix(in srgb, var(--welem) 22%, #131c2e), #0a0f1c 75%);
+    box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--welem) 45%, #2c3448),
+               inset 0 0 0 3px rgba(0,0,0,.55),
+               inset 0 1px 0 rgba(255,255,255,.12),0 1px 0 rgba(0,0,0,.85);}
+  .wzfull.deckpile .wzlayer.top::after{content:"❖";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(13px,1.8vw,20px);line-height:1;color:var(--welem);opacity:.85;text-shadow:0 1px 2px #000;pointer-events:none;}
+  /* graveyard: same pile, but the top card lies FACE UP, drained of colour */
+  .wzfull.gravepile .wzlayer{background:#171219;}
+  .wzfull.gravepile .wzlayer.top img{width:100%;height:100%;object-fit:cover;display:block;border-radius:4px;
+    filter:saturate(.4) brightness(.82);}
+  /* empty pile: a flat vacant slot outline */
+  .wzfull.empty{border-radius:5px;border:1.5px dashed rgba(255,255,255,.16);background:rgba(0,0,0,.28);box-shadow:inset 0 0 10px rgba(0,0,0,.5);}
+  .wzfull.empty .wzbadge{opacity:.75;}
+  /* the count badge rides the top card's outer corner (bottom corner on the foe's hanging pile) */
+  .wzbadge{position:absolute;top:-6px;right:-6px;z-index:2;pointer-events:none;
+    font-family:'Cinzel',serif;font-weight:900;font-size:clamp(10px,1.2vw,13px);line-height:1;color:#f2e6c8;
+    background:rgba(10,8,4,.9);border:1px solid var(--gold-deep);border-radius:999px;padding:2px 6px;
+    box-shadow:0 1px 3px rgba(0,0,0,.6);}
+  #hudbarFoe .wzbadge{top:auto;bottom:-6px;}
   body:has(.hand:hover) #hudbar .wallzone .wzfull, body:has(.hc.selected) #hudbar .wallzone .wzfull, body.wall-open #hudbar .wallzone .wzfull,
   body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone .wzfull, body.foewall-open #hudbarFoe .wallzone .wzfull{display:block;}
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
@@ -483,24 +524,50 @@
      when the hand is hovered (or a card is selected). The board reserves just the strip height. */
   .hand{position:absolute;left:50%;bottom:0;display:flex;justify-content:center;align-items:flex-end;gap:3px;padding:0 24px;min-height:0;pointer-events:auto;
     transform:translateX(-50%);will-change:transform;}
-  .hc{position:relative;width:var(--hcw);height:var(--peek);flex:none;border-radius:9px 9px 6px 6px;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
-    transform-origin:50% 100%;transition:height .18s ease,transform .14s ease;box-shadow:0 -2px 8px rgba(0,0,0,.45),0 4px 12px rgba(0,0,0,.55);}
+  .hc{position:relative;width:var(--hcw);height:var(--peek);flex:none;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
+    --ec:#6a6a78;
+    border:2px solid #0b0a0e;border-radius:10px 10px 7px 7px;
+    transform-origin:50% 100%;transition:height .18s ease,transform .14s ease;
+    box-shadow:inset 0 0 0 2px var(--ec),inset 0 0 0 3px rgba(0,0,0,.5),0 -2px 8px rgba(0,0,0,.45),0 4px 12px rgba(0,0,0,.55);}
   .hc .hcbody{display:none;}
   .hand:hover .hc,.hand:focus-within .hc,.hand:has(.hc.selected) .hc{height:var(--hch);}
   .hand:hover .hc .hcbody,.hand:has(.hc.selected) .hc .hcbody,.hc.selected .hcbody{display:flex;}
   .hc.selected{height:var(--hch);}
   .hc:hover{transform:translateY(-8%) scale(1.1);z-index:55!important;overflow:visible;}
-  .hc.selected{z-index:56!important;overflow:visible;outline:2px solid var(--gold);box-shadow:0 0 26px rgba(217,176,74,.55);}
-  /* always-visible peek header: name + cost (the only thing seen when the hand rests) */
-  .hc .hchead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:6px;height:var(--peek);padding:0 8px;
-    border-bottom:1px solid rgba(0,0,0,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);background:rgba(0,0,0,.22);}
+  .hc.selected{z-index:56!important;overflow:visible;outline:2px solid var(--gold);
+    box-shadow:inset 0 0 0 2px var(--ec),inset 0 0 0 3px rgba(0,0,0,.5),0 0 26px rgba(217,176,74,.55);}
+  /* top frame band = the resting peek strip: cost gem + name + race/type line */
+  .hc .hchead{flex:none;display:flex;align-items:center;gap:5px;height:var(--peek);padding:2px 7px 2px 4px;
+    background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.02) 45%,rgba(0,0,0,.25));
+    border-bottom:1px solid rgba(0,0,0,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 1px 0 var(--ec);}
+  .hc .hchead .cost{flex:none;width:clamp(17px,calc(var(--peek)*.52),27px);height:clamp(17px,calc(var(--peek)*.52),27px);
+    display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;
+    font-size:clamp(10px,calc(var(--peek)*.3),15px);color:#04121a;text-shadow:0 1px 0 rgba(255,255,255,.35);
+    background:radial-gradient(circle at 35% 28%,#bfeaff,var(--spawn) 58%,#1b6f8f);
+    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);}   /* matches .dbcard-cost (deck builder) */
+  .hc .hchead .nmw{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
   .hc .hchead .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(9px,calc(var(--hcw)*.115),14px);text-align:left;line-height:1.05;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;text-shadow:0 1px 2px #000;}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-shadow:0 1px 2px #000;}
   .hc:hover .hchead .nm,.hc.selected .hchead .nm{white-space:normal;overflow:visible;}
-  .hc .hchead .cost{flex:none;font-family:'Cinzel',serif;font-weight:900;font-size:clamp(12px,calc(var(--hcw)*.15),19px);color:var(--spawn);text-shadow:0 1px 2px #000;}
-  .hc .hcbody{flex:1;min-height:0;flex-direction:column;justify-content:space-between;padding:5px 7px 6px;} /* display toggled by the resting/hover rules above */
-  .hc .hcbody .bic{flex:1;display:flex;align-items:center;justify-content:center;font-size:clamp(22px,calc(var(--hcw)*.42),50px);opacity:.82;text-shadow:0 2px 6px rgba(0,0,0,.6);}
-  .hc .stats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(10px,calc(var(--hcw)*.125),16px);}
+  .hc .hchead .tl{display:none;font-style:italic;font-size:clamp(7px,calc(var(--hcw)*.085),10.5px);color:rgba(255,244,214,.72);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hand:hover .hc .tl,.hand:has(.hc.selected) .hc .tl,.hc.selected .tl{display:block;}
+  .hc .hcbody{flex:1;min-height:0;flex-direction:column;gap:2px;padding:5px 7px 5px;} /* display toggled by the resting/hover rules above; padding = the visible colored frame margin */
+  .hc .artwin.ph{display:flex;align-items:center;justify-content:center;}
+  .hc .artwin.ph .bic{font-size:clamp(22px,calc(var(--hcw)*.4),46px);opacity:.82;text-shadow:0 2px 6px rgba(0,0,0,.6);}
+  .hc .ribbon{flex:none;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.14em;font-size:clamp(6.5px,calc(var(--hcw)*.075),9.5px);
+    color:rgba(255,246,220,.85);text-align:center;padding:1px 3px;white-space:nowrap;overflow:hidden;
+    background:linear-gradient(90deg,transparent,rgba(0,0,0,.4) 14%,rgba(0,0,0,.4) 86%,transparent);
+    border-top:1px solid var(--ec);border-bottom:1px solid rgba(0,0,0,.45);}
+  .hc .stats{flex:none;display:flex;justify-content:space-between;align-items:center;gap:2px;padding:0 1px;
+    font-family:'Cinzel',serif;font-weight:700;font-size:clamp(10px,calc(var(--hcw)*.125),16px);}
+  .hc .stats .atk{flex:none;font-style:italic;font-weight:900;font-size:clamp(12px,calc(var(--hcw)*.20),25px);color:#fff;line-height:1;
+    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 2px 3px rgba(0,0,0,.75);} /* DM power number */
+  .hc .stats .hp{flex:none;color:#ff9a8a;font-size:clamp(8.5px,calc(var(--hcw)*.115),14px);text-shadow:0 1px 2px #000;}
+  .hc .stats .mid{display:inline-flex;align-items:center;gap:2px;min-width:0;overflow:hidden;}
+  .hc .rules{flex:none;font-style:italic;font-family:'EB Garamond',serif;font-size:clamp(8px,calc(var(--hcw)*.10),12px);line-height:1.25;color:#e8ddc2;
+    background:rgba(0,0,0,.32);border:1px solid rgba(0,0,0,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);border-radius:3px;padding:2px 4px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   /* keep the fanned hand in the CENTER span of the castle wall (between the two tower squares);
      cards shrink evenly instead of spilling over the deck/info towers. Phones keep the full width. */
   @media (min-width:700px){
@@ -518,7 +585,9 @@
   .fsbadge{position:absolute;top:2px;right:3px;font-size:clamp(6px,calc(var(--cw)*.13),8px);font-family:'Cinzel',serif;font-weight:900;color:#1a140a;background:#ffd98a;border-radius:4px;padding:0 3px;z-index:3;box-shadow:0 0 6px rgba(255,217,138,.7);}
   .upk{position:absolute;top:2px;left:3px;font-size:clamp(6px,calc(var(--cw)*.13),8px);font-weight:700;color:#f2d2b0;background:#5a2e1c;border:1px solid #9a5a38;border-radius:4px;padding:0 3px;z-index:3;}
   .supb{position:absolute;top:2px;left:3px;font-size:clamp(6px,calc(var(--cw)*.13),8px);font-weight:700;color:#10240f;background:#9ad17f;border-radius:4px;padding:0 3px;z-index:3;}
-  .stats .cap{font-size:9px;color:#9ad17f;font-weight:700;margin:0 2px;}
+  .stats .cap{font-family:'Cinzel',serif;font-weight:700;font-size:9px;color:#9ad17f;border-radius:4px;padding:0 3px;line-height:1.45;white-space:nowrap;}
+  .stats .cap.plus{color:#10240f;background:#9ad17f;}                              /* structures: ⚒+N */
+  .stats .cap.neg{color:#f2d2b0;background:#5a2e1c;box-shadow:inset 0 0 0 1px #9a5a38;} /* creature upkeep: ⚒-N */
   #cardActions{position:fixed;z-index:22;display:none;background:linear-gradient(180deg,#171120,#0d0a15);border:1px solid var(--gold-deep);border-radius:11px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.62);white-space:nowrap;text-align:center;}
   #cardActions::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;border:8px solid transparent;border-top-color:var(--gold-deep);}
   #cardActions.below::after{bottom:auto;top:-8px;border-top-color:transparent;border-bottom-color:var(--gold-deep);}
@@ -620,6 +689,33 @@
   .csempty{flex:1 1 0;min-width:150px;color:var(--ink-dim);font-style:italic;font-size:12px;display:flex;align-items:center;justify-content:center;padding:18px;}
   #charsel .csback,#soloSelect .csback{margin-top:4px;background:none;border:none;color:var(--ink-dim);font-size:13px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.05em;}
   #charsel .csback:active,#soloSelect .csback:active{color:var(--ink);}
+  /* ===== deck picker: deck boxes ===== */
+  #soloSelect .csbox{max-width:900px;}
+  .dbxsect{font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:10px;margin:16px 2px 8px;text-align:left;}
+  .dbxsect::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--hairline),transparent);}
+  .dbxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:12px;}
+  .deckbox{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;min-height:106px;padding:12px 14px;border-radius:13px;border:1px solid var(--hairline-dim);cursor:pointer;color:var(--ink);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.4),var(--glow-soft);transition:transform .16s var(--ease-pop),border-color .14s,box-shadow .16s;}
+  .deckbox::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.06),transparent 34%,rgba(0,0,0,.42));pointer-events:none;}
+  .deckbox:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:var(--glow-gold),var(--glow-soft);}
+  .deckbox:active{transform:translateY(0);}
+  .dbxmark{position:absolute;right:-6px;bottom:-24px;font-size:98px;line-height:1;opacity:.13;color:#fff;font-family:serif;pointer-events:none;}
+  .dbxtop{display:flex;align-items:center;gap:7px;width:100%;position:relative;}
+  .dbxpips{display:inline-flex;gap:3px;}
+  .dbxbadge{margin-left:auto;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:999px;background:rgba(4,3,8,.55);border:1px solid var(--hairline-dim);color:var(--ink);white-space:nowrap;}
+  .dbxbadge.bad{color:#e0a59a;border-color:rgba(224,165,154,.4);}
+  .dbxname{position:relative;font-family:'Cinzel',serif;font-weight:900;font-size:17px;letter-spacing:.03em;text-shadow:0 2px 4px rgba(0,0,0,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .dbxsub{position:relative;font-family:'EB Garamond',serif;font-style:italic;font-size:11.5px;color:rgba(236,227,207,.75);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .dbxplay{position:relative;margin-top:auto;align-self:flex-end;font-family:'Cinzel',serif;font-weight:700;font-size:11.5px;letter-spacing:.06em;color:#1a140a;background:var(--metal);border-radius:8px;padding:5px 13px;box-shadow:0 2px 6px rgba(0,0,0,.5);opacity:0;transform:translateY(5px);transition:opacity .16s,transform .16s var(--ease-pop);pointer-events:none;}
+  .deckbox:hover .dbxplay{opacity:1;transform:none;}
+  @media (pointer:coarse){.dbxplay{opacity:1;transform:none;}} /* touch: no hover — always show */
+  .deckbox.invalid{filter:saturate(.55);cursor:default;}
+  .deckbox.invalid:hover{transform:none;border-color:#5a3b3b;box-shadow:var(--glow-soft);}
+  .dbxacts{position:relative;margin-top:auto;display:flex;gap:6px;align-self:stretch;align-items:center;}
+  .dbxacts button{font-family:'Cinzel',serif;font-size:10.5px;letter-spacing:.03em;padding:4px 10px;border-radius:7px;cursor:pointer;border:1px solid var(--hairline-dim);background:rgba(4,3,8,.6);color:var(--ink);}
+  .dbxacts button.go{margin-left:auto;border:none;color:#1a140a;background:var(--metal);font-weight:700;}
+  .deckbox.csnew2{justify-content:center;align-items:center;border-style:dashed;border-color:#3a3450;background:rgba(13,11,18,.6);color:var(--gold);font-family:'Cinzel',serif;font-size:26px;}
+  .deckbox.csnew2 small{font-size:12px;letter-spacing:.06em;font-weight:700;}
   .banner .msg{font-family:'Cinzel',serif;font-size:clamp(28px,9vw,56px);font-weight:900;letter-spacing:.1em;text-align:center;}
   .banner button{margin-top:22px;display:block;font-family:'Cinzel',serif;letter-spacing:.1em;font-size:14px;padding:11px 26px;border-radius:10px;border:none;cursor:pointer;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 4px 0 #4d3a10;}
 
@@ -653,6 +749,14 @@
   .inspect{position:absolute;top:1px;right:2px;width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;
     font-size:11px;line-height:1;font-family:'EB Garamond',serif;color:#d3ecf7;background:rgba(8,16,22,.78);border:1px solid rgba(120,180,210,.55);cursor:pointer;z-index:4;}
   .inspect:active{transform:scale(.88);}
+  /* hover-to-inspect (fine pointers): the same left detail panel, but NON-BLOCKING —
+     no backdrop, no pointer trap, no Close button — so board clicks/drags keep working */
+  #viewerPanel.hover{background:none;backdrop-filter:none;pointer-events:none;}
+  #viewerPanel.hover .box{opacity:.96;animation:hovIn .14s ease-out both;}
+  @keyframes hovIn{from{opacity:0;transform:translateX(-8px);}to{opacity:.96;transform:none;}}
+  /* fine pointers hover to inspect — the ⓘ buttons are skipped in addInspect; this covers stragglers */
+  @media (hover:hover) and (pointer:fine){ .inspect{display:none!important;} }
+  @media (prefers-reduced-motion: reduce){ #viewerPanel.hover .box{animation:none;} }
   .hc{position:relative;}
   .artwin{flex:1;margin:2px 1px;border:1px solid rgba(0,0,0,.55);border-radius:2px;overflow:hidden;background:#0a0a0f;box-shadow:inset 0 0 0 1px rgba(217,176,74,.25);min-height:0;}
   .artwin img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -675,6 +779,9 @@
   .fx-slash{position:absolute;width:72px;height:72px;border-radius:50%;z-index:61;mix-blend-mode:screen;
     background:radial-gradient(circle,#fff7e0 0%,#ffae5e 32%,rgba(224,97,63,0) 70%);animation:fxflash .34s ease-out forwards;}
   @keyframes fxflash{0%{opacity:0;transform:scale(.3);}22%{opacity:1;}100%{opacity:0;transform:scale(1.55);}}
+  .fx-flash{position:absolute;width:88px;height:88px;border-radius:50%;z-index:61;mix-blend-mode:screen;pointer-events:none;animation:fxpuff .42s ease-out forwards;}
+  @keyframes fxpuff{0%{opacity:0;transform:scale(.35);}25%{opacity:.92;}100%{opacity:0;transform:scale(1.45);}}
+  .fx-trail{position:absolute;border-radius:8px;z-index:60;pointer-events:none;background:radial-gradient(circle,var(--tc,rgba(255,236,180,.5)),transparent 70%);animation:fxpuff .5s ease-out forwards;}
   .fx-ring{position:absolute;width:62px;height:62px;border-radius:50%;border:2px solid var(--gold);z-index:61;
     box-shadow:0 0 18px rgba(217,176,74,.75),inset 0 0 10px rgba(217,176,74,.4);animation:fxring .6s ease-out forwards;}
   @keyframes fxring{0%{opacity:1;transform:scale(.32);}100%{opacity:0;transform:scale(1.65);}}
@@ -797,34 +904,173 @@
     .fx-fly,.fx-slash,.fx-ring,.fx-spark,.fx-conf{display:none;}
     .fx-shake,#hurtVig.on,#turnRibbon.on,#splashFx .spbox{animation:none;}
     #turnRibbon.on{opacity:1;transition:opacity .2s;}
+    .mmrays,.mmring{animation:none;}
+    .mmember{display:none;}
+    .screen-in,.screen-in>.mmbox,.screen-in>.csbox,.screen-in>.dbbox{animation:none;}
+    .mmbtn::after{display:none;}
+    .deckbox,.dbcard{transition:none;}
   }
+  /* ===== BATTLEFIELD SCENERY (built by buildBattlefield(); sits UNDER the rows) =====
+     #battlefield      = clipped flat ground (terrain bands, textures, lane paths, scorched center, smoke, cloud, motes)
+     #battlefieldProps = unclipped prop layer so upright props can billboard in the diorama (standee technique).
+     Both are first children of .matmain: positioned + z-index:0, so the cells (position:relative, later
+     in DOM) always paint above them. Everything here is pointer-events:none. */
+  #battlefield,#battlefieldProps{position:absolute;inset:-3% -2.5%;z-index:0;pointer-events:none;}
+  #battlefield{border-radius:14px;overflow:hidden;}
+  #battlefield>div{position:absolute;}
+  /* ground plane: foe territory (top) / churned no-man's-land / your territory (bottom).
+     Tints come from --terr-* vars set inline by JS from ELEMENTS[el].bg. The tiling textures are
+     monochrome (black shadow + white highlight strokes) so one SVG works over any element tint. */
+  .bf-ground{inset:0;background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cpath d='M14 70l5-5 8 2 2 6-6 3-8-2z' fill='%23000' fill-opacity='.28'/%3E%3Cpath d='M15 69l5-4 7 2' fill='none' stroke='%23fff' stroke-opacity='.12'/%3E%3Cpath d='M66 28l6-3 7 3 1 5-7 3-7-3z' fill='%23000' fill-opacity='.25'/%3E%3Cpath d='M67 27l6-3 6 3' fill='none' stroke='%23fff' stroke-opacity='.1'/%3E%3Ccircle cx='40' cy='14' r='2.4' fill='%23000' fill-opacity='.24'/%3E%3Ccircle cx='85' cy='74' r='3' fill='%23000' fill-opacity='.26'/%3E%3Ccircle cx='28' cy='42' r='1.8' fill='%23000' fill-opacity='.2'/%3E%3Ccircle cx='58' cy='60' r='1.5' fill='%23000' fill-opacity='.2'/%3E%3C/svg%3E") repeat,
+    linear-gradient(180deg,var(--terr-foe,#0f3a52) 0%,var(--terr-foe-deep,#0a2230) 28%,#241708 38%,#170e06 46%,#140c05 54%,#241708 62%,var(--terr-you-deep,#2a0f08) 72%,var(--terr-you,#5e1d10) 100%);}
+  /* grass tufts only on the two territories (masked out of the churned center) */
+  .bf-ground::before{content:"";position:absolute;inset:0;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cg stroke='%23000' stroke-opacity='.3' stroke-width='1.3'%3E%3Cpath d='M10 62q1-7-1-11m4 11q0-6 3-9m-9 9q-2-4-4-6'/%3E%3Cpath d='M52 30q1-7-1-11m4 11q0-6 3-9m-9 9q-2-4-4-6'/%3E%3Cpath d='M31 45q1-5-1-8m3 8q0-4 2-6'/%3E%3C/g%3E%3Cg stroke='%23fff' stroke-opacity='.12' stroke-width='1'%3E%3Cpath d='M11 61q1-6-1-10m4 10q0-5 3-8'/%3E%3Cpath d='M53 29q1-6-1-10m4 10q0-5 3-8'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    -webkit-mask-image:linear-gradient(180deg,#000 0 34%,transparent 42% 58%,#000 66%);
+    mask-image:linear-gradient(180deg,#000 0 34%,transparent 42% 58%,#000 66%);}
+  /* frontier trench ridges at the row seams (+ stronghold glow where supported) */
+  .bf-ground::after{content:"";position:absolute;inset:0;background:
+    linear-gradient(180deg,transparent 35%,rgba(0,0,0,.4) 35.9%,rgba(120,92,52,.16) 36.6%,transparent 37.6%),
+    linear-gradient(180deg,transparent 62.4%,rgba(120,92,52,.16) 63.4%,rgba(0,0,0,.4) 64.1%,transparent 65%);}
+  @supports (background:color-mix(in srgb,red 10%,transparent)){
+    .bf-ground::after{background:
+      radial-gradient(60% 22% at 50% -2%,color-mix(in srgb,var(--terr-foe-col,#3fa3e0) 24%,transparent),transparent 72%),
+      radial-gradient(60% 22% at 50% 102%,color-mix(in srgb,var(--terr-you-col,#e0613f) 24%,transparent),transparent 72%),
+      linear-gradient(180deg,transparent 35%,rgba(0,0,0,.4) 35.9%,rgba(120,92,52,.16) 36.6%,transparent 37.6%),
+      linear-gradient(180deg,transparent 62.4%,rgba(120,92,52,.16) 63.4%,rgba(0,0,0,.4) 64.1%,transparent 65%);}}
+  /* worn crossing paths down lanes 1/3/5 — JS centers them on the real columns via --cw + measured gap */
+  .bf-path{top:24%;bottom:24%;width:calc(var(--cw,60px)*.62);transform:translateX(-50%);border-radius:12px;
+    background:
+      repeating-linear-gradient(90deg,rgba(0,0,0,.2) 0 2px,transparent 2px 7px),
+      linear-gradient(180deg,rgba(56,40,22,0),rgba(56,40,22,.5) 16%,rgba(38,26,14,.55) 50%,rgba(56,40,22,.5) 84%,rgba(56,40,22,0));
+    box-shadow:inset 0 0 8px rgba(0,0,0,.35);}
+  /* the scorched frontier: cracked earth, crater rims (dark bowl + lit rim ring), ember patches */
+  .bf-center{left:0;right:0;top:36%;bottom:36%;background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.3' stroke-width='1'%3E%3Cpath d='M6 8l12 9 3 12-9 8m6-20 14-5 6-14m-6 14 8 10 14 2M52 44l10 10-4 14M18 52l10 6 2 12M2 40l10 4'/%3E%3C/g%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.06' stroke-width='1'%3E%3Cpath d='M7 10l12 9M42 6l-6 13M53 45l10 10M19 53l10 6'/%3E%3C/g%3E%3C/svg%3E") repeat,
+    radial-gradient(circle at 18% 42%,rgba(0,0,0,.55) 0 4.5%,rgba(126,92,54,.3) 5.5% 7%,transparent 9.5%),
+    radial-gradient(circle at 71% 62%,rgba(0,0,0,.5) 0 3.5%,rgba(126,92,54,.28) 4.5% 6%,transparent 8.5%),
+    radial-gradient(circle at 45% 26%,rgba(0,0,0,.45) 0 2.5%,rgba(126,92,54,.24) 3.5% 5%,transparent 7%),
+    radial-gradient(circle at 88% 30%,rgba(255,110,40,.1) 0 2%,transparent 8%),
+    linear-gradient(180deg,transparent,rgba(8,5,2,.42) 28% 72%,transparent);}
+  .bf-ember{width:calc(var(--cw,60px)*.55);aspect-ratio:2.2;border-radius:50%;transform:translate(-50%,-50%);
+    background:radial-gradient(ellipse at center,rgba(255,140,60,.32),rgba(255,70,20,.1) 48%,transparent 72%);
+    animation:bfember 3.8s ease-in-out infinite;}
+  @keyframes bfember{0%,100%{opacity:.45}50%{opacity:1}}
+  /* two drifting smoke wisps over the frontier — soft gradient blobs on slow transform loops */
+  .bf-smoke{top:22%;height:56%;width:30%;border-radius:50%;will-change:transform;
+    background:radial-gradient(ellipse at center,rgba(185,175,165,.11),transparent 62%);
+    animation:bfsmoke 30s ease-in-out infinite alternate;}
+  .bf-smoke.s1{left:14%;}
+  .bf-smoke.s2{left:56%;animation-duration:39s;animation-delay:-16s;}
+  @keyframes bfsmoke{from{transform:translate3d(-8%,6%,0) scale(1);}to{transform:translate3d(16%,-8%,0) scale(1.2);}}
+  /* one huge cloud-shadow sweeping the whole field */
+  .bf-cloud{top:-20%;left:-30%;width:160%;height:140%;will-change:transform;
+    background:radial-gradient(42% 34% at 50% 50%,rgba(0,0,0,.16),transparent 70%);
+    animation:bfcloud 64s ease-in-out infinite alternate;}
+  @keyframes bfcloud{from{transform:translate3d(-14%,-6%,0);}to{transform:translate3d(16%,8%,0);}}
+  /* ambient element motes: one generic tintable system, 4 per half, tinted by each side's accent */
+  .bf-parts{inset:0;}
+  .bf-part{position:absolute;width:5px;height:5px;border-radius:50%;opacity:0;will-change:transform,opacity;
+    background:radial-gradient(circle,var(--pc,#fff) 0 30%,transparent 70%);box-shadow:0 0 6px var(--pc,#fff);
+    animation:bfmote var(--pd,8s) linear infinite;}
+  @keyframes bfmote{0%{transform:translateY(14px);opacity:0}12%{opacity:.55}80%{opacity:.22}100%{transform:translateY(-80px);opacity:0}}
+  /* props: bottom-anchored so they billboard exactly like standees in the diorama */
+  .bf-prop{position:absolute;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));}
+  .bf-prop svg{display:block;width:100%;height:auto;overflow:visible;}
+  body.board-extreme #battlefieldProps{transform-style:preserve-3d;}
+  body.board-extreme .bf-prop.up{transform:translate(-50%,-100%) rotateX(calc(-1*var(--tiltx)));transform-origin:50% 100%;}
+  .bf-flame{position:absolute;left:50%;bottom:56%;width:46%;aspect-ratio:.6;display:block;transform:translateX(-50%);transform-origin:50% 100%;
+    border-radius:50% 50% 42% 42%/62% 62% 38% 38%;
+    background:radial-gradient(50% 62% at 50% 78%,#ffd977 0 18%,#ff9a2e 40%,rgba(255,90,20,.55) 62%,transparent 80%);
+    animation:bfflick .8s ease-in-out infinite;}
+  @keyframes bfflick{0%,100%{transform:translateX(-50%) scale(1,1);opacity:.92}35%{transform:translateX(-52%) scale(.9,1.14);opacity:1}70%{transform:translateX(-48%) scale(1.06,.9);opacity:.82}}
+  /* soft table vignette; isolation:isolate contains the ::after's z inside .mat's own stacking
+     context — WITHOUT it, z:32 would paint over #hudbar(23)/#cardActions(22)/.handwrap(25) */
+  .mat{position:relative;isolation:isolate;}
+  .mat::after{content:"";position:absolute;inset:0;z-index:32;pointer-events:none;
+    background:radial-gradient(120% 95% at 50% 42%,transparent 58%,rgba(0,0,0,.32) 100%);}
+  /* fallbacks: static field for reduced motion; fewer layers on small screens */
+  @media (prefers-reduced-motion:reduce){
+    #battlefield *,#battlefieldProps *{animation:none!important;}
+    .bf-part,.bf-cloud{display:none;} .bf-smoke{opacity:.6;}}
+  @media (max-width:880px),(max-height:430px){
+    .bf-cloud,.bf-smoke.s2{display:none;}
+    .bf-parts .bf-part:nth-child(n+5){display:none;}
+    .bf-prop{filter:none;}}
+  /* ===== screen transitions ===== */
+  .screen-in{animation:scrFade .26s ease-out both;}
+  .screen-in>.mmbox,.screen-in>.csbox,.screen-in>.dbbox{animation:scrRise .34s var(--ease-pop) both;}
+  @keyframes scrFade{from{opacity:0;}}
+  @keyframes scrRise{from{opacity:0;transform:translateY(14px) scale(.988);}}
   /* ===== main menu ===== */
   #mainMenu{position:fixed;inset:0;z-index:42;display:none;align-items:center;justify-content:center;
-    background:radial-gradient(1100px 700px at 50% -10%,#241a36 0%,transparent 60%),radial-gradient(900px 600px at 50% 120%,#2a1410 0%,transparent 55%),rgba(4,3,8,.98);backdrop-filter:blur(3px);padding:20px;overflow-y:auto;}
-  #mainMenu .mmbox{width:100%;max-width:430px;text-align:center;}
-  .mmtitle{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(28px,6vw,42px);letter-spacing:.06em;color:var(--gold);text-shadow:0 0 26px rgba(217,176,74,.35);}
+    background:radial-gradient(1100px 700px at 50% -10%,#241a36 0%,transparent 60%),radial-gradient(900px 600px at 50% 120%,#2a1410 0%,transparent 55%),#050409;padding:20px;overflow:hidden;}
+  #mainMenu .mmbg{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .mmrays{position:absolute;left:50%;top:34%;width:120vmax;height:120vmax;transform:translate(-50%,-50%);
+    background:repeating-conic-gradient(from 0deg,rgba(217,176,74,.045) 0deg 5deg,transparent 5deg 14deg);
+    -webkit-mask:radial-gradient(closest-side,#000 0%,transparent 66%);mask:radial-gradient(closest-side,#000 0%,transparent 66%);
+    animation:mmspin 160s linear infinite;will-change:transform;}
+  .mmring{position:absolute;left:50%;top:42%;width:min(74vmin,560px);height:min(74vmin,560px);transform:translate(-50%,-50%);animation:mmspin 90s linear infinite reverse;will-change:transform;}
+  @keyframes mmspin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+  .mmembers{position:absolute;inset:0;overflow:hidden;}
+  .mmember{position:absolute;bottom:-8px;border-radius:50%;background:#ff8a1f;opacity:0;box-shadow:0 0 6px 1px rgba(255,150,60,.45);animation:mmrise linear infinite;will-change:transform,opacity;}
+  @keyframes mmrise{0%{transform:translateY(0);opacity:0;}8%{opacity:.85;}55%{opacity:.5;transform:translateY(-55vh) translateX(3vw);}100%{transform:translateY(-108vh) translateX(-2vw);opacity:0;}}
+  #mainMenu .mmbox{width:100%;max-width:430px;text-align:center;position:relative;}
+  .mmtitle{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(30px,6.5vw,54px);letter-spacing:.08em;
+    background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.85)) drop-shadow(0 0 22px rgba(217,176,74,.28));}
   .mmsub{font-family:'EB Garamond',serif;font-style:italic;font-size:13px;color:var(--ink-dim);margin:6px 0 26px;letter-spacing:.02em;}
-  .mmbtns{display:flex;flex-direction:column;gap:13px;}
-  .mmbtn{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.05em;font-size:16px;padding:15px 18px;border-radius:12px;cursor:pointer;position:relative;
-    color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:2px solid #f0d68a;box-shadow:0 4px 0 #4d3a10,0 8px 22px rgba(0,0,0,.5);}
-  .mmbtn:active{transform:translateY(2px);box-shadow:0 2px 0 #4d3a10;}
-  .mmbtn.ghost{color:var(--ink);background:rgba(13,11,18,.85);border:1px solid #3a3450;box-shadow:0 3px 10px rgba(0,0,0,.5);font-size:13.5px;padding:11px 16px;}
+  .mmbtns{display:flex;flex-direction:column;gap:11px;}
+  .mmbtn{display:flex;align-items:center;gap:14px;text-align:left;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.05em;font-size:16px;padding:12px 16px;border-radius:12px;cursor:pointer;position:relative;overflow:hidden;
+    color:#f3e7c0;background:linear-gradient(180deg,rgba(52,40,22,.92),rgba(24,18,9,.94));border:1px solid var(--hairline);box-shadow:inset 0 1px 0 rgba(255,230,160,.16),var(--glow-soft);}
+  .mmbtn .mi{flex:none;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#1a140a;background:var(--metal);box-shadow:0 2px 5px rgba(0,0,0,.5);}
+  .mmbtn .ml{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+  .mmbtn .ms{font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:11px;letter-spacing:.03em;color:var(--ink-dim);}
+  .mmbtn::after{content:"";position:absolute;inset:0;background:var(--sheen);transform:translateX(-130%);transition:transform .5s var(--ease-pop);pointer-events:none;}
+  .mmbtn:hover:not(:disabled)::after{transform:translateX(130%);}
+  .mmbtn:hover:not(:disabled){border-color:var(--gold);box-shadow:inset 0 1px 0 rgba(255,230,160,.25),var(--glow-gold);}
+  .mmbtn:active:not(:disabled){transform:translateY(2px);}
+  .mmbtn.primary{color:#1a140a;background:var(--metal);border-color:#f0d68a;box-shadow:0 4px 0 #4d3a10,0 8px 22px rgba(0,0,0,.5);}
+  .mmbtn.primary .mi{background:rgba(26,20,10,.85);color:var(--gold);}
+  .mmbtn.primary .ms{color:#4d3a10;}
+  .mmbtn.ghost{background:var(--glass);border:1px solid #3a3450;box-shadow:var(--glow-soft);font-size:13.5px;padding:9px 14px;}
+  .mmbtn.ghost .mi{width:28px;height:28px;font-size:14px;background:#2a2336;color:var(--gold);box-shadow:none;}
   .mmbtn.off{color:var(--ink-dim);background:rgba(13,11,18,.6);border:1px dashed #3a3450;box-shadow:none;cursor:default;filter:grayscale(.4);}
-  .mmbtn .soon{display:block;font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:10.5px;letter-spacing:.04em;color:var(--ink-dim);margin-top:2px;text-transform:uppercase;}
+  .mmbtn.off .mi{background:#241f30;color:var(--ink-dim);box-shadow:none;}
+  .mmbtn .soon{display:block;font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:10.5px;letter-spacing:.04em;color:var(--ink-dim);text-transform:uppercase;}
+  .mmfoot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:7px 14px;font-family:'EB Garamond',serif;font-size:11px;color:var(--ink-dim);letter-spacing:.04em;border-top:1px solid var(--hairline-dim);background:rgba(6,5,10,.55);pointer-events:none;}
+  @media (min-width:900px) and (min-height:520px){ /* MTG-Arena left-anchored nav on wide screens */
+    #mainMenu{justify-content:flex-start;}
+    #mainMenu .mmbox{margin-left:clamp(40px,7vw,120px);text-align:left;max-width:400px;}
+    .mmring{left:66%;top:50%;}
+  }
+  @media (max-height:430px){ /* mobile landscape: two-column nav, trim ornament */
+    .mmsub{margin-bottom:12px;}
+    .mmbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .mmbtn{font-size:13.5px;padding:9px 12px;gap:10px;} .mmbtn .mi{width:27px;height:27px;font-size:14px;}
+    .mmring,.mmfoot{display:none;}
+  }
   /* ===== deck builder (Master-Duel-style three columns: detail · deck · pool) ===== */
   #deckBuilder{position:fixed;inset:0;z-index:44;display:none;align-items:stretch;justify-content:stretch;background:rgba(4,3,8,.97);backdrop-filter:blur(3px);padding:0;}
   #deckBuilder .dbbox{width:100%;max-width:none;height:100dvh;display:flex;flex-direction:column;gap:10px;
     background:linear-gradient(165deg,#201827,#120d18);border:none;border-radius:0;padding:14px clamp(16px,3vw,48px);box-shadow:none;}
-  .dbbar{display:flex;align-items:center;justify-content:space-between;flex:none;}
-  .dbtitle{font-family:'Cinzel',serif;font-weight:900;font-size:18px;color:var(--gold);}
-  .dbbaracts{display:flex;gap:9px;}
-  .dbbaracts button{font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;padding:8px 18px;border-radius:9px;cursor:pointer;border:none;}
+  .dbbar{display:flex;align-items:center;gap:11px;flex:none;}
+  .dbback{flex:none;width:36px;height:36px;border-radius:10px;border:1px solid var(--hairline-dim);background:var(--glass);color:var(--gold);font-family:'Cinzel',serif;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 3px;}
+  .dbback:hover{border-color:var(--gold);box-shadow:var(--glow-gold);}
+  .dbtitle{font-family:'Cinzel',serif;font-weight:900;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);flex:none;}
+  .dbnamewrap{flex:1;min-width:0;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--hairline-dim);padding:2px 4px;transition:border-color .15s;}
+  .dbnamewrap:focus-within{border-color:var(--gold);}
+  .dbpencil{color:var(--ink-dim);font-size:13px;flex:none;}
+  .dbbaracts{display:flex;gap:9px;flex:none;}
+  .dbbaracts button{font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;padding:9px 20px;border-radius:9px;cursor:pointer;border:none;}
   #dbSave{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 3px 0 #4d3a10;}
   #dbSave:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
   #dbSave:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
-  .dbcancel{color:var(--ink);background:#2a2336;border:1px solid #3d3450;}
   .dbcols{flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,0.9fr) 1.3fr 1.7fr;gap:14px;}
-  .dbcol{min-height:0;display:flex;flex-direction:column;background:#15121c;border:1px solid #2a2433;border-radius:10px;padding:9px;overflow:hidden;}
+  .dbcol{min-height:0;display:flex;flex-direction:column;background:var(--glass);border:1px solid var(--hairline-dim);border-radius:var(--panel-r);padding:9px;overflow:hidden;position:relative;}
+  .dbcol::before{content:"";position:absolute;top:0;left:0;width:16px;height:16px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);border-radius:var(--panel-r) 0 0 0;opacity:.5;pointer-events:none;}
+  .dbcol::after{content:"";position:absolute;bottom:0;right:0;width:16px;height:16px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);border-radius:0 0 var(--panel-r) 0;opacity:.5;pointer-events:none;}
   .dbcolhead,.dbpoolhead{flex:none;font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;margin-bottom:7px;}
   /* LEFT — card detail */
   .dbdetail{overflow-y:auto;text-align:center;}
@@ -843,26 +1089,34 @@
   .dbleadrow{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;}
   .dbleader{display:flex;align-items:center;gap:4px;font-family:'Cinzel',serif;font-size:11px;padding:4px 9px;border-radius:999px;cursor:pointer;color:var(--ink);background:#1a1622;border:2px solid #2a2433;}
   .dbleader.on{border-color:var(--lc,var(--gold));box-shadow:0 0 14px rgba(217,176,74,.35);background:#221c2e;}
-  .dbnamerow{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
-  .dbname{flex:1;min-width:0;font-family:'EB Garamond',serif;font-size:14px;padding:8px 11px;border-radius:9px;background:#0d0b12;border:1px solid #3d3450;color:var(--ink);}
-  .dbcounter{flex:none;font-family:'Cinzel',serif;font-weight:900;font-size:17px;min-width:62px;text-align:right;}
-  .dbcounter.ok{color:#9ad17f;} .dbcounter.bad{color:#e0a59a;}
+  .dbname{flex:1;min-width:0;font-family:'Cinzel',serif;font-weight:700;font-size:16px;letter-spacing:.03em;padding:5px 2px;background:transparent;border:none;outline:none;color:var(--ink);}
+  .dbname::placeholder{color:var(--ink-dim);font-style:italic;font-weight:400;font-family:'EB Garamond',serif;}
+  .dbcounter{flex:none;width:44px;height:44px;border-radius:50%;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;font-family:'Cinzel',serif;gap:1px;background:conic-gradient(var(--rc,#e0a59a) calc(var(--pct,0)*1%),rgba(255,255,255,.08) 0);}
+  .dbcounter::before{content:"";position:absolute;inset:3px;border-radius:50%;background:#141019;}
+  .dbcounter b{position:relative;font-size:14px;font-weight:900;}
+  .dbcounter i{position:relative;font-style:normal;font-size:8px;color:var(--ink-dim);}
+  .dbcounter.ok{--rc:#9ad17f;color:#9ad17f;} .dbcounter.bad{--rc:#e0a59a;color:#e0a59a;}
   /* card grids (deck + pool) */
-  .dbcardgrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:7px;align-content:start;padding:2px;}
+  .dbcardgrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:7px;align-content:start;padding:2px;}
   .dbcardgrid .dbempty{grid-column:1/-1;color:var(--ink-dim);font-style:italic;font-size:12px;text-align:center;padding:18px 6px;}
-  .dbcard{position:relative;border-radius:8px;border:1px solid #2a2433;background:#1a1622;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;transition:border-color .1s,box-shadow .1s;}
-  .dbcard:hover{border-color:#4a4360;}
-  .dbcard.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
+  .dbcard{position:relative;border-radius:9px;border:1px solid var(--ec,#2a2433);background:linear-gradient(180deg,#1c1726,#131019);box-shadow:none;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;transition:transform .12s var(--ease-pop),border-color .1s,box-shadow .12s;}
+  .dbcard:hover{transform:translateY(-2px);border-color:var(--ec,#4a4360);box-shadow:0 6px 14px rgba(0,0,0,.5);}
+  .dbcard.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),var(--glow-gold);}
   .dbcard-art{width:100%;aspect-ratio:1/1;background:#0a0a0f;}
   .dbcard-art img{width:100%;height:100%;object-fit:cover;display:block;}
-  .dbcard-nm{font-family:'Cinzel',serif;font-weight:700;font-size:9.5px;line-height:1.05;color:var(--ink);padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .dbcard-cost{position:absolute;top:2px;left:3px;font-family:'Cinzel',serif;font-weight:900;font-size:11px;color:var(--spawn);text-shadow:0 1px 2px #000,0 0 3px #000;}
-  .dbcard.fire-c{box-shadow:inset 3px 0 0 var(--fire);} .dbcard.water-c{box-shadow:inset 3px 0 0 var(--water);}
-  .dbcard.earth-c{box-shadow:inset 3px 0 0 var(--earth);} .dbcard.wind-c{box-shadow:inset 3px 0 0 var(--wind);}
-  .dbcard.forest-c{box-shadow:inset 3px 0 0 var(--forest);} .dbcard.electric-c{box-shadow:inset 3px 0 0 var(--electric);}
-  .dbcard.light-c{box-shadow:inset 3px 0 0 var(--light);} .dbcard.dark-c{box-shadow:inset 3px 0 0 var(--dark);}
-  .dbcard.divine-c{box-shadow:inset 3px 0 0 var(--divine);} .dbcard.neutral{box-shadow:inset 3px 0 0 #6a6a76;}
-  .dbcard.fire-c.sel,.dbcard.water-c.sel,.dbcard.earth-c.sel,.dbcard.wind-c.sel,.dbcard.forest-c.sel,.dbcard.electric-c.sel,.dbcard.light-c.sel,.dbcard.dark-c.sel,.dbcard.divine-c.sel,.dbcard.neutral.sel{box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(217,176,74,.35);}
+  .dbcard-nm{font-family:'Cinzel',serif;font-weight:700;font-size:10.5px;line-height:1.05;color:var(--ink);padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(180deg,rgba(30,24,40,.25),rgba(8,6,12,.92));box-shadow:inset 0 1px 0 rgba(217,176,74,.14);}
+  .dbcard-cost{position:absolute;top:3px;left:3px;z-index:1;width:19px;height:19px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;font-size:10px;color:#04121a;background:radial-gradient(circle at 35% 28%,#bfeaff,var(--spawn) 58%,#1b6f8f);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);}
+  /* tile bottom bar — the same DM grammar as the hand cards: power / ⚒± chip / ♥, or a spell ribbon */
+  .dbcard .stats{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:1px 4px 3px;font-family:'Cinzel',serif;font-weight:700;font-size:10px;background:linear-gradient(180deg,rgba(8,6,12,.9),rgba(8,6,12,.7));}
+  .dbcard .stats .atk{font-style:italic;font-weight:900;color:#fff;font-size:12.5px;line-height:1;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
+  .dbcard .stats .hp{color:#ff9a8a;}
+  .dbcard .stats .eff{color:var(--spawn);}
+  .dbcard .stats .cap{font-size:8.5px;}
+  .dbcard-rib{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.12em;font-size:8.5px;color:rgba(255,246,220,.85);text-align:center;padding:2px 3px 3px;background:linear-gradient(180deg,rgba(8,6,12,.9),rgba(8,6,12,.7));}
+  .dbcard.fire-c{--ec:var(--fire);} .dbcard.water-c{--ec:var(--water);} .dbcard.earth-c{--ec:var(--earth);} .dbcard.wind-c{--ec:var(--wind);}
+  .dbcard.forest-c{--ec:var(--forest);} .dbcard.electric-c{--ec:var(--electric);} .dbcard.light-c{--ec:var(--light);} .dbcard.dark-c{--ec:var(--dark);}
+  .dbcard.divine-c{--ec:var(--divine);} .dbcard.neutral{--ec:#6a6a76;}
+  .dbdeck .dbcardgrid .dbcard:nth-child(even){background:linear-gradient(180deg,#201a2c,#161220);} /* subtle deck-list striping */
   .dbcount-badge{position:absolute;top:2px;right:2px;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;font-family:'Cinzel',serif;font-weight:900;font-size:11px;border-radius:6px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.6);}
   .dbcard-x{position:absolute;bottom:2px;right:2px;width:17px;height:17px;border-radius:50%;background:rgba(40,20,24,.92);border:1px solid #b3504a;color:#ff9a8a;font-size:11px;line-height:15px;text-align:center;cursor:pointer;}
   .dbstep{display:flex;align-items:center;gap:10px;}
@@ -871,12 +1125,109 @@
   .dbstep button:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
   .dbcount{font-family:'Cinzel',serif;font-weight:900;font-size:20px;color:var(--spawn);min-width:22px;text-align:center;}
   .dbhint{flex:none;font-size:11.5px;color:var(--ink-dim);font-style:italic;text-align:center;min-height:14px;}
+  /* pool toolbar: search + sort + type filter chips */
+  .dbtools{flex:none;display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+  .dbsearch{flex:1;min-width:0;font-family:'EB Garamond',serif;font-size:12.5px;padding:6px 9px;border-radius:8px;background:#0d0b12;border:1px solid #3d3450;color:var(--ink);}
+  .dbsort{flex:none;font-family:'Cinzel',serif;font-size:10.5px;padding:6px 7px;border-radius:8px;background:#1a1622;border:1px solid #3d3450;color:var(--ink);cursor:pointer;}
+  .dbfilters{flex:none;display:flex;flex-direction:column;gap:5px;margin-bottom:7px;}
+  .dbfrow{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+  .dbfsep{width:1px;height:16px;background:var(--hairline-dim);margin:0 3px;}
+  .dbchip{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.02em;padding:5px 10px;border-radius:999px;cursor:pointer;color:var(--ink-dim);background:#1a1622;border:1px solid #2a2433;}
+  .dbchip.on{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border-color:var(--gold);}
+  .dbechip{width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;background:#1a1622;border:1px solid #2a2433;opacity:.55;transition:opacity .12s,box-shadow .12s;}
+  .dbechip:hover{opacity:1;}
+  .dbechip.on{opacity:1;border-color:var(--ec,var(--gold));box-shadow:0 0 8px var(--ec,var(--gold));}
+  /* floating hover-zoom card preview (desktop / pointer:fine only) */
+  #dbZoom{position:fixed;left:0;top:0;z-index:64;width:min(250px,26vw);pointer-events:none;opacity:0;transition:opacity .12s;will-change:transform;
+    background:var(--glass-2);border:1px solid var(--zc,var(--gold));border-radius:12px;padding:9px;box-shadow:var(--glow-soft);backdrop-filter:blur(6px);}
+  #dbZoom.on{opacity:1;}
+  .dbz-art{width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;background:#0a0a0f;}
+  .dbz-art img{width:100%;height:100%;object-fit:cover;display:block;}
+  .dbz-nm{font-family:'Cinzel',serif;font-weight:700;font-size:14px;margin-top:7px;text-align:center;}
+  .dbz-line{display:flex;gap:10px;justify-content:center;font-family:'Cinzel',serif;font-size:12px;margin-top:3px;}
+  .dbz-desc{font-family:'EB Garamond',serif;font-style:italic;font-size:11.5px;color:var(--ink-dim);line-height:1.4;margin-top:6px;text-align:center;}
+  /* deck stats: type counts + mana curve */
+  .dbstats{flex:none;background:var(--glass-2);border:1px solid var(--hairline-dim);border-radius:9px;padding:7px 9px;margin-bottom:8px;}
+  .dbstatline{display:flex;justify-content:space-around;gap:8px;font-family:'Cinzel',serif;font-size:11px;color:var(--ink-dim);margin-bottom:6px;}
+  .dbstatline b{color:var(--ink);}
+  .dbcurve{display:flex;align-items:flex-end;gap:4px;height:42px;}
+  .dbcbar{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
+  .dbbarfill{width:100%;min-height:2px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#f2d98a,var(--gold) 45%,var(--gold-deep));box-shadow:inset 0 1px 0 rgba(255,240,190,.5);display:flex;align-items:flex-start;justify-content:center;transition:height .25s var(--ease-pop);}
+  .dbbarfill.empty{background:#241f30;box-shadow:none;}
+  .dbcbar:hover .dbbarfill:not(.empty){filter:brightness(1.25);}
+  .dbbarfill span{font-family:'Cinzel',serif;font-size:8.5px;font-weight:900;color:#1a140a;line-height:1;padding-top:1px;}
+  .dbbarlab{font-family:'Cinzel',serif;font-size:8.5px;color:var(--ink-dim);margin-top:2px;}
   @media (max-width:860px){
     #deckBuilder .dbbox{padding:9px;}
+    .dbbar{gap:7px;} .dbtitle{display:none;} .dbcounter{width:38px;height:38px;} .dbcounter b{font-size:12px;}
+    .dbbaracts button{padding:8px 12px;font-size:12px;}
     .dbcols{grid-template-columns:minmax(150px,.85fr) 1.2fr 1.2fr;gap:8px;}
-    .dbcardgrid{grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px;}
+    .dbcardgrid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:5px;}
     .dbd-name{font-size:14px;}
   }
+  /* PC: everything reads bigger — the builder was designed at phone scale */
+  @media (min-width:1200px){
+    .dbtitle{font-size:14px;}
+    .dbcolhead,.dbpoolhead{font-size:14.5px;}
+    .dbchip{font-size:12px;padding:6px 13px;}
+    .dbechip{width:31px;height:31px;}
+    .dbleader{font-size:12.5px;padding:5px 11px;}
+    .dbleadlab{font-size:11.5px;}
+    #dbLeaders{max-height:32vh;}
+    .dbsearch{font-size:14.5px;padding:8px 11px;}
+    .dbsort{font-size:12px;padding:8px 9px;}
+    .dbstatline{font-size:13px;}
+    .dbcurve{height:52px;}
+    .dbbarlab{font-size:10px;} .dbbarfill span{font-size:10px;}
+    .dbname{font-size:18px;}
+    .dbhint{font-size:13.5px;min-height:17px;}
+    .dbd-name{font-size:19px;}
+    .dbd-line{font-size:15px;}
+    .dbd-elem{font-size:12.5px;}
+    .dbd-desc{font-size:14.5px;line-height:1.5;}
+    .dbcount{font-size:23px;}
+    .dbcardgrid{grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:9px;}
+    .dbcard-nm{font-size:12.5px;padding:4px 4px;}
+    .dbcard .stats{font-size:12px;padding:2px 5px 4px;}
+    .dbcard .stats .atk{font-size:15px;}
+    .dbcard .stats .cap{font-size:10px;}
+    .dbcard-rib{font-size:10.5px;}
+    .dbcard-cost{width:23px;height:23px;font-size:12px;}
+    .dbcount-badge{font-size:13px;padding:0 6px;}
+    .dbcard-x{width:21px;height:21px;font-size:13px;line-height:19px;}
+  }
+  /* ===== DM card-frame layer — element accents + frame parts (after all generic element rules) ===== */
+  /* accent scoping: generic .fire-c etc. (minpills, cbtns, vcards) stay untouched; frames read --ec */
+  .hc.fire-c,.card.fire-c{--ec:var(--fire);}       .hc.water-c,.card.water-c{--ec:var(--water);}
+  .hc.earth-c,.card.earth-c{--ec:var(--earth);}    .hc.wind-c,.card.wind-c{--ec:var(--wind);}
+  .hc.forest-c,.card.forest-c{--ec:var(--forest);} .hc.electric-c,.card.electric-c{--ec:var(--electric);}
+  .hc.light-c,.card.light-c{--ec:var(--light);}    .hc.dark-c,.card.dark-c{--ec:var(--dark);}
+  .hc.divine-c,.card.divine-c{--ec:var(--divine);}
+  .hc.ember-c,.card.ember-c{--ec:var(--fire);}     .hc.tide-c,.card.tide-c{--ec:var(--water);} /* legacy aliases */
+  .card.bld{--ec:#8a8a9a;} .card.vil{--ec:#b79a4d;} .card.ccx{--ec:var(--gold);}
+  /* the generic element classes set border-color/box-shadow AFTER .card — reassert the black
+     outer border + colored inset ring for framed board cards (this block is last, so it wins) */
+  .card.crt,.card.bld{border-color:#0a090d;
+    box-shadow:inset 0 0 0 1px var(--ec),inset 0 0 0 2px rgba(0,0,0,.5),inset 0 0 13px rgba(0,0,0,.3);}
+  /* board bottom bar: DM power / gem+worker chip / health */
+  .card .stats .atk{flex:none;font-style:italic;font-weight:900;color:#fff;font-size:clamp(9px,24cqmin,21px);line-height:1;
+    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 2px 2px rgba(0,0,0,.75);}
+  .card .stats .hp{flex:none;font-size:clamp(7px,15cqmin,15px);}
+  .card .stats .mid{display:inline-flex;align-items:center;gap:1px;min-width:0;overflow:hidden;}
+  .card .stats .cap{font-size:clamp(6px,11cqmin,11px);padding:0 2px;}
+  .card .stats .eff{font-size:clamp(7px,15cqmin,15px);}
+  /* element gem: hidden by default, shown only when its container is wide enough.
+     .ebw inside .card resolves against the .cell (container-type:size); inside .hc against the .hc */
+  .ebw{display:none;align-items:center;line-height:0;}
+  .ebw svg{display:block;}
+  @container (min-width:74px){ .card .ebw{display:inline-flex;} .card .ebw svg{width:15cqmin;height:15cqmin;} }
+  .hc .ebw{display:inline-flex;}  /* hand cards always show the gem (no inline-size container — it collapsed the abspos .hand's shrink-to-fit width) */
+  .hc .ebw svg{width:clamp(13px,calc(var(--hcw)*.16),21px);height:clamp(13px,calc(var(--hcw)*.16),21px);}
+  /* variants that manage their own interior keep their old padding (face-downs unchanged, worker tokens, command) */
+  .card.charge{padding:5px;justify-content:space-between;}
+  .card.vil{padding:3px;justify-content:space-between;}
+  .card.ccx{padding:3px 3px 12px;} /* room for the absolute COMMAND ribbon */
+  .card.vil .nm{background:none;border-bottom:none;} /* worker tokens keep their plain token look */
 </style>
 </head>
 <body>
@@ -1001,41 +1352,62 @@
 <div id="viewerPanel" onclick="if(event.target===this)closeViewer()"><div class="box"></div></div>
 <div class="banner" id="banner"><div><div class="msg" id="bannerMsg"></div><div id="bannerActs"><button onclick="location.reload()">Duel Again</button></div></div></div>
 <div id="charsel"><div class="csbox"></div></div>
-<div id="mainMenu"><div class="mmbox">
-  <div class="mmtitle">SPAWN ROW DUEL</div>
-  <div class="mmsub">raze their base · hold the center · feed the army</div>
-  <div class="mmbtns">
-    <button class="mmbtn" onclick="menuPlaySolo()">Play · Solo</button>
-    <button class="mmbtn" onclick="menuCampaign()">Campaign</button>
-    <button class="mmbtn" onclick="menuDeckBuilder()">Deck Builder</button>
-    <button class="mmbtn off" disabled>Multiplayer<span class="soon">coming soon</span></button>
-    <button class="mmbtn ghost" onclick="toggleRules(true)">Rules</button>
+<div id="mainMenu">
+  <div class="mmbg" aria-hidden="true">
+    <div class="mmrays"></div>
+    <svg class="mmring" viewBox="0 0 400 400">
+      <g fill="none" stroke="rgba(217,176,74,.20)"><circle cx="200" cy="200" r="188" stroke-width="1"/><circle cx="200" cy="200" r="154" stroke-width="1" stroke-dasharray="3 9"/></g>
+      <g font-size="24" text-anchor="middle" fill="rgba(217,176,74,.30)" font-family="serif">
+        <text x="200" y="34">炎</text><text x="200" y="34" transform="rotate(45 200 200)">水</text><text x="200" y="34" transform="rotate(90 200 200)">地</text><text x="200" y="34" transform="rotate(135 200 200)">風</text><text x="200" y="34" transform="rotate(180 200 200)">森</text><text x="200" y="34" transform="rotate(225 200 200)">雷</text><text x="200" y="34" transform="rotate(270 200 200)">光</text><text x="200" y="34" transform="rotate(315 200 200)">闇</text>
+      </g>
+    </svg>
+    <div class="mmembers"></div>
   </div>
-</div></div>
+  <div class="mmbox">
+    <div class="mmtitle">SPAWN ROW DUEL</div>
+    <div class="mmsub">raze their base · hold the center · feed the army</div>
+    <div class="mmbtns">
+      <button class="mmbtn primary" onclick="menuPlaySolo()"><span class="mi">⚔</span><span class="ml">Play · Solo<span class="ms">duel a commander of your choice</span></span></button>
+      <button class="mmbtn" onclick="menuCampaign()"><span class="mi">♜</span><span class="ml">Campaign<span class="ms">conquer the living map</span></span></button>
+      <button class="mmbtn" onclick="menuDeckBuilder()"><span class="mi">⚒</span><span class="ml">Deck Builder<span class="ms">forge your forty</span></span></button>
+      <button class="mmbtn off" disabled><span class="mi">⛓</span><span class="ml">Multiplayer<span class="soon">coming soon</span></span></button>
+      <button class="mmbtn ghost" onclick="toggleRules(true)"><span class="mi">✦</span><span class="ml">Rules</span></button>
+    </div>
+  </div>
+  <div class="mmfoot"><span>v26 · local build</span><span>Spawn Row Duel</span></div>
+</div>
 <div id="soloSelect"><div class="csbox"></div></div>
 <div id="campaign"></div>
 <div id="deckBuilder"><div class="dbbox">
   <div class="dbbar">
+    <button class="dbback" onclick="dbCancel()" aria-label="Back">‹</button>
     <div class="dbtitle">Deck Builder</div>
+    <div class="dbnamewrap"><span class="dbpencil">✎</span><input id="dbName" class="dbname" maxlength="22" placeholder="Deck name" oninput="dbNameInput(this.value)"></div>
+    <div id="dbCounter" class="dbcounter bad"></div>
     <div class="dbbaracts">
-      <button class="dbcancel" onclick="dbCancel()">Cancel</button>
       <button id="dbSave" onclick="dbSave()" disabled>Save Deck</button>
     </div>
   </div>
   <div class="dbcols">
     <div class="dbcol dbdetail" id="dbDetail"></div>
     <div class="dbcol dbdeck">
-      <div class="dbdeckhead">
-        <div id="dbLeaders"></div>
-        <div class="dbnamerow">
-          <input id="dbName" class="dbname" maxlength="22" placeholder="Deck name" oninput="dbNameInput(this.value)">
-          <div id="dbCounter" class="dbcounter bad">0 / 20</div>
-        </div>
-      </div>
+      <div class="dbdeckhead"><div id="dbLeaders"></div></div>
+      <div id="dbStats" class="dbstats"></div>
       <div id="dbDeckList" class="dbcardgrid"></div>
     </div>
     <div class="dbcol dbpool">
       <div class="dbpoolhead">Cards</div>
+      <div class="dbtools">
+        <input id="dbSearch" class="dbsearch" placeholder="Search cards…" oninput="dbSetSearch(this.value)">
+        <select id="dbSort" class="dbsort" onchange="dbSetSort(this.value)">
+          <option value="type">Sort: Type</option>
+          <option value="cost">Sort: Cost ↑</option>
+          <option value="costdesc">Sort: Cost ↓</option>
+          <option value="name">Sort: Name</option>
+          <option value="atk">Sort: Attack ↓</option>
+        </select>
+      </div>
+      <div class="dbfilters" id="dbTypeChips"></div>
       <div id="dbPool" class="dbcardgrid"></div>
     </div>
   </div>
@@ -1119,6 +1491,14 @@ function elemBadge(el,size){ const E=ELEMENTS[el], s=size||16, g='eb_'+el;
   return '<svg class="elembadge" viewBox="0 0 40 40" width="'+s+'" height="'+s+'" aria-label="'+E.name+'"><defs><radialGradient id="'+g+'" cx="40%" cy="34%" r="78%"><stop offset="0" stop-color="'+E.accent+'"/><stop offset=".55" stop-color="'+E.color+'"/><stop offset="1" stop-color="'+E.deep+'"/></radialGradient></defs>'+
     '<circle cx="20" cy="20" r="18" fill="url(#'+g+')" stroke="rgba(0,0,0,.5)" stroke-width="2"/>'+
     '<text x="20" y="27" font-size="20" text-anchor="middle" fill="#fff" font-family="serif" font-weight="700" style="paint-order:stroke" stroke="rgba(0,0,0,.45)" stroke-width="1">'+E.glyph+'</text></svg>'; }
+/* element gem for card frames — kanji gem for colored cards, plain ◇ gem for neutral */
+function elemGem(el,size){
+  if(el&&ELEMENTS[el]) return elemBadge(el,size);
+  const s=size||16;
+  return '<svg class="elembadge" viewBox="0 0 40 40" width="'+s+'" height="'+s+'" aria-label="Neutral"><defs><radialGradient id="eb_neutral" cx="40%" cy="34%" r="78%"><stop offset="0" stop-color="#d3cee0"/><stop offset=".55" stop-color="#7b7689"/><stop offset="1" stop-color="#3c3947"/></radialGradient></defs>'+
+    '<circle cx="20" cy="20" r="18" fill="url(#eb_neutral)" stroke="rgba(0,0,0,.5)" stroke-width="2"/>'+
+    '<text x="20" y="27" font-size="19" text-anchor="middle" fill="#fff" font-family="serif" font-weight="700" style="paint-order:stroke" stroke="rgba(0,0,0,.45)" stroke-width="1">◇</text></svg>';
+}
 const DRAGON_INNER='<defs><linearGradient id="sc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86291c"/><stop offset="1" stop-color="#360e07"/></linearGradient><linearGradient id="hn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecd09a"/><stop offset="1" stop-color="#6e4f1d"/></linearGradient><radialGradient id="ey"><stop offset="0" stop-color="#fff6cc"/><stop offset=".42" stop-color="#ffd23f"/><stop offset="1" stop-color="#bf360c"/></radialGradient><radialGradient id="fr"><stop offset="0" stop-color="#fff2ac"/><stop offset=".45" stop-color="#ff8a1f"/><stop offset="1" stop-color="#e0240c"/></radialGradient></defs><path d="M28 120 Q40 82 60 80 Q80 82 92 120 Z" fill="url(#sc)"/><path d="M60 80 l-7 -11 l11 3 z" fill="#8f2c1b"/><path d="M38 60 Q42 36 64 34 Q92 36 96 58 Q92 75 70 77 Q48 75 38 60 Z" fill="url(#sc)" stroke="#170704" stroke-width="1.6"/><path d="M44 64 Q33 70 27 83 Q42 72 51 68 Z" fill="#7c241a"/><path d="M88 51 Q109 49 111 60 Q109 71 85 69 Q83 60 88 51 Z" fill="#6c2016" stroke="#170704" stroke-width="1.2"/><path d="M85 66 Q100 71 109 64 Q104 77 87 75 Z" fill="#4a140c" stroke="#170704" stroke-width="1"/><path d="M91 67 l3 5 l3 -5 z M98 67 l3 5 l3 -5 z M105 66 l2.5 4 l2.5 -4 z" fill="#f4e8c4"/><circle cx="105" cy="57" r="2.1" fill="#170704"/><path d="M52 50 Q66 41 82 50 Q70 49 52 50 Z" fill="#8f2c1b"/><ellipse cx="68" cy="54" rx="7" ry="5.2" fill="url(#ey)"/><ellipse cx="68" cy="54" rx="2" ry="4.6" fill="#220604"/><path d="M50 40 Q39 17 21 11 Q34 26 44 45 Z" fill="url(#hn)" stroke="#352510" stroke-width="1"/><path d="M64 34 Q60 11 47 1 Q58 18 57 36 Z" fill="url(#hn)" stroke="#352510" stroke-width="1"/><path d="M111 61 Q123 57 119 66 Q125 64 119 73 Q113 70 110 66 Z" fill="url(#fr)"/>';
 const ART={
  magmaw:artURI(frame('fire',DRAGON_INNER)),
@@ -1711,6 +2091,62 @@ function applyCharacterUI(){
   $('foeSide').style.borderColor=`var(--${cf.colors[0]})`;
   $('youSide').style.borderColor=`var(--${cy.colors[0]})`;
 }
+/* ===== BATTLEFIELD SCENERY ==================================================
+   buildBattlefield(youEl, foeEl) injects a full-bleed scenery layer as the first
+   children of .matmain: element-tinted territories, a scorched contested frontier,
+   lane paths, and ~20 seeded props. Idempotent — replaces any previous layer.
+   Called from startGame(); nothing else touches .matmain children (renderRow only
+   clears the row divs), so it persists across renders/resizes/angle toggles. */
+function bfRng(seed){ let t=seed>>>0; return ()=>{ t+=0x6D2B79F5; let r=Math.imul(t^t>>>15,1|t);
+  r^=r+Math.imul(r^r>>>7,61|r); return ((r^r>>>14)>>>0)/4294967296; }; }
+const BF_ROCK=(a,b)=>`<svg viewBox='0 0 40 26' xmlns='http://www.w3.org/2000/svg'><path d='M4 24 L9 9 L21 4 L33 11 L37 24 Z' fill='${a}' stroke='#0d0a07' stroke-width='1'/><path d='M9 9 L21 4 L25 11 L13 15 Z' fill='${b}' opacity='.85'/></svg>`;
+const BF_TUFT=c=>`<svg viewBox='0 0 30 22' xmlns='http://www.w3.org/2000/svg'><g fill='none' stroke='${c}' stroke-width='1.6' stroke-linecap='round'><path d='M15 21q0-9-3-13M15 21q1-8 5-11M15 21q-2-6-7-8M15 21q3-5 8-6'/></g><path d='M15 21q0-9-3-13' fill='none' stroke='#fff' stroke-opacity='.18' stroke-width='.7'/></svg>`;
+const BF_BANNER=c=>`<svg viewBox='0 0 30 48' xmlns='http://www.w3.org/2000/svg'><path d='M8 46 L24 4' stroke='#6b543a' stroke-width='2.2' stroke-linecap='round'/><path d='M24 4 L21 10 L27 9 Z' fill='#b8b2a4'/><path d='M22 9 L9 16 L11 22 L14 19 L16 25 L21 21 Z' fill='${c}' stroke='#0d0a07' stroke-width='.8' opacity='.92'/></svg>`;
+const BF_BRAZIER=`<svg viewBox='0 0 34 30' xmlns='http://www.w3.org/2000/svg'><path d='M5 12 H29 L26 20 H8 Z' fill='#2c2622' stroke='#0d0a07'/><ellipse cx='17' cy='12' rx='12' ry='3' fill='#141008'/><path d='M10 20 L7 29 M24 20 L27 29 M17 20 V29' stroke='#1a1512' stroke-width='2.5' fill='none'/></svg>`;
+const BF_TENT=(a,b)=>`<svg viewBox='0 0 52 34' xmlns='http://www.w3.org/2000/svg'><path d='M3 32 L26 4 L49 32 Z' fill='${a}' stroke='#0d0a07'/><path d='M26 4 L49 32 H36 Z' fill='${b}' opacity='.55'/><path d='M21 32 L26 21 L31 32 Z' fill='#0f0a06'/></svg>`;
+const BF_STAKES=`<svg viewBox='0 0 70 22' xmlns='http://www.w3.org/2000/svg'><g fill='#3a2c1a' stroke='#150f08' stroke-width='.8'><path d='M4 22V8l3-4 3 4v14z'/><path d='M16 22V6l3-4 3 4v16z'/><path d='M28 22V9l3-4 3 4v13z'/><path d='M40 22V6l3-4 3 4v16z'/><path d='M52 22V9l3-4 3 4v13z'/></g><path d='M2 13h60' stroke='#241a10' stroke-width='2'/></svg>`;
+function buildBattlefield(youEl,foeEl){
+  const mm=document.querySelector('.matmain'); if(!mm)return;
+  ['battlefield','battlefieldProps'].forEach(id=>{const e=document.getElementById(id); if(e)e.remove();});
+  const Y=ELEMENTS[youEl]||ELEMENTS.earth, F=ELEMENTS[foeEl]||ELEMENTS.dark;
+  const bf=document.createElement('div'); bf.id='battlefield';
+  const st=bf.style;
+  st.setProperty('--terr-you',Y.bg[0]);  st.setProperty('--terr-you-deep',Y.bg[1]);  st.setProperty('--terr-you-col',Y.color);
+  st.setProperty('--terr-foe',F.bg[0]);  st.setProperty('--terr-foe-deep',F.bg[1]);  st.setProperty('--terr-foe-col',F.color);
+  bf.innerHTML='<div class="bf-ground"></div>'
+    +[-2,0,2].map(k=>`<div class="bf-path" style="left:calc(50% + ${k}*(var(--cw,60px) + var(--bfgap,6px)))"></div>`).join('')
+    +'<div class="bf-center"></div>'
+    +'<div class="bf-ember" style="left:31%;top:49%"></div><div class="bf-ember" style="left:73%;top:52%;animation-delay:-1.9s"></div>'
+    +'<div class="bf-smoke s1"></div><div class="bf-smoke s2"></div><div class="bf-parts"></div><div class="bf-cloud"></div>';
+  const props=document.createElement('div'); props.id='battlefieldProps';
+  const rng=bfRng((Math.random()*0xffffffff)>>>0), R=(a,b)=>a+rng()*(b-a);
+  const prop=(svg,x,y,w,extra)=>{ const d=document.createElement('div'); d.className='bf-prop up'+(extra?' '+extra:'');
+    d.style.left=x.toFixed(1)+'%'; d.style.top=y.toFixed(1)+'%'; d.style.width='calc(var(--cw,60px)*'+w.toFixed(2)+')';
+    d.innerHTML=svg; props.appendChild(d); return d; };
+  for(let i=0;i<6;i++){ // rocks + tufts in the side margins, outside the 7-column block
+    const x=i%2?R(93,98.5):R(1.5,7), y=R(10,90);
+    if(rng()<.5) prop(BF_ROCK('#3d3630','#5a5148'),x,y,R(.28,.48));
+    else prop(BF_TUFT(y<50?F.deep:Y.deep),x,y,R(.22,.38)); }
+  for(let i=0;i<4;i++){ // small tufts along the row seams either side of the frontier
+    const y=rng()<.5?R(33,36):R(64,67); prop(BF_TUFT(y<50?F.deep:Y.deep),R(12,88),y,R(.14,.24)); }
+  for(let i=0;i<3;i++) // fallen war banners on the contested frontier
+    prop(BF_BANNER(i%2?F.color:Y.color),R(12,88),R(46,55),R(.2,.3));
+  [[4.5,10,F],[95.5,10,F],[4.5,91,Y],[95.5,91,Y]].forEach(([x,y])=>{ // braziers flanking each back line
+    const d=prop(BF_BRAZIER,x,y,.4,'bf-brazier');
+    d.insertAdjacentHTML('beforeend','<i class="bf-flame" style="animation-delay:'+(-R(0,.8)).toFixed(2)+'s"></i>'); });
+  prop(BF_TENT(F.deep,'#000'),R(14,24),7,.8);    prop(BF_STAKES,R(62,80),6.2,1.05);   // foe camp hints, top edge
+  prop(BF_TENT(Y.deep,'#000'),R(74,86),101.5,.85); prop(BF_STAKES,R(18,36),101,1.05); // your camp hints, bottom edge
+  const parts=bf.querySelector('.bf-parts');
+  for(let i=0;i<8;i++){ // ambient motes: 4 per half, tinted by that side's element accent
+    const you=i%2===0, p=document.createElement('i'); p.className='bf-part';
+    p.style.setProperty('--pc',you?Y.accent:F.accent);
+    p.style.left=R(6,94).toFixed(1)+'%'; p.style.top=(you?R(56,92):R(8,42)).toFixed(1)+'%';
+    p.style.setProperty('--pd',R(6,11).toFixed(1)+'s'); p.style.animationDelay=(-R(0,10)).toFixed(1)+'s';
+    parts.appendChild(p); }
+  mm.insertBefore(props,mm.firstChild); mm.insertBefore(bf,props); // ground first, props second, rows after
+  const row=document.getElementById('center'); // align the lane paths to the real column pitch
+  if(row){ const g=parseFloat(getComputedStyle(row).columnGap)||6; bf.style.setProperty('--bfgap',g.toFixed(1)+'px'); }
+}
 function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
   Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
@@ -1724,6 +2160,7 @@ function startGame(youId,foeId,youDeck,foeDeck){
   G.P.you.deck=youDeck||deckOf(cy.colors); G.P.foe.deck=foeDeck||deckOf(cf.colors);
   dealOpening('you'); dealOpening('foe');
   applyCharacterUI();
+  buildBattlefield(cy.colors[0], cf.colors[0]);
   hideAllScreens();
   $('log').innerHTML='';
   log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Break through to the enemy back row and drain their ♥ to win — protect your own.</span>`);
@@ -1761,7 +2198,8 @@ function showCharSelect(){ csStep=1; renderCharSel(); $('charsel').style.display
 
 /* ===== main menu / deck builder / solo screens ===== */
 function hideAllScreens(){ ['mainMenu','charsel','soloSelect','deckBuilder','campaign'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
-function showMainMenu(){ hideAllScreens(); $('mainMenu').style.display='flex'; }
+function showScreen(id){ hideAllScreens(); const e=$(id); if(!e)return; e.style.display='flex'; e.classList.remove('screen-in'); void e.offsetWidth; e.classList.add('screen-in'); }
+function showMainMenu(){ showScreen('mainMenu'); }
 function menuPlaySolo(){ showSoloDeckPick(); }
 function menuDeckBuilder(){ openDeckBuilder(); }
 
@@ -2047,13 +2485,46 @@ function openDeckBuilder(editIndex,ret){
   if(editIndex==null&&decks.length>=MAX_DECKS){ showSoloDeckPick(); return; }
   hideAllScreens();
   const back=ret||'menu';
-  if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back,sel:null};
-  else dbState={cc:'fire',name:'',cards:{},editIndex:null,back,sel:null};
-  renderDeckBuilder(); $('deckBuilder').style.display='flex';
+  if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back,sel:null,filter:{q:'',type:'',elem:'',cost:null},sort:'type'};
+  else dbState={cc:'fire',name:'',cards:{},editIndex:null,back,sel:null,filter:{q:'',type:'',elem:'',cost:null},sort:'type'};
+  renderDeckBuilder(); showScreen('deckBuilder');
 }
 function dbReturn(){ const back=dbState&&dbState.back; dbState=null; if(back==='solo')showSoloDeckPick(); else showMainMenu(); }
 function dbNameInput(v){ if(dbState){ dbState.name=v; refreshDbCounter(); } }
-function renderDeckBuilder(){ renderDbLeaders(); $('dbName').value=dbState.name; renderDbPool(); renderDbDeck(); renderDbDetail(); refreshDbCounter(); }
+function renderDeckBuilder(){ renderDbLeaders(); $('dbName').value=dbState.name; renderDbFilters(); renderDbPool(); renderDbDeck(); renderDbDetail(); renderDbStats(); refreshDbCounter(); }
+// --- pool search / type filter / sort ---
+const DB_SORT={
+  type:(a,b)=>(DB_TYPE_ORDER[a.type]-DB_TYPE_ORDER[b.type])||((a.tpl.c||0)-(b.tpl.c||0))||a.nm.localeCompare(b.nm),
+  cost:(a,b)=>((a.tpl.c||0)-(b.tpl.c||0))||a.nm.localeCompare(b.nm),
+  costdesc:(a,b)=>((b.tpl.c||0)-(a.tpl.c||0))||a.nm.localeCompare(b.nm),
+  name:(a,b)=>a.nm.localeCompare(b.nm),
+  atk:(a,b)=>((b.tpl.a||0)-(a.tpl.a||0))||a.nm.localeCompare(b.nm),
+};
+function renderDbFilters(){ const el=$('dbTypeChips'); if(!el)return; const f=dbState.filter||{};
+  const types=[['','All'],['creature','⚔ Creatures'],['spell','✦ Spells']];
+  const trow=types.map(([t,lab])=>`<button class="dbchip${(f.type||'')===t?' on':''}" onclick="dbSetType('${t}')">${lab}</button>`).join('');
+  const cols=((CCS[dbState.cc]&&CCS[dbState.cc].colors)||MAJORS).concat(['neutral']);
+  const erow=cols.map(c=>c==='neutral'
+    ?`<button class="dbechip${f.elem==='neutral'?' on':''}" style="--ec:#6a6a76" onclick="dbSetElem('neutral')" title="Neutral"><span style="color:#9a9aa6;font-size:13px">◇</span></button>`
+    :`<button class="dbechip${f.elem===c?' on':''}" style="--ec:var(--${c})" onclick="dbSetElem('${c}')" title="${cap(c)}">${elemBadge(c,15)}</button>`).join('');
+  const crow=[1,2,3,4,5,6].map(c=>`<button class="dbchip${f.cost===c?' on':''}" onclick="dbSetCost(${c})">◆${c===6?'6+':c}</button>`).join('');
+  el.innerHTML=`<div class="dbfrow">${trow}</div><div class="dbfrow">${erow}<span class="dbfsep"></span>${crow}</div>`;
+}
+window.dbSetSearch=(v)=>{ if(!dbState)return; dbState.filter.q=(v||'').toLowerCase(); renderDbPool(); };
+window.dbSetType=(t)=>{ if(!dbState)return; dbState.filter.type=t; renderDbFilters(); renderDbPool(); };
+window.dbSetElem=(c)=>{ if(!dbState)return; dbState.filter.elem=dbState.filter.elem===c?'':c; renderDbFilters(); renderDbPool(); };
+window.dbSetCost=(c)=>{ if(!dbState)return; dbState.filter.cost=dbState.filter.cost===c?null:c; renderDbFilters(); renderDbPool(); };
+window.dbSetSort=(v)=>{ if(!dbState)return; dbState.sort=v; renderDbPool(); };
+function renderDbStats(){ const el=$('dbStats'); if(!el)return;
+  let cre=0,spl=0; const curve={};
+  for(const k in dbState.cards){ const n=dbState.cards[k]; if(!n)continue; const e=CARD_BY_KEY[k]; if(!e)continue;
+    if(e.type==='creature')cre+=n; else if(e.type==='spell')spl+=n;
+    const c=Math.min(6,e.tpl.c||0); curve[c]=(curve[c]||0)+n; }
+  const maxb=Math.max(1,...Object.keys(curve).map(k=>curve[k]));
+  let bars='';
+  for(let c=0;c<=6;c++){ const v=curve[c]||0; const h=v?Math.max(8,Math.round((v/maxb)*100)):0;
+    bars+=`<div class="dbcbar" title="◆${c===6?'6+':c}: ${v} card${v===1?'':'s'}"><div class="dbbarfill${v?'':' empty'}" style="height:${h}%">${v?`<span>${v}</span>`:''}</div><div class="dbbarlab">${c===6?'6+':c}</div></div>`; }
+  el.innerHTML=`<div class="dbstatline"><span>⚔ Creatures <b>${cre}</b></span><span>✦ Spells <b>${spl}</b></span></div><div class="dbcurve">${bars}</div>`; }
 function renderDbLeaders(){
   const ids=Object.keys(CCS);
   const chip=id=>{const c=CCS[id]; const on=id===dbState.cc?' on':'';
@@ -2079,15 +2550,31 @@ function cardBlurb(e){ const t=e.tpl;
 }
 function dbCardLabel(e,nameCount){ return nameCount&&nameCount[e.nm]>1?`${e.nm} (${cap(e.color||'neutral')})`:e.nm; }
 function dbPoolNameCount(){ const nc={}; regForCC(dbState.cc).forEach(e=>{nc[e.nm]=(nc[e.nm]||0)+1;}); return nc; } // names shared across colors (e.g. Longhouse on a dual leader)
+function dbTileInner(e,label){ // full mini-card body: art, name plate, DM bottom bar (spells/traps get a ribbon)
+  const t=e.tpl;
+  const bar=e.type==='spell'
+    ?`<div class="dbcard-rib">${t.trap?'⚠ TRAP':'✦ SPELL'}</div>`
+    :e.type==='building'
+      ?`<div class="stats"><span class="eff">${t.eff==='mana'?('◆+'+t.val):'⚒'}</span>${t.sup?`<span class="cap plus">⚒+${t.sup}</span>`:''}<span class="hp">♥${t.h}</span></div>`
+      :`<div class="stats"><span class="atk">${t.a}</span>${t.up?`<span class="cap neg">⚒-${t.up}</span>`:''}<span class="hp">♥${t.h}</span></div>`;
+  return `<div class="dbcard-art">${cardArtImg(t)}</div><div class="dbcard-nm">${escHtml(label)}</div>${bar}`;
+}
 function renderDbPool(){
-  const list=regForCC(dbState.cc).slice().sort((a,b)=>(DB_TYPE_ORDER[a.type]-DB_TYPE_ORDER[b.type])||((a.tpl.c||0)-(b.tpl.c||0)));
+  const f=dbState.filter||{}; const q=(f.q||'').trim(); const ty=f.type||'';
+  const list=regForCC(dbState.cc).filter(e=>{
+    if(ty&&e.type!==ty)return false;
+    if(f.elem){ if(f.elem==='neutral'?e.color:e.color!==f.elem)return false; }
+    if(f.cost){ const cc=e.tpl.c||0; if(f.cost===6?cc<6:cc!==f.cost)return false; }
+    if(q&&!(`${e.nm} ${e.type} ${e.color||''}`.toLowerCase().includes(q)))return false;
+    return true;
+  }).sort(DB_SORT[dbState.sort]||DB_SORT.type);
   const nameCount=dbPoolNameCount();
-  $('dbPool').innerHTML=list.map(e=>{
+  $('dbPool').innerHTML=(list.map(e=>{
     const n=dbState.cards[e.key]||0; const sel=e.key===dbState.sel?' sel':''; const label=dbCardLabel(e,nameCount);
-    return `<div class="dbcard ${accentOf(e.color)}${sel}" onclick="dbPoolClick('${jsq(e.key)}')" title="${escHtml(label)}">`+
-      `<div class="dbcard-cost">${costGlyph(e)}</div>`+(n>0?`<div class="dbcount-badge">${n}</div>`:'')+
-      `<div class="dbcard-art">${cardArtImg(e.tpl)}</div><div class="dbcard-nm">${escHtml(label)}</div></div>`;
-  }).join('') || '<div class="dbempty">No cards available.</div>';
+    return `<div class="dbcard ${accentOf(e.color)}${sel}" data-key="${escHtml(e.key)}" onclick="dbPoolClick('${jsq(e.key)}')" title="${escHtml(label)}">`+
+      `<div class="dbcard-cost">${e.tpl.c||0}</div>`+(n>0?`<div class="dbcount-badge">${n}</div>`:'')+
+      dbTileInner(e,label)+`</div>`;
+  }).join('')) || '<div class="dbempty">No cards match.</div>';
 }
 function renderDbDeck(){
   const keys=Object.keys(dbState.cards).filter(k=>dbState.cards[k]>0&&CARD_BY_KEY[k])
@@ -2096,9 +2583,9 @@ function renderDbDeck(){
   const nameCount=dbPoolNameCount();
   $('dbDeckList').innerHTML=keys.map(k=>{const e=CARD_BY_KEY[k]; const n=dbState.cards[k]; const sel=k===dbState.sel?' sel':''; const label=dbCardLabel(e,nameCount);
     return `<div class="dbcard ${accentOf(e.color)}${sel}" onclick="dbDeckClick('${jsq(k)}')" title="${escHtml(label)}">`+
-      `<div class="dbcard-cost">${costGlyph(e)}</div><div class="dbcount-badge">${n}</div>`+
+      `<div class="dbcard-cost">${e.tpl.c||0}</div><div class="dbcount-badge">${n}</div>`+
       `<div class="dbcard-x" onclick="event.stopPropagation();dbStep('${jsq(k)}',-1)">✕</div>`+
-      `<div class="dbcard-art">${cardArtImg(e.tpl)}</div><div class="dbcard-nm">${escHtml(label)}</div></div>`;
+      dbTileInner(e,label)+`</div>`;
   }).join('');
 }
 function renderDbDetail(){
@@ -2122,49 +2609,98 @@ function dbAdd(key){ if(!dbState)return false; const n=dbState.cards[key]||0; if
 function currentDbDeck(){ const cards={}; for(const [k,v] of Object.entries(dbState.cards)) if(v>0) cards[k]=v; return {name:(dbState.name||'').trim(),cc:dbState.cc,cards}; }
 function refreshDbCounter(){
   const total=deckTotal(dbState.cards); const deck=currentDbDeck(); const valid=deckValid(deck);
-  const el=$('dbCounter'); el.textContent=total+' / '+DECK_SIZE; el.className='dbcounter '+(valid?'ok':'bad');
+  const el=$('dbCounter'); el.innerHTML=`<b>${total}</b><i>/${DECK_SIZE}</i>`; el.className='dbcounter '+(valid?'ok':'bad');
+  el.style.setProperty('--pct',Math.min(100,Math.round(total/DECK_SIZE*100)));
   const decks=loadDecks(); const room=dbState.editIndex!=null||decks.length<MAX_DECKS; const named=deck.name.length>0;
   $('dbSave').disabled=!(valid&&room&&named);
   $('dbHint').textContent=!named?'Name your deck.':(!room?('You have '+MAX_DECKS+' decks — edit or delete one.'):(valid?'Ready to save.':deckErrors(deck)[0]));
 }
-window.dbPickCC=(id)=>{ if(!dbState)return; dbState.cc=id; for(const k of Object.keys(dbState.cards)) if(!cardColorOK(k,id)) delete dbState.cards[k]; if(dbState.sel&&!cardColorOK(dbState.sel,id))dbState.sel=null; renderDeckBuilder(); };
+window.dbPickCC=(id)=>{ if(!dbState)return; dbState.cc=id; dbState.filter.elem=''; for(const k of Object.keys(dbState.cards)) if(!cardColorOK(k,id)) delete dbState.cards[k]; if(dbState.sel&&!cardColorOK(dbState.sel,id))dbState.sel=null; renderDeckBuilder(); };
 window.dbStep=(key,dir)=>{ if(!dbState)return; if(dir>0&&deckTotal(dbState.cards)>=DECK_SIZE)return; const n=(dbState.cards[key]||0)+(+dir); if(n<=0)delete dbState.cards[key]; else dbState.cards[key]=Math.min(MAX_COPIES,n); renderDeckBuilder(); };
 window.dbSave=()=>{ if(!dbState)return; const deck=currentDbDeck(); if(!deckValid(deck)||!deck.name)return; const decks=loadDecks();
   if(dbState.editIndex!=null&&decks[dbState.editIndex]) decks[dbState.editIndex]=deck; else decks.push(deck);
   if(saveDecks(decks)){ dbReturn(); } else $('dbHint').textContent='Could not save — browser storage is blocked.'; };
 window.dbCancel=()=>{ dbReturn(); };
+/* -- main-menu drifting embers (procedural; skipped under reduced motion) -- */
+(function(){ if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const host=document.querySelector('#mainMenu .mmembers'); if(!host)return;
+  for(let i=0;i<16;i++){ const s=document.createElement('span'); s.className='mmember'; const sz=2+Math.random()*3.5;
+    s.style.cssText=`left:${(Math.random()*100).toFixed(1)}%;width:${sz.toFixed(1)}px;height:${sz.toFixed(1)}px;animation-duration:${(9+Math.random()*14).toFixed(1)}s;animation-delay:${(-Math.random()*22).toFixed(1)}s;`;
+    if(Math.random()<.35){ s.style.background='var(--gold)'; s.style.boxShadow='0 0 6px 1px rgba(217,176,74,.45)'; }
+    host.appendChild(s); }
+})();
+/* -- deck-builder pool hover zoom (pointer:fine only; #dbZoom is pointer-events:none) -- */
+(function(){
+  if(!window.matchMedia||!matchMedia('(pointer:fine)').matches)return;
+  const z=document.createElement('div'); z.id='dbZoom'; document.body.appendChild(z);
+  let key=null;
+  const hide=()=>{ key=null; z.classList.remove('on'); };
+  const move=ev=>{ const w=z.offsetWidth||250,h=z.offsetHeight||320;
+    let x=ev.clientX-w-22, y=Math.max(8,Math.min(innerHeight-h-8,ev.clientY-h/2));
+    if(x<8)x=ev.clientX+22;                                    // pool is the right column → prefer left of cursor
+    z.style.transform=`translate(${Math.round(x)}px,${Math.round(y)}px)`; };
+  document.addEventListener('mouseover',ev=>{
+    const t=ev.target.closest&&ev.target.closest('#dbPool .dbcard');
+    if(!t){ hide(); return; }
+    const k=t.dataset.key; const e=k&&CARD_BY_KEY[k]; if(!e){ hide(); return; }
+    if(k!==key){ key=k;
+      z.innerHTML=`<div class="dbz-art">${cardArtImg(e.tpl,'big')}</div><div class="dbz-nm">${escHtml(e.nm)}</div>`+
+        `<div class="dbz-line"><span style="color:var(--spawn)">${costGlyph(e)}</span><span>${cardStat(e)}</span></div>`+
+        `<div class="dbz-desc">${cardBlurb(e)}</div>`;
+      z.style.setProperty('--zc',e.color?`var(--${e.color})`:'#6a6a76');
+      z.classList.add('on'); }
+    move(ev);
+  });
+  document.addEventListener('mousemove',ev=>{ if(key)move(ev); });
+})();
 
 /* -- solo: pick your deck, then your opponent -- */
 let soloYou=null;
-function showSoloDeckPick(){ hideAllScreens(); soloYou=null; renderSoloDeckPick(); $('soloSelect').style.display='flex'; }
+function showSoloDeckPick(){ hideAllScreens(); soloYou=null; renderSoloDeckPick(); showScreen('soloSelect'); }
+function deckBoxBg(cc){ const a=ELEMENTS[cc.colors[0]], b=ELEMENTS[cc.colors[1]||cc.colors[0]];
+  return `background:radial-gradient(130% 170% at 84% -12%,${b.bg[0]} 0%,transparent 55%),radial-gradient(150% 190% at 12% 8%,${a.bg[0]} 0%,${a.bg[1]} 55%,${a.bg[2]} 100%)`; }
 function renderSoloDeckPick(){
   const box=$('soloSelect').querySelector('.csbox'); const decks=loadDecks();
-  const premades=Object.keys(CCS).map(id=>{const c=CCS[id];
-    return `<button class="cschar" onclick='soloPickDeck({"kind":"premade","cc":"${id}"})'><div class="cn" style="color:var(--${c.colors[0]})">${ccPips(c)}${c.name}</div><div class="cp">Premade · auto-built ${c.colors.map(cap).join(' + ')}</div><div class="cpow">♥ <b>${c.hp}</b> · ⚒ <b>${c.wk}</b> workers</div></button>`;}).join('');
-  const customs=decks.map((d,i)=>{const c=CCS[d.cc]; const valid=deckValid(d); const total=deckTotal(d.cards);
-    return `<div class="cschar custom${valid?'':' invalid'}">`+
-      `<div class="cn" style="color:var(--${c.colors[0]})" ${valid?`onclick='soloPickDeck({"kind":"custom","index":${i}})'`:''}>${ccPips(c)}${escHtml(d.name||'(unnamed)')}</div>`+
-      `<div class="cp">${c.name} · ${total}/${DECK_SIZE}${valid?'':' · <b style="color:#e0a59a">invalid</b>'}</div>`+
-      `<div class="csmini"><button onclick="openDeckBuilder(${i},'solo')">Edit</button><button onclick="soloDelete(${i})">Delete</button>${valid?`<button class="go" onclick='soloPickDeck({"kind":"custom","index":${i}})'>Play ▶</button>`:''}</div>`+
+  const premades=Object.keys(CCS).map(id=>{const c=CCS[id]; const E=ELEMENTS[c.colors[0]];
+    return `<button class="deckbox" style="${deckBoxBg(c)}" onclick='soloPickDeck({"kind":"premade","cc":"${id}"})'>`+
+      `<span class="dbxmark">${ELEMENTS[c.colors[c.colors.length-1]].glyph}</span>`+
+      `<span class="dbxtop"><span class="dbxpips">${ccPips(c)}</span><span class="dbxbadge">♥ ${c.hp} · ⚒ ${c.wk}</span></span>`+
+      `<span class="dbxname" style="color:${E.accent}">${c.name}</span>`+
+      `<span class="dbxsub">Premade · auto-built ${c.colors.map(cap).join(' + ')}</span>`+
+      `<span class="dbxplay">Play ▶</span></button>`;}).join('');
+  const customs=decks.map((d,i)=>{const c=CCS[d.cc]; const E=ELEMENTS[c.colors[0]]; const valid=deckValid(d); const total=deckTotal(d.cards);
+    return `<div class="deckbox custom${valid?'':' invalid'}" role="button" style="${deckBoxBg(c)}" ${valid?`onclick='soloPickDeck({"kind":"custom","index":${i}})'`:''}>`+
+      `<span class="dbxmark">${ELEMENTS[c.colors[c.colors.length-1]].glyph}</span>`+
+      `<span class="dbxtop"><span class="dbxpips">${ccPips(c)}</span><span class="dbxbadge${valid?'':' bad'}">${total}/${DECK_SIZE}${valid?'':' · invalid'}</span></span>`+
+      `<span class="dbxname" style="color:${E.accent}">${escHtml(d.name||'(unnamed)')}</span>`+
+      `<span class="dbxsub">${c.name} · custom deck</span>`+
+      `<span class="dbxacts"><button onclick="event.stopPropagation();openDeckBuilder(${i},'solo')">✎ Edit</button><button onclick="event.stopPropagation();soloDelete(${i})">✕</button>${valid?`<button class="go" onclick='event.stopPropagation();soloPickDeck({"kind":"custom","index":${i}})'>Play ▶</button>`:''}</span>`+
     `</div>`;}).join('');
   const newSlot=decks.length<MAX_DECKS
-    ? `<button class="cschar csnew" onclick="openDeckBuilder(null,'solo')">＋<div class="cn">New Deck</div></button>`
+    ? `<button class="deckbox csnew2" onclick="openDeckBuilder(null,'solo')">＋<small>New Deck</small></button>`
     : `<div class="csempty">Deck limit reached (${MAX_DECKS}/${MAX_DECKS}) — edit or delete one to free a slot.</div>`;
   box.innerHTML=`<h1>Choose Your Deck</h1>`+
     `<div class="cssub">Premades mirror the classic auto-decks. Build your own with the Deck Builder.</div>`+
-    `<div class="cssub" style="color:var(--gold);margin-bottom:4px">Premade</div><div class="csrow">${premades}</div>`+
-    `<div class="cssub" style="color:var(--gold);margin:10px 0 4px">Your decks (${decks.length}/${MAX_DECKS})</div>`+
-    `<div class="csrow">${customs}${newSlot}</div>`+
+    `<div class="dbxsect">Premade</div><div class="dbxgrid">${premades}</div>`+
+    `<div class="dbxsect">Your decks (${decks.length}/${MAX_DECKS})</div><div class="dbxgrid">${customs}${newSlot}</div>`+
     `<button class="csback" onclick="showMainMenu()">← menu</button>`;
 }
 window.soloDelete=(i)=>{ deleteDeck(i); renderSoloDeckPick(); };
 window.soloPickDeck=(sel)=>{ soloYou=sel; renderSoloFoePick(); };
 function renderSoloFoePick(){
   const box=$('soloSelect').querySelector('.csbox'); const ids=Object.keys(CCS);
-  const cards=ids.map(id=>{const c=CCS[id];
-    return `<button class="cschar" onclick="soloStart('${id}')"><div class="cn" style="color:var(--${c.colors[0]})">${ccPips(c)}${c.name}</div><div class="cp">${c.desc}</div><div class="cpow">♥ <b>${c.hp}</b> · ⚒ <b>${c.wk}</b> · ${c.colors.map(cap).join(' + ')}</div></button>`;}).join('')+
-    `<button class="cschar" onclick="soloStart('__rand')"><div class="cn">🎲 Random</div><div class="cp">A surprise opponent, rolled when the duel begins.</div></button>`;
-  box.innerHTML=`<h1>Choose Your Opponent</h1><div class="cssub">Your deck is set. Pick who you face.</div><div class="csrow">${cards}</div><button class="csback" onclick="showSoloDeckPick()">← back</button>`;
+  const cards=ids.map(id=>{const c=CCS[id]; const E=ELEMENTS[c.colors[0]];
+    return `<button class="deckbox" style="${deckBoxBg(c)}" onclick="soloStart('${id}')">`+
+      `<span class="dbxmark">${ELEMENTS[c.colors[c.colors.length-1]].glyph}</span>`+
+      `<span class="dbxtop"><span class="dbxpips">${ccPips(c)}</span><span class="dbxbadge">♥ ${c.hp} · ⚒ ${c.wk}</span></span>`+
+      `<span class="dbxname" style="color:${E.accent}">${c.name}</span>`+
+      `<span class="dbxsub">${c.desc}</span>`+
+      `<span class="dbxplay">Fight ▶</span></button>`;}).join('')+
+    `<button class="deckbox" style="background:radial-gradient(150% 190% at 12% 8%,#241f30 0%,#15121c 55%,#08070b 100%)" onclick="soloStart('__rand')">`+
+      `<span class="dbxmark">？</span><span class="dbxtop"><span class="dbxbadge">🎲 random</span></span>`+
+      `<span class="dbxname" style="color:var(--gold)">Random</span><span class="dbxsub">A surprise opponent, rolled when the duel begins.</span>`+
+      `<span class="dbxplay">Fight ▶</span></button>`;
+  box.innerHTML=`<h1>Choose Your Opponent</h1><div class="cssub">Your deck is set. Pick who you face.</div><div class="dbxgrid">${cards}</div><button class="csback" onclick="showSoloDeckPick()">← back</button>`;
 }
 window.soloStart=(foeId)=>{
   const ids=Object.keys(CCS); if(foeId==='__rand')foeId=ids[Math.floor(Math.random()*ids.length)];
@@ -2206,14 +2742,26 @@ function render(){
   renderWalls();
   placeCardMenu();
 }
-// deck + graveyard now live in the castle walls: count always shown, a fuller visual when the wall is raised
+// deck + graveyard in the castle walls as REAL PILES: one stacked layer per card (capped at 10),
+// the count on a badge riding the top card; the graveyard's top card lies face-up (desaturated);
+// an empty pile is a flat vacant slot. Rest-state counts stay on the .decline lines below.
 function renderWalls(){
   const fill=(id,owner,kind)=>{
     const el=$(id); if(!el)return;
     const arr=kind==='deck'?G.P[owner].deck:G.P[owner].grave; const n=arr.length;
-    let full='<div class="wzfull"></div>';
-    if(kind==='grave'){ const top=n?arr[n-1]:null; full=`<div class="wzfull">${top?cardArtImg(top):''}</div>`; }
-    el.innerHTML=`<span class="wzl">${kind==='deck'?'Deck':'RIP'}</span><b class="wzc">${n}</b>${full}`;
+    const pile=kind==='deck'?'deckpile':'gravepile';
+    let stack;
+    if(!n){
+      stack=`<div class="wzfull empty ${pile}"><span class="wzbadge">0</span></div>`;
+    }else{
+      const layers=Math.min(n,10);                 // 1..10 cheap divs — depth reads, DOM stays light
+      let lay='';
+      for(let i=0;i<layers-1;i++) lay+=`<div class="wzlayer" style="--li:${i}"></div>`;
+      const face=kind==='grave'?cardArtImg(arr[n-1]):'';
+      lay+=`<div class="wzlayer top" style="--li:${layers-1}">${face}<span class="wzbadge">${n}</span></div>`;
+      stack=`<div class="wzfull ${pile}">${lay}</div>`;
+    }
+    el.innerHTML=`<span class="wzl">${kind==='deck'?'Deck':'RIP'}</span>${stack}`;
     el.title=`${owner==='you'?'Your':"Opponent's"} ${kind==='deck'?'deck':'graveyard'} — ${n} card${n===1?'':'s'}`;
   };
   fill('youWallDeck','you','deck'); fill('youWallGrave','you','grave');
@@ -2303,18 +2851,19 @@ function cardHTML(o,me){
   if(o.kind==='creature'){
     const cls=o.worker?'vil':('crt '+clsOf[o.color]);
     const art=o.art?`<div class="artwin">${cardArtImg(o)}</div>`:'';
-    const up=(!o.worker&&o.up)?`<div class="upk">⚒-${o.up}</div>`:'';
+    const wd=(!o.worker&&o.up)?`<span class="cap neg">⚒-${o.up}</span>`:'';
     return `<div class="card ${cls} ${o.sick?'sick':''} ${o.tapped?'tapped':''}">
       ${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}
       ${o.fs?'<div class="fsbadge">FS</div>':''}
-      ${o.worker?'<div class="wk">⚒</div>':up}
-      <div class="nm">${o.nm}</div>${art}<div class="stats"><span class="atk">⚔${o.a}</span><span class="hp">♥${o.h}</span></div></div>`;
+      ${o.worker?'<div class="wk">⚒</div>':''}
+      <div class="nm">${o.nm}</div>${art}<div class="stats"><span class="atk">${o.a}</span><span class="mid">${o.worker?'':`<span class="ebw">${elemGem(o.color,14)}</span>`}${wd}</span><span class="hp">♥${o.h}</span></div></div>`;
   }
   if(o.kind==='building'){
     const bart=o.art?`<div class="artwin">${cardArtImg(o)}</div>`:`<div class="bic">${o.ic||'⌂'}</div>`;
     const eff=o.eff==='mana'?('◆+'+o.val):o.eff==='villager'?'⚒train':o.eff==='damage'?('⚔'+o.val):o.eff==='vault'?('◈'+o.val):o.eff==='wall'?'▣':o.eff==='revive'?'☩':'⌂';
-    return `<div class="card bld">${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}${o.sup?`<div class="supb">⚒+${o.sup}</div>`:''}<div class="nm">${o.nm}</div>${bart}
-      <div class="stats"><span class="eff">${eff}</span><span class="hp">♥${o.h}</span></div></div>`;
+    const wd=o.sup?`<span class="cap plus">⚒+${o.sup}</span>`:'';
+    return `<div class="card bld">${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}<div class="nm">${o.nm}</div>${bart}
+      <div class="stats"><span class="eff">${eff}</span><span class="mid">${o.color?`<span class="ebw">${elemGem(o.color,14)}</span>`:''}${wd}</span><span class="hp">♥${o.h}</span></div></div>`;
   }
   if(o.kind==='charge'){
     const ready=o.inv>=o.card.c;
@@ -2511,14 +3060,17 @@ function renderHand(){
     const d=document.createElement('div'); d.dataset.hand=i;   // drag-drop source id
     const isB=card.type==='building'; const isS=card.type==='spell';
     d.className=`hc ${isB?'hcb':isS?'hcs':clsOf[card.color]}`+(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i?' selected':'');
-    const statLine=isS?`<span class="eff">${card.trap?'⚠ Trap':'✦ Spell'}</span>`
-                  :isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>${card.sup?`<span class="cap">⚒+${card.sup}</span>`:''}<span class="hp">♥${card.h}</span>`
-                  :`<span class="atk">⚔${card.a}</span>${card.up?`<span class="cap">⚒-${card.up}</span>`:''}<span class="hp">♥${card.h}</span>`;
-    const head=`<div class="hchead"><div class="nm">${card.nm}</div><div class="cost">◆${card.c}</div></div>`;
-    const body=card.art
-      ?`<div class="artwin">${cardArtImg(card)}</div><div class="stats">${statLine}</div>`
-      :`<div class="bic">${isS?(card.trap?'⚠':'✦'):isB?(card.ic||'⌂'):'⚔'}</div><div class="stats">${statLine}</div>`;
-    d.innerHTML=`${head}<div class="hcbody">${body}</div>`;
+    const tl=isS?(card.trap?'Trap':'Spell'):isB?'Structure':(typeLine(card)||'Creature');
+    const head=`<div class="hchead"><div class="cost">${card.c}</div><div class="nmw"><div class="nm">${card.nm}</div><div class="tl">${tl}</div></div></div>`;
+    const art=card.art?`<div class="artwin">${cardArtImg(card)}</div>`
+                      :`<div class="artwin ph"><span class="bic">${isS?(card.trap?'⚠':'✦'):isB?(card.ic||'⌂'):'⚔'}</span></div>`;
+    const ribbon=`<div class="ribbon">${isS?(card.trap?'⚠ TRAP':'✦ SPELL'):isB?'STRUCTURE':'CREATURE'}</div>`;
+    const wd=isB?(card.sup?`<span class="cap plus">⚒+${card.sup}</span>`:'')
+              :(!isS&&card.up?`<span class="cap neg">⚒-${card.up}</span>`:'');
+    const bottom=isS
+      ?`<div class="rules"><span class="eff">${spellText(card)}</span></div>`
+      :`<div class="stats">${isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>`:`<span class="atk">${card.a}</span>`}<span class="mid"><span class="ebw">${elemGem(card.color,16)}</span>${wd}</span><span class="hp">♥${card.h}</span></div>`;
+    d.innerHTML=`${head}<div class="hcbody">${art}${ribbon}${bottom}</div>`;
     if(G.turn==='you'&&!G.busy&&!G.over)d.addEventListener('click',()=>onHand(i));
     addInspect(d,()=>inspectHand(i));
     el.appendChild(d);
@@ -3530,7 +4082,10 @@ function checkWin(){
   }
 }
 /* ---------- tap-to-inspect: every card explains itself ---------- */
+const FINE_POINTER=!!(window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches);
 function addInspect(host,fn){
+  host._inspect=fn;                 // hover-to-inspect reads this — re-set on every render, so it survives rebuilds
+  if(FINE_POINTER) return;          // fine pointers hover to inspect — no ⓘ button (touch keeps it)
   const b=document.createElement('div'); b.className='inspect'; b.textContent='ⓘ';
   b.addEventListener('click',e=>{e.stopPropagation(); fn();});
   host.appendChild(b);
@@ -3546,15 +4101,17 @@ function bldEffectText(eff,val,sup){
   return `Structure with no upkeep effect.${supTxt}`;
 }
 function showInspect(title,body){
-  const box=$('viewerPanel').querySelector('.box');
+  const vp=$('viewerPanel');
+  const box=vp.querySelector('.box');
   const parts=title.split('·');
   const name=parts.shift().trim();
   const sub=parts.join(' · ').trim();
+  const hov=!!window.__hoverInspecting;   // hover mode: same panel, non-blocking, no Close button
   box.innerHTML=`<div class="ihead">${name}${sub?`<span class="isub">${sub}</span>`:''}</div>
-    <div class="ibody">${body}</div>
-    <button class="pclose" onclick="closeViewer()">Close</button>`;
-  $('viewerPanel').classList.add('left');
-  $('viewerPanel').style.display='flex';
+    <div class="ibody">${body}</div>${hov?'':'<button class="pclose" onclick="closeViewer()">Close</button>'}`;
+  vp.classList.add('left');
+  vp.classList.toggle('hover',hov);
+  vp.style.display='flex';
 }
 function bigArt(card){return (card&&card.nm)?`<div class="iart">${cardArtImg(card,'big')}</div>`:'';}
 function inspectRef(owner,which,i){
@@ -3613,7 +4170,7 @@ function inspectHand(i){
 
 /* ---------- deck / graveyard viewer ---------- */
 window.openViewer=function(zone,owner){
-  $('viewerPanel').classList.remove('left');
+  $('viewerPanel').classList.remove('left','hover');
   const isDeck=zone==='deck';
   const cards=isDeck?G.P[owner].deck:G.P[owner].grave;
   const title=(owner==='you'?'Your ':'Opponent ')+(isDeck?'Deck':'Graveyard');
@@ -3639,7 +4196,7 @@ window.openViewer=function(zone,owner){
     <button class="pclose" onclick="closeViewer()">Close</button>`;
   $('viewerPanel').style.display='flex';
 };
-window.closeViewer=()=>{$('viewerPanel').style.display='none';$('viewerPanel').classList.remove('left');};
+window.closeViewer=()=>{$('viewerPanel').style.display='none';$('viewerPanel').classList.remove('left','hover');};
 /* ================================================================
    v16 PRESENTATION LAYER — sound, animation, menus. Zero rules changes.
    Everything below wraps existing functions; delete this block and the
@@ -3666,7 +4223,7 @@ const SFX=(()=>{ let ctx=null,master=null,muted=false;
   const S={
     click(){tone({f:900,type:'triangle',d:.05,v:.1});},
     draw(){noise({d:.15,from:1200,to:5200,v:.16});},
-    place(){tone({f:160,f2:70,d:.18,v:.5}); noise({d:.07,from:900,to:200,v:.12});},
+    place(){tone({f:160,f2:70,d:.18,v:.5}); noise({d:.07,from:900,to:200,v:.12}); noise({d:.04,from:2000,to:600,v:.1,type:'bandpass',q:2});},
     set(){tone({f:300,f2:120,d:.12,v:.22});},
     summon(){tone({f:220,f2:660,type:'sawtooth',d:.3,v:.16}); tone({f:880,d:.4,v:.12,delay:.12}); tone({f:1320,d:.5,v:.07,delay:.2});},
     raise(){tone({f:90,f2:58,d:.4,v:.55}); noise({d:.3,from:500,to:120,v:.2}); tone({f:523,type:'triangle',d:.3,v:.1,delay:.18});},
@@ -3682,6 +4239,11 @@ const SFX=(()=>{ let ctx=null,master=null,muted=false;
     turnFoe(){tone({f:330,type:'triangle',d:.16,v:.14}); tone({f:247,type:'triangle',d:.3,v:.14,delay:.12});},
     win(){[523,659,784,1046].forEach((f,i)=>tone({f,type:'triangle',d:.45,v:.2,delay:i*.13})); tone({f:1318,type:'triangle',d:.8,v:.14,delay:.55});},
     lose(){[392,330,262,196].forEach((f,i)=>tone({f,d:.5,v:.18,delay:i*.16}));},
+    move(){noise({d:.13,from:600,to:1500,v:.11,type:'bandpass',q:.7}); tone({f:220,f2:340,type:'triangle',d:.1,v:.12});},
+    block(){tone({f:2400,f2:1200,type:'square',d:.05,v:.13}); tone({f:1800,f2:900,type:'triangle',d:.09,v:.09,delay:.01}); noise({d:.06,from:5000,to:1500,v:.15,type:'bandpass',q:3});},
+    swing(){noise({d:.14,from:1500,to:240,v:.32,type:'bandpass',q:.6}); tone({f:170,f2:70,type:'sawtooth',d:.1,v:.15});},
+    build(){tone({f:90,f2:60,d:.34,v:.5}); noise({d:.18,from:800,to:150,v:.2,type:'lowpass'}); tone({f:392,type:'triangle',d:.14,v:.09,delay:.05}); tone({f:523,type:'triangle',d:.16,v:.08,delay:.13});},
+    shuffle(){for(let i=0;i<5;i++)noise({d:.05,from:2600-i*120,to:700,v:.08,type:'bandpass',q:2,delay:i*.045});},
   };
   const api={}; let vol=.5;
   Object.keys(S).forEach(k=>api[k]=function(){ if(muted)return; try{S[k]();}catch(e){} });
@@ -3751,7 +4313,17 @@ const FX=(()=>{
   function confetti(){ if(RM)return; for(let i=0;i<26;i++){ const d=mk('fx-conf');
     d.style.left=(8+Math.random()*84)+'vw'; d.style.background=['#d9b04a','#e0613f','#5fc46a','#52c6ec'][i%4];
     d.style.animationDelay=(Math.random()*.6)+'s'; setTimeout(()=>d.remove(),3100); } }
-  return {flyRect,pop,slash,ring,burstRect,shake,hurt,ribbon,arrow,aimArrow,clearAim,splash,confetti};
+  // a soft coloured glow puff at a cell — deploy shimmer, impact flash, block parry
+  function flash(r,color='#fff7e0',size=88){ if(RM||!r)return; const c=center(r); const d=mk('fx-flash');
+    d.style.left=(c.x-size/2)+'px'; d.style.top=(c.y-size/2)+'px'; d.style.width=d.style.height=size+'px';
+    d.style.background=`radial-gradient(circle,${color} 0%,${color}88 34%,transparent 70%)`; setTimeout(()=>d.remove(),440); }
+  // a fading afterimage streak left along a move path
+  function trail(fr,tr,color){ if(RM||!fr||!tr)return; const a=center(fr),b=center(tr);
+    const steps=5; for(let i=1;i<=steps;i++){ const t=i/(steps+1); const d=mk('fx-trail');
+      const w=fr.width*.6,h=fr.height*.6; d.style.left=(a.x+(b.x-a.x)*t-w/2)+'px'; d.style.top=(a.y+(b.y-a.y)*t-h/2)+'px';
+      d.style.width=w+'px'; d.style.height=h+'px'; if(color)d.style.setProperty('--tc',color); d.style.animationDelay=(i*22)+'ms';
+      setTimeout(()=>d.remove(),560+i*22); } }
+  return {flyRect,pop,slash,ring,burstRect,shake,hurt,ribbon,arrow,aimArrow,clearAim,splash,confetti,flash,trail};
 })();
 
 /* DOM cell for a live unit object — board slots first, then minion pill strips */
@@ -3796,7 +4368,10 @@ function showBattle(A,B){
 // clash flash + sound + battle cut-in at the defender's cell
 function clashFx(A,B){ try{ showBattle(A,B); SFX.clash(); FX.shake(); const b0=B&&B[0]&&cellElFor(B[0]); if(b0)FX.slash(fxRect(b0)); }catch(e){} }
 const _resolveCombat=resolveCombat;
-resolveCombat=function(A,B){ clashFx(A,B); _resolveCombat(A,B); };
+resolveCombat=function(A,B){ clashFx(A,B); _resolveCombat(A,B);
+  // a defender that survives the clash rings out a parry — the "block" beat
+  try{ const d=B&&B[0]; if(d&&d.h>0&&(d.kind==='creature'||d.kind==='building')&&!d.worker){ SFX.block(); const el=cellElFor(d); if(el){ const r=fxRect(el); FX.flash(r,'#bfe0ff',72); FX.slash(r); } } }catch(e){}
+};
 // every death routes through toGrave → one place for death FX
 const _toGrave=toGrave;
 toGrave=function(owner,obj){
@@ -3814,7 +4389,7 @@ function fxLunge(srcEls,tEl,after){
   if(!tr||!srcEls.length){ after(); return; }
   _atkBusy=true;
   srcEls.forEach((el,i)=>setTimeout(()=>FX.flyRect(fxRect(el),tr,el.innerHTML,260),i*70));
-  FX.arrow(fxRect(srcEls[0]),tr); FX.clearAim(); SFX.whoosh();
+  FX.arrow(fxRect(srcEls[0]),tr); FX.clearAim(); SFX.swing();
   setTimeout(()=>{ _atkBusy=false; after(); },280);
 }
 const fxAtkSrcs=()=>G.atk.map(s=>rowCellEl($(s.k),s.i)).filter(Boolean);
@@ -3847,7 +4422,9 @@ place=function(idx,mode,which,slot){
   if(G.P.you.hand.length<n0){
     if(fr&&tr&&html)FX.flyRect(fr,tr,html,300);
     SFX[(mode==='set'||mode==='settrap')?'set':(mode==='build'?'raise':'place')]();
-    if(tr&&mode!=='set'&&mode!=='settrap')FX.ring(tr);
+    if(tr&&mode!=='set'&&mode!=='settrap'){ FX.ring(tr);
+      const o2=rowArr(mineKey(which))[slot]; const col=(o2&&o2.color&&ELEMENTS[o2.color]&&ELEMENTS[o2.color].color)||'#ffe6a8';
+      FX.flash(tr,col,92); FX.burstRect(tr,col,9); }
   }
 };
 // flips: summon ring; big or First-Strike reveals get the Master-Duel splash
@@ -3856,8 +4433,8 @@ flip=function(owner,key,slot){
   const arr=rowArr(key);
   const r=_flip(owner,key,slot);
   try{ const now=arr[slot]; const cellR=fxRect(cellElFor(now));
-    if(now&&now.kind==='creature'){ SFX.summon(); FX.ring(cellR); if(now.c>=4||now.fs)FX.splash(now,owner); }
-    else if(now&&now.kind==='building'){ SFX.raise(); FX.ring(cellR); if(now.c>=4)FX.splash(now,owner); }
+    if(now&&now.kind==='creature'){ SFX.summon(); FX.ring(cellR); const col=(ELEMENTS[now.color]&&ELEMENTS[now.color].color)||'#ffe6a8'; FX.flash(cellR,col,96); FX.burstRect(cellR,col,10); if(now.c>=4||now.fs)FX.splash(now,owner); }
+    else if(now&&now.kind==='building'){ SFX.raise(); FX.ring(cellR); FX.flash(cellR,'#cfe3ff',96); if(now.c>=4)FX.splash(now,owner); }
   }catch(e){}
   return r;
 };
@@ -3874,6 +4451,60 @@ springTrap=function(defOwner,key,slot,attackers){
   try{ const row=$(key); FX.burstRect(fxRect(rowCellEl(row,slot)),'#f0b89a',12); SFX.trap(); }catch(e){}
   _springTrap(defOwner,key,slot,attackers);
 };
+// moves — the biggest gap: slide sound + fly + afterimage trail (player tap/drag AND AI reposition)
+const _doMove=doMove;
+doMove=function(toK,toI){
+  const mf=G.moveFrom; const srcEl=mf&&rowCellEl($(mf.k),mf.i); const fr=fxRect(srcEl); const html=srcEl?srcEl.innerHTML:'';
+  const before=rowArr(toK)[toI];
+  _doMove(toK,toI);
+  const after=rowArr(toK)[toI];
+  if(!before&&after&&after.kind==='creature'){ try{ const tr=fxRect(rowCellEl($(toK),toI));
+    if(fr&&tr){ FX.trail(fr,tr,'rgba(180,220,255,.55)'); FX.flyRect(fr,tr,html,240); FX.ring(tr); } SFX.move(); }catch(e){} }
+};
+const _aiMoveCreature=aiMoveCreature;
+aiMoveCreature=function(owner,fromZ,i,toZ){
+  const o=rowArr(zoneKey(owner,fromZ))[i]; const srcEl=o&&rowCellEl($(zoneKey(owner,fromZ)),i); const fr=fxRect(srcEl); const html=srcEl?srcEl.innerHTML:'';
+  const ok=_aiMoveCreature(owner,fromZ,i,toZ);
+  if(ok&&o){ try{ const tr=fxRect(cellElFor(o)); if(fr&&tr){ FX.trail(fr,tr,'rgba(255,180,180,.5)'); FX.flyRect(fr,tr,html,240); FX.ring(tr); } SFX.move(); }catch(e){} }
+  return ok;
+};
+// AI summon parity — the player's summon FX comes from place()/flip(); the AI enters creatures via onCreatureEnter
+const _onCreatureEnter=onCreatureEnter;
+onCreatureEnter=function(cr,owner){
+  const r=_onCreatureEnter(cr,owner);
+  if(owner==='foe'){ try{ SFX.summon(); const rr=fxRect(cellElFor(cr)); FX.ring(rr);
+    const col=(cr&&ELEMENTS[cr.color]&&ELEMENTS[cr.color].color)||'#ffd98a'; FX.flash(rr,col,92); FX.burstRect(rr,col,9);
+    if(cr&&cr.c>=4)FX.splash(cr,'foe'); }catch(e){} }
+  return r;
+};
+// structure builds from the build menu (player) and the AI tech loop bypass place() — give them a construction beat
+const _placeBuild=placeBuild;
+placeBuild=function(which,i){
+  const had=!!(cellArr('you',which)&&cellArr('you',which)[i]);
+  _placeBuild(which,i);
+  try{ const now=cellArr('you',which)&&cellArr('you',which)[i];
+    if(now&&now.kind==='building'&&!had){ SFX.build(); const r=fxRect(cellElFor(now)); FX.ring(r); FX.flash(r,'#cfe3ff',96); FX.burstRect(r,'#cfe3ff',10); } }catch(e){}
+};
+const _aiBuild=aiBuild;
+aiBuild=function(owner){
+  const before=ownUnits(owner).filter(o=>o.kind==='building');
+  const r=_aiBuild(owner);
+  if(r){ SFX.build(); setTimeout(()=>{ try{ const nu=ownUnits(owner).filter(o=>o.kind==='building').find(o=>before.indexOf(o)<0);
+    if(nu){ const rr=fxRect(cellElFor(nu)); FX.ring(rr); FX.flash(rr,'#cfe3ff',96); } }catch(e){} },40); }
+  return r;
+};
+// AI spell FX — the player's castSpell wrapper covers you; resolveSpell fires the AI's (guarded by whose turn it is)
+const _resolveSpell=resolveSpell;
+resolveSpell=function(card,key,i){
+  const r=_resolveSpell(card,key,i);
+  if(G.turn==='foe'){ try{ const rr=fxRect(rowCellEl($(key),i)); SFX.spell(); FX.slash(rr); FX.burstRect(rr,'#c9a0ff'); }catch(e){} }
+  return r;
+};
+// player harvest lands mana — echo the AI's applyRes-driven mana beat (doHarvest + worker-tap credit P.mana directly)
+const _doHarvest=doHarvest;
+doHarvest=function(){ const m0=G.P.you.mana; _doHarvest(); const d=G.P.you.mana-m0; if(d>0){ SFX.mana(); FX.pop(fxRect($('youManaStr')),'+'+d,'mana'); } };
+const _applyHarvest=applyHarvest;
+applyHarvest=function(which,alloc,total){ const m0=G.P.you.mana; _applyHarvest(which,alloc,total); const d=G.P.you.mana-m0; if(d>0){ SFX.mana(); FX.pop(fxRect($('youManaStr')),'+'+d,'mana'); } };
 // economy beats
 const _applyRes=applyRes;
 applyRes=function(base,owner,creature,type){
@@ -3914,7 +4545,7 @@ const _startGame=startGame;
 startGame=function(youId,foeId,youDeck,foeDeck){
   _fxLife.you=_fxLife.foe=null;
   _startGame(youId,foeId,youDeck,foeDeck);
-  FX.ribbon('DUEL START','var(--gold)'); SFX.turnYou();
+  SFX.shuffle(); FX.ribbon('DUEL START','var(--gold)'); SFX.turnYou();
   setTimeout(fitBoard,60);
 };
 const _checkWin=checkWin;
@@ -4076,7 +4707,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   hand.addEventListener('pointerenter',()=>setPinned(true));   // entering the hand opens the wall and pins it
   document.addEventListener('pointermove',e=>{
     if(pinned){ if(e.clientY < bandTop()) setPinned(false); }        // moved back up onto the board → release
-    else if(e.clientY >= innerHeight-28) setPinned(true);            // reach the bottom edge → reveal the wall (works even with an empty hand)
+    else if(e.clientY >= innerHeight-64) setPinned(true);            // hover anywhere over the resting wall band (rail + peek strip, full width) → reveal the wall
   });
   document.addEventListener('pointerleave',()=>setPinned(false));
   // foe wall mirrors at the top: reaching the top edge raises it (revealing deck/grave + fanning their hand), moving back down releases it
@@ -4211,6 +4842,65 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   document.addEventListener('pointerup', e=>{ if(mine(e)) end(e,false); });
   document.addEventListener('pointercancel', e=>{ if(mine(e)) end(e,true); });
   document.addEventListener('click', e=>{ if(justDragged){ justDragged=false; e.stopPropagation(); e.preventDefault(); } }, true);
+})();
+// ---- hover-to-inspect (fine pointers only): sweep the mouse over a hand card or an occupied
+//      cell and its full inspectRef/inspectHand write-up appears in the left panel, non-blocking.
+//      ONE delegated mouseover listener (cells are rebuilt every render — per-node listeners die;
+//      the host._inspect closure set by addInspect is re-set each render, so delegation survives).
+(function(){
+  if(!FINE_POINTER) return;                       // touch keeps the ⓘ-tap → modal path untouched
+  const SHOW_MS=180, HIDE_MS=120;
+  let showT=null, hideT=null, curKey=null;
+  const vp=()=>$('viewerPanel');
+  const SCREENS=['mainMenu','charsel','soloSelect','deckBuilder','campaign','banner','buildPanel',
+                 'settingsOverlay','cpanel','rulesPanel','logPanel','contestPanel','harvestPanel'];
+  function modalOpen(){                           // a REAL modal (deck/grave viewer, tapped inspect) — never fight it
+    const p=vp(); return p && p.style.display==='flex' && !p.classList.contains('hover');
+  }
+  function suppressed(){
+    if(document.body.classList.contains('dragging')) return true;
+    if(typeof G!=='undefined'&&G.over) return true;
+    if(modalOpen()) return true;
+    const m=$('cardActions'); if(m&&m.style.display==='block') return true;
+    return SCREENS.some(id=>{const e=$(id); return e&&getComputedStyle(e).display!=='none';});
+  }
+  function hideNow(){
+    clearTimeout(showT); showT=null; clearTimeout(hideT); hideT=null; curKey=null;
+    const p=vp(); if(p&&p.classList.contains('hover')){ p.style.display='none'; p.classList.remove('left','hover'); }
+  }
+  function hoverTargetOf(node){
+    if(!node||node.nodeType!==1||!node.closest) return null;
+    const t=node.closest('.hc,.cell');
+    return (t&&t._inspect)?t:null;                // _inspect exists only on inspectable (occupied) hosts
+  }
+  const keyOf=el=> el.dataset.hand!=null ? 'h'+el.dataset.hand : el.dataset.key+'|'+el.dataset.slot;
+  document.addEventListener('mouseover',e=>{
+    const t=hoverTargetOf(e.target);
+    if(!t){                                       // over nothing inspectable → hide after a short grace
+      if(curKey!=null||showT){ clearTimeout(showT); showT=null; curKey=null;
+        clearTimeout(hideT); hideT=setTimeout(hideNow,HIDE_MS); }
+      return;
+    }
+    if(suppressed()){ hideNow(); return; }
+    clearTimeout(hideT); hideT=null;
+    const k=keyOf(t);
+    if(k===curKey) return;                        // already shown / pending for this card
+    clearTimeout(showT); curKey=k;
+    const fn=t._inspect;
+    showT=setTimeout(()=>{                        // show delay kills flicker on a board sweep
+      showT=null;
+      if(suppressed()){ curKey=null; return; }
+      window.__hoverInspecting=true;
+      try{ fn(); }finally{ window.__hoverInspecting=false; }
+    },SHOW_MS);
+  });
+  document.addEventListener('mouseout',e=>{       // pointer left the window entirely
+    if(!e.relatedTarget){ clearTimeout(showT); showT=null; curKey=null;
+      clearTimeout(hideT); hideT=setTimeout(hideNow,HIDE_MS); }
+  });
+  // any click that lands in a suppressed state (card menu opened, deck viewer opened, drag ended
+  // on a modal…) sweeps a lingering hover panel away; hideNow never touches a real modal.
+  document.addEventListener('click',()=>{ if(suppressed()) hideNow(); });
 })();
 // stack the resting hand left-to-right so the peek headers overlap cleanly (the fan arc is
 // dropped — it fought the flat name+cost peek strip; per-card hover/select still pops on top)
