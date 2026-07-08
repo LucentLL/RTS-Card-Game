@@ -854,6 +854,26 @@
   .setangles button.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;border-color:var(--gold);}
   .setsurr{width:100%;background:linear-gradient(180deg,#6a2a2a,#3a1414)!important;color:#ffd0c0!important;border-color:#7a3a3a!important;}
   #settingsOverlay .pclose{display:block;width:100%;margin-top:12px;padding:8px;border-radius:8px;cursor:pointer;border:1px solid #3d3450;background:#1a1622;color:var(--ink-dim);font-family:'Cinzel',serif;}
+  /* ---------- pause-to-respond priority bar ---------- */
+  #respBar{position:fixed;left:50%;bottom:clamp(84px,18vh,170px);transform:translateX(-50%);z-index:24;
+    display:none;flex-direction:column;align-items:center;gap:7px;min-width:230px;max-width:min(92vw,430px);
+    background:linear-gradient(165deg,rgba(32,24,39,.96),rgba(18,13,24,.96));border:1px solid #8a7f9e;
+    border-radius:999px;padding:9px 20px 11px;box-shadow:0 10px 34px rgba(0,0,0,.55);pointer-events:auto;}
+  #respBar.defend{border-color:var(--gold);border-radius:16px;}
+  #respBar .resplab{font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.08em;color:var(--ink);white-space:nowrap;}
+  #respBar.defend .resplab{color:var(--gold);}
+  #respBar .respdesc{font-size:11px;color:var(--ink-dim);text-align:center;max-width:380px;}
+  #respBar .respacts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+  #respBar .respacts button{font-family:'Cinzel',serif;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer;
+    border:1px solid #4a4060;background:#2a2640;color:var(--ink);}
+  #respBar .respacts button.trapbtn{border-color:var(--gold);color:var(--gold);}
+  #respBar .respacts button:active{transform:scale(.96);}
+  #respBar .resptrack{width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;}
+  #respBar .respfill{width:100%;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--tide),var(--gold));
+    transform-origin:left center;will-change:transform;}   /* scaleX only — compositor-friendly */
+  @keyframes respShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+  #respBar .respnum{font-family:'Cinzel',serif;font-size:12px;color:var(--ink-dim);}
+  @media (prefers-reduced-motion: reduce){ #respBar .respfill{display:none;} }
   /* board-angle modes (toggled in Settings; static .matmain rule below is the 'tilt' default) */
   /* each mode's translateY folds in --wallY (0 by default) so the whole field can lift when the
      castle wall raises — without re-stating rotateX (CSS transforms are not additive). */
@@ -1069,6 +1089,25 @@
   .mmbtn.off{color:var(--ink-dim);background:rgba(13,11,18,.6);border:1px dashed #3a3450;box-shadow:none;cursor:default;filter:grayscale(.4);}
   .mmbtn.off .mi{background:#241f30;color:var(--ink-dim);box-shadow:none;}
   .mmbtn .soon{display:block;font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:10.5px;letter-spacing:.04em;color:var(--ink-dim);text-transform:uppercase;}
+  /* ---------- multiplayer: lobby, drop overlay, RTT chip ---------- */
+  #mpLobby,#mpDrop{position:fixed;inset:0;z-index:44;display:none;align-items:flex-start;justify-content:center;background:rgba(4,3,8,.96);backdrop-filter:blur(3px);padding:18px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #mpLobby .csbox,#mpDrop .csbox{max-width:560px;width:100%;text-align:center;margin:auto;}
+  #mpLobby h1,#mpDrop h1{font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--gold);margin:4px 0 4px;}
+  #mpLobby .cssub,#mpDrop .cssub{font-size:12.5px;color:var(--ink-dim);margin-bottom:12px;}
+  #mpLobby .csback{margin-top:10px;background:none;border:none;color:var(--ink-dim);font-size:13px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.05em;}
+  .mpstatus{font-family:'EB Garamond',serif;font-style:italic;font-size:13px;color:var(--gold);text-align:center;margin:6px 0 12px;min-height:18px;}
+  .mpmode{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:10px 0;}
+  .mpmode .mmbtn{min-width:200px;}
+  .mpcard{margin:10px auto 0;max-width:460px;text-align:left;}
+  .mplab{font-family:'Cinzel',serif;font-size:11.5px;letter-spacing:.06em;color:var(--ink-dim);margin:10px 0 4px;}
+  .mpin{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #3d3450;background:#14101d;color:var(--ink);font-size:13px;}
+  .mpcode{width:100%;box-sizing:border-box;height:64px;resize:vertical;padding:7px 9px;border-radius:8px;border:1px solid #3d3450;background:#14101d;color:var(--ink-dim);font-family:monospace;font-size:10px;line-height:1.25;word-break:break-all;}
+  .mprow{display:flex;gap:6px;align-items:stretch;}
+  .mprow .mpbtn{flex:none;align-self:center;}
+  .mpbtn{font-family:'Cinzel',serif;font-size:12px;padding:8px 12px;border-radius:8px;cursor:pointer;border:1px solid #4a4060;background:#2a2640;color:var(--ink);margin:6px 0;}
+  .mpbtn:disabled{filter:grayscale(.85) brightness(.6);cursor:default;}
+  .mpbtn.go{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;border-color:var(--gold);font-weight:700;width:100%;}
+  #mpLink{position:fixed;top:12px;right:50px;z-index:64;display:none;font-family:'Cinzel',serif;font-size:11px;color:var(--ink-dim);background:rgba(10,8,15,.7);border:1px solid #3a3450;border-radius:999px;padding:3px 9px;pointer-events:none;}
   .mmfoot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:7px 14px;font-family:'EB Garamond',serif;font-size:11px;color:var(--ink-dim);letter-spacing:.04em;border-top:1px solid var(--hairline-dim);background:rgba(6,5,10,.55);pointer-events:none;}
   @media (min-width:900px) and (min-height:520px){ /* MTG-Arena left-anchored nav on wide screens */
     #mainMenu{justify-content:flex-start;}
@@ -1443,13 +1482,50 @@
       <button class="mmbtn primary" onclick="menuPlaySolo()"><span class="mi">⚔</span><span class="ml">Play · Solo<span class="ms">duel a commander of your choice</span></span></button>
       <button class="mmbtn" onclick="menuCampaign()"><span class="mi">♜</span><span class="ml">Campaign<span class="ms">conquer the living map</span></span></button>
       <button class="mmbtn" onclick="menuDeckBuilder()"><span class="mi">⚒</span><span class="ml">Deck Builder<span class="ms">forge your forty</span></span></button>
-      <button class="mmbtn off" disabled><span class="mi">⛓</span><span class="ml">Multiplayer<span class="soon">coming soon</span></span></button>
+      <button class="mmbtn" onclick="menuMultiplayer()"><span class="mi">⛓</span><span class="ml">Multiplayer<span class="ms">duel a friend · connect code</span></span></button>
       <button class="mmbtn ghost" onclick="toggleRules(true)"><span class="mi">✦</span><span class="ml">Rules</span></button>
     </div>
   </div>
   <div class="mmfoot"><span>v26 · local build</span><span>Spawn Row Duel</span></div>
 </div>
 <div id="soloSelect"><div class="csbox"></div></div>
+<!-- multiplayer lobby: serverless connect-code duel (host offers, joiner answers, host connects) -->
+<div id="mpLobby"><div class="csbox">
+  <h1>Multiplayer · Duel a Friend</h1>
+  <div class="cssub">Serverless connect codes — share them over any chat. Pick a password together first.</div>
+  <div id="mpStatus" class="mpstatus">idle</div>
+  <div id="mpModeRow" class="mpmode">
+    <button class="mmbtn" onclick="mpShowHost()"><span class="mi">♜</span><span class="ml">Host<span class="ms">create a connect code</span></span></button>
+    <button class="mmbtn" onclick="mpShowJoin()"><span class="mi">⚔</span><span class="ml">Join<span class="ms">answer a friend's code</span></span></button>
+  </div>
+  <div id="mpHostCard" class="mpcard" style="display:none">
+    <div class="mplab">1 · Password (share it with your friend)</div>
+    <input id="mpHostPass" class="mpin" type="text" maxlength="24" placeholder="password" autocomplete="off">
+    <button id="mpMakeBtn" class="mpbtn" onclick="mpHostCreate()">Create code</button>
+    <div class="mplab">2 · Send this code to your friend</div>
+    <div class="mprow"><textarea id="mpHostCode" class="mpcode" readonly placeholder="your connect code appears here"></textarea><button class="mpbtn" onclick="mpCopy('mpHostCode')">Copy</button></div>
+    <div class="mplab">3 · Paste their answer, then connect</div>
+    <textarea id="mpAnswerIn" class="mpcode" placeholder="paste the answer code"></textarea>
+    <button class="mpbtn go" onclick="mpHostConnect()">Connect</button>
+  </div>
+  <div id="mpJoinCard" class="mpcard" style="display:none">
+    <div class="mplab">1 · Paste the host code + the shared password</div>
+    <textarea id="mpOfferIn" class="mpcode" placeholder="paste the host code"></textarea>
+    <input id="mpJoinPass" class="mpin" type="text" maxlength="24" placeholder="password" autocomplete="off">
+    <button class="mpbtn go" onclick="mpJoin()">Build answer</button>
+    <div class="mplab">2 · Send this answer back, then wait for the host</div>
+    <div class="mprow"><textarea id="mpAnswerOut" class="mpcode" readonly placeholder="your answer code appears here"></textarea><button class="mpbtn" onclick="mpCopy('mpAnswerOut')">Copy</button></div>
+  </div>
+  <button class="csback" onclick="mpCancel()">← cancel</button>
+</div></div>
+<div id="mpDrop"><div class="csbox">
+  <h1>Connection Lost</h1>
+  <div id="mpDropWhy" class="cssub"></div>
+  <div class="mpmode">
+    <button id="mpDropRetry" class="mmbtn"><span class="mi">⟳</span><span class="ml">Retry<span class="ms">mint fresh codes · resume the duel</span></span></button>
+    <button id="mpDropQuit" class="mmbtn ghost"><span class="mi">✕</span><span class="ml">Quit to menu</span></button>
+  </div>
+</div></div>
 <div id="campaign"></div>
 <div id="deckBuilder"><div class="dbbox">
   <div class="dbbar">
@@ -2324,7 +2400,7 @@ function renderCharSel(){
 function showCharSelect(){ csStep=1; renderCharSel(); $('charsel').style.display='flex'; }
 
 /* ===== main menu / deck builder / solo screens ===== */
-function hideAllScreens(){ ['mainMenu','charsel','soloSelect','deckBuilder','campaign'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
+function hideAllScreens(){ ['mainMenu','charsel','soloSelect','deckBuilder','campaign','mpLobby'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
 function showScreen(id){ hideAllScreens(); const e=$(id); if(!e)return; e.style.display='flex'; e.classList.remove('screen-in'); void e.offsetWidth; e.classList.add('screen-in'); }
 function showMainMenu(){ showScreen('mainMenu'); }
 function menuPlaySolo(){ showSoloDeckPick(); }
@@ -3963,6 +4039,8 @@ function startTurn(owner){
     setPhase('upkeep');   // the player's turn opens at Upkeep — balance the workforce + ⛏ Harvest, then Draw
     log(`<span class="y">— Your turn · Upkeep — reposition or settle any shortfall, then ⛏ Harvest —</span>`);
     upkeepHint();
+  } else if(typeof MPNET!=='undefined'&&MPNET.active&&MP.started){
+    setPhase('upkeep');   // MP: the remote player drives 'foe' through upkeep/draw/action via intents — no AI
   } else {
     drawCard('foe');    // the AI draws automatically at the start of its turn
     aiFixDeficit('foe'); readyWorkers('foe'); // re-settle after the AI balances any negative rows
@@ -4076,6 +4154,11 @@ function endTurn(){
   setPhase('end'); log('<span class="y">— End phase —</span>','y');
   endPhaseEffects('you');
   // mana PERSISTS between turns now — no drain
+  if(typeof MPNET!=='undefined'&&MPNET.active&&MP.started){    // MP: hand off to the remote player — no AI, no G.busy latch (cleared only in foeTurn, which never runs in MP)
+    if(MP.role==='guest')MP.intent({a:'end'});
+    startTurn('foe'); log('<span class="e">— Opponent\'s turn —</span>','e'); render();
+    return;
+  }
   G.busy=true; render();
   setTimeout(()=>{
     startTurn('foe');log('<span class="e">— Opponent\'s turn —</span>','e');render();
@@ -4108,6 +4191,7 @@ function aiPickTarget(m,aCol){
   return kill||bld||ch||fld[0]||null;
 }
 async function foeTurn(){
+  if(typeof MPNET!=='undefined'&&MPNET.active&&MP.started)return;   // MP: there is no AI — the remote player drives 'foe'
   const F=G.P.foe,Y=G.P.you;
   // fuel charges (front line + contested center)
   for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','foeFront',i);}}
@@ -4162,6 +4246,10 @@ async function foeTurn(){
     const scour=kwOf(m)==='scour';
     dischargeOvercharge([m]);
     let blk=[];
+    // PAUSE-TO-RESPOND: defender's priority window at attack declaration (always shown — anti-tell)
+    const respTgt=tref.base?'your STRONGHOLD':'your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
+    const springRef=await RESP.defendWindow('attack',{desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${respTgt}.`});
+    if(G.over)return;
     if(!scour && Math.abs(aIdx-tIdx)>1){
       const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);
       if(elig.length){
@@ -4176,7 +4264,7 @@ async function foeTurn(){
       if(scour){ scourStrike(m,'you'); cleanup(); }
     }
     else { const o=tref.o;
-      if(o.kind==='creature'||o.kind==='building') springAttackTrap('you',[m],o); // your attack-trigger trap
+      if((o.kind==='creature'||o.kind==='building')&&springRef) RESP.springAttackTrapRef('you',springRef,[m],o); // springs only if chosen in the response window; interposed strikes never reach here, so a held trap stays armed
       if(o.kind==='charge'){ provokeFaceDown('you',tref.key,tref.i,[m]); }
       else if(o.kind==='trap'){ springTrap('you',tref.key,tref.i,[m]); }
       else if(o.kind==='building'){ log(`<span class="e">${m.nm} raids your ${o.nm}.</span>`,'e'); applyDmg(focusFire([m],[o])); cleanup(); }
@@ -4932,6 +5020,141 @@ function surrenderMatch(){
   $('setAngles').querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>setBoardAngle(btn.dataset.a)));
   setBoardAngle(BOARD_ANGLE);
 })();
+/* ═══════════ PAUSE-TO-RESPOND · DotP-style priority windows (RESP layer) ═══════════
+   Must load AFTER the FX wrappers: these re-bindings intentionally wrap the FX-wrapped
+   doAttack/attackBackRow/attackMinionStack, exactly like the FX layer wraps the originals. */
+(function(){
+  const RM=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||false;
+  let RESP_SETTING=(()=>{ try{return localStorage.getItem('srd.respwin')||'4';}catch(e){return '4';} })(); // 'off'|'3'|'4'|'6'
+  const NETON=()=>!!(typeof MPNET!=='undefined'&&MPNET.active&&typeof MP!=='undefined'&&MP.started);
+
+  /* all armed traps for a trigger — plural sibling of findArmedTrap (L3453), same arming rules */
+  function findArmedTraps(owner,trigger){
+    const out=[];
+    for(const w of ['front','back']) for(let i=0;i<SLOTS;i++){ const o=G.P[owner][w][i];
+      if(o&&o.kind==='trap'&&o.card.trigger===trigger&&G.turnNo>(o.setTurn??0)) out.push({o,w,i}); }
+    for(let i=0;i<SLOTS;i++){ const o=G.center[i];
+      if(o&&o.kind==='trap'&&o.owner===owner&&o.card.trigger===trigger&&G.turnNo>(o.setTurn??0)) out.push({o,w:'center',i}); }
+    return out;
+  }
+
+  const RESP={active:false,_t:null,_tick:null,_net:null};
+  window.RESP=RESP;
+  /* MP is ALWAYS 4s (the anti-tell guarantee); SP honours the setting */
+  RESP.dur=function(){ if(NETON())return 4000; return RESP_SETTING==='off'?0:(+RESP_SETTING)*1000; };
+
+  function barEl(){ let el=document.getElementById('respBar');
+    if(!el){ el=document.createElement('div'); el.id='respBar'; document.body.appendChild(el); } return el; }
+  function countdownHTML(d){ return d>0?(RM?`<div class="respnum">${Math.ceil(d/1000)}s</div>`
+      :`<div class="resptrack"><div class="respfill" style="animation:respShrink ${d}ms linear forwards"></div></div>`):''; }
+  function startNum(el,d){ if(!RM||d<=0)return; const t0=performance.now();     // reduced motion: numeric tick, no bar
+    RESP._tick=setInterval(()=>{ const n=el.querySelector('.respnum');
+      if(n)n.textContent=Math.ceil(Math.max(0,d-(performance.now()-t0))/1000)+'s'; },250); }
+  RESP._hide=function(){ const el=document.getElementById('respBar'); if(el)el.style.display='none';
+    clearTimeout(RESP._t); RESP._t=null; clearInterval(RESP._tick); RESP._tick=null; RESP._net=null; };
+
+  /* ---------- ACTING side: slim pill, countdown, no buttons — you committed ---------- */
+  RESP.actingGate=function(trigger,then){
+    if(G.over||RESP.active)return;               // re-entrancy: never a window inside a window
+    if(G.turn!=='you'){ then(null); return; }    // gate only genuine player actions
+    if(NETON()){ then(null); return; }           // MP: the MP layer owns response windows (host askGuest round-trips)
+    const d=RESP.dur();
+    if(d<=0){ then(null); return; }              // SP 'Off' -> classic instant flow
+    RESP.active=true; G.busy=true;
+    const el=barEl(); el.className=''; el.style.display='flex';
+    el.innerHTML=`<div class="resplab">Opponent may respond…</div>${countdownHTML(d)}`;
+    startNum(el,d); try{SFX.set();}catch(e){}
+    render();
+    const finish=resp=>{ if(!RESP.active)return; RESP._hide(); RESP.active=false; G.busy=false;
+      if(!G.over)then(resp||null); render(); };
+    RESP._t=setTimeout(()=>finish(null),d);      // SP timer only — the NETON branch and RESP.netResolve are deleted
+    /* SP anti-tell: the AI's answer (auto-spring inside `then`) executes EXACTLY at window end,
+       whether or not it holds a trap — findArmedTrap runs only inside then(). Constant timing. */
+  };
+
+  /* ---------- DEFENDING side: RESPOND? + one button per armed trap + Pass ---------- */
+  RESP.defendWindow=function(trigger,ctx){
+    return new Promise(resolve=>{
+      if(G.over){resolve(null);return;}
+      const traps=findArmedTraps('you',trigger);
+      const d=RESP.dur();
+      if(d<=0&&!NETON()&&!traps.length){ resolve(null); return; }   // SP 'Off': only prompt real choices
+      RESP.active=true;
+      const el=barEl(); el.className='defend'; el.style.display='flex';
+      el.innerHTML=`<div class="resplab">${traps.length?'RESPOND?':'Opponent acts…'}</div>`+
+        (ctx&&ctx.desc?`<div class="respdesc">${ctx.desc}</div>`:'')+
+        `<div class="respacts">${traps.map((t,n)=>`<button class="trapbtn" data-n="${n}">⚠ ${t.o.card.nm}</button>`).join('')}`+
+        `<button class="passbtn">Pass</button></div>${countdownHTML(d)}`;
+      startNum(el,d); try{SFX.set();}catch(e){}
+      const done=ref=>{ RESP._hide(); RESP.active=false; resolve(ref); };   // callers own transport (mpGuestDecide sends {t:'resp',id,...})
+      el.querySelectorAll('.trapbtn').forEach(b=>b.addEventListener('click',()=>done(traps[+b.dataset.n])));
+      el.querySelector('.passbtn').addEventListener('click',()=>done(null));
+      if(d>0)RESP._t=setTimeout(()=>done(null),d);                  // timeout = auto-pass
+    });
+  };
+
+  /* validate a remote/late {w,i} intent against live state (host-side MP + safety) */
+  RESP.refFrom=function(owner,wi){ if(!wi)return null; const o=cellArr(owner,wi.w)[wi.i];
+    return (o&&o.kind==='trap')?{o,w:wi.w,i:wi.i}:null; };
+
+  /* ref-taking clone of springAttackTrap (L3657) — the window already chose WHICH trap */
+  RESP.springAttackTrapRef=function(defOwner,t,attackers,defender){
+    if(!t||cellArr(defOwner,t.w)[t.i]!==t.o)return;   // consumed/moved since the window — hold
+    const card=t.o.card; const ey=defOwner==='you'?'y':'e';
+    log(`<span class="${ey}">${card.nm} springs as ${defOwner==='you'?'your':'their'} line is struck!</span>`,ey);
+    if(card.effect==='thornmail'){ if(defender&&defender.kind==='creature'&&!defender.cc){ defender.a+=500; defender.maxh+=1000; defender.h+=1000; log(`&nbsp;&nbsp;${defender.nm} hardens to ⚔${defender.a}/♥${defender.h}.`); } }
+    else if(card.effect==='burn'){ attackers.forEach(a=>{ if(a)a.h-=(card.val||0); }); log(`&nbsp;&nbsp;${card.val} damage to ${attackers.length} attacker(s).`); }
+    G.P[defOwner].grave.push(spellRec(card)); cellArr(defOwner,t.w)[t.i]=null;
+  };
+
+  /* ---------- input lock: onCell/onHand don't check G.busy on your own turn ---------- */
+  const _onCell_R=onCell;   onCell=function(k,i,o){ if(RESP.active)return; _onCell_R(k,i,o); };
+  const _onHand_R=onHand;   onHand=function(i){ if(RESP.active)return; _onHand_R(i); };
+  /* (startMove/openCharge/youDeckClick/endTurn/startSendMana already check G.busy — covered.) */
+
+  /* ---------- RP-3: your attack declarations — window BEFORE the fxLunge/resolution ---------- */
+  const _doAttack_R=doAttack;
+  doAttack=function(tgtKey,ti){ RESP.actingGate('attack',()=>_doAttack_R(tgtKey,ti)); };
+  const _attackBackRow_R=attackBackRow;
+  attackBackRow=function(defOwner,col){ RESP.actingGate('attack',()=>_attackBackRow_R(defOwner,col)); };
+  const _attackMinionStack_R=attackMinionStack;
+  attackMinionStack=function(key,owner,which){ RESP.actingGate('attack',()=>_attackMinionStack_R(key,owner,which)); };
+  /* G.atk survives the window (inputs locked), so the FX layer's fxAtkSrcs()/original doAttack
+     read the same selection after the pause. AI trap auto-spring (springAttackTrap('foe',…) at
+     L3808 inside the original) is UNCHANGED — it now simply fires after a constant-length pause. */
+
+  /* ---------- RP-1: your summons — defer the foe's auto-spring to window end ---------- */
+  const _foeTrapOnSummon_R=foeTrapOnSummon;
+  foeTrapOnSummon=function(cr,w,i){
+    RESP.actingGate('summon',()=>{ _foeTrapOnSummon_R(cr,w,i); render(); checkWin(); });
+  };
+
+  /* ---------- RP-2: AI summons — replace the contestPanel modal with the always-shown bar ---------- */
+  playerTrapOnSummon=function(cr,w,i){
+    const arr=cellArr('foe',w);
+    return RESP.defendWindow('summon',{desc:`Opponent summons <b>${cr.nm}</b> (⚔${cr.a}/♥${cr.h}).`}).then(ref=>{
+      if(!ref)return;
+      if(!cr||arr[i]!==cr)return;                                   // state changed — hold (inputs are locked, shouldn't happen)
+      log(`<span class="y">${ref.o.card.nm} springs — ${cr.nm} is destroyed!</span>`,'y');
+      toGrave('foe',cr); arr[i]=null;
+      G.P.you.grave.push(spellRec(ref.o.card)); cellArr('you',ref.w)[ref.i]=null; cleanup(); render();
+    });
+  };
+
+  /* ---------- settings row (existing .setrow / .setangles pattern, reuses button.on styling) ---------- */
+  (function(){
+    const box=document.querySelector('#settingsOverlay .setbox'); if(!box)return;
+    const row=document.createElement('div'); row.className='setrow';
+    row.innerHTML=`<span class="setlab">Response window</span><div class="setangles" id="setResp">
+      <button data-r="off">Off</button><button data-r="3">3s</button><button data-r="4">4s</button><button data-r="6">6s</button></div>`;
+    box.insertBefore(row,document.getElementById('setSurrenderRow'));
+    const paint=()=>row.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.r===RESP_SETTING));
+    row.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      if(NETON())return;                                            // MP: always on — the setting is SP-only
+      RESP_SETTING=b.dataset.r; try{localStorage.setItem('srd.respwin',RESP_SETTING);}catch(e){} paint(); }));
+    paint();
+  })();
+})();
 /* ---------- v18: fullscreen fit, hand fan, rotate prompt ---------- */
 // size cells so the entire field + fan always fits the viewport — never scroll
 function fitBoard(){
@@ -5040,7 +5263,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   }, true);
   // OFF-CLICK (all devices): a click on the empty board retracts both walls and deselects a held card + its menu
   document.addEventListener('click', e=>{
-    if(!e.target||!e.target.closest||e.target.closest('.hc,.cell,.wkslot,#cardActions,.wallzone,.wallvit,button,.inspect,#hudbar,#hudbarFoe,#settingsOverlay,#mainMenu,#charsel,#soloSelect,#deckBuilder,#buildPanel,#cpanel,#viewerPanel,#banner,.cmdzone')) return;
+    if(!e.target||!e.target.closest||e.target.closest('.hc,.cell,.wkslot,#cardActions,.wallzone,.wallvit,button,.inspect,#hudbar,#hudbarFoe,#settingsOverlay,#mainMenu,#charsel,#soloSelect,#deckBuilder,#buildPanel,#cpanel,#viewerPanel,#banner,.cmdzone,#mpLobby,#mpDrop,#respBar')) return;
     let re=false;
     // deselect ONLY a held hand card (closes its summon/set menu); never touch attack (G.atk) or
     // move (G.moveFrom) selections — a stray cell-miss must not cancel an attack/move mid-action.
@@ -5156,7 +5379,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   let showT=null, hideT=null, curKey=null;
   const vp=()=>$('viewerPanel');
   const SCREENS=['mainMenu','charsel','soloSelect','deckBuilder','campaign','banner','buildPanel',
-                 'settingsOverlay','cpanel','rulesPanel','logPanel','contestPanel','harvestPanel'];
+                 'settingsOverlay','cpanel','rulesPanel','logPanel','contestPanel','harvestPanel','mpLobby','mpDrop'];
   function modalOpen(){                           // a REAL modal (deck/grave viewer, tapped inspect) — never fight it
     const p=vp(); return p && p.style.display==='flex' && !p.classList.contains('hover');
   }
@@ -5238,6 +5461,791 @@ renderHand=function(){
 })();
 fitBoard();
 /* ============================ end v16 layer ============================ */
+
+/* ═══════════════════════ MULTIPLAYER LAYER (MP) · WebRTC host-authoritative duel ═══════════════════════
+   Loads LAST so every re-binding below wraps the FX- and RESP-wrapped flow (call sites late-bind).
+   Order inside this block: MPNET transport → MPMAP mirror → MPSER snapshots → MP core → MPAPPLY intents
+   → §4.6 wrappers → freeze re-binds → FX replay stub + decisions + protocol pump + lobby JS. */
+
+/* ---------- 4.1 MPNET: manual-signalling WebRTC transport (password-sealed, compressed connect codes) ---------- */
+const MPNET=(function(){
+  const N={PROTO:1,active:false,onOpen:null,onMsg:null,onDrop:null};
+  let pc=null,dc=null,closing=false;
+  const RTC={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
+  const enc=new TextEncoder(), dec=new TextDecoder();
+  const b64=b=>{let s='';const u=new Uint8Array(b);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');};
+  const unb64=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;};
+  async function squeeze(str){ if(typeof CompressionStream==='undefined')return {z:0,u:enc.encode(str)};
+    const buf=await new Response(new Blob([enc.encode(str)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+    return {z:1,u:new Uint8Array(buf)}; }
+  async function unsqueeze(z,u){ if(!z)return dec.decode(u);
+    const buf=await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+    return dec.decode(buf); }
+  async function pkey(pass,salt){ const km=await crypto.subtle.importKey('raw',enc.encode(String(pass)),'PBKDF2',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:60000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }
+  async function seal(obj,pass){ const {z,u}=await squeeze(JSON.stringify(obj));
+    const salt=crypto.getRandomValues(new Uint8Array(12)), iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},await pkey(pass,salt),u));
+    const out=new Uint8Array(25+ct.length); out[0]=z; out.set(salt,1); out.set(iv,13); out.set(ct,25);
+    return b64(out.buffer); }
+  async function unseal(code,pass){ let u; try{ u=unb64(String(code||'').replace(/\s+/g,'')); }catch(e){ throw new Error('That code is garbled — paste it whole.'); }
+    if(u.length<26) throw new Error('That code is garbled — paste it whole.');
+    let pt; try{ pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(13,25)},await pkey(pass,u.slice(1,13)),u.slice(25)); }
+    catch(e){ throw new Error('Wrong password'); }
+    return JSON.parse(await unsqueeze(u[0],new Uint8Array(pt))); }
+  function gathered(p){ return new Promise(res=>{ if(p.iceGatheringState==='complete'){res();return;}
+    const t=setTimeout(res,2500);                                  // take what we have — mDNS/srflx land fast
+    p.addEventListener('icegatheringstatechange',()=>{ if(p.iceGatheringState==='complete'){clearTimeout(t);res();} }); }); }
+  function watch(p){ p.addEventListener('connectionstatechange',()=>{ if(pc!==p)return;
+    if(p.connectionState==='failed'||p.connectionState==='closed') drop(p.connectionState); }); }
+  function drop(why){ if(closing)return; const was=N.active; teardown();
+    if(was&&N.onDrop)try{N.onDrop(why);}catch(e){} }
+  function teardown(){ N.active=false; try{ if(dc)dc.close(); }catch(e){} try{ if(pc)pc.close(); }catch(e){} dc=null; pc=null; }
+  // --- fragmentation: snapshots run 25–40 KB; chunk under the 16 KB interop floor. Frame: '#id|k|n\n'+slice
+  const CHUNK=12000; let txId=0,rxId=0,rxBuf=null,rxLeft=0;
+  function wire(ch){ dc=ch;
+    dc.onopen=()=>{ N.active=true; closing=false; if(N.onOpen)try{N.onOpen();}catch(e){} };
+    dc.onclose=()=>drop('channel closed'); dc.onerror=()=>{};
+    dc.onmessage=ev=>{ let s=ev.data; if(typeof s!=='string')return;
+      if(s.charCodeAt(0)===35){
+        const h=s.indexOf('\n'); const parts=s.slice(1,h).split('|'); const id=+parts[0],k=+parts[1],n=+parts[2];
+        if(id!==rxId||!rxBuf){ rxId=id; rxBuf=new Array(n); rxLeft=n; }
+        if(rxBuf[k]==null){ rxBuf[k]=s.slice(h+1); rxLeft--; }
+        if(rxLeft>0)return; s=rxBuf.join(''); rxBuf=null;
+      }
+      let m; try{ m=JSON.parse(s); }catch(e){ return; }
+      if(N.onMsg)try{N.onMsg(m);}catch(e){ console.warn('MP msg',e); } }; }
+  N.send=function(obj){ if(!dc||dc.readyState!=='open')return false; const s=JSON.stringify(obj);
+    if(s.length<=CHUNK){ dc.send(s); return true; }
+    const n=Math.ceil(s.length/CHUNK); const id=++txId;
+    for(let k=0;k<n;k++) dc.send('#'+id+'|'+k+'|'+n+'\n'+s.slice(k*CHUNK,(k+1)*CHUNK));
+    return true; };
+  N.hostOffer=async function(pass){ if(!pass)throw new Error('Pick a password first.');
+    closing=true; teardown(); closing=false;
+    pc=new RTCPeerConnection(RTC); watch(pc); wire(pc.createDataChannel('srd'));
+    await pc.setLocalDescription(await pc.createOffer()); await gathered(pc);
+    return seal({v:N.PROTO,sdp:pc.localDescription.sdp},pass); };
+  N.hostAccept=async function(answer,pass){ if(!pc)throw new Error('Create your code first.');
+    const o=await unseal(answer,pass); if(!o||!o.sdp)throw new Error('That is not an answer code.');
+    await pc.setRemoteDescription({type:'answer',sdp:o.sdp}); };
+  N.joinWithOffer=async function(offer,pass){ if(!pass)throw new Error('Enter the shared password.');
+    closing=true; teardown(); closing=false;
+    const o=await unseal(offer,pass); if(!o||!o.sdp)throw new Error('That is not a host code.');
+    if(o.v!==N.PROTO)throw new Error('Version mismatch — both players need the same build.');
+    pc=new RTCPeerConnection(RTC); watch(pc); pc.ondatachannel=ev=>wire(ev.channel);
+    await pc.setRemoteDescription({type:'offer',sdp:o.sdp});
+    await pc.setLocalDescription(await pc.createAnswer()); await gathered(pc);
+    return seal({v:N.PROTO,sdp:pc.localDescription.sdp},pass); };
+  N.close=function(){ closing=true; teardown(); };
+  return N;
+})();
+
+/* ---------- 4.2 MPMAP: guest↔host perspective mirror — row + well keys flip, slot indices map identity ---------- */
+const MPMAP=(function(){
+  const M={youBack:'foeBack',foeBack:'youBack',youFront:'foeFront',foeFront:'youFront',center:'center',
+           wellYouBack:'wellFoeBack',wellFoeBack:'wellYouBack',wellYouFront:'wellFoeFront',wellFoeFront:'wellYouFront',wellCenter:'wellCenter'};
+  return {k:key=>M[key]||key};
+})();
+
+/* ---------- 4.3 MPSER: canonical snapshots (host coords, art-stripped) + wholesale adoption (guest, sides swapped) ---------- */
+const MPSER=(function(){
+  function strip(o){                                   // null out .art everywhere (rebuilt locally); tokens keep theirs (no registry entry)
+    if(Array.isArray(o)){ o.forEach(strip); return; }
+    if(!o||typeof o!=='object')return;
+    if('art' in o&&o.art&&!o.token)o.art=null;
+    for(const k in o){ const v=o[k]; if(v&&typeof v==='object')strip(v); }
+  }
+  function artFor(rec){ try{
+      if(rec.worker)return ART.villager;
+      if((rec.kind||rec.type)==='building'&&rec.bid){ const d=resolveStruct(rec.bid,rec.color||null); return (d&&d.art)||null; }
+      const e=CARD_BY_KEY[(rec.color||'neutral')+'|'+rec.nm]||CARD_BY_KEY['neutral|'+rec.nm];
+      return (e&&e.tpl&&e.tpl.art)||null;
+    }catch(e){ return null; } }
+  function rehydrate(o){
+    if(Array.isArray(o)){ o.forEach(rehydrate); return; }
+    if(!o||typeof o!=='object')return;
+    if('art' in o&&!o.art&&rec2(o))o.art=artFor(o);
+    for(const k in o){ const v=o[k]; if(v&&typeof v==='object')rehydrate(v); }
+  }
+  function rec2(o){ return !!o.nm; }                   // only card-shaped records get a lookup
+  function pSnap(o){ const P=G.P[o];
+    return {color:P.color,cc:P.cc,life:P.life,mana:P.mana,cmana:P.cmana,hand:P.hand,deck:P.deck,grave:P.grave,
+      front:P.front,back:P.back,min:P.min,firstExtract:P.firstExtract,villagerUsed:P.villagerUsed}; }
+  function snapshot(){                                  // host-canonical duel state, deep-copied + art-stripped
+    const s=JSON.parse(JSON.stringify({turn:G.turn,over:G.over,turnNo:G.turnNo,phase:G.phase,uid,
+      center:G.center,P:{you:pSnap('you'),foe:pSnap('foe')}}));
+    strip(s); return s;
+  }
+  function adopt(st){                                   // GUEST: wholesale replace — host 'you' becomes local 'foe' and vice versa
+    if(!st)return;
+    const wasTurn=G.turn;
+    const S=JSON.parse(JSON.stringify(st));             // never alias the wire/pending object
+    rehydrate(S);
+    if(S.uid&&S.uid>uid)uid=S.uid;                      // keep local uid++ ids clear of adopted ones
+    Object.assign(G.P.you,S.P.foe); Object.assign(G.P.foe,S.P.you);
+    G.center=S.center;
+    G.center.forEach(o=>{ if(o&&o.owner)o.owner=(o.owner==='you'?'foe':'you'); });
+    ['you','foe'].forEach(o=>{ const P=G.P[o];
+      ['front','back'].forEach(w=>P[w].forEach(u=>{ if(u&&u.owner)u.owner=o; }));
+      ['back','front','center'].forEach(w=>P.min[w].forEach(u=>{ if(u)u.owner=o; })); });
+    G.turn=(S.turn==='you')?'foe':'you';
+    G.over=!!S.over; G.turnNo=S.turnNo; setPhase(S.phase);
+    G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null;G.minSel=null;G.busy=false;
+    MP.clearWait();                                     // any send-and-wait freeze ends when the authoritative board lands
+    if(G.turn!==wasTurn&&!G.over){ try{                 // risk T: the flip arrives inside a snapshot — fire the ribbon here
+      if(G.turn==='you'){ FX.ribbon('YOUR TURN','var(--gold)'); SFX.turnYou(); if(G.phase==='upkeep')upkeepHint(); }
+      else { FX.ribbon("OPPONENT'S TURN",'var(--tide)'); SFX.turnFoe(); } }catch(e){} }
+    render(); checkWin();
+  }
+  return {snapshot,adopt};
+})();
+
+/* ---------- 4.4 MP core: roles, counters, asks, freeze, status ---------- */
+const MP={role:null,started:false,resume:false,pickingDeck:false,myPick:null,peerPick:null,
+  lastQ:0,qOut:0,sv:0,svIn:0,_lastSnap:null,_pend:null,_st:null,_rt:null,rtt:null,_ping:null,_lastPong:0,
+  _asks:{},_askId:0,forcedBlock:null,frozen:false,fxUntil:0,postFx:[],_dropSuppressed:false};
+MP.intent=function(m){ if(MP.role!=='guest'||!MPNET.active)return; MPNET.send({t:'intent',q:++MP.qOut,...m}); };
+MP.pushNow=function(){ if(!MPNET.active||MP.role!=='host'||!MP.started)return;   // ALWAYS sends (risk F: rejects must heal the guest too)
+  const snap=MPSER.snapshot(); MP._lastSnap=JSON.stringify(snap);
+  MPNET.send({t:'snapshot',sv:++MP.sv,state:snap}); };
+MP.fx=function(ev){};   // FX relay stub — inert at the cut-line; Step 11 replaces it with the real host→guest sender
+MP.holdFx=function(ms){ MP.fxUntil=Math.max(MP.fxUntil,Date.now()+Math.min(ms,1200)); };
+MP.drainPostFx=function(){ const q=MP.postFx; MP.postFx=[];
+  q.forEach(ev=>{ try{ const k=MPMAP.k(ev.k); const el=rowCellEl($(k),ev.i); const r=fxRect(el);
+    const u=rowArr(k)[ev.i]; const col=(u&&u.color&&ELEMENTS[u.color]&&ELEMENTS[u.color].color)||'#ffe6a8';
+    FX.ring(r); FX.flash(r,col,92); SFX.summon(); }catch(e){} }); };
+MP.waitBanner=function(txt){ MP.frozen=true; try{setHint('<b style="color:var(--tide)">'+txt+'</b>');}catch(e){} };
+MP.clearWait=function(){ MP.frozen=false; try{if(typeof G!=='undefined'&&!G.over)defaultHint();}catch(e){} };
+MP.status=function(txt){ const el=$('mpStatus'); if(el)el.textContent=txt; };
+MP.reset=function(){ try{MPNET.close();}catch(e){} clearInterval(MP._ping); MP._ping=null;
+  clearTimeout(MP._rt); clearTimeout(MP._st);
+  Object.keys(MP._asks).forEach(id=>{ const a=MP._asks[id]; if(a&&a.timer)clearTimeout(a.timer); });
+  Object.assign(MP,{role:null,started:false,resume:false,pickingDeck:false,myPick:null,peerPick:null,
+    lastQ:0,qOut:0,sv:0,svIn:0,_lastSnap:null,_pend:null,rtt:null,_lastPong:0,_asks:{},_askId:0,
+    forcedBlock:null,frozen:false,fxUntil:0,postFx:[],_dropSuppressed:false});
+  const c=$('mpLink'); if(c)c.style.display='none'; };
+MP.softReset=function(){ clearTimeout(MP._rt); clearTimeout(MP._st);   // game bookkeeping only — role/peer/net survive (risk N)
+  Object.keys(MP._asks).forEach(id=>{ const a=MP._asks[id]; if(a&&a.timer)clearTimeout(a.timer); });
+  Object.assign(MP,{started:false,lastQ:0,qOut:0,sv:0,svIn:0,_lastSnap:null,_pend:null,
+    _asks:{},_askId:0,forcedBlock:null,frozen:false,fxUntil:0,postFx:[]}); };
+MP.abort=function(msg){ try{MPNET.send({t:'bye'});}catch(e){} MP.reset();
+  showScreen('mpLobby'); const mr=$('mpModeRow'); if(mr)mr.style.display='flex';
+  const hc=$('mpHostCard'); if(hc)hc.style.display='none'; const jc=$('mpJoinCard'); if(jc)jc.style.display='none';
+  MP.status(msg); };
+MP.gameOverLocal=function(win){ if(!G.over){ G.P[win?'foe':'you'].life=0; checkWin(); } };
+MP.askGuest=function(what,data,cb){
+  const id=++MP._askId;
+  const t=setTimeout(()=>{ const a=MP._asks[id]; delete MP._asks[id];
+    if(a){ MP.clearWait(); a.cb(what==='block'?{refs:[]}:{spring:false}); } },     // host-authoritative auto-pass (risk D)
+    what==='trap'?5500:25000);
+  MP._asks[id]={cb,timer:t};
+  MPNET.send({t:'respWindow',what,id,data});
+};
+
+/* ---------- 4.5 MPAPPLY: the host re-validates and applies every guest intent as 'foe' ---------- */
+const MPAPPLY=(function(){
+  let chain=Promise.resolve();
+  const foesTurn=()=>MPNET.active&&MP.started&&G.turn==='foe'&&!G.over;
+  function bad(q,why){ log(`<span class="e">MP: a guest action was rejected (${why}).</span>`,'e');
+    try{MPNET.send({t:'reject',q,why});}catch(e){} }
+  function resolveRefs(refs){ return (refs||[]).map(r=>{ if(r.pw!=null)return minPool(r.po,r.pw)[r.pi]||null;
+      const a=rowArr(r.k); return (a&&a[r.i])||null; }).filter(Boolean); }
+
+  function harvest(m){ if(!foesTurn()||G.phase!=='upkeep')return bad(m.q,'phase');   // mirrors doHarvest L4006–4026 for 'foe'
+    const owe=totalDeficit('foe');
+    if(owe>0){ if(manaTotal('foe')<owe)return bad(m.q,'deficit');
+      payAny('foe',owe); log(`<span class="e">The opponent pays ◆${owe} to keep their over-extended lines fed.</span>`,'e'); }
+    let sum=0;
+    for(const z of ['back','front','center']){
+      const pool=minPool('foe',z); const up=pool.filter(w=>!w.tapped&&!w.sick).length;
+      if(up<=0)continue;
+      const total=up*minYield(z);
+      pool.forEach(w=>{ if(!w.sick) w.tapped=true; });
+      G.P.foe.mana=Math.min(99,G.P.foe.mana+total); sum+=total;
+    }
+    setPhase('draw');
+    log(sum>0?`<span class="e">Enemy harvest: ◆${sum}.</span>`:'<span class="e">— The enemy skips harvest —</span>','e');
+    render(); }
+
+  function harvestRowI(m){ if(!foesTurn())return bad(m.q,'phase');                   // mirrors harvestRow L3694–3708
+    const which=m.w; if(!['back','front','center'].includes(which))return bad(m.q,'row');
+    const ready=minPool('foe',which).filter(x=>!x.tapped&&!x.sick);
+    if(!ready.length)return bad(m.q,'workers');
+    ready.forEach(x=>x.tapped=true);
+    const total=ready.length*minYield(which);
+    G.P.foe.mana=Math.min(99,G.P.foe.mana+total);
+    log(`<span class="e">Enemy workers harvest ◆${total}.</span>`,'e');
+    render(); checkWin(); }
+
+  function sac(m){ if(!foesTurn()||!G.upkeep)return bad(m.q,'phase');                // mirrors upkeepSac L3998–4003
+    const a=rowArr(m.k); const o=a&&a[m.i];
+    if(!o||o.owner!=='foe')return bad(m.q,'target');
+    a[m.i]=null; toGrave('foe',o);
+    log(`<span class="e">The opponent sacrifices ${o.nm} to ease their workforce.</span>`,'e');
+    syncWorkers('foe'); render(); }
+
+  function draw(m){ if(!foesTurn()||G.phase!=='draw')return bad(m.q,'phase');        // mirrors doDraw L3977–3983 (empty deck still advances)
+    if(G.P.foe.deck.length){ drawCard('foe'); log('<span class="e">The opponent draws a card.</span>','e'); }
+    else log('<span class="e">The opponent\'s deck is empty — nothing to draw.</span>','e');
+    setPhase('action'); render(); }
+
+  function move(m){ if(!foesTurn())return bad(m.q,'phase');                          // mirrors doMove L3777–3786 with adjacentK('foe',…)
+    if(G.phase!=='action'&&G.phase!=='upkeep')return bad(m.q,'phase');
+    const a=rowArr(m.fk); const c=a&&a[m.fi];
+    if(!c||c.kind!=='creature'||c.owner!=='foe'||c.moved)return bad(m.q,'unit');
+    const d=rowArr(m.tk); if(!d)return bad(m.q,'dest');
+    if(d[m.ti]||!adjacentK('foe',m.fk,m.fi,m.tk,m.ti))return bad(m.q,'reach');
+    a[m.fi]=null; c.moved=true; d[m.ti]=c;
+    log(`<span class="e">${c.nm} repositions to ${rowName(m.tk)}.</span>`,'e');
+    syncWorkers('foe'); render(); }
+
+  async function placeI(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');   // mirrors place L3364–3418 incl. play-on-top
+    const idx=m.idx|0, mode=m.mode, which=m.w, slot=m.i|0;
+    const card=G.P.foe.hand[idx];
+    if(!card||!['summon','build','set','settrap'].includes(mode))return bad(m.q,'card');
+    if(!['back','front'].includes(which)||!(slot>=0&&slot<SLOTS))return bad(m.q,'slot');
+    const arr=cellArr('foe',which);
+    const occ=arr[slot];
+    if(occ){                                            // play face-up ON TOP of a banked card (summon/build only)
+      if(occ.cc||((mode!=='summon'&&mode!=='build')||!(occ.bank>0)))return bad(m.q,'slot');
+      const fromBank=Math.min(occ.bank,card.c);
+      const need=card.c-fromBank;
+      if(need>manaTotal('foe'))return bad(m.q,'mana');
+      payAny('foe',need);
+      const carry=Math.max(0,occ.bank-card.c);
+      const oldName=occ.nm;
+      toGrave('foe',occ);
+      G.P.foe.hand.splice(idx,1);
+      if(mode==='summon'){
+        const cr=mkCre(card,'foe',false); cr.sick=true; cr.bank=carry; arr[slot]=cr;
+        log(`<span class="e">Opponent plays ${card.nm} over ${oldName}.</span>`,'e');
+        onCreatureEnter(cr,'foe'); render();
+        MPNET.send({t:'wait',what:'trap'});
+        await playerTrapOnSummon(cr,which,slot);        // late-bound → the RESP bar once Step 9 is in (host holds the trap)
+      } else {
+        const b=mkBld(card,'foe'); b.bank=carry; arr[slot]=b;
+        log(`<span class="e">Opponent raises ${card.nm} over ${oldName}.</span>`,'e');
+      }
+      afterDeploy('foe'); render(); checkWin(); return;
+    }
+    if(mode==='build'){
+      if(card.type!=='building')return bad(m.q,'card');
+      if(card.c>manaTotal('foe'))return bad(m.q,'mana');
+      payAny('foe',card.c); G.P.foe.hand.splice(idx,1);
+      arr[slot]=mkBld(card,'foe');
+      log(`<span class="e">Opponent builds a ${card.nm} (♥${card.h}).</span>`,'e');
+    } else if(mode==='summon'){
+      if(card.type!=='creature')return bad(m.q,'card');
+      if(manaTotal('foe')<card.c)return bad(m.q,'mana');
+      payCost('foe',card); G.P.foe.hand.splice(idx,1);
+      const cr=mkCre(card,'foe',false); cr.sick=true; arr[slot]=cr;
+      log(`<span class="e">Opponent summons ${card.nm} (⚔${card.a}/♥${card.h}).</span>`,'e');
+      onCreatureEnter(cr,'foe'); render();
+      MPNET.send({t:'wait',what:'trap'});
+      await playerTrapOnSummon(cr,which,slot);
+    } else if(mode==='settrap'){
+      if(card.type!=='spell'||!card.trap)return bad(m.q,'card');
+      G.P.foe.hand.splice(idx,1);
+      arr[slot]={kind:'trap',owner:'foe',w:which,card:{nm:card.nm,c:card.c,effect:card.effect,trigger:card.trigger,val:card.val,ic:card.ic,art:card.art,trap:true},setTurn:G.turnNo};
+      log('<span class="e">Opponent sets a face-down card.</span>','e');
+    } else {                                            // 'set' — face-down charge (creature OR building)
+      G.P.foe.hand.splice(idx,1);
+      const ctype=card.type;
+      const cdata=ctype==='building'?{nm:card.nm,c:card.c,h:card.h,eff:card.eff,val:card.val,sup:card.sup,ic:card.ic,art:card.art}:{nm:card.nm,a:card.a,h:card.h,c:card.c,fs:card.fs,up:card.up,art:card.art,
+        kw:card.kw,det:card.det,ward:card.ward,wardhp:card.wardhp,reap:card.reap,grow:card.grow,hatch:card.hatch,into:card.into,entrench:card.entrench,tribe:card.tribe,subtype:card.subtype};
+      arr[slot]={kind:'charge',owner:'foe',w:which,ctype,card:cdata,inv:0,setTurn:G.turnNo};
+      log('<span class="e">Opponent sets a face-down card.</span>','e');
+    }
+    afterDeploy('foe'); render(); checkWin(); }
+
+  function pour(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');      // mirrors camtPour L3526 on a foe-owned charge
+    const a=rowArr(m.k); const ch=a&&a[m.i];
+    if(!ch||ch.kind!=='charge'||ch.owner!=='foe')return bad(m.q,'target');
+    const p=Math.min(m.amt|0,manaTotal('foe'));
+    if(p<=0)return bad(m.q,'mana');
+    payAny('foe',p); ch.inv+=p;
+    log(`<span class="e">Opponent pours ◆${p} into a face-down card (◆${ch.inv}/${ch.card.c}).</span>`,'e');
+    render(); }
+
+  function flipI(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');     // mirrors camtFlip L3527
+    const a=rowArr(m.k); const ch=a&&a[m.i];
+    if(!ch||ch.kind!=='charge'||ch.owner!=='foe'||ch.inv<ch.card.c)return bad(m.q,'target');
+    flip('foe',m.k,m.i);
+    render(); checkWin(); }
+
+  function sendMana(m){ if(!foesTurn())return bad(m.q,'phase');                      // mirrors doSendMana L3493–3499
+    const src=rowArr(m.fk)&&rowArr(m.fk)[m.fi]; const dst=rowArr(m.tk)&&rowArr(m.tk)[m.ti];
+    if(!src||!dst||(m.fk===m.tk&&m.fi===m.ti)||src.owner!=='foe'||dst.owner!=='foe'||!(src.bank>0)||!(dst.kind==='creature'||dst.kind==='building'))return bad(m.q,'target');
+    const amt=src.bank||0; dst.bank=(dst.bank||0)+amt; src.bank=0;
+    log(`<span class="e">Opponent moves ◆${amt} of stored mana.</span>`,'e');
+    render(); }
+
+  function cast(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');      // mirrors castSpell L3445–3451 via resolveSpell
+    const card=G.P.foe.hand[m.idx|0];
+    if(!card||card.type!=='spell'||card.trap)return bad(m.q,'card');
+    if(manaTotal('foe')<card.c)return bad(m.q,'mana');
+    const tgt=rowArr(m.k)&&rowArr(m.k)[m.i];
+    if(!tgt||tgt.owner!=='you'||!validSpellTarget(card,tgt))return bad(m.q,'target');
+    if(!resolveSpell(card,m.k,m.i))return bad(m.q,'target');
+    payCost('foe',card); G.P.foe.hand.splice(m.idx|0,1); G.P.foe.grave.push(spellRec(card));
+    render(); checkWin(); }
+
+  function build(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');     // mirrors placeBuild L2162–2168, bid re-validated against the HOST build DB
+    const def=resolveStruct(m.bid,m.color||null);
+    if(!def)return bad(m.q,'bid');
+    const which=m.w, i=m.i|0;
+    if(!['back','front','center'].includes(which)||!(i>=0&&i<SLOTS))return bad(m.q,'slot');
+    if(which==='center'&&isLane(i))return bad(m.q,'slot');
+    const arr=cellArr('foe',which);
+    if(arr[i]||!placeRowOK('foe',which,def))return bad(m.q,'slot');
+    if(!canBuild('foe',def))return bad(m.q,'build');
+    payAny('foe',def.c); arr[i]=mkBld(def,'foe');
+    log(`<span class="e">Opponent raises a ${escHtml(def.nm)}.</span>`,'e');
+    afterDeploy('foe'); render(); checkWin(); }
+
+  async function attack(m){                                        // NEW GLUE — guest attacks; host defends
+    if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');
+    if(!Array.isArray(m.atk)||!m.atk.length||m.atk.some(s=>s.k!==m.atk[0].k))return bad(m.q,'row'); // group shares a row (onCell L3346)
+    const attackers=m.atk.map(s=>rowArr(s.k)&&rowArr(s.k)[s.i])
+      .filter(x=>x&&x.kind==='creature'&&x.owner==='foe'&&!x.worker&&!x.sick&&!x.tapped);
+    if(attackers.length!==m.atk.length)return bad(m.q,'attackers');
+    const aKey=m.atk[0].k, aIdx=rowIdx(aKey), aCol=m.atk[0].i;
+    // resolve target + validate BEFORE tapping anything
+    let tIdx, tgt=null;
+    if(m.kind==='back'){ if(!(m.col>=0&&m.col<SLOTS)||rowArr('youBack')[m.col])return bad(m.q,'col');
+      if(!colReach(aCol,m.col))return bad(m.q,'reach'); tIdx=rowIdx('youBack'); }
+    else if(m.kind==='workers'){ if(!minPool('you',m.wWhich).length)return bad(m.q,'pool');
+      tIdx=rowIdx(zoneKey('you',m.wWhich)); }
+    else { tgt=rowArr(m.tk)&&rowArr(m.tk)[m.ti];
+      if(!tgt||tgt.owner!=='you')return bad(m.q,'target');
+      if(!colReach(aCol,m.ti))return bad(m.q,'reach'); tIdx=rowIdx(m.tk); }
+    // from here on: mirrors doAttack L3788–3816 / attackBackRow L3819–3843 / attackMinionStack L3719–3738 with sides swapped
+    attackers.forEach(a=>a.tapped=true);
+    const scour=groupIsScour(attackers);
+    dischargeOvercharge(attackers);
+    // impact FX for the guest (it already played its own lunge locally)
+    MP.fx({ev:'impact', k:(m.kind==='back'?'youBack':(m.kind==='workers'?zoneKey('you',m.wWhich):m.tk)),
+           i:(m.kind==='back'?m.col:(m.kind==='workers'?0:m.ti)), el:attackers[0].color||null, well:m.kind==='workers'});
+    let chosen=[];
+    const canBlock=(m.kind==='workers') ? Math.abs(aIdx-tIdx)>1 : (!scour&&Math.abs(aIdx-tIdx)>1);
+    if(canBlock){
+      const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);       // attacker-owner arg = 'foe' (recon §2)
+      if(elig.length){
+        MPNET.send({t:'wait',what:'block'});
+        chosen=await askBlock({attacker:attackers[0],elig,title:'Incoming Attack',
+          desc:`${attackers[0].nm} (⚔${attackers[0].a}/♥${attackers[0].h})${attackers.length>1?' +'+(attackers.length-1)+' more':''} strikes from ${rowName(aKey)}.`});
+      }
+    }
+    if(chosen.length){
+      const defs=chosen.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean);
+      defs.forEach(d=>{d.tapped=true;d.blocked=true;});
+      log(`<span class="y">You interpose ${defs.length}!</span>`,'y');
+      resolveCombat(attackers,defs);
+      clearDischarge(attackers); render(); checkWin(); return;
+    }
+    if(m.kind==='back'){
+      const dmg=sumA(attackers);                                   // same formula as attackBackRow L3837
+      G.P.you.life=Math.max(0,G.P.you.life-dmg);
+      log(`<span class="e">The enemy breaches your line — ⚔${dmg} strikes your stronghold! (♥${G.P.you.life} remains)</span>`,'e');
+      if(scour&&attackers[0]){ scourStrike(attackers[0],'you'); cleanup(); }
+    } else if(m.kind==='workers'){
+      log(`<span class="e">The enemy strikes your Minions with ${attackers.length} creature(s).</span>`,'e');
+      resolveCombat(attackers,minPool('you',m.wWhich).slice());
+    } else {
+      if(tgt.kind==='creature'||tgt.kind==='building') springAttackTrap('you',attackers,tgt);   // your attack-trigger trap (L3657)
+      if(tgt.kind==='charge'){ provokeFaceDown('you',m.tk,m.ti,attackers); }
+      else if(tgt.kind==='trap'){ springTrap('you',m.tk,m.ti,attackers); }
+      else if(tgt.kind==='building'){ log(`<span class="e">The enemy strikes your ${tgt.nm}.</span>`,'e');
+        clashFx(attackers,[tgt]); applyDmg(focusFire(attackers,[tgt])); cleanup(); }
+      else if(tgt.kind==='creature'){ log(`<span class="e">The enemy attacks your ${tgt.nm}.</span>`,'e');
+        resolveCombat(attackers,[tgt]); }
+      if(scour&&attackers[0]){ scourStrike(attackers[0],'you'); cleanup(); }
+    }
+    clearDischarge(attackers);
+    render(); checkWin(); }
+
+  function end(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');
+    G.atk=[]; G.sel=null;
+    setPhase('end'); endPhaseEffects('foe');
+    startTurn('you');                                              // 'you' branch: Upkeep + hint + FX ribbon (L3962, L4831)
+    render(); }
+
+  function dispatch(m){ chain=chain.then(async()=>{ switch(m.a){
+      case 'harvest':harvest(m);break;    case 'harvestRow':harvestRowI(m);break;
+      case 'sac':sac(m);break;            case 'draw':draw(m);break;
+      case 'move':move(m);break;          case 'place':await placeI(m);break;
+      case 'pour':pour(m);break;          case 'flip':flipI(m);break;
+      case 'sendmana':sendMana(m);break;  case 'cast':cast(m);break;
+      case 'build':build(m);break;        case 'attack':await attack(m);break;
+      case 'end':end(m);break;            default:bad(m.q,'unknown');
+    } MP.pushNow(); }).catch(e=>{ console.warn('MP apply',e); MP.pushNow(); }); }
+  return {dispatch,resolveRefs};
+})();
+
+/* ---------- 4.6 wrappers: guest intent capture + host decision round-trips ---------- */
+(function(){
+  const K=MPMAP.k;
+  const inMP=()=>MPNET.active&&MP.started;
+  const guestTurn=()=>inMP()&&MP.role==='guest'&&G.turn==='you'&&!G.over;
+  const hostTurn =()=>inMP()&&MP.role==='host' &&G.turn==='you'&&!G.over;
+
+  // --- draw (deck click → doDraw L3977; success = phase advanced to action)
+  const _doDraw=doDraw;
+  doDraw=function(){ const s=guestTurn()&&G.phase==='draw'; _doDraw();
+    if(s&&G.phase==='action')MP.intent({a:'draw'}); };
+
+  // --- upkeep harvest (window.doHarvest, FX-wrapped L4808; success = phase advanced to draw)
+  const _doHarvestMP=doHarvest;
+  doHarvest=function(){ const s=guestTurn()&&G.phase==='upkeep'; _doHarvestMP();
+    if(s&&G.phase==='draw')MP.intent({a:'harvest'}); };
+
+  // --- single-row worker harvest (window.harvestRow L3694; success = mana grew)
+  const _harvestRow=window.harvestRow;
+  window.harvestRow=function(which){ const m0=G.P.you.mana; const s=guestTurn(); _harvestRow(which);
+    if(s&&G.P.you.mana>m0)MP.intent({a:'harvestRow',w:which}); };
+
+  // --- upkeep sacrifice (window.upkeepSac L3998; success = the cell emptied)
+  const _upkeepSac=window.upkeepSac;
+  window.upkeepSac=function(key,i){ const o=rowArr(key)&&rowArr(key)[+i]; const s=guestTurn()&&G.upkeep&&o&&o.owner==='you';
+    _upkeepSac(key,i);
+    if(s&&rowArr(key)[+i]!==o)MP.intent({a:'sac',k:K(key),i:+i}); };
+
+  // --- hand plays (place L3364, FX-wrapped L4703; success = hand shrank). `w` is owner-relative: no mapping.
+  const _placeMP=place;
+  place=function(idx,mode,which,slot){ const n0=G.P.you.hand.length;
+    _placeMP(idx,mode,which,slot);
+    if(G.P.you.hand.length<n0){
+      if(guestTurn())MP.intent({a:'place',idx,mode,w:which,i:slot});
+      else if(hostTurn()&&(mode==='summon'||mode==='build'))MP.fx({ev:'enter',k:rowKeyFor('you',which),i:slot});
+    } };
+
+  // --- spells (castSpell L3445, FX-wrapped L4730; risk K — FX only after the cast verifiably resolved)
+  const _castMP=castSpell;
+  castSpell=function(idx,key,i){ const n0=G.P.you.hand.length; const card=G.P.you.hand[idx];
+    _castMP(idx,key,i);
+    if(G.P.you.hand.length<n0){
+      if(guestTurn())MP.intent({a:'cast',idx,k:K(key),i});
+      else if(hostTurn()&&card)MP.fx({ev:'spell',k:key,i,effect:card.effect,color:card.color||null});
+    } };
+
+  // --- moves (doMove L3777, FX-wrapped L4742; success = the same object landed at dest)
+  const _doMoveMP=doMove;
+  doMove=function(toK,toI){ const mf=G.moveFrom; const c=mf&&rowArr(mf.k)&&rowArr(mf.k)[mf.i]; const s=guestTurn()&&!!c;
+    _doMoveMP(toK,toI);
+    if(s&&rowArr(toK)[toI]===c)MP.intent({a:'move',fk:K(mf.k),fi:mf.i,tk:K(toK),ti:toI}); };
+
+  // --- banked-mana transfer (doSendMana L3493; success = source bank emptied)
+  const _doSendManaMP=doSendMana;
+  doSendMana=function(toK,toI){ const mm=G.moveMana; const src=mm&&rowArr(mm.k)&&rowArr(mm.k)[mm.i]; const amt=src?src.bank:0;
+    const s=guestTurn()&&amt>0;
+    _doSendManaMP(toK,toI);
+    if(s&&src.bank===0)MP.intent({a:'sendmana',fk:K(mm.k),fi:mm.i,tk:K(toK),ti:toI}); };
+
+  // --- pour / flip via the charge panel (window.camtPour/camtFlip L3526–3527; `cs`,`chSel` are top-level in the same script)
+  const _camtPour=window.camtPour;
+  window.camtPour=function(){ const ch=chSel(); const inv0=ch?ch.inv:0; const at=cs&&{k:cs.k,i:cs.i};
+    _camtPour();
+    if(guestTurn()&&ch&&at&&ch.inv>inv0)MP.intent({a:'pour',k:K(at.k),i:at.i,amt:ch.inv-inv0}); };
+  const _camtFlip=window.camtFlip;
+  window.camtFlip=function(){ const at=cs&&{k:cs.k,i:cs.i}; const ch=chSel(); const ready=!!(ch&&ch.inv>=ch.card.c);
+    _camtFlip();
+    if(guestTurn()&&at&&ready)MP.intent({a:'flip',k:K(at.k),i:at.i}); };
+
+  // --- flips fire an 'enter' FX for the guest when the HOST flips (any path, incl. provokeFaceDown)
+  const _flipMP=flip;
+  flip=function(owner,key,slot){ const r=_flipMP(owner,key,slot);
+    if(inMP()&&MP.role==='host'&&owner==='you')MP.fx({ev:'enter',k:key,i:slot});
+    return r; };
+
+  // --- RTS build menu (placeBuild L2162, FX-wrapped L4768; capture G.build BEFORE — the original clears it)
+  const _placeBuildMP=placeBuild;
+  placeBuild=function(which,i){ const def=G.build;
+    _placeBuildMP(which,i);
+    const now=def&&cellArr('you',which)&&cellArr('you',which)[i];
+    if(now&&now.kind==='building'&&now.bid===def.bid){
+      if(guestTurn())MP.intent({a:'build',bid:def.bid,color:def.color||null,w:which,i});
+      else if(hostTurn())MP.fx({ev:'enter',k:rowKeyFor('you',which),i});
+    } };
+
+  // --- ATTACKS: guest = send-and-wait (not optimistic); host = two-phase (guest may interpose)
+  MP.sendAttack=function(d){                                       // d in guest-LOCAL coords
+    const atk=G.atk.map(s=>({k:K(s.k),i:s.i})); if(!atk.length)return;
+    try{ let tEl=null;                                             // local wind-up FX (visual only)
+      if(d.kind==='unit')tEl=rowCellEl($(d.tkL),d.ti);
+      else if(d.kind==='back')tEl=rowCellEl($('foeBack'),d.col);
+      else tEl=$(FX_STRIP[d.rkL])&&$(FX_STRIP[d.rkL]).firstElementChild||$(FX_STRIP[d.rkL]);
+      if(tEl)fxLunge(fxAtkSrcs(),tEl,()=>{},fxAtkEl());
+    }catch(e){}
+    const msg={a:'attack',kind:d.kind,atk};
+    if(d.kind==='unit'){msg.tk=K(d.tkL);msg.ti=d.ti;} else if(d.kind==='back'){msg.col=d.col;} else {msg.wWhich=d.wWhich;}
+    MP.intent(msg); clearAtk();
+    MP.waitBanner('Attack sent — the opponent may interpose…');    // snapshot (or reject) unfreezes
+  };
+  function mpHostAttack(run,d){                                    // d: {kind,tkL?,ti?,col?,rowKey?,which?} host-LOCAL
+    const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
+    if(!attackers.length)return run();
+    const aIdx=rowIdx(attackerRowKey()), aCol=G.atk.length?G.atk[0].i:0;
+    const tIdx=rowIdx(d.kind==='back'?'foeBack':(d.kind==='workers'?d.rowKey:d.tkL));
+    const scour=groupIsScour(attackers);
+    const blockable=(d.kind==='workers')?Math.abs(aIdx-tIdx)>1:(!scour&&Math.abs(aIdx-tIdx)>1);
+    const elig=blockable?eligibleInterceptors('you',aIdx,tIdx,aCol):[];   // attacker-owner='you' (L3800/3829/3727)
+    MP.fx({ev:'attack',atk:G.atk.map(s=>({k:s.k,i:s.i})),kind:d.kind,
+           tk:d.kind==='unit'?d.tkL:null,ti:d.ti,col:d.col,rk:d.kind==='workers'?d.rowKey:null,el:fxAtkEl()});
+    if(!elig.length){ MP.forcedBlock=[]; run(); MP.pushNow(); return; }
+    MP.askGuest('block',{atk:G.atk.map(s=>({k:s.k,i:s.i})),kind:d.kind,
+        tk:d.kind==='unit'?d.tkL:null,ti:d.ti,col:d.col,rk:d.kind==='workers'?d.rowKey:null},
+      resp=>{ MP.forcedBlock=resp.refs||[]; MP.clearWait(); run(); MP.pushNow(); });
+    MP.waitBanner('Opponent may interpose…');
+  }
+  const _doAttackMP=doAttack;                                      // wraps the RESP-wrapped (which wraps the FX-wrapped L4679)
+  doAttack=function(tgtKey,ti){
+    if(!inMP())return _doAttackMP(tgtKey,ti);
+    if(MP.role==='guest'){ if(guestTurn()&&G.phase==='action')MP.sendAttack({kind:'unit',tkL:tgtKey,ti}); return; }
+    mpHostAttack(()=>_doAttackMP(tgtKey,ti),{kind:'unit',tkL:tgtKey,ti}); };
+  const _attackBackRowMP=attackBackRow;                            // wraps the RESP-wrapped (FX L4685)
+  attackBackRow=function(defOwner,col){
+    if(!inMP())return _attackBackRowMP(defOwner,col);
+    if(MP.role==='guest'){ if(guestTurn()&&G.phase==='action'&&defOwner==='foe')MP.sendAttack({kind:'back',col}); return; }
+    mpHostAttack(()=>_attackBackRowMP(defOwner,col),{kind:'back',col}); };
+  const _attackMinionStackMP=attackMinionStack;                    // wraps the RESP-wrapped (FX L4696)
+  attackMinionStack=function(key,owner,which){
+    if(!inMP())return _attackMinionStackMP(key,owner,which);
+    const rk=WELL2ROW[key]||key;
+    if(MP.role==='guest'){ if(guestTurn()&&G.phase==='action'&&owner==='foe')MP.sendAttack({kind:'workers',rkL:rk,wWhich:which}); return; }
+    mpHostAttack(()=>_attackMinionStackMP(key,owner,which),{kind:'workers',rowKey:rk,which}); };
+
+  // --- interception override: consume the guest's pre-fetched choice instead of the AI heuristic (L3616)
+  const _aiChoose=aiChooseInterceptors;
+  aiChooseInterceptors=function(attackers,info){
+    if(inMP()){ const refs=MP.forcedBlock||[]; MP.forcedBlock=null;
+      const elig=info.elig||[];
+      return refs.map(r=>{ let c;
+          if(r.pw!=null)c=minPool(r.po,r.pw)[r.pi]; else c=rowArr(r.k)&&rowArr(r.k)[r.i];
+          return elig.find(e=>e.c===c)||null; })                   // identity match ⇒ eligibility re-validated
+        .filter(Boolean);
+    }
+    return _aiChoose(attackers,info); };
+
+  // --- summon-trap deferral: host summons, GUEST holds the trap (replaces auto-spring foeTrapOnSummon L3461)
+  const _foeTrapMP=foeTrapOnSummon;
+  foeTrapOnSummon=function(cr,w,i){
+    if(!inMP())return _foeTrapMP(cr,w,i);
+    if(MP.role==='guest')return;                                   // optimistic local summon: the HOST resolves this
+    const t=findArmedTrap('foe','summon');
+    if(!t){ MP.waitBanner('Opponent may respond…'); setTimeout(()=>{MP.clearWait();},RESP.dur()); return; }   // Step 10b: constant-time window even with no trap — the host can't read "no trap" from timing
+    const arr=cellArr('you',w); if(!cr||arr[i]!==cr)return;
+    MP.askGuest('trap',{w,i,cr:{nm:cr.nm,a:cr.a,h:cr.h}},resp=>{
+      if(resp&&resp.spring){ const t2=findArmedTrap('foe','summon');
+        if(t2&&arr[i]===cr){ log(`<span class="e">${t2.o.card.nm} springs! ${cr.nm} is dragged down as it forms.</span>`,'e');
+          toGrave('you',cr); arr[i]=null;
+          G.P.foe.grave.push(spellRec(t2.o.card)); cellArr('foe',t2.w)[t2.i]=null; cleanup(); checkWin(); } }
+      else log('<span class="e">The opponent holds their trap.</span>','e');
+      MP.clearWait(); MP.pushNow(); });
+    MP.waitBanner('Opponent may spring a trap…');
+  };
+
+  // --- surrender → resign message (doSurrender L4892 bypasses checkWin; keep that, add the wire + banner)
+  const _doSurrenderMP=doSurrender;
+  doSurrender=function(){ if(inMP()&&!G.over){ try{MPNET.send({t:'resign'});}catch(e){}
+      const ov=$('settingsOverlay'); if(ov)ov.style.display='none';
+      MP.gameOverLocal(false); return; }
+    _doSurrenderMP(); };
+
+  // --- host: debounced snapshot after EVERY render (every mutation in this codebase ends in render())
+  const _renderMP=render;                                          // wraps the FX-wrapped render (L4839)
+  render=function(){ _renderMP();
+    if(MPNET.active&&MP.role==='host'&&MP.started){ clearTimeout(MP._rt); MP._rt=setTimeout(()=>MP.pushNow(),45); } };
+
+  // --- input freeze while awaiting the remote side (waitBanner sets MP.frozen; snapshot/reject/clearWait clear it)
+  const _onCellMP=onCell;     onCell=function(k,i,o){ if(MP.frozen)return; _onCellMP(k,i,o); };
+  const _onHandMP=onHand;     onHand=function(i){ if(MP.frozen)return; _onHandMP(i); };
+  const _endTurnMP=endTurn;   endTurn=function(){ if(MP.frozen)return; _endTurnMP(); };
+  const _doMoveFrz=doMove;    doMove=function(toK,toI){ if(MP.frozen)return; _doMoveFrz(toK,toI); };
+  // #endBtn captured the ORIGINAL endTurn reference at load (L4067) — swap it for a late-bound call so the freeze gate applies
+  try{ const eb=$('endBtn'); if(eb){ eb.removeEventListener('click',_endTurnMP); eb.addEventListener('click',()=>endTurn()); } }catch(e){}
+})();
+
+/* ---------- 4.7 guest FX replay + decisions + protocol pump + lobby ---------- */
+function mpReplayFx(ev){ try{
+  const LK=MPMAP.k;
+  if(ev.ev==='attack'){
+    const srcs=(ev.atk||[]).map(s=>rowCellEl($(LK(s.k)),s.i)).filter(Boolean);
+    let tEl=null;
+    if(ev.kind==='back')tEl=rowCellEl($('youBack'),ev.col);
+    else if(ev.kind==='workers'){const w=$(FX_STRIP[LK(ev.rk)]);tEl=(w&&w.firstElementChild)||w;}
+    else tEl=rowCellEl($(LK(ev.tk)),ev.ti);
+    MP.holdFx(650);
+    if(srcs.length&&tEl)fxLunge(srcs,tEl,()=>{},ev.el||null);
+    if(tEl)setTimeout(()=>{try{ELEMFX.elemBurst(fxRect(tEl),ev.el||null);FX.shake();}catch(e){}},300);
+  } else if(ev.ev==='impact'){
+    let el=ev.well?(($(FX_STRIP[LK(ev.k)])||{}).firstElementChild||$(FX_STRIP[LK(ev.k)])):rowCellEl($(LK(ev.k)),ev.i);
+    MP.holdFx(350); if(el){ELEMFX.elemBurst(fxRect(el),ev.el||null);FX.shake();}
+  } else if(ev.ev==='spell'){
+    const el=rowCellEl($(LK(ev.k)),ev.i); MP.holdFx(430);
+    if(el){ const r=fxRect(el); SFX.spell();
+      if(ev.effect==='burn'){ELEMFX.elemShot({left:r.left,top:r.top-170,width:r.width,height:r.height},r,ev.color||'fire',200);
+        setTimeout(()=>ELEMFX.elemBurst(r,ev.color||'fire'),200);}
+      else if(ev.effect==='raze'){ELEMFX.elemBurst(r,ev.color||'earth',true);FX.shake();}
+      else if(ev.effect==='chain'){ELEMFX.elemBurst(r,'electric');}
+      else if(ev.effect==='bounce'){ELEMFX.elemBurst(r,ev.color||'water');}
+      else {FX.slash(r);FX.burstRect(r,'#c9a0ff');} }
+  } else if(ev.ev==='enter'){ MP.postFx.push(ev); }                // ring AFTER the snapshot lands (unit must exist)
+}catch(e){} }
+
+async function mpGuestDecide(m){                                   // respWindow handler (guest)
+  if(m.what==='trap'){                                             // Step 10a: the timed RESP bar replaces the old contestPanel modal
+    const ref=await RESP.defendWindow('summon',{desc:`Opponent summons <b>${m.data.cr?m.data.cr.nm:'a creature'}</b>`+
+      `${m.data.cr?` (⚔${m.data.cr.a}/♥${m.data.cr.h})`:''}. Spring a trap?`});
+    MPNET.send({t:'resp',id:m.id,spring:!!ref}); return; }
+  if(m.what==='block'){
+    const atkL=(m.data.atk||[]).map(s=>({k:MPMAP.k(s.k),i:s.i}));
+    const aKey=atkL[0].k, aIdx=rowIdx(aKey), aCol=atkL[0].i;
+    const tIdx=m.data.kind==='back'?rowIdx('youBack')
+      :m.data.kind==='workers'?rowIdx(MPMAP.k(m.data.rk)):rowIdx(MPMAP.k(m.data.tk));
+    const attacker=rowArr(aKey)[aCol]||{nm:'Enemy',a:0,h:0};
+    const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);         // same call foeTurn makes when the AI attacked (L4166)
+    if(!elig.length){MPNET.send({t:'resp',id:m.id,refs:[]});return;}
+    const blk=await askBlock({attacker,elig,title:'Incoming Attack',
+      desc:`${attacker.nm} (⚔${attacker.a}/♥${attacker.h}) strikes from ${rowName(aKey)}.`});
+    const refs=blk.map(r=>{ if(r.i!=null)return {k:MPMAP.k(r.key),i:r.i};      // cell blocker
+        const which=whichForKey('you',r.key); const pi=minPool('you',which).indexOf(r.c);
+        return pi>=0?{po:'foe',pw:which,pi}:null; })                            // worker blocker → canonical pool ref
+      .filter(Boolean);
+    MPNET.send({t:'resp',id:m.id,refs}); }
+}
+
+/* --- protocol pump --- */
+MPNET.onMsg=m=>{ try{ switch(m.t){
+  case 'hello': if(m.proto!==MPNET.PROTO){MP.abort('Version mismatch — both players need the same build.');return;}
+    MP.status('Connected.'); break;
+  case 'deck': if(MP.role!=='host')return;
+    MP.peerPick={cc:m.cc,deck:m.deck||null};
+    if(MP.myPick)mpStartMatch(); else MP.status('Opponent is ready — pick your deck.'); break;
+  case 'start': if(MP.role!=='guest')return; mpGuestStart(m); break;
+  case 'intent': if(MP.role!=='host'||!MP.started)return;
+    if(m.q<=MP.lastQ)return; MP.lastQ=m.q; MPAPPLY.dispatch(m); break;
+  case 'snapshot': { if(MP.role!=='guest'||!MP.started)return;
+    if(m.sv<=MP.svIn)return; MP.svIn=m.sv; MP._pend=m.state;
+    const wait=MP.fxUntil-Date.now(); clearTimeout(MP._st);
+    if(wait>0)MP._st=setTimeout(()=>{MPSER.adopt(MP._pend);MP.drainPostFx();},wait);
+    else {MPSER.adopt(MP._pend);MP.drainPostFx();} break; }
+  case 'respWindow': if(MP.role==='guest')mpGuestDecide(m); break;
+  case 'resp': { const a=MP._asks[m.id]; delete MP._asks[m.id]; if(a){ clearTimeout(a.timer); a.cb(m); } break; }
+  case 'wait': setHint('<b style="color:var(--tide)">'+(m.what==='trap'?'Opponent may spring a trap…':'Opponent is choosing blockers…')+'</b>'); break;
+  case 'fx': if(MP.role==='guest')mpReplayFx(m.ev); break;
+  case 'reject': MP.clearWait(); setHint('<b style="color:#ff8a7a">Action rejected — board resynced.</b>'); break;
+  case 'emote': mpToastEmote(m.e); break;
+  case 'resign': if(MP.started)MP.gameOverLocal(true); break;
+  case 'ping': MPNET.send({t:'pong',ts:m.ts}); break;
+  case 'pong': MP.rtt=Date.now()-m.ts; MP._lastPong=Date.now();
+    { const c=$('mpLink'); if(c){c.style.display='block';c.textContent='⛓ '+MP.rtt+'ms';c.style.color=MP.rtt>400?'#e35b4f':'';} } break;
+  case 'bye': MPNET.close(); mpShowDrop('Opponent left.'); break;
+} }catch(e){ console.warn('MP msg',e); } };
+
+MPNET.onOpen=()=>{
+  MPNET.send({t:'hello',proto:MPNET.PROTO,role:MP.role});
+  clearInterval(MP._ping); MP._lastPong=Date.now();
+  MP._ping=setInterval(()=>{ if(!MPNET.active)return;
+    MPNET.send({t:'ping',ts:Date.now()});
+    if(Date.now()-MP._lastPong>13000){ MPNET.close(); mpShowDrop('Connection timed out.'); } },4000);
+  if(MP.role==='host'&&MP.resume&&MP.started){                     // rehost mid-game: snapshot IS the resume
+    MP.resume=false; hideAllScreens(); render();
+    MPNET.send({t:'start',resume:true,first:G.turn==='you'?'host':'guest',state:MPSER.snapshot()}); return; }
+  if(MP.role==='guest'&&MP.started){ MP.status('Reconnected — waiting for the host state…'); return; }
+  MP.status('Connected — choose your deck.');
+  MP.pickingDeck=true; showSoloDeckPick();                         // reuse of the solo deck picker in 'mp' mode
+};
+MPNET.onDrop=why=>{ clearInterval(MP._ping); const c=$('mpLink'); if(c)c.style.display='none';
+  if(MP.started&&!G.over)mpShowDrop('Link dropped ('+why+').');
+  else if(MP.role){ MP.status('Connection lost ('+why+').'); } };
+
+/* --- deck picker in 'mp' mode: patch the pick + retitle/rewire the rendered screen --- */
+const _soloPickDeckMP=window.soloPickDeck;
+window.soloPickDeck=function(sel){ if(MP.pickingDeck){ mpDeckPicked(sel); return; } _soloPickDeckMP(sel); };
+const _renderSoloDeckPickMP=renderSoloDeckPick;
+renderSoloDeckPick=function(){ _renderSoloDeckPickMP();
+  if(!MP.pickingDeck)return;
+  const box=$('soloSelect').querySelector('.csbox');
+  const h=box.querySelector('h1'); if(h)h.textContent='Choose Your Deck · Multiplayer';
+  const back=box.querySelector('.csback');
+  if(back){ back.textContent='← cancel match'; back.onclick=e=>{e&&e.preventDefault();MP.reset();showScreen('mpLobby');MP.status('Match cancelled.');}; }
+};
+function mpDeckPicked(sel){
+  let cc,deck=null;
+  if(sel.kind==='custom'){ const d=loadDecks()[sel.index]; if(!d||!deckValid(d))return;
+    cc=d.cc; deck={name:d.name,cc:d.cc,cards:d.cards}; }
+  else cc=sel.cc;
+  MP.myPick={cc,deck}; MP.pickingDeck=false;
+  MPNET.send({t:'deck',cc,deck});
+  showScreen('mpLobby'); $('mpModeRow').style.display='none';
+  $('mpHostCard').style.display='none'; $('mpJoinCard').style.display='none';
+  MP.status('Deck locked — waiting for opponent…');
+  if(MP.role==='host'&&MP.peerPick)mpStartMatch();
+}
+function mpStartMatch(){                                           // HOST only: build both decks, coin flip, ship state
+  const you=MP.myPick,foe=MP.peerPick;
+  if(!CCS[foe.cc]){MP.abort('Opponent sent an unknown commander.');return;}
+  let foeDeck;
+  if(foe.deck){ if(!isWellFormedDeck(foe.deck)||foe.deck.cc!==foe.cc||!deckValid(foe.deck)){MP.abort('Opponent deck failed validation.');return;}
+    foeDeck=expandDeck(foe.deck); }                                // HOST RNG shuffles BOTH decks (only in-duel randomness)
+  else foeDeck=deckOf(CCS[foe.cc].colors);
+  const youDeck=you.deck?expandDeck(you.deck):deckOf(CCS[you.cc].colors);
+  if(typeof CAMPAIGN!=='undefined'&&CAMPAIGN)CAMPAIGN.target=null; // an MP result must never touch srd.campaign.v2 (checkWin L4208)
+  MP.started=true; MP.softReset(); MP.started=true;
+  startGame(you.cc,foe.cc,youDeck,foeDeck);
+  const guestFirst=Math.random()<0.5;
+  if(guestFirst){ G.turn='foe'; log('<span class="e">Coin flip — the opponent goes first.</span>','e'); }
+  else log('<span class="y">Coin flip — you go first.</span>','y');
+  render();
+  const snap=MPSER.snapshot(); MP._lastSnap=JSON.stringify(snap); MP.sv=1;
+  MPNET.send({t:'start',first:guestFirst?'guest':'host',state:snap});
+}
+function mpGuestStart(m){                                          // GUEST: local table setup, then adopt canonical state
+  if(typeof CAMPAIGN!=='undefined'&&CAMPAIGN)CAMPAIGN.target=null;
+  MP.started=true; MP.svIn=0; MP.fxUntil=0; MP.postFx=[];
+  const st=m.state;
+  startGame(st.P.foe.cc,st.P.you.cc,[],[]);                        // guest cc = canonical foe; [] decks — adopt overwrites
+  MPSER.adopt(st);
+  log(`<span class="y">Connected duel — ${m.first==='guest'?'you go first.':'the host goes first.'}</span>`);
+}
+
+/* --- lobby buttons --- */
+window.menuMultiplayer=function(){ MP.reset(); showScreen('mpLobby'); MP.status('idle');
+  $('mpModeRow').style.display='flex'; $('mpHostCard').style.display='none'; $('mpJoinCard').style.display='none'; };
+window.mpShowHost=function(){ MP.role='host'; $('mpHostCard').style.display='block'; $('mpJoinCard').style.display='none'; MP.status('Enter a password, then create your code.'); };
+window.mpShowJoin=function(){ MP.role='guest'; $('mpJoinCard').style.display='block'; $('mpHostCard').style.display='none'; MP.status('Paste the host code and the password.'); };
+window.mpHostCreate=async function(){ const pass=$('mpHostPass').value;
+  if(!pass){MP.status('Pick a password first.');return;}
+  try{ MP.status('Gathering network candidates…'); $('mpMakeBtn').disabled=true;
+    const code=await MPNET.hostOffer(pass);
+    $('mpHostCode').value=code; MP.status('Code ready ('+code.length+' chars) — send it, then paste their answer.');
+  }catch(e){ MP.status('Failed: '+e.message); } finally{ $('mpMakeBtn').disabled=false; } };
+window.mpHostConnect=async function(){ try{ MP.status('Connecting…');
+    await MPNET.hostAccept($('mpAnswerIn').value,$('mpHostPass').value);
+  }catch(e){ MP.status(e.message); } };
+window.mpJoin=async function(){ try{ MP.status('Building answer…');
+    const code=await MPNET.joinWithOffer($('mpOfferIn').value,$('mpJoinPass').value);
+    $('mpAnswerOut').value=code; MP.status('Answer ready ('+code.length+' chars) — send it back to the host and wait.');
+  }catch(e){ MP.status(e.message); } };
+window.mpCopy=function(id){ const el=$(id); el.select(); el.setSelectionRange(0,999999);
+  try{ navigator.clipboard.writeText(el.value); }catch(e){ try{document.execCommand('copy');}catch(_){}} };
+window.mpCancel=function(){ MP.reset(); showMainMenu(); };
+function mpShowDrop(why){ const d=$('mpDrop'); $('mpDropWhy').textContent=why+' You can mint fresh codes (same password) and resume — the host state carries the whole game.';
+  d.style.display='flex';
+  $('mpDropRetry').onclick=()=>{ d.style.display='none'; MP.resume=(MP.role==='host'); MP.softReset(); showScreen('mpLobby');
+    $('mpModeRow').style.display='none';
+    $(MP.role==='host'?'mpHostCard':'mpJoinCard').style.display='block';
+    $(MP.role==='host'?'mpJoinCard':'mpHostCard').style.display='none';
+    MP.status(MP.role==='host'?'Create a NEW host code and send it over.':'Paste the host\'s NEW code.'); };
+  $('mpDropQuit').onclick=()=>{ d.style.display='none'; MP.reset(); if(!G.over&&MP.started)MP.gameOverLocal(false); showMainMenu(); };
+}
+/* --- emotes (optional, tiny) --- */
+window.mpEmote=function(e){ if(MPNET.active&&MP.started)MPNET.send({t:'emote',e}); };
+function mpToastEmote(e){ try{ const el=document.createElement('div');
+  el.textContent=e; el.style.cssText='position:fixed;top:44px;left:50%;transform:translateX(-50%);font-size:34px;z-index:65;animation:none;pointer-events:none;transition:opacity .4s;';
+  document.body.appendChild(el); setTimeout(()=>{el.style.opacity='0';},1200); setTimeout(()=>el.remove(),1700); }catch(_){} }
+(()=>{ const c=document.createElement('div'); c.id='mpLink'; document.body.appendChild(c); })();
+/* ============================ end multiplayer layer ============================ */
 
 bootstrap();
 
