@@ -5606,15 +5606,11 @@ fitBoard();
 const MPNET=(function(){
   const N={PROTO:1,active:false,onOpen:null,onMsg:null,onDrop:null};
   let pc=null,dc=null,closing=false;
-  // STUN discovers each player's public address; the free public TURN relays are a FALLBACK used only
-  // when two players are behind NATs that can't hole-punch a direct link. TURN is NOT a game server —
-  // it only relays the already-encrypted DataChannel bytes if no direct path exists. Swap in your own
-  // TURN creds (e.g. a Metered/coturn account) for best reliability; this default is a shared free tier.
+  // STUN discovers each player's public address so most pairs can hole-punch a direct link.
+  // (The old free public TURN relays are gone — verified dead 2026-07-10 — so pairs that can't
+  // hole-punch fall back to RELAYED PLAY over a public MQTT broker instead: see relayConnect below.)
   const RTC={iceServers:[
-    {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302']},
-    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+    {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302']}
   ]};
   const enc=new TextEncoder(), dec=new TextDecoder();
   const b64=b=>{let s='';const u=new Uint8Array(b);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');};
@@ -5644,15 +5640,21 @@ const MPNET=(function(){
     p.addEventListener('icecandidate',e=>{ if(e.candidate&&/typ relay/.test(e.candidate.candidate))setTimeout(finish,300); }); // a relay path exists → wrap up promptly (localhost has none → falls through to 'complete')
   }); }
   function watch(p){ p.addEventListener('connectionstatechange',()=>{ if(pc!==p)return;
-    if(p.connectionState==='failed'||p.connectionState==='closed') drop(p.connectionState); }); }
+    if(p.connectionState==='failed'||p.connectionState==='closed'){
+      if(N.mode==='relay'){ closeP2P(); return; }        // the duel lives on the relay — shed the dead pc quietly
+      drop(p.connectionState); } }); }
   function drop(why){ if(closing)return; const was=N.active; teardown();
     if(was&&N.onDrop)try{N.onDrop(why);}catch(e){} }
-  function teardown(){ N.active=false; try{ if(dc)dc.close(); }catch(e){} try{ if(pc)pc.close(); }catch(e){} dc=null; pc=null; }
+  function closeP2P(){ try{ if(dc)dc.close(); }catch(e){} try{ if(pc)pc.close(); }catch(e){} dc=null; pc=null; }
+  function teardown(){ N.active=false; N.mode=null; closeP2P(); closeRelay(); }
   // --- fragmentation: snapshots run 25–40 KB; chunk under the 16 KB interop floor. Frame: '#id|k|n\n'+slice
   const CHUNK=12000; let txId=0,rxId=0,rxBuf=null,rxLeft=0;
   function wire(ch){ dc=ch;
-    dc.onopen=()=>{ N.active=true; closing=false; if(N.onOpen)try{N.onOpen();}catch(e){} };
-    dc.onclose=()=>drop('channel closed'); dc.onerror=()=>{};
+    dc.onopen=()=>{
+      if(N.active&&N.mode==='relay'){ try{dc.close();}catch(e){} return; }   // relay won the race — keep it
+      N.mode='p2p'; closeRelay();                                            // direct link up — shed any relay attempt
+      N.active=true; closing=false; if(N.onOpen)try{N.onOpen();}catch(e){} };
+    dc.onclose=()=>{ if(N.mode==='relay')return; drop('channel closed'); }; dc.onerror=()=>{};
     dc.onmessage=ev=>{ let s=ev.data; if(typeof s!=='string')return;
       if(s.charCodeAt(0)===35){
         const h=s.indexOf('\n'); const parts=s.slice(1,h).split('|'); const id=+parts[0],k=+parts[1],n=+parts[2];
@@ -5662,7 +5664,9 @@ const MPNET=(function(){
       }
       let m; try{ m=JSON.parse(s); }catch(e){ return; }
       if(N.onMsg)try{N.onMsg(m);}catch(e){ console.warn('MP msg',e); } }; }
-  N.send=function(obj){ if(!dc||dc.readyState!=='open')return false; const s=JSON.stringify(obj);
+  N.send=function(obj){
+    if(N.mode==='relay'){ if(!N.active||!N._relaySend)return false; N._relaySend(obj); return true; }   // broker packets carry whole frames — no chunking
+    if(!dc||dc.readyState!=='open')return false; const s=JSON.stringify(obj);
     if(s.length<=CHUNK){ dc.send(s); return true; }
     const n=Math.ceil(s.length/CHUNK); const id=++txId;
     for(let k=0;k<n;k++) dc.send('#'+id+'|'+k+'|'+n+'\n'+s.slice(k*CHUNK,(k+1)*CHUNK));
@@ -5683,6 +5687,74 @@ const MPNET=(function(){
     await pc.setRemoteDescription({type:'offer',sdp:o.sdp});
     await pc.setLocalDescription(await pc.createAnswer()); await gathered(pc);
     return seal({v:N.PROTO,sdp:pc.localDescription.sdp},pass); };
+  // ---- RELAYED PLAY (fallback transport): when no direct P2P link can form (client-isolated
+  //      wifi, carrier CGNAT — and no free public TURN exists any more), the whole duel runs over
+  //      a public MQTT-over-WebSocket broker instead. Same host-authoritative wire protocol; every
+  //      frame is deflate+AES-GCM sealed with a key derived ONCE from the match password, so the
+  //      broker only ever carries ciphertext. Turn-based traffic → broker latency is irrelevant.
+  const BROKERS=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt'];
+  let ws=null,wsPing=null,rdyT=null,relayKey=null,txQ=Promise.resolve(),rxQ=Promise.resolve();
+  function vlen(n){ const o=[]; do{ let b=n%128; n=Math.floor(n/128); if(n>0)b|=128; o.push(b); }while(n>0); return o; }
+  function mstr(s){ const u=enc.encode(s); return [u.length>>8,u.length&255,...u]; }
+  function closeRelay(){ clearInterval(wsPing); wsPing=null; clearTimeout(rdyT); rdyT=null;
+    if(ws){ const s=ws; ws=null; try{s.onclose=null;s.close();}catch(e){} } N._relaySend=null; }
+  async function relayTopics(pass){ const u=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode('srd.mp.v1|'+String(pass))));
+    let s=''; for(let i=0;i<15;i++)s+=('0'+u[i].toString(16)).slice(-2);
+    return {hg:'srd-'+s+'-hg', gh:'srd-'+s+'-gh'}; }                       // host→guest / guest→host lanes
+  async function relayKeyOf(pass){ const km=await crypto.subtle.importKey('raw',enc.encode(String(pass)),'PBKDF2',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('srd.relay.v1'),iterations:60000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }
+  async function sealFrame(obj){ const {z,u}=await squeeze(JSON.stringify(obj));
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},relayKey,u));
+    const out=new Uint8Array(13+ct.length); out[0]=z; out.set(iv,1); out.set(ct,13); return out; }
+  async function openFrame(u){ const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(1,13)},relayKey,u.slice(13));
+    return JSON.parse(await unsqueeze(u[0],new Uint8Array(pt))); }
+  N.relayConnect=async function(pass,role){
+    if(N.active)return;                                  // the direct link beat us to it
+    closeRelay(); N.mode='relay';
+    relayKey=await relayKeyOf(pass);
+    const t=await relayTopics(pass);
+    const sub=role==='host'?t.gh:t.hg, pub=role==='host'?t.hg:t.gh;
+    let bi=0;
+    (function tryBroker(){
+      if(N.active&&N.mode==='p2p')return;                // p2p connected while we were dialing
+      if(bi>=BROKERS.length){ if(N.mode==='relay')N.mode=null;
+        if(!N.active&&N.onDrop)try{N.onDrop('relay unreachable');}catch(e){} return; }
+      const url=BROKERS[bi++]; let stage='ws'; let sock;
+      try{ sock=new WebSocket(url,'mqtt'); }catch(e){ tryBroker(); return; }
+      ws=sock; sock.binaryType='arraybuffer';
+      const guard=setTimeout(()=>{ if(stage!=='ready'){ try{sock.close();}catch(_){} } },9000);
+      sock.onclose=()=>{ clearTimeout(guard); if(ws!==sock)return; ws=null;
+        if(stage!=='ready'){ tryBroker(); }              // this broker failed — try the next
+        else if(N.active&&N.mode==='relay'){ N.active=false; const cb=N.onDrop; teardown(); if(cb&&!closing)try{cb('relay closed');}catch(e){} } };
+      sock.onerror=()=>{};
+      sock.onopen=()=>{ stage='connect';                 // MQTT 3.1.1 CONNECT (clean session, 60s keepalive)
+        const vh=[...mstr('MQTT'),4,2,0,60,...mstr('srd_'+Math.random().toString(36).slice(2,10))];
+        sock.send(new Uint8Array([0x10,...vlen(vh.length),...vh])); };
+      function relayPub(obj){ txQ=txQ.then(async()=>{ if(ws!==sock||sock.readyState!==1)return;
+        const f=await sealFrame(obj); const th=mstr(pub);
+        const head=[0x30,...vlen(th.length+f.length)];
+        const pkt=new Uint8Array(head.length+th.length+f.length);
+        pkt.set(head,0); pkt.set(th,head.length); pkt.set(f,head.length+th.length);
+        sock.send(pkt); }).catch(()=>{}); }
+      sock.onmessage=ev=>{ const u=new Uint8Array(ev.data); const type=u[0]>>4;
+        if(type===2){ stage='sub';                        // CONNACK → SUBSCRIBE our inbound lane
+          const vh=[0,1,...mstr(sub),0]; sock.send(new Uint8Array([0x82,...vlen(vh.length),...vh])); }
+        else if(type===9){ stage='ready';                 // SUBACK → beacon until the peer answers
+          N._relaySend=relayPub;
+          wsPing=setInterval(()=>{ try{sock.send(new Uint8Array([0xC0,0]));}catch(e){} },30000);
+          (function beacon(){ if(N.active||ws!==sock)return; relayPub({t:'__rdy'}); rdyT=setTimeout(beacon,1000); })(); }
+        else if(type===3){                                // PUBLISH → one sealed frame from the peer
+          let i=1; while(u[i]&128)i++; i++; const tl=(u[i]<<8)|u[i+1]; const body=u.slice(i+2+tl);
+          rxQ=rxQ.then(async()=>{ let m; try{ m=await openFrame(body); }catch(e){ return; }   // wrong password / garbled — ignore
+            if(N.mode!=='relay')return;                   // p2p took over meanwhile
+            if(!N.active){ N.active=true; closing=false; clearTimeout(rdyT); closeP2P();
+              relayPub({t:'__rdy'});                      // answer once more so the slower side opens too
+              if(N.onOpen)try{N.onOpen();}catch(e){} }
+            if(m&&m.t==='__rdy')return;
+            if(N.onMsg)try{N.onMsg(m);}catch(e){ console.warn('MP msg',e); } }); } };
+    })();
+  };
   N.close=function(){ closing=true; teardown(); };
   return N;
 })();
@@ -6433,14 +6505,21 @@ window.menuMultiplayer=function(){ MP.reset(); showScreen('mpLobby');
   MP.status('Enter your shared password, then Host or Join.'); };
 function mpAutoBusy(b){ ['mpHostBtn','mpJoinBtn'].forEach(id=>{const e=$(id); if(e)e.disabled=!!b;}); }
 function mpWatchLink(){ clearTimeout(MP._linkT);                    // codes traded — now the P2P link itself must open
-  MP._linkT=setTimeout(()=>{ if(!MPNET.active){
-    MP.status('Found each other, but no direct link formed — some routers block P2P. Both retry; if it persists, try a phone hotspot or the manual codes below.');
-    mpAutoBusy(false); } },25000); }
+  MP._linkT=setTimeout(()=>{ if(MPNET.active)return;
+    // no direct link in 12s (client-isolated wifi / carrier NAT) — move the whole duel onto the
+    // encrypted broker relay. Slower path, but it connects from anywhere. Both sides switch on
+    // their own identical timeout, keyed by the same password.
+    MP.status('No direct link — switching to relayed play…');
+    MPNET.relayConnect(MP._pass,MP.role);
+    MP._linkT=setTimeout(()=>{ if(!MPNET.active){
+      MP.status('Could not connect — even the relay failed. Check that both sides are online and retry.');
+      mpAutoBusy(false); } },20000);
+  },12000); }
 /* password-only HOST: seal an offer, post it on the password channel, link up on the first valid answer */
 window.mpAutoHost=async function(){
   const pass=($('mpPass').value||'').trim();
   if(!pass){ MP.status('Pick a password first — any word you both agree on.'); return; }
-  MP.role='host'; mpAutoBusy(true); MPSIG.stop();
+  MP.role='host'; MP._pass=pass; mpAutoBusy(true); MPSIG.stop();
   try{
     MP.status('Opening your table…');
     const code=await MPNET.hostOffer(pass);
@@ -6460,7 +6539,7 @@ window.mpAutoHost=async function(){
 window.mpAutoJoin=async function(){
   const pass=($('mpPass').value||'').trim();
   if(!pass){ MP.status('Enter the shared password first.'); return; }
-  MP.role='guest'; mpAutoBusy(true); MPSIG.stop();
+  MP.role='guest'; MP._pass=pass; mpAutoBusy(true); MPSIG.stop();
   const answerTo=async off=>{
     try{
       const ans=await MPNET.joinWithOffer(off,pass);
