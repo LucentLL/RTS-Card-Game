@@ -93,6 +93,7 @@
     color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:2px solid #f0d68a;
     box-shadow:0 4px 0 #4d3a10,0 0 18px rgba(217,176,74,.35),0 8px 20px rgba(0,0,0,.55);}
   #harvestBtn{background:linear-gradient(180deg,#9ad17f,#4f8a3a);border-color:#c2e8a8;box-shadow:0 4px 0 #23401a,0 0 18px rgba(120,200,110,.35),0 8px 20px rgba(0,0,0,.55);}
+  #harvestBtn:disabled{filter:grayscale(.7) brightness(.62);cursor:not-allowed;box-shadow:0 4px 0 #1c2c16,0 6px 14px rgba(0,0,0,.4);} /* locked until the upkeep shortfall is settled */
   #endBtn:active,#harvestBtn:active{transform:translatey(2px);box-shadow:0 2px 0 #4d3a10;}
   #endBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:0 6px 16px rgba(0,0,0,.5);border-color:#555;}
   #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
@@ -588,11 +589,19 @@
   .stats .cap{font-family:'Cinzel',serif;font-weight:700;font-size:9px;color:#9ad17f;border-radius:4px;padding:0 3px;line-height:1.45;white-space:nowrap;}
   .stats .cap.plus{color:#10240f;background:#9ad17f;}                              /* structures: ⚒+N */
   .stats .cap.neg{color:#f2d2b0;background:#5a2e1c;box-shadow:inset 0 0 0 1px #9a5a38;} /* creature upkeep: ⚒-N */
-  #cardActions{position:fixed;z-index:22;display:none;background:linear-gradient(180deg,#171120,#0d0a15);border:1px solid var(--gold-deep);border-radius:11px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.62);white-space:nowrap;text-align:center;}
+  /* action-economy chips: symbols, not text — ⤧ moved · ⟳ acted · 💤 sick */
+  .card .stch{position:absolute;top:14px;right:3px;z-index:3;display:flex;flex-direction:column;gap:1px;align-items:flex-end;
+    font-size:clamp(7px,calc(var(--cw)*.14),9px);line-height:1.15;opacity:.92;text-shadow:0 1px 2px #000;pointer-events:none;}
+  .ichips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+  .ichip{font-family:'Cinzel',serif;font-weight:700;font-size:11px;color:var(--ink);background:rgba(0,0,0,.4);border:1px solid #3a3450;border-radius:6px;padding:2px 7px;}
+  .ichip.gold{color:#1a140a;background:var(--gold);border-color:var(--gold);}
+  #viewerPanel.left .ibody .istat{padding:0;margin:0 0 7px;}
+  #cardActions{position:fixed;z-index:30;display:none;background:linear-gradient(180deg,#171120,#0d0a15);border:1px solid var(--gold-deep);border-radius:11px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.62);white-space:nowrap;text-align:center;}
   #cardActions::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;border:8px solid transparent;border-top-color:var(--gold-deep);}
   #cardActions.below::after{bottom:auto;top:-8px;border-top-color:transparent;border-bottom-color:var(--gold-deep);}
   #cardActions button{font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.04em;margin:0 2px;padding:7px 13px;border-radius:8px;cursor:pointer;border:none;background:linear-gradient(180deg,#ecc96e,#bb9436);color:#1a140a;box-shadow:0 2px 0 #6e5320;}
   #cardActions button:active{transform:translateY(1px);box-shadow:0 1px 0 #6e5320;}
+  #cardActions button:disabled{opacity:.45;cursor:default;transform:none;}
   #cardActions .cant{font-style:italic;color:var(--ink-dim);font-size:11px;margin-left:5px;}
   #cardActions .taphint{display:block;font-style:italic;color:var(--ink-dim);font-size:10.5px;margin-top:5px;}
   #cardActions.handmenu{background:linear-gradient(180deg,rgba(23,17,32,.96),rgba(13,10,21,.96));border-color:#4a78c8;padding:9px 10px;}
@@ -1095,6 +1104,9 @@
   #mpLobby h1,#mpDrop h1{font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--gold);margin:4px 0 4px;}
   #mpLobby .cssub,#mpDrop .cssub{font-size:12.5px;color:var(--ink-dim);margin-bottom:12px;}
   #mpLobby .csback{margin-top:10px;background:none;border:none;color:var(--ink-dim);font-size:13px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.05em;}
+  #mpLobby details{margin-top:16px;text-align:left;background:#0d0b12;border:1px solid #241f2d;border-radius:10px;padding:2px 12px 8px;}
+  #mpLobby summary{font-family:'Cinzel',serif;font-size:11.5px;letter-spacing:.06em;color:var(--ink-dim);cursor:pointer;padding:8px 0;}
+  #mpLobby .mmbtn[disabled]{opacity:.45;cursor:default;}
   .mpstatus{font-family:'EB Garamond',serif;font-style:italic;font-size:13px;color:var(--gold);text-align:center;margin:6px 0 12px;min-height:18px;}
   .mpmode{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:10px 0;}
   .mpmode .mmbtn{min-width:200px;}
@@ -1440,12 +1452,12 @@
       <div class="cmdname" id="cmdName" style="color:var(--ember)"><span class="cdot" style="background:var(--ember)"></span>The Ember Bastion</div>
       <div class="cmdpass" id="cmdPass">Your back row IS your stronghold. An undefended strike into any open back-row column drains your ♥ life pool — when it empties, you lose.</div>
       <p><b>Win — breach the back row.</b> Your element choice sets your <b>life pool</b> (♥) and your base workers; <b>element</b> is otherwise a synergy attribute (Yu-Gi-Oh style), not a mana cost. There is no command-center card: attacks aimed at an <b>open column of the enemy back row</b> that go unintercepted deal their full ⚔ to the defender's life. Bodies standing in the back row must be fought instead.</p>
-      <p><b>The board.</b> Five rows: each side's back row is its own soil — <b>the enemy may never enter yours</b>, only attack it. The three middle rows (both fronts + the center) are <b>contested</b>: either army may advance into them, marching one row per move. New cards deploy only in your <b>back or front</b> row. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
+      <p><b>The board.</b> Five rows: each side's back row is its own soil — <b>the enemy may never enter yours</b>, only attack it. The three middle rows (both fronts + the center) are <b>contested</b>: either army may advance into them, marching one row per move. New cards deploy only in your <b>back or front</b> row (structures may also be built on the center's flanking slots). Movement is <b>one square in any direction</b> — sideways, forward, back, or diagonal. Targeting is by <b>row distance</b>: adjacent strikes land directly; deeper strikes can be <b>intercepted</b> by defenders in any row they cross.</p>
       <p><b>Building (RTS).</b> Structures are <b>not in your deck</b> — your commander <b>builds</b> them. Tap your command center or the <b>⚒ Build</b> button to open the menu, then tap an open space to raise it. Building costs <b>mana</b> and follows a <b>tech tree</b>: a <b>Foundry</b> first, which unlocks the element <b>Forges</b> (each forge yields ◆ every turn) and the <b>Longhouse</b>; a forge in turn unlocks the <b>Bulwark</b> and <b>Grand Forges</b>. Build as often as you can afford it.</p>
       <p><b>Turn phases.</b> Each turn runs through set phases, shown in the tracker by the End Turn button. <b>Upkeep</b> — settle your workforce (move, sacrifice, or pay), then press <b>⛏ Harvest</b> to collect mana. <b>Draw</b> — click your <b>deck</b> to draw a card. <b>Action</b> — summon, move, build, and attack freely. <b>Combat</b> is a sub-phase of Action: it opens each time you declare an attacker and can repeat with different attackers. <b>End</b> — end-of-turn effects resolve, then the turn passes to your opponent.</p>
-      <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). At <b>Upkeep</b> you may reposition creatures (this uses their move for the turn), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (<b>◆1 each, the same in every row</b>) straight into your mana pool. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first: move the monsters back, sacrifice them, or simply <b>pay ◆ equal to the shortfall</b> — Harvest pays it for you when you can afford it. Your left tower lists each row's worker count, stacked to match the board.</p>
+      <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). At <b>Upkeep</b> you may reposition creatures (this uses their move for the turn; a second forced move also <b>taps</b> them), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (<b>◆1 each, the same in every row</b>) straight into your mana pool. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first, creature by creature: <b>⤧ Move</b> it back, <b>◆ Pay</b> its keep, or <b>✖ Sacrifice</b> it — <b>⛏ Harvest stays locked</b> until every row is balanced. Your left tower lists each row's worker count, stacked to match the board.</p>
       <p><b>Mana.</b> Harvesting yields <b>generic ◆</b> — one pool, no colors. Every card costs only its <b>◆ number</b>, whatever its element. <b>Element</b> (Fire, Water, Forest…) is a <b>synergy attribute</b> only, like a Yu-Gi-Oh attribute: it drives card theming and elemental keyword effects, not what mana you need. <i>Mana persists between turns — it keeps building until you spend it (or spend it keeping over-extended lines fed).</i></p>
-      <p><b>Face-downs &amp; banking.</b> Setting a card is free. Pour mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Face-down a full turn? It flips with haste.</p>
+      <p><b>Face-downs &amp; banking.</b> Setting a card costs <b>◆1</b>, placed onto the card (it counts toward funding — no free hand-dumping). Pour more mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Face-down a full turn? It flips with haste.</p>
       <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group), then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
       <p><b>Note:</b> a prototype. Open questions, deliberately parked: the exact colored-cost rule (currently 1 pip + any remainder), storage structures that convert colors, a <i>Ranged</i> keyword, and the soldier-production model.</p>
       <button class="pclose" onclick="toggleRules(false)">Close</button>
@@ -1489,17 +1501,23 @@
   <div class="mmfoot"><span>v26 · local build</span><span>Spawn Row Duel</span></div>
 </div>
 <div id="soloSelect"><div class="csbox"></div></div>
-<!-- multiplayer lobby: serverless connect-code duel (host offers, joiner answers, host connects) -->
+<!-- multiplayer lobby: password rendezvous (the sealed WebRTC codes trade hands automatically
+     over a public relay; the duel itself stays peer-to-peer). Manual codes remain as a fallback. -->
 <div id="mpLobby"><div class="csbox">
   <h1>Multiplayer · Duel a Friend</h1>
-  <div class="cssub">Serverless connect codes — share them over any chat. Pick a password together first.</div>
+  <div class="cssub">Agree on a password with your friend. Both type it here — one taps <b>Host</b>, the other <b>Join</b>.</div>
   <div id="mpStatus" class="mpstatus">idle</div>
-  <div id="mpModeRow" class="mpmode">
-    <button class="mmbtn" onclick="mpShowHost()"><span class="mi">♜</span><span class="ml">Host<span class="ms">create a connect code</span></span></button>
-    <button class="mmbtn" onclick="mpShowJoin()"><span class="mi">⚔</span><span class="ml">Join<span class="ms">answer a friend's code</span></span></button>
+  <div class="mpcard">
+    <div class="mplab">Shared password</div>
+    <input id="mpPass" class="mpin" type="text" maxlength="24" placeholder="password" autocomplete="off">
+    <div id="mpModeRow" class="mpmode">
+      <button id="mpHostBtn" class="mmbtn" onclick="mpAutoHost()"><span class="mi">♜</span><span class="ml">Host<span class="ms">open the table</span></span></button>
+      <button id="mpJoinBtn" class="mmbtn" onclick="mpAutoJoin()"><span class="mi">⚔</span><span class="ml">Join<span class="ms">same password</span></span></button>
+    </div>
   </div>
-  <div id="mpHostCard" class="mpcard" style="display:none">
-    <div class="mplab">1 · Password (share it with your friend)</div>
+  <details id="mpManual"><summary>Manual connect — no relay; trade codes over any chat</summary>
+  <div id="mpHostCard" class="mpcard">
+    <div class="mplab">Host · 1 · Password (share it with your friend)</div>
     <input id="mpHostPass" class="mpin" type="text" maxlength="24" placeholder="password" autocomplete="off">
     <button id="mpMakeBtn" class="mpbtn" onclick="mpHostCreate()">Create code</button>
     <div class="mplab">2 · Send this code to your friend</div>
@@ -1508,14 +1526,15 @@
     <textarea id="mpAnswerIn" class="mpcode" placeholder="paste the answer code"></textarea>
     <button class="mpbtn go" onclick="mpHostConnect()">Connect</button>
   </div>
-  <div id="mpJoinCard" class="mpcard" style="display:none">
-    <div class="mplab">1 · Paste the host code + the shared password</div>
+  <div id="mpJoinCard" class="mpcard">
+    <div class="mplab">Join · 1 · Paste the host code + the shared password</div>
     <textarea id="mpOfferIn" class="mpcode" placeholder="paste the host code"></textarea>
     <input id="mpJoinPass" class="mpin" type="text" maxlength="24" placeholder="password" autocomplete="off">
     <button class="mpbtn go" onclick="mpJoin()">Build answer</button>
     <div class="mplab">2 · Send this answer back, then wait for the host</div>
     <div class="mprow"><textarea id="mpAnswerOut" class="mpcode" readonly placeholder="your answer code appears here"></textarea><button class="mpbtn" onclick="mpCopy('mpAnswerOut')">Copy</button></div>
   </div>
+  </details>
   <button class="csback" onclick="mpCancel()">← cancel</button>
 </div></div>
 <div id="mpDrop"><div class="csbox">
@@ -1731,16 +1750,16 @@ const SPELL_NEUTRAL=[
   {nm:'Frost Lance',c:2,trap:false,effect:'burn',val:1500,target:'enemy',ic:'✦',art:ART.frostlance},
   {nm:'Cave-In',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
   {nm:'Dissolve',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.dissolve},
-  {nm:'Snare Pit',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit},
-  {nm:'Whirl Trap',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
+  {nm:'Snare Pit',c:1,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.snarePit},
+  {nm:'Whirl Trap',c:1,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
   {nm:'Cinder Volley',c:2,trap:false,effect:'burn',val:1500,target:'enemy',ic:'✦',art:ART.emberbolt},
   {nm:'Searing Brand',c:3,trap:false,effect:'burn',val:2000,target:'enemy',ic:'✦',art:ART.frostlance},
   {nm:'Topple the Spire',c:3,trap:false,effect:'raze',target:'building',ic:'✦',art:ART.caveIn},
-  {nm:'Collapsing Floor',c:0,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
+  {nm:'Collapsing Floor',c:1,trap:true,effect:'pitfall',trigger:'summon',ic:'⚠',art:ART.whirltrap},
   {nm:'Arc Flash',c:3,trap:false,effect:'chain',val:1000,target:'enemy',ic:'✦',art:ART.emberbolt},   // 2 dmg to the two highest-attack enemy creatures
   {nm:'Riptide',c:3,trap:false,effect:'bounce',target:'enemy',ic:'✦',art:ART.frostlance},          // return target enemy creature to its hand
-  {nm:'Overgrowth',c:0,trap:true,effect:'thornmail',trigger:'attack',ic:'⚠',art:ART.snarePit},     // when struck, your defender gains +500/+1000
-  {nm:'Backlash',c:0,trap:true,effect:'burn',val:1500,trigger:'attack',ic:'⚠',art:ART.whirltrap}      // when struck, the attackers take 3
+  {nm:'Overgrowth',c:1,trap:true,effect:'thornmail',trigger:'attack',ic:'⚠',art:ART.snarePit},     // when struck, your defender gains +500/+1000
+  {nm:'Backlash',c:1,trap:true,effect:'burn',val:1500,trigger:'attack',ic:'⚠',art:ART.whirltrap}      // when struck, the attackers take 3
 ];
 const SPELL=Object.fromEntries(COLORS.map(c=>[c,SPELL_NEUTRAL])); // compat shim so deckOf() keeps drawing spells
 
@@ -1928,8 +1947,8 @@ const G={
   sel:null, atk:[], moveFrom:null, moveMana:null,
   center:Array(SLOTS).fill(null),
   P:{
-    you:{color:'fire',life:25,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'fire'},
-    foe:{color:'water',life:25,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'water'},
+    you:{color:'fire',life:25,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'fire',upaid:{back:0,front:0,center:0,raid:0}},
+    foe:{color:'water',life:25,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'water',upaid:{back:0,front:0,center:0,raid:0}},
   }
 };
 
@@ -2011,9 +2030,11 @@ function syncWorkers(owner){
 // workers settle (become harvestable) at the START of the turn, AFTER upkeep + deficit balancing.
 // Because this runs only at turn start, workers a structure adds mid-turn stay sick until next turn.
 function readyWorkers(owner){ ['back','front','center'].forEach(w=>G.P[owner].min[w].forEach(m=>{m.sick=false;m.tapped=false;m.moved=false;})); }
-// zones of `owner` that are short on workers (settled — moved, paid, or sacrificed — at upkeep)
-function deficitRows(owner){ return ZONES.filter(w=>rowWorkers(owner,w)<0); }
-function totalDeficit(owner){ return ZONES.reduce((s,w)=>s+Math.max(0,-rowWorkers(owner,w)),0); }
+// zones of `owner` that are short on workers (settled — moved, paid, or sacrificed — at upkeep).
+// A zone's EFFECTIVE deficit is its raw shortfall minus what's been explicitly paid this upkeep (P.upaid).
+function zoneDeficit(owner,z){ const paid=(G.P[owner].upaid||{})[z]||0; return Math.max(0, Math.max(0,-rowWorkers(owner,z))-paid); }
+function deficitRows(owner){ return ZONES.filter(w=>zoneDeficit(owner,w)>0); }
+function totalDeficit(owner){ return ZONES.reduce((s,w)=>s+zoneDeficit(owner,w),0); }
 function creaturesInRow(owner,which){
   const out=[]; const k=zoneKey(owner,which);
   rowArr(k).forEach((o,i)=>{if(o&&o.owner===owner&&o.kind==='creature'&&!o.worker)out.push({which,key:k,i,o});});
@@ -2352,8 +2373,8 @@ function buildBattlefield(youEl,foeEl){
 }
 function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
-  Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
-  Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false});
+  Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,upaid:{back:0,front:0,center:0,raid:0}});
+  Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,upaid:{back:0,front:0,center:0,raid:0}});
   G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.phase='upkeep';G.upkeep=true;
   G.center=Array(SLOTS).fill(null);
   // no command-center card: the WHOLE back row is each player's stronghold. Life is the standalone
@@ -2744,9 +2765,9 @@ function cardStat(e){ return e.type==='creature'?`⚔${e.tpl.a} / ♥${e.tpl.h}`
   :e.type==='building'?((e.tpl.eff==='mana'?('◆+'+e.tpl.val+' / turn'):'⚒ trains')+` · ♥${e.tpl.h}`)
   :(e.tpl.trap?'⚠ Trap':'✦ Spell'); }
 function cardBlurb(e){ const t=e.tpl;
-  if(e.type==='creature'){ const tl=typeLine(t); const p=[]; if(t.fs)p.push('Strikes first (First Strike).'); if(t.up)p.push(`Upkeep ⚒-${t.up} — costs workers to field.`); return (tl?`<b>${tl}.</b> `:'')+(p.join(' ')||'A line creature.')+` ⚔${t.a} / ♥${t.h}.`; }
+  if(e.type==='creature'){ const tl=typeLine(t); const p=[]; if(t.fs)p.push('First Strike.'); if(t.up)p.push(`Upkeep ⚒-${t.up}.`); return (tl?`<b>${tl}.</b> `:'')+(p.join(' ')||'A line creature.')+` ⚔${t.a} / ♥${t.h}.`; }
   if(e.type==='building'){ return (t.eff==='mana'?`Structure — yields ◆${t.val} each turn.`:'Structure — trains a worker each turn.')+` Adds ⚒+${t.sup||0} workers to its row.`; }
-  if(t.trap) return 'Trap — set face-down for free; springs when your opponent summons a creature, dragging it down.';
+  if(t.trap) return 'Trap — set face-down (◆1); springs when your opponent summons a creature, dragging it down.';
   if(t.effect==='burn') return `Spell — deal ${t.val} damage to an enemy creature, structure, or face-down.`;
   if(t.effect==='raze') return 'Spell — destroy a target enemy structure.';
   return 'A spell.';
@@ -2934,7 +2955,11 @@ function render(){
   {const a=$('foeGraveN');if(a)a.textContent=G.P.foe.grave.length;} {const b=$('youGraveN');if(b)b.textContent=G.P.you.grave.length;}
   $('turnLabel').textContent=G.turn==='you'?'Your Turn':'Opponent…';
   $('endBtn').disabled=!acting();   // End Turn only in the Action phase (draw/upkeep resolve via their own steps)
-  { const hb=$('harvestBtn'); if(hb) hb.style.display=(G.turn==='you'&&G.phase==='upkeep'&&!G.busy&&!G.over)?'':'none'; }
+  { const hb=$('harvestBtn'); if(hb){ const show=(G.turn==='you'&&G.phase==='upkeep'&&!G.busy&&!G.over);
+      hb.style.display=show?'':'none';
+      // lock only on the CREATURE-settleable shortfall — a purely structural one (e.g. an unsupported
+      // tower, nothing to move or sacrifice) is paid by Harvest itself, so the button must stay live
+      if(show){ const locked=(totalDeficit('you')-orphanDeficit('you'))>0; hb.disabled=locked; hb.title=locked?'Settle the worker shortfall first — Move, Pay, or Sacrifice the flagged creatures':''; } } }
   renderPhaseTrack();
   const cb=$('conscriptBtn'); if(cb)cb.style.display='none';
   const aiming=(G.turn==='you'&&!G.busy&&!G.over)&&canAttack();
@@ -3055,9 +3080,11 @@ function cardHTML(o,me){
     const cls=o.worker?'vil':('crt '+clsOf[o.color]);
     const art=o.art?`<div class="artwin">${cardArtImg(o)}</div>`:'';
     const wd=(!o.worker&&o.up)?`<span class="cap neg">⚒-${o.up}</span>`:'';
+    const stch=(!o.worker&&(o.moved||o.tapped||o.sick))
+      ?`<div class="stch">${o.sick?'<span title="summoning-sick">💤</span>':''}${o.moved?`<span title="moved${o.moved2?' twice':''} this turn">⤧${o.moved2?'²':''}</span>`:''}${o.tapped?'<span title="has acted">⟳</span>':''}</div>`:'';
     return `<div class="card ${cls} ${o.sick?'sick':''} ${o.tapped?'tapped':''}">
       ${o.bank>0?`<div class="bank">◆${o.bank}</div>`:''}
-      ${o.fs?'<div class="fsbadge">FS</div>':''}
+      ${o.fs?'<div class="fsbadge">FS</div>':''}${stch}
       ${o.worker?'<div class="wk">⚒</div>':''}
       <div class="nm">${o.nm}</div>${art}<div class="stats"><span class="atk">${o.a}</span><span class="mid">${o.worker?'':`<span class="ebw">${elemGem(o.color,14)}</span>`}${wd}</span><span class="hp">♥${o.h}</span></div></div>`;
   }
@@ -3295,8 +3322,8 @@ function decorate(cell,key,i,o){
     if(!o&&adjacentK('you',mf.k,mf.i,key,i)){ cell.classList.add('tappable'); cell.addEventListener('click',()=>doMove(key,i)); }
     return;
   }
-  if(G.upkeep){ // upkeep: reposition (uses the creature's move) or sacrifice — attacks/deploys wait for Harvest
-    if(mine&&o.kind==='creature'&&!o.moved){ cell.classList.add('tappable'); cell.addEventListener('click',()=>upkeepPick(key,i)); }
+  if(G.upkeep){ // upkeep: settle each creature — Move (spends its actions) / Pay its keep / Sacrifice — before Harvest
+    if(mine&&o.kind==='creature'){ cell.classList.add('tappable'); cell.addEventListener('click',()=>upkeepPick(key,i)); }
     return;
   }
   if(G.moveMana){
@@ -3310,7 +3337,7 @@ function decorate(cell,key,i,o){
   if(mine&&o.kind==='creature'&&inAtk(key,i)) cell.classList.add('selected');
   if(mine&&o.kind==='creature'&&!o.sick&&!o.tapped&&!handSel) cell.classList.add('tappable');
   if(mine&&o.kind==='charge'&&G.atk.length===0&&!handSel) cell.classList.add('tappable');
-  if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&deployKey) cell.classList.add('tappable');
+  if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&handDeployOK(key,i)) cell.classList.add('tappable');
   if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0&&deployKey) cell.classList.add('target');
   if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
   if(G.atk.length&&canAttack()&&colReach(G.atk[0].i,i)){ // ±1 column reach
@@ -3333,16 +3360,17 @@ function onHand(i){
   const act=(mode,ico,lbl,sub,ok,why)=>`<button class="act${ok?'':' off'}" ${ok?`onclick="chooseMode('${mode}')"`:`disabled title="${why||''}"`}>`+
     `<span class="ico">${ico}</span><span class="lbl">${lbl}</span><span class="sub">${ok?sub:(why||sub)}</span></button>`;
   let html='';
+  const can1=manaTotal('you')>=1;   // setting face-down demands ◆1 placed on the card — no free hand-dumping
   if(card.type==='building'){
     const can=canPay('you',card);
-    html=act('build','🜂','Build','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','free',true);
+    html=act('build','🜂','Build','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','◆1',can1,'needs ◆1');
   } else if(card.type==='spell'){
-    if(card.trap){ html=act('settrap','⊡','Set','free',true); }
+    if(card.trap){ html=act('settrap','⊡','Set','◆1',can1,'needs ◆1'); }
     else { const okMana=canPay('you',card); const can=okMana&&spellHasTarget(card); const why=!okMana?'not enough mana':'no legal target';
       html=act('cast','✦','Cast','◆'+card.c,can,why); }
   } else {
     const can=canPay('you',card);
-    html=act('summon','⬆','Summon','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','free',true);
+    html=act('summon','⬆','Summon','◆'+card.c,can,'not enough mana')+act('set','⊡','Set','◆1',can1,'needs ◆1');
   }
   G.cardMenu={hand:true,i,html};
   setHint(`<b style="color:var(--ink)">${card.nm}</b> — choose an action above the card.`);
@@ -3351,14 +3379,22 @@ function onHand(i){
 window.chooseMode=function(m){
   if(!G.sel||G.sel.kind!=='hand')return;
   G.sel.mode=m; G.cardMenu=null;
-  const msg=m==='build'?'Tap an empty slot to build — or tap one of your cards holding ◆ to raise it on top, spending that stored mana.'
-    :m==='summon'?'Tap an empty slot to summon — or tap one of your cards holding ◆ to play on top, spending that stored mana (the card beneath is lost, surplus ◆ stays).'
-    :m==='settrap'?'Tap any empty slot to set your trap face-down (it springs on your opponent\u2019s turn).'
+  const msg=m==='build'?'Tap an empty slot to build (your rows, or a dark center flank) — or tap one of your cards holding ◆ to raise it on top, spending that stored mana.'
+    :m==='summon'?'Tap an empty slot in your rows to summon — or tap one of your cards holding ◆ to play on top, spending that stored mana (the card beneath is lost, surplus ◆ stays).'
+    :m==='settrap'?'Tap an empty slot in your rows to set your trap face-down \u2014 \u25c61 is placed on it (it springs on your opponent\u2019s turn).'
     :m==='cast'?'Tap a highlighted enemy target.'
-    :'Tap any empty slot to set it face-down.';
+    :'Tap an empty slot in your rows to set it face-down — ◆1 is banked toward its cost.';
   setHint(msg);
   render();
 };
+// where the SELECTED hand card may be dropped: your back/front rows always; structures may also
+// claim the center's flanking slots (matching the commander build menu). Creatures march to the center.
+function handDeployOK(key,i){
+  if(!(G.sel&&G.sel.kind==='hand'))return false;
+  const c=G.P.you.hand[G.sel.idx]; if(!c)return false;
+  if(key==='youBack'||key==='youFront')return true;
+  return key==='center'&&G.sel.mode==='build'&&!isLane(i)&&placeRowOK('you','center',c);
+}
 function spellHasTarget(card){
   for(const key of ROWS) for(let i=0;i<SLOTS;i++){ const o=rowArr(key)[i]; if(o&&o.owner==='foe'&&validSpellTarget(card,o)) return true; }
   return false;
@@ -3390,7 +3426,7 @@ function onCell(key,i,o){
   const mine=o&&o.owner==='you', foe=o&&o.owner==='foe';
   const which=whichOf(key);
   const deployKey=key==='youBack'||key==='youFront';   // new cards enter only your back + front rows
-  if(G.upkeep){ if(mine&&o.kind==='creature'&&!o.moved&&!G.moveFrom) upkeepPick(key,i); return; }
+  if(G.upkeep){ if(mine&&o.kind==='creature'&&!G.moveFrom) upkeepPick(key,i); return; }
   if(G.build){ // placing a structure from the build menu
     if((deployKey||key==='center')&&!o){ placeBuild(which,i); } else { G.build=null; defaultHint(); render(); }
     return;
@@ -3398,9 +3434,14 @@ function onCell(key,i,o){
   if(G.sel&&G.sel.kind==='hand'){
     const sc=G.P.you.hand[G.sel.idx];
     if(G.sel.mode==='cast'){ if(foe&&sc&&validSpellTarget(sc,o)){ castSpell(G.sel.idx,key,i); } else { G.sel=null; defaultHint(); render(); } return; }
-    if(G.sel.mode==='settrap'&&!o&&deployKey){ place(G.sel.idx,'settrap',which,i); return; }
+    if(G.sel.mode==='settrap'&&!o&&handDeployOK(key,i)){ place(G.sel.idx,'settrap',which,i); return; }
     if((G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0&&deployKey){ place(G.sel.idx,G.sel.mode,which,i); return; }
-    if(G.sel.mode&&G.sel.mode!=='cast'&&!o&&deployKey){ place(G.sel.idx,G.sel.mode,which,i); return; }
+    if(G.sel.mode&&G.sel.mode!=='cast'&&!o&&handDeployOK(key,i)){ place(G.sel.idx,G.sel.mode,which,i); return; }
+    if(G.sel.mode&&G.sel.mode!=='cast'&&!o){   // open slot, but not a legal drop — say why instead of silently deselecting
+      setHint(key==='center'
+        ? (G.sel.mode==='build'?'Build on the dark flanking slots — the glowing lanes are for marching monsters.':'New cards can’t deploy to the contested center — summon to your rows, then march forward.')
+        : 'New cards deploy in your back or front row.');
+      render(); return; }
     G.sel=null; defaultHint(); render(); return;
   }
   if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.'); return; }
@@ -3480,16 +3521,20 @@ function place(idx,mode,which,slot){
     onCreatureEnter(cr,'you');
     foeTrapOnSummon(cr,which,slot);
   } else if(mode==='settrap'){
+    if(manaTotal('you')<1){setHint('Setting a card face-down costs ◆1 — placed on the card.');return;}
+    payAny('you',1);
     G.P.you.hand.splice(idx,1);
     arr[slot]={kind:'trap',owner:'you',w:which,card:{nm:card.nm,c:card.c,effect:card.effect,trigger:card.trigger,val:card.val,ic:card.ic,art:card.art,trap:true},setTurn:G.turnNo};
-    log(`<span class="y">You set a face-down trap in ${where}.</span>`,'y');
-  } else { // set face-down — creature OR building
+    log(`<span class="y">You set a face-down trap in ${where} (◆1 placed on it).</span>`,'y');
+  } else { // set face-down — creature OR building. ◆1 must be placed on it (banked toward its cost).
+    if(manaTotal('you')<1){setHint('Setting a card face-down costs ◆1 — it banks toward the card’s cost.');return;}
+    payAny('you',1);
     G.P.you.hand.splice(idx,1);
     const ctype=card.type;
     const cdata=ctype==='building'?{nm:card.nm,c:card.c,h:card.h,eff:card.eff,val:card.val,sup:card.sup,ic:card.ic,art:card.art}:{nm:card.nm,a:card.a,h:card.h,c:card.c,fs:card.fs,up:card.up,art:card.art,
       kw:card.kw,det:card.det,ward:card.ward,wardhp:card.wardhp,reap:card.reap,grow:card.grow,hatch:card.hatch,into:card.into,entrench:card.entrench,tribe:card.tribe,subtype:card.subtype};
-    arr[slot]={kind:'charge',owner:'you',w:which,ctype,card:cdata,inv:0,setTurn:G.turnNo};
-    log(`<span class="y">You set a face-down ${ctype==='building'?'structure':'card'} in ${where}.</span>`,'y');
+    arr[slot]={kind:'charge',owner:'you',w:which,ctype,card:cdata,inv:1,setTurn:G.turnNo};
+    log(`<span class="y">You set a face-down ${ctype==='building'?'structure':'card'} in ${where} — ◆1 banked on it.</span>`,'y');
   }
   G.sel=null;defaultHint();afterDeploy('you');render();checkWin();
 }
@@ -3818,12 +3863,13 @@ function attackMinionStack(key,owner,which){
 function moveChainOf(owner){ return owner==='you'?['youBack','youFront','center','foeFront']:['foeBack','foeFront','center','youFront']; }
 // a real, standable slot exists everywhere on the side rows; the center only has slots at its lanes
 function slotExists(w,i){ return i>=0&&i<SLOTS&&(w!=='center'||isLane(i)); }  // works for zone names AND global keys
-// legal one-step destinations for `owner`: lateral within the row, or the same column one row along the chain
+// legal one-step destinations for `owner`: ONE square in any direction — sideways, forward, back,
+// or diagonal (diagonals matter: they're how a creature in an even column reaches the center's lanes)
 function adjCells(owner,key,i){ const out=[];
-  for(let j=0;j<SLOTS;j++){ if(j!==i&&slotExists(key,j)) out.push([key,j]); }  // lateral: any other column in the row
+  for(const dj of [-1,1]){ const j=i+dj; if(slotExists(key,j)) out.push([key,j]); }   // lateral: one column either side
   const ch=moveChainOf(owner), k=ch.indexOf(key);
-  if(k>0&&slotExists(ch[k-1],i)) out.push([ch[k-1],i]);                        // step back (same column)
-  if(k>=0&&k<ch.length-1&&slotExists(ch[k+1],i)) out.push([ch[k+1],i]);        // step forward (same column)
+  for(const dk of [-1,1]){ const nk=(k>=0)?ch[k+dk]:null; if(!nk)continue;
+    for(const dj of [-1,0,1]){ const j=i+dj; if(slotExists(nk,j)) out.push([nk,j]); } }  // one row along the chain: straight or diagonal
   return out;
 }
 function adjacentK(owner,k1,i1,k2,i2){ return adjCells(owner,k1,i1).some(([k,i])=>k===k2&&i===i2); }
@@ -3835,7 +3881,10 @@ function aiPickDeploySlot(owner,which){ const a=cellArr(owner,which); if(!a)retu
   const order=which==='center'?[3,1,5]:which==='front'?[3,4,2,5,1,6,0]:[2,4,3,1,5,0,6];
   for(const i of order){ if(i<SLOTS&&!a[i]&&slotExists(which,i)) return i; }
   return freeDeploySlot(owner,which); }
-function canMoveCard(key,i){ const c=rowArr(key)[i]; if(!c||c.kind!=='creature'||c.owner!=='you'||c.moved)return false; return adjCells('you',key,i).some(([k,j])=>!rowArr(k)[j]); }
+// a creature's move is spent once used — EXCEPT during upkeep, where a second forced move is
+// allowed at the price of its other action (the second move taps it: two moves = its whole turn)
+function moveSpent(c){ return !!c.moved && !(G.upkeep && !c.moved2 && !c.tapped); }
+function canMoveCard(key,i){ const c=rowArr(key)[i]; if(!c||c.kind!=='creature'||c.owner!=='you'||moveSpent(c))return false; return adjCells('you',key,i).some(([k,j])=>!rowArr(k)[j]); }
 // standee pose — a creature stands "up" when it can do something relevant this turn, lies "down" when it can't.
 function canBlockNow(o){ return !!(o&&o.kind==='creature'&&!o.blocked); }   // summoning-sick may block; tapped may block once; the `blocked` flag gates it
 function canActNow(o,key,i){
@@ -3843,22 +3892,28 @@ function canActNow(o,key,i){
   if(G.turn===o.owner){                                      // its controller's turn — can it move or attack?
     if(o.tapped) return false;
     if(!o.sick) return true;                                 // ready to attack (and maybe move)
-    return !o.moved && adjCells(o.owner,key,i).some(([k,j])=>!rowArr(k)[j]);  // summoning-sick, but can still reposition
+    return !moveSpent(o) && adjCells(o.owner,key,i).some(([k,j])=>!rowArr(k)[j]);  // summoning-sick, but can still reposition
   }
   return canBlockNow(o);                                     // opponent's turn — still available as a blocker?
 }
-function moveBtn(key,i){ return canMoveCard(key,i)?` <button onclick="startMove('${key}',${i})">⤧ Move</button>`:''; }
-window.startMove=(key,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(key,i))return; G.moveFrom={k:key,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null; setHint('Tap an open adjacent space — forward as far as the enemy front line, but never their back row (or tap the unit again to cancel).'); render(); };
+function moveBtn(key,i){ if(!canMoveCard(key,i))return ''; const c=rowArr(key)[i];
+  return ` <button onclick="startMove('${key}',${i})">⤧ Move${(c&&c.moved)?' again (taps it)':''}</button>`; }
+window.startMove=(key,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(key,i))return; G.moveFrom={k:key,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null;
+  const c=rowArr(key)[i];
+  setHint((c&&c.moved)?'Second move this upkeep — it will <b>tap</b> the creature (both actions spent). Tap an open space one square away, or tap the unit again to cancel.'
+    :'Tap an open space one square away — sideways, forward, back, or diagonal (never the enemy back row). Tap the unit again to cancel.'); render(); };
 window.cancelMove=()=>{ G.moveFrom=null; if(G.upkeep)upkeepHint(); else defaultHint(); render(); };
 function doMove(toK,toI){
   if(!G.moveFrom)return; const {k,i}=G.moveFrom; const c=rowArr(k)[i];
-  if(!c||c.kind!=='creature'||c.moved){ G.moveFrom=null; defaultHint(); render(); return; }
-  if(rowArr(toK)[toI]||!adjacentK('you',k,i,toK,toI)){ setHint('Pick an open adjacent space.'); return; }
-  rowArr(k)[i]=null; c.moved=true; rowArr(toK)[toI]=c;
-  log(`<span class="y">${c.nm} repositions to ${rowName(toK)}.</span>`,'y');
+  if(!c||c.kind!=='creature'||moveSpent(c)){ G.moveFrom=null; defaultHint(); render(); return; }
+  if(rowArr(toK)[toI]||!adjacentK('you',k,i,toK,toI)){ setHint('Pick an open space one square away.'); return; }
+  rowArr(k)[i]=null;
+  if(c.moved){ c.moved2=true; c.tapped=true; }   // upkeep second move — spends the creature's whole turn
+  else c.moved=true;
+  rowArr(toK)[toI]=c;
+  log(`<span class="y">${c.nm} repositions to ${rowName(toK)}${c.moved2?' — its turn is spent':''}.</span>`,'y');
   G.moveFrom=null; syncWorkers('you');
-  if(G.upkeep){ upkeepHint(); } else defaultHint();
-  render();
+  if(G.upkeep){ upkeepNext(); } else { defaultHint(); render(); }
 }
 function attackerRowKey(){ return G.atk.length?G.atk[0].k:'youFront'; }
 function doAttack(tgtKey,ti){
@@ -3951,10 +4006,15 @@ function askBlock(opts){
       go.textContent='Interpose '+sel.size+(sel.size?` (deal ⚔${D})`:''); go.disabled=sel.size===0;
       meta.textContent=`your interceptors ⚔${D} · incoming ⚔${A}`+(lockRow?` · ${rowName(lockRow)}`:'');
     }
-    function close(){$('contestPanel').style.display='none';}
+    let _bkTo=null,_bkCt=null;
+    function close(){$('contestPanel').style.display='none'; if(_bkTo){clearTimeout(_bkTo);_bkTo=null;} if(_bkCt){clearInterval(_bkCt);_bkCt=null;}}
     go.addEventListener('click',()=>{const r=chosen().map(e=>({key:e.ref.key,i:e.ref.i,c:e.c}));close();resolve(r);});
     pass.addEventListener('click',()=>{close();resolve([]);});
     upd(); $('contestPanel').style.display='flex';
+    if(opts.ms>0){ let left=Math.ceil(opts.ms/1000);   // MP: a visible deadline so the remote host's auto-pass never silently discards a block
+      const paint=()=>{ pass.textContent='Let it through ('+left+'s)'; };
+      paint(); _bkCt=setInterval(()=>{ if(--left<=0){clearInterval(_bkCt);_bkCt=null;} else paint(); },1000);
+      _bkTo=setTimeout(()=>{ close(); resolve([]); },opts.ms); }
   });
 }
 
@@ -4028,7 +4088,8 @@ function shownPhase(){ return (G.phase==='action'&&G.atk.length) ? 'combat' : G.
 function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
   P.firstExtract=true; // no generic income — mana comes from worker harvest + forge yields (all colored)
-  ownUnits(owner).forEach(o=>{if(o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.blocked=false;o._dis=0;}});
+  P.upaid={back:0,front:0,center:0,raid:0};   // last turn's keep payments expire — shortfalls are settled anew each upkeep
+  ownUnits(owner).forEach(o=>{if(o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.moved2=false;o.paid=false;o.blocked=false;o._dis=0;}});
   chrysalisUpkeep(owner);   // cocoons swell (and re-sick so they can't attack) or hatch into their grown form
   overchargeUpkeep(owner);  // Electric creatures bank ◆ for their next discharge
   buildingUpkeep(owner);
@@ -4037,8 +4098,9 @@ function startTurn(owner){
   readyWorkers(owner); // settle this turn's workers so they can harvest (workers a later build adds stay sick)
   if(owner==='you'){
     setPhase('upkeep');   // the player's turn opens at Upkeep — balance the workforce + ⛏ Harvest, then Draw
-    log(`<span class="y">— Your turn · Upkeep — reposition or settle any shortfall, then ⛏ Harvest —</span>`);
+    log(`<span class="y">— Your turn · Upkeep — settle any shortfall (Move / Pay / Sacrifice), then ⛏ Harvest —</span>`);
     upkeepHint();
+    { const off=upkeepOffender(); if(off) upkeepPick(off.key,off.i); }   // pop the Move/Pay/Sacrifice menu on the first over-extended creature
   } else if(typeof MPNET!=='undefined'&&MPNET.active&&MP.started){
     setPhase('upkeep');   // MP: the remote player drives 'foe' through upkeep/draw/action via intents — no AI
   } else {
@@ -4059,35 +4121,74 @@ function doDraw(){
   setPhase('action');   // draw done → the Action phase begins
   defaultHint(); render();
 }
-// ----- UPKEEP (start of your turn): free repositioning (uses the creature's move), shortfalls are
-//       settled by moving, sacrificing, or PAYING their cost when ⛏ Harvest is pressed. -----
+// ----- UPKEEP (start of your turn): every over-extended creature must be settled EXPLICITLY —
+//       ⤧ Move (spends its actions; a 2nd move also taps), ◆ Pay its keep, or ✖ Sacrifice.
+//       ⛏ Harvest stays locked until every row is balanced. -----
 function upkeepHint(){
   const dz=deficitRows('you'); const owe=totalDeficit('you');
   setHint(dz.length
-    ? `<b style="color:#ff8a7a">Upkeep — shortfall ⚒${owe} (${dz.map(z=>rowName(zoneKey('you',z))).join(', ')}).</b> Move creatures back (uses their move), sacrifice them, or let <b>⛏ Harvest</b> pay ◆${owe} to keep them in place.`
-    : `<b>Upkeep.</b> Reposition creatures now if you wish (uses their move), then press <b>⛏ Harvest</b> to collect mana and begin.`);
+    ? `<b style="color:#ff8a7a">Upkeep — shortfall ⚒${owe} (${dz.map(z=>rowName(zoneKey('you',z))).join(', ')}).</b> Settle each flagged creature — <b>⤧ Move</b> (spends its actions), <b>◆ Pay</b> its keep, or <b>✖ Sacrifice</b> — then ⛏ Harvest.`
+    : `<b>Upkeep.</b> Reposition creatures now if you wish (spends their move), then press <b>⛏ Harvest</b> to collect mana and begin.`);
+}
+// the next creature that still owes keep (highest upkeep first, in the first short zone)
+function upkeepOffender(){
+  for(const z of ZONES){ if(zoneDeficit('you',z)<=0)continue;
+    const cres=creaturesInRow('you',z).filter(r=>!r.o.paid).sort((a,b)=>(b.o.up||0)-(a.o.up||0));
+    if(cres.length)return cres[0];
+  } return null;
+}
+// shortfall living in zones with NO settle-able creature (e.g. a tower whose support was razed) —
+// nothing to move or sacrifice there, so ⛏ Harvest is allowed to pay this portion directly
+function orphanDeficit(owner){
+  return ZONES.reduce((s,z)=>{ if(zoneDeficit(owner,z)<=0)return s;
+    const cres=creaturesInRow(owner,z).filter(r=>!r.o.paid);
+    return s+(cres.length?0:zoneDeficit(owner,z)); },0);
+}
+// after each settle (move / pay / sacrifice): refresh the hint and pop the menu on the next offender
+function upkeepNext(){
+  if(!G.upkeep||G.turn!=='you'){ render(); return; }
+  upkeepHint();
+  const off=upkeepOffender();
+  if(off&&!G.moveFrom){ upkeepPick(off.key,off.i); return; }   // upkeepPick renders
+  render();
 }
 window.upkeepPick=function(key,i){
   if(!G.upkeep)return;
   const o=rowArr(key)[i]; if(!o||o.kind!=='creature'||o.owner!=='you')return;
-  G.cardMenu={k:key,i,html:`${moveBtn(key,i)}<button class="set" onclick="upkeepSac('${key}',${i})">✖ Sacrifice</button><span class="taphint">upkeep — reposition or sacrifice</span>`};
+  const z=zoneForRow('you',key); const owe=z?zoneDeficit('you',z):0;
+  const payN=Math.min(o.up||0,owe);
+  const pay=(payN>0&&!o.paid)?`<button onclick="upkeepPay('${key}',${i})"${manaTotal('you')<payN?' disabled title="not enough mana"':''}>◆ Pay ${payN}</button>`:'';
+  const hint=owe>0?`shortfall ⚒${owe} here — move, pay, or sacrifice`:'upkeep — reposition or sacrifice';
+  G.cardMenu={k:key,i,html:`${moveBtn(key,i)}${pay}<button class="set" onclick="upkeepSac('${key}',${i})">✖ Sacrifice</button><span class="taphint">${hint}</span>`};
   render();
 };
+// ◆ Pay: cover this creature's share of the row's shortfall from your banked mana — it holds its post
+window.upkeepPay=function(key,i){
+  if(!G.upkeep||G.turn!=='you'||G.busy||G.over)return;
+  const o=rowArr(key)[+i]; if(!o||o.kind!=='creature'||o.owner!=='you'||o.paid)return;
+  const z=zoneForRow('you',key); if(!z)return;
+  const cost=Math.min(o.up||0,zoneDeficit('you',z));
+  if(cost<=0){ G.cardMenu=null; upkeepNext(); return; }
+  if(manaTotal('you')<cost){ setHint(`<b style="color:#ff8a7a">Its keep is ◆${cost} — you have ◆${manaTotal('you')}.</b> Move or sacrifice it instead.`); render(); return; }
+  payAny('you',cost); G.P.you.upaid[z]=(G.P.you.upaid[z]||0)+cost; o.paid=true;
+  log(`<span class="y">You pay ◆${cost} to keep ${o.nm} fed at its post.</span>`,'y');
+  G.cardMenu=null; upkeepNext();
+};
 window.upkeepSac=function(key,i){
-  const o=rowArr(key)[i]; if(!o||o.owner!=='you')return;
+  if(!G.upkeep||G.turn!=='you'||G.busy||G.over)return;
+  const o=rowArr(key)[i]; if(!o||o.kind!=='creature'||o.owner!=='you')return;
   rowArr(key)[i]=null; toGrave('you',o);
   log(`<span class="y">${o.nm} is sacrificed to ease the workforce.</span>`,'y');
-  G.cardMenu=null; syncWorkers('you'); upkeepHint(); render();
+  G.cardMenu=null; syncWorkers('you'); upkeepNext();
 };
-// ⛏ Harvest: pays any remaining shortfall (or blocks), then every settled worker extracts
+// ⛏ Harvest: only once every shortfall is settled — then every settled worker extracts
 // automatically into the single generic mana pool — no colour choice — and the turn advances to Draw.
 window.doHarvest=function(){
   if(G.phase!=='upkeep'||G.turn!=='you'||G.busy||G.over)return;
   const owe=totalDeficit('you');
-  if(owe>0){
-    if(manaTotal('you')<owe){ setHint(`<b style="color:#ff8a7a">Short ⚒${owe} with only ◆${manaTotal('you')} banked.</b> Move or sacrifice creatures until the upkeep is affordable.`); render(); return; }
-    payAny('you',owe);
-    log(`<span class="y">You pay ◆${owe} to keep your over-extended lines fed.</span>`,'y');
+  if(owe>0){   // no silent auto-pay — each creature is settled by an explicit Move / Pay / Sacrifice
+    const off=upkeepOffender();
+    if(off){ setHint(`<b style="color:#ff8a7a">Shortfall ⚒${owe} unsettled.</b> Move, pay, or sacrifice the flagged creatures first — then harvest.`); upkeepPick(off.key,off.i); return; }
   }
   let sum=0;
   for(const z of ['back','front','center']){
@@ -4096,6 +4197,14 @@ window.doHarvest=function(){
     const total=up*minYield(z);
     pool.forEach(m=>{ if(!m.sick) m.tapped=true; });
     G.P.you.mana=Math.min(99,G.P.you.mana+total); sum+=total;   // generic — no colour split
+  }
+  if(owe>0){   // purely STRUCTURAL shortfall (nothing left to move/pay/sac) — settled out of the
+    // harvest proceeds so it can never dead-lock the turn; an unpayable remainder simply goes unpaid
+    const pay=Math.min(owe,G.P.you.mana);
+    if(pay>0)payAny('you',pay);
+    ZONES.forEach(z=>{ const d=zoneDeficit('you',z); if(d>0)G.P.you.upaid[z]=(G.P.you.upaid[z]||0)+d; });
+    log(pay>=owe?`<span class="y">You pay ◆${owe} to keep your unsupported works running.</span>`
+               :`<span class="y">Your unsupported works cost ◆${owe} — you could only spare ◆${pay}; the crews idle unpaid.</span>`,'y');
   }
   setPhase('draw'); G.moveFrom=null; G.cardMenu=null;   // upkeep resolved → the Draw phase (click your deck)
   if(sum>0) log(`<span class="y">Harvest: ◆${sum} (total ◆${manaTotal('you')}).</span>`,'y');
@@ -4107,10 +4216,13 @@ window.hvCancel=function(){ $('harvestPanel').style.display='none'; };
 const MOVE_ADJ={back:['front'],front:['back','center'],center:['front'],raid:['center']}; // zone graph ('raid' = the enemy front)
 function aiMoveCreature(owner,fromZ,i,toZ){
   const arr=rowArr(zoneKey(owner,fromZ)); const o=arr[i]; if(!o)return false;
+  if(o.moved&&(o.moved2||o.tapped))return false;       // two moves max — the same budget the player gets
   const dstKey=zoneKey(owner,toZ); const dst=rowArr(dstKey);
-  let slot=-1; for(let j=0;j<SLOTS;j++){ if(!dst[j]&&slotExists(dstKey,j)){slot=j;break;} }
+  let slot=-1; for(const j of [i,i-1,i+1]){ if(j>=0&&j<SLOTS&&!dst[j]&&slotExists(dstKey,j)){slot=j;break;} }  // one square: straight or diagonal, same as the player
   if(slot<0)return false;
-  arr[i]=null; o.moved=true; dst[slot]=o; return true;
+  arr[i]=null;
+  if(o.moved){ o.moved2=true; o.tapped=true; } else o.moved=true;   // a second forced move spends its turn
+  dst[slot]=o; return true;
 }
 function aiFixDeficit(owner){
   let guard=0;
@@ -4139,8 +4251,10 @@ function aiFixDeficit(owner){
     log(`<span class="e">The enemy sacrifices ${o.nm} — it cannot pay its keep.</span>`,'e');
     syncWorkers(owner);
   }
-  const owe=totalDeficit(owner);                       // 3) pay what remains
-  if(owe>0&&manaTotal(owner)>=owe){ payAny(owner,owe); log(`<span class="e">The enemy pays ◆${owe} to sustain its over-extended lines.</span>`,'e'); }
+  const owe=totalDeficit(owner);                       // 3) pay what remains (recorded per zone, like the player's explicit Pay)
+  if(owe>0&&manaTotal(owner)>=owe){ payAny(owner,owe);
+    ZONES.forEach(z=>{ const d=zoneDeficit(owner,z); if(d>0)G.P[owner].upaid[z]=(G.P[owner].upaid[z]||0)+d; });
+    log(`<span class="e">The enemy pays ◆${owe} to sustain its over-extended lines.</span>`,'e'); }
 }
 $('endBtn').addEventListener('click',endTurn);
 // Train Worker removed — workers are now auto-derived from the cards in each row.
@@ -4218,12 +4332,12 @@ async function foeTurn(){
   if(bni>=0){ let best=-1,tk=null,ti=-1;
     ROWS.forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.owner==='you'&&o.kind==='creature'&&!o.worker&&o.a>best){best=o.a;tk=key;ti=j;}}));
     if(tk!==null){ const card=F.hand[bni]; payCost('foe',card); F.hand.splice(bni,1); resolveSpell(card,tk,ti); F.grave.push(spellRec(card)); render(); checkWin(); if(G.over)return; } }
-  // arm a trap if it holds one and a slot is open
+  // arm a trap if it holds one, a slot is open, and it can afford the ◆1 set price
   { const tpi=F.hand.findIndex(c=>c.type==='spell'&&c.trap);
-    if(tpi>=0){ let w='back',s=F.back.findIndex(x=>!x); if(s<0){w='front';s=F.front.findIndex(x=>!x);}
-      if(s>=0){ const card=F.hand[tpi]; F.hand.splice(tpi,1);
+    if(tpi>=0&&manaTotal('foe')>=1){ let w='back',s=F.back.findIndex(x=>!x); if(s<0){w='front';s=F.front.findIndex(x=>!x);}
+      if(s>=0){ const card=F.hand[tpi]; F.hand.splice(tpi,1); payAny('foe',1);
         G.P.foe[w][s]={kind:'trap',owner:'foe',w,card:{nm:card.nm,c:card.c,effect:card.effect,trigger:card.trigger,val:card.val,ic:card.ic,art:card.art,trap:true},setTurn:G.turnNo};
-        log('<span class="e">Opponent sets a face-down card.</span>','e'); render(); } } }
+        log('<span class="e">Opponent sets a face-down card (◆1 placed on it).</span>','e'); render(); } } }
   // summon soldiers — sometimes pushing into the contested center to fight for it
   let guard=0;
   let cands=F.hand.map((c,i)=>({c,i})).filter(x=>x.c.type==='creature'&&canPay('foe',x.c)).sort((a,b)=>b.c.c-a.c.c);
@@ -4336,51 +4450,56 @@ function inspectRef(owner,which,i){
       `Your opponent's set card — its identity is concealed.<br>Banked so far: <b>◆${o.inv}</b> (resources are always public; the card is not).<br>It could be a creature <i>or</i> a structure. <b>Attack it to provoke it:</b> if it's under-funded it's interrupted and destroyed (banked ◆ lost); if it's fully funded it flips up and fights back.`); return; }
     const isB=o.ctype==='building';
     const stat=isB?`♥${o.card.h}`:`⚔${o.card.a} / ♥${o.card.h}${o.card.fs?' · First Strike':''}`;
-    const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):([o.card.fs?'<b>First Strike.</b> Strikes before the simultaneous step — a killed attacker never hits back.':'',kwText(o.card)].filter(Boolean).join('<br>')||'No special ability.');
+    const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):([o.card.fs?'<b>First Strike.</b> Deals its damage first.':'',kwText(o.card)].filter(Boolean).join('<br>')||'');
     const ready=o.inv>=o.card.c;
     showInspect(`${o.card.nm} · face-down ${isB?'structure':'creature'}`,
-      `${bigArt(o.card)}Only you can see what this is.<br>${isB?'Raise':'Summon'} cost <b>◆${o.card.c}</b> · banked <b>◆${o.inv}</b>${ready?' ✓ funded':` (◆${o.card.c-o.inv} more to fund)`} · ${stat}<br>${eff}<br><i>Bank ◆ across turns. If attacked while under-funded it's interrupted (destroyed, ◆ lost); once funded it can ${isB?'raise':'flip'} (surplus ◆ banks on it). A card face-down for a full turn flips with no summoning sickness — it can strike at once.</i>`);
+      `${bigArt(o.card)}Only you can see what this is.<br>${isB?'Raise':'Summon'} cost <b>◆${o.card.c}</b> · banked <b>◆${o.inv}</b>${ready?' ✓ funded':` (◆${o.card.c-o.inv} more to fund)`} · ${stat}<br>${eff}`);
     return;
   }
   if(o.kind==='trap'){
     if(!me){ showInspect('Face-down · hidden', `Your opponent's set card — concealed. It may be a <b>trap</b>: attacking or summoning into it can spring it. Probe with care.`); return; }
     showInspect(`${o.card.nm} · Trap (armed)`,
-      `${bigArt(o.card)}${spellText(o.card)}<br><i>Springs when provoked — when its trigger fires on your opponent's turn (you choose whether to spring it), or immediately on the attacker if this card is itself attacked — then goes to the graveyard.</i>`);
+      `${bigArt(o.card)}${spellText(o.card)}`);
     return;
   }
   if(o.kind==='building'){
+    const bchips=[]; if(o.bank>0)bchips.push(`<span class="ichip gold" title="stored mana">◆${o.bank}</span>`);
     showInspect(`${o.nm} · Structure`,
-      `${bigArt(o)}Cost <b>◆${o.c}</b> · ♥${o.h}/${o.maxh}${o.sup?` · <b>⚒+${o.sup} cap</b>`:''}${o.bank>0?` · <b>◆${o.bank} stored</b>`:''}<br>${bldEffectText(o.eff,o.val,o.sup)}<br><i>Doesn't move or attack and works in any row. Has HP and can be razed — <b>lose every structure and you lose the game.</b>${o.bank>0?' Holds stored ◆ — Send it elsewhere or play a card on top to spend it. Razing this structure burns the stored ◆ too.':''}</i>`);
+      `${bigArt(o)}<div class="istat"><span class="m">◆${o.c}</span>${o.sup?`<span>⚒+${o.sup}</span>`:''}<span class="h">♥${o.h}/${o.maxh}</span></div>${bldEffectText(o.eff,o.val,o.sup)}${bchips.length?`<div class="ichips">${bchips.join('')}</div>`:''}`);
     return;
   }
-  // creature
+  // creature — DM-style: stat line, ability text only (no reminder prose), status as symbol chips
   const role=o.worker?'Minion (⚒ worker)':'Creature';
   const abilities=[];
-  if(o.worker) abilities.push('<b>Harvester.</b> Tap the row to harvest all its workers at once (◆1 each at the base, ◆2 at the front or center), then distribute the haul across colors. Can block but cannot attack.');
-  if(!o.worker&&o.up>0) abilities.push(`<b>Upkeep ⚒-${o.up}.</b> While it stands it consumes <b>${o.up} worker cap</b> — a bigger army leaves room for fewer harvesters.`);
-  if(o.fs) abilities.push('<b>First Strike.</b> Strikes before the simultaneous step — anything it kills never hits back. The front-line survival tool.');
+  if(o.worker) abilities.push('<b>Harvester.</b> Harvests with its row. Blocks; cannot attack.');
+  if(!o.worker&&o.up>0) abilities.push(`<b>Upkeep ⚒-${o.up}.</b>`);
+  if(o.fs) abilities.push('<b>First Strike.</b> Deals its damage first.');
   { const kt=kwText(o); if(kt) abilities.push(kt); }
-  const eff=abilities.length?abilities.join('<br>'):'No special ability.';
-  const tags=[]; if(o.sick)tags.push('summoning-sick'); if(o.tapped)tags.push('tapped'); if(o.moved)tags.push('moved this turn'); if(o.bank>0)tags.push(`◆${o.bank} banked`); if(which==='center')tags.push('contesting the center');
-  showInspect(`${o.nm}${(!o.worker&&typeLine(o))?' · '+typeLine(o):''} · ${role}${o.fs?' · First Strike':''}`,
-    `${bigArt(o)}Cost <b>◆${o.c}</b> · ⚔${o.a} / ♥${o.h}/${o.maxh}<br>${eff}<br><i>Taps when it attacks, extracts, or intercepts. May move once per turn to an open adjacent space — base, front line, or the contested center. Attacks target any row; if more than one row away, the strike can be intercepted in the rows it crosses.</i>${tags.length?`<br>Now: ${tags.join(', ')}.`:''}`);
+  const chips=[];
+  if(o.sick)chips.push('<span class="ichip" title="summoning-sick">💤</span>');
+  if(o.moved)chips.push(`<span class="ichip" title="moved${o.moved2?' twice':''} this turn">⤧${o.moved2?'×2':''}</span>`);
+  if(o.tapped)chips.push('<span class="ichip" title="has acted — tapped">⟳</span>');
+  if(o.bank>0)chips.push(`<span class="ichip gold" title="stored mana">◆${o.bank}</span>`);
+  if(which==='center')chips.push('<span class="ichip" title="contesting the center">⚑</span>');
+  showInspect(`${o.nm}${(!o.worker&&typeLine(o))?' · '+typeLine(o):''} · ${role}`,
+    `${bigArt(o)}<div class="istat"><span class="m">◆${o.c}</span><span class="a">⚔${o.a}</span><span class="h">♥${o.h}/${o.maxh}</span></div>${abilities.length?abilities.join('<br>'):''}${chips.length?`<div class="ichips">${chips.join('')}</div>`:''}`);
 }
 function inspectHand(i){
   const c=G.P.you.hand[i]; if(!c)return; const isB=c.type==='building';
   if(c.type==='spell'){
     if(c.trap){
       showInspect(`${c.nm} · Trap card`,
-        `${bigArt(c)}This is in your hand — it has no effect here. <b>Set</b> it face-down for free into any empty slot.<br>Once it's on the field and armed (from your next turn on): ${spellText(c)}<br><i>It springs during your opponent's turn when the trigger fires — you choose whether to spring it — then goes to the graveyard.</i>`);
+        `${bigArt(c)}<div class="istat"><span class="m">Set ◆1</span></div>${spellText(c)}`);
     } else {
       showInspect(`${c.nm} · Spell card`,
-        `${bigArt(c)}Cost <b>◆${c.c}</b>.<br>${spellText(c)}<br><i>Cast on your turn — tap a legal enemy target — then it goes to the graveyard.</i>`);
+        `${bigArt(c)}<div class="istat"><span class="m">◆${c.c}</span></div>${spellText(c)}`);
     }
     return;
   }
-  const stat=isB?`♥${c.h}${c.sup?` · ⚒+${c.sup} cap`:''}`:`⚔${c.a} / ♥${c.h}${c.up?` · ⚒-${c.up} cap`:''}`;
-  const eff=isB?bldEffectText(c.eff,c.val,c.sup):([c.up?`<b>Upkeep ⚒-${c.up}.</b> Consumes ${c.up} worker cap while it stands.`:'',kwText(c)].filter(Boolean).join('<br>')||'No special ability.');
+  const stat=isB?`${c.sup?`<span>⚒+${c.sup}</span>`:''}<span class="h">♥${c.h}</span>`:`<span class="a">⚔${c.a}</span><span class="h">♥${c.h}</span>`;
+  const eff=isB?bldEffectText(c.eff,c.val,c.sup):([c.up?`<b>Upkeep ⚒-${c.up}.</b>`:'',c.fs?'<b>First Strike.</b> Deals its damage first.':'',kwText(c)].filter(Boolean).join('<br>'));
   showInspect(`${c.nm}${(!isB&&typeLine(c))?' · '+typeLine(c):''} · ${isB?'Structure':'Creature'} (in hand)`,
-    `${bigArt(c)}Cost <b>◆${c.c}</b> · ${stat}<br>${eff}<br><i>${isB?'Build':'Summon'} face-up (pay now), or <b>Set</b> face-down for free, into any empty slot — front line or base.${isB?' Structures are your lifeline: lose them all and you lose.':''}</i>`);
+    `${bigArt(c)}<div class="istat"><span class="m">◆${c.c}</span>${stat}</div>${eff||''}`);
 }
 
 /* ---------- deck / graveyard viewer ---------- */
@@ -5287,7 +5406,22 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   function grabCapture(){ try{ if(drag&&drag.pid!=null&&CAP.setPointerCapture) CAP.setPointerCapture(drag.pid); }catch(_){} }
   function dropCapture(pid){ try{ if(pid!=null&&CAP.releasePointerCapture) CAP.releasePointerCapture(pid); }catch(_){} }
   function clearHover(){ document.querySelectorAll('.cell.draghover').forEach(c=>c.classList.remove('draghover')); }
-  function cellUnder(x,y){ const el=document.elementFromPoint(x,y); return el&&el.closest?el.closest('.cell'):null; }
+  function cellUnder(x,y){
+    const el=document.elementFromPoint(x,y); const hit=el&&el.closest?el.closest('.cell'):null;
+    if(hit&&(hit.classList.contains('tappable')||hit.classList.contains('target'))) return hit;
+    // the tilted board's 3D transform can defeat elementFromPoint — resolve against the cells'
+    // projected rects instead, snapping to the nearest LEGAL cell within a small radius
+    // (this also makes touch drops forgiving)
+    let best=null,bd=Infinity;
+    document.querySelectorAll('.cell.tappable,.cell.target').forEach(cl=>{
+      const r=cl.getBoundingClientRect();
+      const dx=Math.max(r.left-x,x-r.right,0), dy=Math.max(r.top-y,y-r.bottom,0);
+      const d=dx*dx+dy*dy;
+      if(d<bd){bd=d;best=cl;}
+    });
+    if(best&&bd<=44*44) return best;
+    return hit;
+  }
   function makeGhost(){
     const vis = drag.kind==='hand' ? drag.src : (drag.src.querySelector('.card')||drag.src);
     const r=vis.getBoundingClientRect(); const node=vis.cloneNode(true);
@@ -5319,6 +5453,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
       const mode=card.type==='building'?'build':card.type==='spell'?(card.trap?'settrap':'cast'):'summon';
       // mirror the action menu's disabled-button gate: don't begin a drag we couldn't legally drop
       if((mode==='summon'||mode==='build') && typeof canPay==='function' && !canPay('you',card)){ if(typeof setHint==='function')setHint(`<b style="color:var(--ink)">${card.nm}</b> — not enough mana.`); drag=null; return; }
+      if(mode==='settrap' && manaTotal('you')<1){ if(typeof setHint==='function')setHint(`<b style="color:var(--ink)">${card.nm}</b> — setting costs ◆1 placed on the card.`); drag=null; return; }
       if(mode==='cast' && typeof spellHasTarget==='function' && !spellHasTarget(card)){ if(typeof setHint==='function')setHint(`<b style="color:var(--ink)">${card.nm}</b> — no legal target.`); drag=null; return; }
       drag.on=true; drag.ghost=makeGhost(); document.body.classList.add('dragging');
       grabCapture();                                            // keep the gesture alive through the re-render below (touch)
@@ -5471,7 +5606,16 @@ fitBoard();
 const MPNET=(function(){
   const N={PROTO:1,active:false,onOpen:null,onMsg:null,onDrop:null};
   let pc=null,dc=null,closing=false;
-  const RTC={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
+  // STUN discovers each player's public address; the free public TURN relays are a FALLBACK used only
+  // when two players are behind NATs that can't hole-punch a direct link. TURN is NOT a game server —
+  // it only relays the already-encrypted DataChannel bytes if no direct path exists. Swap in your own
+  // TURN creds (e.g. a Metered/coturn account) for best reliability; this default is a shared free tier.
+  const RTC={iceServers:[
+    {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302']},
+    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+  ]};
   const enc=new TextEncoder(), dec=new TextDecoder();
   const b64=b=>{let s='';const u=new Uint8Array(b);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');};
   const unb64=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;};
@@ -5494,8 +5638,11 @@ const MPNET=(function(){
     catch(e){ throw new Error('Wrong password'); }
     return JSON.parse(await unsqueeze(u[0],new Uint8Array(pt))); }
   function gathered(p){ return new Promise(res=>{ if(p.iceGatheringState==='complete'){res();return;}
-    const t=setTimeout(res,2500);                                  // take what we have — mDNS/srflx land fast
-    p.addEventListener('icegatheringstatechange',()=>{ if(p.iceGatheringState==='complete'){clearTimeout(t);res();} }); }); }
+    let done=false; const finish=()=>{ if(done)return; done=true; clearTimeout(t); res(); };
+    const t=setTimeout(finish,3000);                               // cap the wait; TURN relay candidates need a round-trip to appear
+    p.addEventListener('icegatheringstatechange',()=>{ if(p.iceGatheringState==='complete')finish(); });
+    p.addEventListener('icecandidate',e=>{ if(e.candidate&&/typ relay/.test(e.candidate.candidate))setTimeout(finish,300); }); // a relay path exists → wrap up promptly (localhost has none → falls through to 'complete')
+  }); }
   function watch(p){ p.addEventListener('connectionstatechange',()=>{ if(pc!==p)return;
     if(p.connectionState==='failed'||p.connectionState==='closed') drop(p.connectionState); }); }
   function drop(why){ if(closing)return; const was=N.active; teardown();
@@ -5540,6 +5687,41 @@ const MPNET=(function(){
   return N;
 })();
 
+/* ---------- 4.1b MPSIG: password rendezvous — the same SEALED offer/answer codes the manual flow
+   uses, traded automatically over a public pub-sub relay (ntfy.sh) on a channel derived from a
+   SHA-256 of the password. The relay sees only AES-GCM ciphertext, once, at connect time; the duel
+   itself runs peer-to-peer exactly as before. Manual copy/paste stays as the offline fallback. ---------- */
+const MPSIG=(function(){
+  const BASE='https://ntfy.sh';
+  let es=null,waitT=null;
+  async function topic(pass,side){                       // un-guessable channel id from the shared password
+    const u=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('srd.mp.v1|'+String(pass))));
+    let s=''; for(let i=0;i<15;i++)s+=('0'+u[i].toString(16)).slice(-2);
+    return 'srd-'+s+'-'+side;                            // -h: host offers · -g: guest answers
+  }
+  function stop(){ clearTimeout(waitT); waitT=null; try{ if(es)es.close(); }catch(_){} es=null; }
+  async function publish(t,body){
+    const r=await fetch(BASE+'/'+t,{method:'POST',body});
+    if(!r.ok)throw new Error('relay refused ('+r.status+')');
+  }
+  async function recent(t,since){                        // newest cached message on the channel, if any
+    try{ const r=await fetch(BASE+'/'+t+'/json?poll=1&since='+(since||'15m'));
+      if(!r.ok)return null;
+      const rows=(await r.text()).trim().split('\n').filter(Boolean)
+        .map(s=>{try{return JSON.parse(s);}catch(_){return null;}})
+        .filter(m=>m&&m.event==='message'&&m.message);
+      return rows.length?rows[rows.length-1].message:null;
+    }catch(_){ return null; }
+  }
+  function listen(t,onMsg,since){                        // live subscription (server-sent events);
+    stop();                                              // `since` replays the recent cache on connect, closing
+    es=new EventSource(BASE+'/'+t+'/sse?since='+(since||'10m'));   // the publish→poll cache-lag race
+    es.onmessage=ev=>{ try{ const m=JSON.parse(ev.data); if(m&&m.event==='message'&&m.message)onMsg(m.message); }catch(_){} };
+  }
+  function deadline(fn,ms){ clearTimeout(waitT); waitT=setTimeout(fn,ms); }
+  return {topic,publish,recent,listen,deadline,stop};
+})();
+
 /* ---------- 4.2 MPMAP: guest↔host perspective mirror — row + well keys flip, slot indices map identity ---------- */
 const MPMAP=(function(){
   const M={youBack:'foeBack',foeBack:'youBack',youFront:'foeFront',foeFront:'youFront',center:'center',
@@ -5570,7 +5752,7 @@ const MPSER=(function(){
   function rec2(o){ return !!o.nm; }                   // only card-shaped records get a lookup
   function pSnap(o){ const P=G.P[o];
     return {color:P.color,cc:P.cc,life:P.life,mana:P.mana,cmana:P.cmana,hand:P.hand,deck:P.deck,grave:P.grave,
-      front:P.front,back:P.back,min:P.min,firstExtract:P.firstExtract,villagerUsed:P.villagerUsed}; }
+      front:P.front,back:P.back,min:P.min,firstExtract:P.firstExtract,villagerUsed:P.villagerUsed,upaid:P.upaid}; }
   function snapshot(){                                  // host-canonical duel state, deep-copied + art-stripped
     const s=JSON.parse(JSON.stringify({turn:G.turn,over:G.over,turnNo:G.turnNo,phase:G.phase,uid,
       center:G.center,P:{you:pSnap('you'),foe:pSnap('foe')}}));
@@ -5592,9 +5774,11 @@ const MPSER=(function(){
     G.over=!!S.over; G.turnNo=S.turnNo; setPhase(S.phase);
     G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.build=null;G.minSel=null;G.busy=false;
     MP.clearWait();                                     // any send-and-wait freeze ends when the authoritative board lands
+    try{ const _cp=$('contestPanel'); if(_cp&&_cp.style.display!=='none')_cp.style.display='none'; }catch(e){}  // close a stale block modal if the host resolved before we answered
     if(G.turn!==wasTurn&&!G.over){ try{                 // risk T: the flip arrives inside a snapshot — fire the ribbon here
-      if(G.turn==='you'){ FX.ribbon('YOUR TURN','var(--gold)'); SFX.turnYou(); if(G.phase==='upkeep')upkeepHint(); }
+      if(G.turn==='you'){ FX.ribbon('YOUR TURN','var(--gold)'); SFX.turnYou(); if(G.phase==='upkeep')upkeepNext(); }
       else { FX.ribbon("OPPONENT'S TURN",'var(--tide)'); SFX.turnFoe(); } }catch(e){} }
+    else if(G.turn==='you'&&G.phase==='upkeep'&&!G.over){ try{ upkeepNext(); }catch(e){} }   // same-turn snapshot (host echoing our pay/sac/move) — re-pop the settle menu it just wiped
     render(); checkWin();
   }
   return {snapshot,adopt};
@@ -5608,7 +5792,7 @@ MP.intent=function(m){ if(MP.role!=='guest'||!MPNET.active)return; MPNET.send({t
 MP.pushNow=function(){ if(!MPNET.active||MP.role!=='host'||!MP.started)return;   // ALWAYS sends (risk F: rejects must heal the guest too)
   const snap=MPSER.snapshot(); MP._lastSnap=JSON.stringify(snap);
   MPNET.send({t:'snapshot',sv:++MP.sv,state:snap}); };
-MP.fx=function(ev){};   // FX relay stub — inert at the cut-line; Step 11 replaces it with the real host→guest sender
+MP.fx=function(ev){ if(MPNET.active&&MP.role==='host'&&MP.started)MPNET.send({t:'fx',ev}); };   // host→guest FX relay: the passive side replays attack/impact/spell/enter animations (mpReplayFx) instead of teleporting state
 MP.holdFx=function(ms){ MP.fxUntil=Math.max(MP.fxUntil,Date.now()+Math.min(ms,1200)); };
 MP.drainPostFx=function(){ const q=MP.postFx; MP.postFx=[];
   q.forEach(ev=>{ try{ const k=MPMAP.k(ev.k); const el=rowCellEl($(k),ev.i); const r=fxRect(el);
@@ -5618,7 +5802,7 @@ MP.waitBanner=function(txt){ MP.frozen=true; try{setHint('<b style="color:var(--
 MP.clearWait=function(){ MP.frozen=false; try{if(typeof G!=='undefined'&&!G.over)defaultHint();}catch(e){} };
 MP.status=function(txt){ const el=$('mpStatus'); if(el)el.textContent=txt; };
 MP.reset=function(){ try{MPNET.close();}catch(e){} clearInterval(MP._ping); MP._ping=null;
-  clearTimeout(MP._rt); clearTimeout(MP._st);
+  clearTimeout(MP._rt); clearTimeout(MP._st); clearTimeout(MP._linkT); try{MPSIG.stop();}catch(e){}
   Object.keys(MP._asks).forEach(id=>{ const a=MP._asks[id]; if(a&&a.timer)clearTimeout(a.timer); });
   Object.assign(MP,{role:null,started:false,resume:false,pickingDeck:false,myPick:null,peerPick:null,
     lastQ:0,qOut:0,sv:0,svIn:0,_lastSnap:null,_pend:null,rtt:null,_lastPong:0,_asks:{},_askId:0,
@@ -5630,7 +5814,7 @@ MP.softReset=function(){ clearTimeout(MP._rt); clearTimeout(MP._st);   // game b
     _asks:{},_askId:0,forcedBlock:null,frozen:false,fxUntil:0,postFx:[]}); };
 MP.abort=function(msg){ try{MPNET.send({t:'bye'});}catch(e){} MP.reset();
   showScreen('mpLobby'); const mr=$('mpModeRow'); if(mr)mr.style.display='flex';
-  const hc=$('mpHostCard'); if(hc)hc.style.display='none'; const jc=$('mpJoinCard'); if(jc)jc.style.display='none';
+  if(typeof mpAutoBusy==='function')mpAutoBusy(false);
   MP.status(msg); };
 MP.gameOverLocal=function(win){ if(!G.over){ G.P[win?'foe':'you'].life=0; checkWin(); } };
 MP.askGuest=function(what,data,cb){
@@ -5651,10 +5835,13 @@ const MPAPPLY=(function(){
   function resolveRefs(refs){ return (refs||[]).map(r=>{ if(r.pw!=null)return minPool(r.po,r.pw)[r.pi]||null;
       const a=rowArr(r.k); return (a&&a[r.i])||null; }).filter(Boolean); }
 
-  function harvest(m){ if(!foesTurn()||G.phase!=='upkeep')return bad(m.q,'phase');   // mirrors doHarvest L4006–4026 for 'foe'
-    const owe=totalDeficit('foe');
-    if(owe>0){ if(manaTotal('foe')<owe)return bad(m.q,'deficit');
-      payAny('foe',owe); log(`<span class="e">The opponent pays ◆${owe} to keep their over-extended lines fed.</span>`,'e'); }
+  function harvest(m){ if(!foesTurn()||G.phase!=='upkeep')return bad(m.q,'phase');   // mirrors doHarvest for 'foe'
+    { const owe=totalDeficit('foe');                     // creature shortfalls need explicit move/pay/sac intents first;
+      if(owe>0){                                         // a purely structural shortfall may be paid here (mirrors doHarvest)
+        if(orphanDeficit('foe')<owe||manaTotal('foe')<owe)return bad(m.q,'deficit');
+        payAny('foe',owe);
+        ZONES.forEach(z=>{ const d=zoneDeficit('foe',z); if(d>0)G.P.foe.upaid[z]=(G.P.foe.upaid[z]||0)+d; });
+        log(`<span class="e">The opponent pays ◆${owe} to keep their unsupported works running.</span>`,'e'); } }
     let sum=0;
     for(const z of ['back','front','center']){
       const pool=minPool('foe',z); const up=pool.filter(w=>!w.tapped&&!w.sick).length;
@@ -5684,18 +5871,31 @@ const MPAPPLY=(function(){
     log(`<span class="e">The opponent sacrifices ${o.nm} to ease their workforce.</span>`,'e');
     syncWorkers('foe'); render(); }
 
+  function pay(m){ if(!foesTurn()||!G.upkeep)return bad(m.q,'phase');                // mirrors upkeepPay for 'foe'
+    const a=rowArr(m.k); const o=a&&a[m.i|0];
+    if(!o||o.kind!=='creature'||o.owner!=='foe'||o.paid)return bad(m.q,'target');
+    const z=zoneForRow('foe',m.k); if(!z)return bad(m.q,'zone');
+    const cost=Math.min(o.up||0,zoneDeficit('foe',z));
+    if(cost<=0)return bad(m.q,'zone');
+    if(manaTotal('foe')<cost)return bad(m.q,'mana');
+    payAny('foe',cost); G.P.foe.upaid[z]=(G.P.foe.upaid[z]||0)+cost; o.paid=true;
+    log(`<span class="e">The opponent pays ◆${cost} to keep ${o.nm} at its post.</span>`,'e');
+    render(); }
+
   function draw(m){ if(!foesTurn()||G.phase!=='draw')return bad(m.q,'phase');        // mirrors doDraw L3977–3983 (empty deck still advances)
     if(G.P.foe.deck.length){ drawCard('foe'); log('<span class="e">The opponent draws a card.</span>','e'); }
     else log('<span class="e">The opponent\'s deck is empty — nothing to draw.</span>','e');
     setPhase('action'); render(); }
 
-  function move(m){ if(!foesTurn())return bad(m.q,'phase');                          // mirrors doMove L3777–3786 with adjacentK('foe',…)
+  function move(m){ if(!foesTurn())return bad(m.q,'phase');                          // mirrors doMove with adjacentK('foe',…)
     if(G.phase!=='action'&&G.phase!=='upkeep')return bad(m.q,'phase');
     const a=rowArr(m.fk); const c=a&&a[m.fi];
-    if(!c||c.kind!=='creature'||c.owner!=='foe'||c.moved)return bad(m.q,'unit');
+    if(!c||c.kind!=='creature'||c.owner!=='foe'||moveSpent(c))return bad(m.q,'unit');
     const d=rowArr(m.tk); if(!d)return bad(m.q,'dest');
     if(d[m.ti]||!adjacentK('foe',m.fk,m.fi,m.tk,m.ti))return bad(m.q,'reach');
-    a[m.fi]=null; c.moved=true; d[m.ti]=c;
+    a[m.fi]=null;
+    if(c.moved){ c.moved2=true; c.tapped=true; } else c.moved=true;   // upkeep second move spends its turn
+    d[m.ti]=c;
     log(`<span class="e">${c.nm} repositions to ${rowName(m.tk)}.</span>`,'e');
     syncWorkers('foe'); render(); }
 
@@ -5703,11 +5903,16 @@ const MPAPPLY=(function(){
     const idx=m.idx|0, mode=m.mode, which=m.w, slot=m.i|0;
     const card=G.P.foe.hand[idx];
     if(!card||!['summon','build','set','settrap'].includes(mode))return bad(m.q,'card');
-    if(!['back','front'].includes(which)||!(slot>=0&&slot<SLOTS))return bad(m.q,'slot');
+    const whichOK=['back','front'].includes(which)||(which==='center'&&mode==='build');   // structures may claim the center flanks
+    if(!whichOK||!(slot>=0&&slot<SLOTS))return bad(m.q,'slot');
+    if(!centerSlotOK(which,slot,card.type==='building'))return bad(m.q,'slot');
     const arr=cellArr('foe',which);
     const occ=arr[slot];
     if(occ){                                            // play face-up ON TOP of a banked card (summon/build only)
+      if(occ.owner!=='foe')return bad(m.q,'slot');      // the shared center holds BOTH sides' units — never over the host's
       if(occ.cc||((mode!=='summon'&&mode!=='build')||!(occ.bank>0)))return bad(m.q,'slot');
+      if(mode==='build'&&card.type!=='building')return bad(m.q,'card');
+      if(mode==='summon'&&card.type!=='creature')return bad(m.q,'card');
       const fromBank=Math.min(occ.bank,card.c);
       const need=card.c-fromBank;
       if(need>manaTotal('foe'))return bad(m.q,'mana');
@@ -5730,6 +5935,7 @@ const MPAPPLY=(function(){
     }
     if(mode==='build'){
       if(card.type!=='building')return bad(m.q,'card');
+      if(!placeRowOK('foe',which,card))return bad(m.q,'slot');   // worker-costing structures need a row that stays non-negative
       if(card.c>manaTotal('foe'))return bad(m.q,'mana');
       payAny('foe',card.c); G.P.foe.hand.splice(idx,1);
       arr[slot]=mkBld(card,'foe');
@@ -5745,16 +5951,21 @@ const MPAPPLY=(function(){
       await playerTrapOnSummon(cr,which,slot);
     } else if(mode==='settrap'){
       if(card.type!=='spell'||!card.trap)return bad(m.q,'card');
+      if(manaTotal('foe')<1)return bad(m.q,'mana');     // setting costs ◆1 placed on the card
+      payAny('foe',1);
       G.P.foe.hand.splice(idx,1);
       arr[slot]={kind:'trap',owner:'foe',w:which,card:{nm:card.nm,c:card.c,effect:card.effect,trigger:card.trigger,val:card.val,ic:card.ic,art:card.art,trap:true},setTurn:G.turnNo};
-      log('<span class="e">Opponent sets a face-down card.</span>','e');
-    } else {                                            // 'set' — face-down charge (creature OR building)
+      log('<span class="e">Opponent sets a face-down card (◆1 placed on it).</span>','e');
+    } else {                                            // 'set' — face-down charge (creature OR building); ◆1 banks toward its cost
+      if(card.type!=='creature'&&card.type!=='building')return bad(m.q,'card');
+      if(manaTotal('foe')<1)return bad(m.q,'mana');
+      payAny('foe',1);
       G.P.foe.hand.splice(idx,1);
       const ctype=card.type;
       const cdata=ctype==='building'?{nm:card.nm,c:card.c,h:card.h,eff:card.eff,val:card.val,sup:card.sup,ic:card.ic,art:card.art}:{nm:card.nm,a:card.a,h:card.h,c:card.c,fs:card.fs,up:card.up,art:card.art,
         kw:card.kw,det:card.det,ward:card.ward,wardhp:card.wardhp,reap:card.reap,grow:card.grow,hatch:card.hatch,into:card.into,entrench:card.entrench,tribe:card.tribe,subtype:card.subtype};
-      arr[slot]={kind:'charge',owner:'foe',w:which,ctype,card:cdata,inv:0,setTurn:G.turnNo};
-      log('<span class="e">Opponent sets a face-down card.</span>','e');
+      arr[slot]={kind:'charge',owner:'foe',w:which,ctype,card:cdata,inv:1,setTurn:G.turnNo};
+      log('<span class="e">Opponent sets a face-down card (◆1 banked on it).</span>','e');
     }
     afterDeploy('foe'); render(); checkWin(); }
 
@@ -5872,7 +6083,8 @@ const MPAPPLY=(function(){
 
   function dispatch(m){ chain=chain.then(async()=>{ switch(m.a){
       case 'harvest':harvest(m);break;    case 'harvestRow':harvestRowI(m);break;
-      case 'sac':sac(m);break;            case 'draw':draw(m);break;
+      case 'sac':sac(m);break;            case 'pay':pay(m);break;
+      case 'draw':draw(m);break;
       case 'move':move(m);break;          case 'place':await placeI(m);break;
       case 'pour':pour(m);break;          case 'flip':flipI(m);break;
       case 'sendmana':sendMana(m);break;  case 'cast':cast(m);break;
@@ -5909,6 +6121,12 @@ const MPAPPLY=(function(){
   window.upkeepSac=function(key,i){ const o=rowArr(key)&&rowArr(key)[+i]; const s=guestTurn()&&G.upkeep&&o&&o.owner==='you';
     _upkeepSac(key,i);
     if(s&&rowArr(key)[+i]!==o)MP.intent({a:'sac',k:K(key),i:+i}); };
+
+  // --- upkeep pay (window.upkeepPay; success = the creature marked paid)
+  const _upkeepPay=window.upkeepPay;
+  window.upkeepPay=function(key,i){ const o=rowArr(key)&&rowArr(key)[+i]; const s=guestTurn()&&G.upkeep&&o&&o.owner==='you'&&!o.paid;
+    _upkeepPay(key,i);
+    if(s&&o.paid)MP.intent({a:'pay',k:K(key),i:+i}); };
 
   // --- hand plays (place L3364, FX-wrapped L4703; success = hand shrank). `w` is owner-relative: no mapping.
   const _placeMP=place;
@@ -6105,7 +6323,7 @@ async function mpGuestDecide(m){                                   // respWindow
     const attacker=rowArr(aKey)[aCol]||{nm:'Enemy',a:0,h:0};
     const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);         // same call foeTurn makes when the AI attacked (L4166)
     if(!elig.length){MPNET.send({t:'resp',id:m.id,refs:[]});return;}
-    const blk=await askBlock({attacker,elig,title:'Incoming Attack',
+    const blk=await askBlock({attacker,elig,title:'Incoming Attack',ms:20000,   // deadline < host's 25s askGuest auto-pass so a real block is never silently dropped
       desc:`${attacker.nm} (⚔${attacker.a}/♥${attacker.h}) strikes from ${rowName(aKey)}.`});
     const refs=blk.map(r=>{ if(r.i!=null)return {k:MPMAP.k(r.key),i:r.i};      // cell blocker
         const which=whichForKey('you',r.key); const pi=minPool('you',which).indexOf(r.c);
@@ -6143,6 +6361,7 @@ MPNET.onMsg=m=>{ try{ switch(m.t){
 } }catch(e){ console.warn('MP msg',e); } };
 
 MPNET.onOpen=()=>{
+  clearTimeout(MP._linkT); try{MPSIG.stop();}catch(e){} mpAutoBusy(false);   // rendezvous done — the link is live
   MPNET.send({t:'hello',proto:MPNET.PROTO,role:MP.role});
   clearInterval(MP._ping); MP._lastPong=Date.now();
   MP._ping=setInterval(()=>{ if(!MPNET.active)return;
@@ -6177,8 +6396,7 @@ function mpDeckPicked(sel){
   else cc=sel.cc;
   MP.myPick={cc,deck}; MP.pickingDeck=false;
   MPNET.send({t:'deck',cc,deck});
-  showScreen('mpLobby'); $('mpModeRow').style.display='none';
-  $('mpHostCard').style.display='none'; $('mpJoinCard').style.display='none';
+  showScreen('mpLobby'); $('mpModeRow').style.display='none'; mpAutoBusy(true);
   MP.status('Deck locked — waiting for opponent…');
   if(MP.role==='host'&&MP.peerPick)mpStartMatch();
 }
@@ -6210,12 +6428,67 @@ function mpGuestStart(m){                                          // GUEST: loc
 }
 
 /* --- lobby buttons --- */
-window.menuMultiplayer=function(){ MP.reset(); showScreen('mpLobby'); MP.status('idle');
-  $('mpModeRow').style.display='flex'; $('mpHostCard').style.display='none'; $('mpJoinCard').style.display='none'; };
-window.mpShowHost=function(){ MP.role='host'; $('mpHostCard').style.display='block'; $('mpJoinCard').style.display='none'; MP.status('Enter a password, then create your code.'); };
-window.mpShowJoin=function(){ MP.role='guest'; $('mpJoinCard').style.display='block'; $('mpHostCard').style.display='none'; MP.status('Paste the host code and the password.'); };
+window.menuMultiplayer=function(){ MP.reset(); showScreen('mpLobby');
+  $('mpModeRow').style.display='flex'; mpAutoBusy(false);
+  MP.status('Enter your shared password, then Host or Join.'); };
+function mpAutoBusy(b){ ['mpHostBtn','mpJoinBtn'].forEach(id=>{const e=$(id); if(e)e.disabled=!!b;}); }
+function mpWatchLink(){ clearTimeout(MP._linkT);                    // codes traded — now the P2P link itself must open
+  MP._linkT=setTimeout(()=>{ if(!MPNET.active){
+    MP.status('Found each other, but no direct link formed — some routers block P2P. Both retry; if it persists, try a phone hotspot or the manual codes below.');
+    mpAutoBusy(false); } },25000); }
+/* password-only HOST: seal an offer, post it on the password channel, link up on the first valid answer */
+window.mpAutoHost=async function(){
+  const pass=($('mpPass').value||'').trim();
+  if(!pass){ MP.status('Pick a password first — any word you both agree on.'); return; }
+  MP.role='host'; mpAutoBusy(true); MPSIG.stop();
+  try{
+    MP.status('Opening your table…');
+    const code=await MPNET.hostOffer(pass);
+    const tH=await MPSIG.topic(pass,'h'), tG=await MPSIG.topic(pass,'g');
+    await MPSIG.publish(tH,code);
+    MP.status('Table open — waiting for your friend to tap Join… (keep this screen up)');
+    let linked=false;
+    MPSIG.listen(tG,async ans=>{ if(linked)return;
+      try{ await MPNET.hostAccept(ans,pass); linked=true; MPSIG.stop(); MP.status('Friend found — linking…'); mpWatchLink(); }
+      catch(_){ /* stale or wrong-password answer — keep waiting */ }
+    });
+    MPSIG.deadline(()=>{ if(!MPNET.active&&!linked){ MPSIG.stop(); MP.status('No one joined — tap Host to open the table again.'); mpAutoBusy(false); } },300000);
+  }catch(e){ MPSIG.stop(); mpAutoBusy(false);
+    MP.status('Could not reach the relay ('+e.message+') — use Manual connect below.'); }
+};
+/* password-only JOIN: fetch the newest offer on the password channel, answer it automatically */
+window.mpAutoJoin=async function(){
+  const pass=($('mpPass').value||'').trim();
+  if(!pass){ MP.status('Enter the shared password first.'); return; }
+  MP.role='guest'; mpAutoBusy(true); MPSIG.stop();
+  const answerTo=async off=>{
+    try{
+      const ans=await MPNET.joinWithOffer(off,pass);
+      MP.status('Table found — answering…');
+      const tG=await MPSIG.topic(pass,'g');
+      await MPSIG.publish(tG,ans);
+      MP.status('Answer sent — linking…'); mpWatchLink();
+      return true;
+    }catch(e){
+      if(e&&e.message==='Wrong password'){ MP.status('Found a table, but the password does not match — check it with your friend.'); mpAutoBusy(false); MPSIG.stop(); return true; }
+      MP.status('Join failed: '+(e&&e.message||e)); mpAutoBusy(false); MPSIG.stop(); return true;
+    }
+  };
+  try{
+    MP.status('Looking for your friend’s table…');
+    const tH=await MPSIG.topic(pass,'h');
+    const off=await MPSIG.recent(tH,'15m');
+    if(off){ await answerTo(off); return; }
+    MP.status('No table yet — waiting for your friend to tap Host… (keep this screen up)');
+    let took=false;
+    MPSIG.listen(tH,async o=>{ if(took)return; took=true; MPSIG.stop(); await answerTo(o); });
+    MPSIG.deadline(()=>{ if(!MPNET.active&&!took){ MPSIG.stop(); MP.status('No table appeared — ask your friend to tap Host, then Join again.'); mpAutoBusy(false); } },300000);
+  }catch(e){ MPSIG.stop(); mpAutoBusy(false);
+    MP.status('Could not reach the relay ('+e.message+') — use Manual connect below.'); }
+};
 window.mpHostCreate=async function(){ const pass=$('mpHostPass').value;
   if(!pass){MP.status('Pick a password first.');return;}
+  MP.role='host'; MPSIG.stop(); mpAutoBusy(false);
   try{ MP.status('Gathering network candidates…'); $('mpMakeBtn').disabled=true;
     const code=await MPNET.hostOffer(pass);
     $('mpHostCode').value=code; MP.status('Code ready ('+code.length+' chars) — send it, then paste their answer.');
@@ -6223,7 +6496,7 @@ window.mpHostCreate=async function(){ const pass=$('mpHostPass').value;
 window.mpHostConnect=async function(){ try{ MP.status('Connecting…');
     await MPNET.hostAccept($('mpAnswerIn').value,$('mpHostPass').value);
   }catch(e){ MP.status(e.message); } };
-window.mpJoin=async function(){ try{ MP.status('Building answer…');
+window.mpJoin=async function(){ try{ MP.role='guest'; MPSIG.stop(); mpAutoBusy(false); MP.status('Building answer…');
     const code=await MPNET.joinWithOffer($('mpOfferIn').value,$('mpJoinPass').value);
     $('mpAnswerOut').value=code; MP.status('Answer ready ('+code.length+' chars) — send it back to the host and wait.');
   }catch(e){ MP.status(e.message); } };
@@ -6232,11 +6505,9 @@ window.mpCopy=function(id){ const el=$(id); el.select(); el.setSelectionRange(0,
 window.mpCancel=function(){ MP.reset(); showMainMenu(); };
 function mpShowDrop(why){ const d=$('mpDrop'); $('mpDropWhy').textContent=why+' You can mint fresh codes (same password) and resume — the host state carries the whole game.';
   d.style.display='flex';
-  $('mpDropRetry').onclick=()=>{ d.style.display='none'; MP.resume=(MP.role==='host'); MP.softReset(); showScreen('mpLobby');
-    $('mpModeRow').style.display='none';
-    $(MP.role==='host'?'mpHostCard':'mpJoinCard').style.display='block';
-    $(MP.role==='host'?'mpJoinCard':'mpHostCard').style.display='none';
-    MP.status(MP.role==='host'?'Create a NEW host code and send it over.':'Paste the host\'s NEW code.'); };
+  $('mpDropRetry').onclick=()=>{ d.style.display='none'; MP.resume=(MP.role==='host'); const wasStarted=MP.started; MP.softReset(); MP.started=wasStarted; showScreen('mpLobby');
+    $('mpModeRow').style.display='flex'; mpAutoBusy(false);
+    MP.status(MP.role==='host'?'Same password — tap Host again; the duel resumes when your friend re-joins.':'Same password — wait for the host to re-host, then tap Join.'); };
   $('mpDropQuit').onclick=()=>{ d.style.display='none'; MP.reset(); if(!G.over&&MP.started)MP.gameOverLocal(false); showMainMenu(); };
 }
 /* --- emotes (optional, tiny) --- */
