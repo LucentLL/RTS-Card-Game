@@ -35,7 +35,13 @@
     --ease-pop:cubic-bezier(.22,.9,.3,1); --panel-r:14px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;height:100%;overflow:hidden;}
+  /* the game is a tap surface, not a document: kill native text selection so a long-press / drag
+     never selects card text (which on mobile pops Android's "search this word" bar) and a PC drag
+     never highlights the UI — this also frees a click-drag to become RTS marquee selection.       */
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  /* inputs still need real selection + the OS caret (MP connect codes, password, deck name) */
+  input,textarea{-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;user-select:text;-webkit-touch-callout:default;}
   body{
     font-family:'EB Garamond',Georgia,serif; color:var(--ink);
     background:
@@ -936,6 +942,11 @@
   .dragghost .inspect,.dragghost .spritewrap{display:none;}
   body.dragging{cursor:grabbing;}
   .cell.draghover{outline:2px solid var(--gold);outline-offset:-2px;border-radius:8px;}
+  /* RTS marquee (PC): drag a box over your ready creatures to select the attack group */
+  .marquee{position:fixed;z-index:9998;pointer-events:none;border:1.5px solid rgba(120,220,150,.95);
+    background:rgba(120,220,150,.16);border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4),inset 0 0 12px rgba(120,220,150,.25);}
+  .cell.marqhi{outline:2px solid rgba(120,220,150,.95);outline-offset:-2px;border-radius:8px;box-shadow:0 0 14px rgba(120,220,150,.4);}
+  body.marqueeing{cursor:crosshair;}
   /* diorama: the field lies in perspective but creature figures STAND upright (billboard) like
      standees on a tilted board (DS-Yu-Gi-Oh look). Keep a 3D context all the way down to the
      sprite so it can pop out of the board plane, then cancel the tilt on the figure itself. */
@@ -1479,7 +1490,7 @@
       <p><b>Workers &amp; the upkeep.</b> Each row's <b>worker number</b> is the running total of the worker stats of the cards in it — structures <b>add</b> (a Barracks might be ⚒+3), monsters <b>subtract</b> their upkeep (a Dragon ⚒−2). At <b>Upkeep</b> you may reposition creatures (this uses their move for the turn; a second forced move also <b>taps</b> them), then press <b>⛏ Harvest</b> — every settled worker extracts <b>automatically</b> (<b>◆1 each, the same in every row</b>) straight into your mana pool. A row gone <b>negative</b> (or an army camped in the <b>enemy front</b>, which nothing supports) must be settled first, creature by creature: <b>⤧ Move</b> it back, <b>◆ Pay</b> its keep, or <b>✖ Sacrifice</b> it — <b>⛏ Harvest stays locked</b> until every row is balanced. Your left tower lists each row's worker count, stacked to match the board.</p>
       <p><b>Mana.</b> Harvesting yields <b>generic ◆</b> — one pool, no colors. Every card costs only its <b>◆ number</b>, whatever its element. <b>Element</b> (Fire, Water, Forest…) is a <b>synergy attribute</b> only, like a Yu-Gi-Oh attribute: it drives card theming and elemental keyword effects, not what mana you need. <i>Mana persists between turns — it keeps building until you spend it (or spend it keeping over-extended lines fed).</i></p>
       <p><b>Face-downs &amp; banking.</b> Setting a card costs <b>◆1</b>, placed onto the card (it counts toward funding — no free hand-dumping). Pour more mana into it across turns; when fully funded it flips (surplus banks on the card, visible to all). A face-down attacked mid-funding is interrupted and destroyed with its invested mana. Face-down a full turn? It flips with haste.</p>
-      <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group), then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
+      <p><b>Attack — alone or as a group.</b> Tap ready creatures (same row to group) — <i>or on PC, drag a selection box over them like an RTS</i> — then tap an enemy unit, structure, face-down, worker stack, or the command center itself. The defender answers a traveling strike with interceptors from any row it crosses. Combat is <b>simultaneous</b> (First Strike aside) with <b>no spillover</b>.</p>
       <p><b>Note:</b> a prototype. Open questions, deliberately parked: the exact colored-cost rule (currently 1 pip + any remainder), storage structures that convert colors, a <i>Ranged</i> keyword, and the soldier-production model.</p>
       <button class="pclose" onclick="toggleRules(false)">Close</button>
     </div>
@@ -5505,6 +5516,36 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
         drag={kind:'board', k, i, src:cell, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId};
       }
     }
+    // RTS marquee (mouse/pen only): begin a selection box from empty board ground during the
+    // action phase — sweep it over your ready creatures to pick the attack group. Touch keeps tap-select.
+    if(!drag && e.pointerType!=='touch' && G.phase==='action' && !G.moveFrom && !(G.sel&&G.sel.kind==='hand')
+       && e.target.closest('.mat') && !e.target.closest('.hc') && !e.target.closest('.wkslot') && !e.target.closest('#cardActions')){
+      drag={kind:'marquee', x0:e.clientX, y0:e.clientY, cx:e.clientX, cy:e.clientY, on:false, pid:e.pointerId};
+    }
+  }
+  // ---- marquee helpers ----
+  function ownReadyCells(){ const out=[];
+    document.querySelectorAll('.cell[data-key]').forEach(cl=>{ const k=cl.dataset.key,i=+cl.dataset.slot;
+      const arr=rowArr(k), o=arr?arr[i]:null;
+      if(o&&o.kind==='creature'&&o.owner==='you'&&!o.worker&&!o.sick&&!o.tapped) out.push({k,i,el:cl,r:cl.getBoundingClientRect()});
+    }); return out; }
+  function marqRect(){ const x=Math.min(drag.x0,drag.cx),y=Math.min(drag.y0,drag.cy);
+    return {left:x,top:y,right:Math.max(drag.x0,drag.cx),bottom:Math.max(drag.y0,drag.cy)}; }
+  function rectsHit(a,b){ return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top; }
+  function clearMarqHi(){ document.querySelectorAll('.cell.marqhi').forEach(c=>c.classList.remove('marqhi')); }
+  function updateMarquee(x,y){ drag.cx=x; drag.cy=y; const R=marqRect(); const b=drag.box;
+    b.style.left=R.left+'px'; b.style.top=R.top+'px'; b.style.width=(R.right-R.left)+'px'; b.style.height=(R.bottom-R.top)+'px';
+    clearMarqHi(); ownReadyCells().forEach(c=>{ if(rectsHit(c.r,R)) c.el.classList.add('marqhi'); }); }
+  function finishMarquee(){ const R=marqRect();
+    const hits=ownReadyCells().filter(c=>rectsHit(c.r,R));
+    if(!hits.length){ if(G.atk.length){ G.atk=[]; G.cardMenu=null; if(typeof defaultHint==='function')defaultHint(); render(); } return; }
+    const byRow={}; hits.forEach(c=>{ (byRow[c.k]=byRow[c.k]||[]).push(c); });   // attackers must share a row → keep the fullest
+    let bestK=null,bestN=-1; for(const k in byRow){ if(byRow[k].length>bestN){bestN=byRow[k].length;bestK=k;} }
+    G.atk=byRow[bestK].map(c=>({k:c.k,i:c.i})); G.cardMenu=null; G.sel=null; G.moveFrom=null; G.minSel=null;
+    if(typeof setHint==='function') setHint(G.atk.length===1
+      ? '<b>1</b> ready — strike a foe, or use an action above the card.'
+      : `<b>${G.atk.length}</b> ready — tap an enemy unit, structure, or open back-row column to strike.`);
+    render();
   }
   function startDrag(){
     if(drag.kind==='hand'){
@@ -5518,6 +5559,10 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
       grabCapture();                                            // keep the gesture alive through the re-render below (touch)
       G.sel={kind:'hand',idx:drag.idx,mode}; G.cardMenu=null; G.atk=[]; G.moveFrom=null; G.minSel=null;
       render();                                                 // lights the legal target slots
+    } else if(drag.kind==='marquee'){
+      drag.on=true; document.body.classList.add('marqueeing');
+      drag.box=document.createElement('div'); drag.box.className='marquee'; document.body.appendChild(drag.box);
+      grabCapture(); updateMarquee(drag.cx,drag.cy);
     } else {
       drag.on=true; drag.ghost=makeGhost(); document.body.classList.add('dragging');
       grabCapture();                                            // keep the gesture alive through startMove's re-render (touch)
@@ -5541,9 +5586,14 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   function end(e,aborted){
     const pid=drag&&drag.pid;
     if(drag && drag.on){
-      drag.ghost&&drag.ghost.remove(); document.body.classList.remove('dragging'); clearHover();
-      let ok=false; try{ if(!aborted&&e) ok=dropOn(e); }catch(_){ ok=false; }
-      if(!ok) cancelSel();
+      if(drag.kind==='marquee'){
+        drag.box&&drag.box.remove(); document.body.classList.remove('marqueeing'); clearMarqHi();
+        if(!aborted) finishMarquee();
+      } else {
+        drag.ghost&&drag.ghost.remove(); document.body.classList.remove('dragging'); clearHover();
+        let ok=false; try{ if(!aborted&&e) ok=dropOn(e); }catch(_){ ok=false; }
+        if(!ok) cancelSel();
+      }
       justDragged=true;                                         // suppress the click this pointer sequence emits
     }
     drag=null; dropCapture(pid);
@@ -5555,6 +5605,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     if(!drag.on){ const th=(e.pointerType==='touch')?15:TH; if(Math.abs(e.clientX-drag.x0)+Math.abs(e.clientY-drag.y0)>th) startDrag(); else return; }  // higher threshold on touch so a tap (to select/attack) isn't read as a drag-to-move
     if(!drag||!drag.on) return;                                 // startDrag may have aborted (unaffordable) → drag is null
     e.preventDefault();
+    if(drag.kind==='marquee'){ updateMarquee(e.clientX,e.clientY); return; }
     drag.ghost.style.left=e.clientX+'px'; drag.ghost.style.top=e.clientY+'px';
     clearHover(); const c=cellUnder(e.clientX,e.clientY);
     if(c&&(c.classList.contains('tappable')||c.classList.contains('target'))) c.classList.add('draghover');
