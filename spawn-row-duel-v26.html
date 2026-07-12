@@ -42,6 +42,10 @@
     -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-touch-callout:none;}
   /* inputs still need real selection + the OS caret (MP connect codes, password, deck name) */
   input,textarea{-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;user-select:text;-webkit-touch-callout:default;}
+  /* card art is <img>: without this a PC click-drag "picks up" a ghost copy of the picture
+     (looks like highlighting). Kill native element dragging + make any stray selection invisible. */
+  img,svg,a,canvas{-webkit-user-drag:none;-khtml-user-drag:none;-moz-user-drag:none;user-drag:none;}
+  ::selection{background:transparent;} ::-moz-selection{background:transparent;}
   body{
     font-family:'EB Garamond',Georgia,serif; color:var(--ink);
     background:
@@ -4661,6 +4665,11 @@ const SFX=(()=>{ let ctx=null,master=null,muted=false;
 })();
 document.addEventListener('pointerdown',()=>SFX.unlock(),true);
 document.addEventListener('click',e=>{ if(e.target&&e.target.closest&&e.target.closest('button'))SFX.click(); },true);
+// PC anti-highlight backstop: kill the browser's native drag ghost (card art is <img>, so a drag
+// otherwise "picks up" a translucent copy of the picture) and any stray text selection — except
+// inside real inputs (MP codes, password, deck name), which still need the caret + selection.
+document.addEventListener('dragstart',e=>e.preventDefault(),true);
+document.addEventListener('selectstart',e=>{ if(!(e.target&&e.target.closest&&e.target.closest('input,textarea')))e.preventDefault(); },true);
 
 /* ---------- FX: overlay engine — flights, arrows, popups, ribbons, splashes ---------- */
 const FX=(()=>{
