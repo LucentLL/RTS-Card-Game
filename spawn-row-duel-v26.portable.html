@@ -537,9 +537,14 @@
     transform:translateX(-50%);will-change:transform;}
   .hc{position:relative;width:var(--hcw);height:var(--peek);flex:none;padding:0;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
     --ec:#6a6a78;
+    /* faint greyscale paper grain reused by the banner + ability box so the card doesn't read flat */
+    --paper:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.5'/%3E%3C/svg%3E");
     border:2px solid #0b0a0e;border-radius:10px 10px 7px 7px;
     transform-origin:50% 100%;transition:height .18s ease,transform .14s ease;
-    box-shadow:inset 0 0 0 2px var(--ec),inset 0 0 0 3px rgba(0,0,0,.5),0 -2px 8px rgba(0,0,0,.45),0 4px 12px rgba(0,0,0,.55);}
+    /* beveled metal frame: colored ring + top highlight + bottom shade for a crafted, non-flat edge */
+    box-shadow:inset 0 0 0 2px var(--ec),inset 0 0 0 3.5px rgba(0,0,0,.55),
+      inset 0 1.5px 1px rgba(255,255,255,.3),inset 0 -4px 9px rgba(0,0,0,.4),
+      0 -2px 8px rgba(0,0,0,.45),0 5px 14px rgba(0,0,0,.6);}
   .hc .hcbody{display:none;}
   .hand:hover .hc,.hand:focus-within .hc,.hand:has(.hc.selected) .hc{height:var(--hch);}
   .hand:hover .hc .hcbody,.hand:has(.hc.selected) .hc .hcbody,.hc.selected .hcbody{display:flex;}
@@ -549,15 +554,19 @@
     box-shadow:inset 0 0 0 2px var(--ec),inset 0 0 0 3px rgba(0,0,0,.5),0 0 26px rgba(217,176,74,.55);}
   /* top frame band = the DM name banner (doubles as the resting peek strip):
      round civ-colored COST circle · NAME centered on an ivory plate · RACE line beneath in civ color */
-  .hc .hchead{flex:none;display:flex;align-items:center;gap:5px;height:var(--peek);padding:2px 7px 2px 4px;
-    background:linear-gradient(180deg,#f8f3e6,#e4ddc8 62%,#cfc7ae);
-    border-bottom:1px solid rgba(0,0,0,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 1px 0 var(--ec);
+  .hc .hchead{flex:none;display:flex;align-items:center;gap:4px;height:var(--peek);padding:2px 7px 2px 4px;
+    background:var(--paper),linear-gradient(180deg,#f8f3e6,#e4ddc8 62%,#cfc7ae);
+    background-size:140px 140px,auto;background-blend-mode:multiply,normal;
+    border-bottom:1px solid var(--ec);box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 -2px 3px rgba(120,90,40,.14),0 1px 0 rgba(0,0,0,.35);
     border-radius:6px 6px 0 0;}
   .hc .hchead .cost{flex:none;width:clamp(18px,calc(var(--peek)*.6),30px);height:clamp(18px,calc(var(--peek)*.6),30px);
     display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;
     font-size:clamp(10px,calc(var(--peek)*.32),16px);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 2px #000;
     background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--ec) 45%,#fff 55%),var(--ec) 58%,color-mix(in srgb,var(--ec) 55%,#000 45%));
-    border-radius:50%;border:2px solid #0b0a0e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);}   /* matches .dbcard-cost (deck builder) */
+    border-radius:50%;border:2px solid #0b0a0e;box-shadow:inset 0 1px 1px rgba(255,255,255,.45),inset 0 -2px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.5);}   /* matches .dbcard-cost (deck builder) */
+  /* element gem rides right beside the cost circle (a cost+element cluster on the left of the banner) */
+  .hc .hchead .costgem{flex:none;display:inline-flex;align-items:center;margin:0 1px 0 -1px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));}
+  .hc .hchead .costgem svg{width:clamp(13px,calc(var(--peek)*.46),22px);height:clamp(13px,calc(var(--peek)*.46),22px);display:block;}
   .hc .hchead .nmw{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
   .hc .hchead .nm{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(9px,calc(var(--hcw)*.115),14px);text-align:center;line-height:1.05;
     color:#1a140a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
@@ -567,6 +576,9 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .hand:hover .hc .tl,.hand:has(.hc.selected) .hc .tl,.hc.selected .tl{display:block;}
   .hc .hcbody{flex:1;min-height:0;flex-direction:column;gap:2px;padding:5px 7px 5px;} /* display toggled by the resting/hover rules above; padding = the visible colored frame margin */
+  /* art is the DOMINANT panel (DM proportions ~55%), framed in the element color with an inner vignette */
+  .hc .artwin{flex:3.3;margin:1px 0 0;border:1px solid rgba(0,0,0,.65);border-radius:3px;
+    box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ec) 60%,#000 40%),inset 0 0 20px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.5);}
   .hc .artwin.ph{display:flex;align-items:center;justify-content:center;}
   .hc .artwin.ph .bic{font-size:clamp(22px,calc(var(--hcw)*.4),46px);opacity:.82;text-shadow:0 2px 6px rgba(0,0,0,.6);}
   /* card-type plate (DM style): a civ-colored lozenge riding the art/text seam, left-aligned */
@@ -584,9 +596,10 @@
     text-shadow:-1px 0 0 #000,1px 0 0 #000,0 -1px 0 #000,0 1px 0 #000,0 2px 3px rgba(0,0,0,.7);}  /* health lives bottom-RIGHT (replaces DM's set-info corner) */
   .hc .stats .mid{display:inline-flex;align-items:center;gap:2px;min-width:0;overflow:hidden;}
   /* ability box (DM style): white plate with a faint civ watermark; holds keywords / spell text */
-  .hc .rules{flex:1;min-height:12%;font-style:normal;font-family:'EB Garamond',serif;font-size:clamp(8px,calc(var(--hcw)*.10),12px);line-height:1.25;color:#241c10;
-    background:radial-gradient(closest-side at 50% 58%,color-mix(in srgb,var(--ec) 15%,transparent),transparent 74%),linear-gradient(180deg,#f6f1e3,#e7e0cb);
-    border:1px solid rgba(0,0,0,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);border-radius:6px;padding:3px 5px;
+  .hc .rules{flex:0.95;min-height:0;font-style:normal;font-family:'EB Garamond',serif;font-size:clamp(8px,calc(var(--hcw)*.10),12px);line-height:1.25;color:#241c10;
+    background:var(--paper),radial-gradient(closest-side at 50% 58%,color-mix(in srgb,var(--ec) 18%,transparent),transparent 74%),linear-gradient(180deg,#f6f1e3,#e7e0cb);
+    background-size:140px 140px,auto,auto;background-blend-mode:multiply,normal,normal;
+    border:1px solid rgba(0,0,0,.6);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 1px 2px rgba(255,255,255,.5),inset 0 -3px 5px rgba(120,90,40,.12);border-radius:6px;padding:3px 5px;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
   .hc .rules b{color:#3a2508;} .hc .rules .eff{color:#241c10;} .hc .rules i{color:#5a4a2e;}
   /* full-size DM frame for the inspect panel (hover / tap) — same chrome as the hand cards, scaled up */
@@ -3327,17 +3340,18 @@ function renderHand(){
     const isB=card.type==='building'; const isS=card.type==='spell';
     d.className=`hc ${isB?'hcb':isS?'hcs':clsOf[card.color]}`+(G.sel&&G.sel.kind==='hand'&&G.sel.idx===i?' selected':'');
     const tl=isS?(card.trap?'Trap':'Spell'):isB?'Structure':(typeLine(card)||'Creature');
-    const head=`<div class="hchead"><div class="cost">${card.c}</div><div class="nmw"><div class="nm">${card.nm}</div><div class="tl">${tl}</div></div></div>`;
+    const gem=card.color?`<span class="costgem">${elemGem(card.color,16)}</span>`:'';   // element rides beside the cost
+    const head=`<div class="hchead"><div class="cost">${card.c}</div>${gem}<div class="nmw"><div class="nm">${card.nm}</div><div class="tl">${tl}</div></div></div>`;
     const art=card.art?`<div class="artwin">${cardArtImg(card)}</div>`
                       :`<div class="artwin ph"><span class="bic">${isS?(card.trap?'⚠':'✦'):isB?(card.ic||'⌂'):'⚔'}</span></div>`;
     const ribbon=`<div class="ribbon">${isS?(card.trap?'⚠ TRAP':'✦ SPELL'):isB?'STRUCTURE':'CREATURE'}</div>`;
     const wd=isB?(card.sup?`<span class="cap plus">⚒+${card.sup}</span>`:'')
               :(!isS&&card.up?`<span class="cap neg">⚒-${card.up}</span>`:'');
-    // DM layout: art → type plate → white ability box → footer (power left · gem center · ♥ right)
+    // DM layout: art → type plate → white ability box → footer (power left · ⚒chip center · ♥ right)
     const rules=`<div class="rules">${abilityBrief(card)}</div>`;
     const stats=isS
-      ?`<div class="stats"><span class="atk"></span><span class="mid"><span class="ebw">${elemGem(card.color,16)}</span></span><span class="hp"></span></div>`
-      :`<div class="stats">${isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>`:`<span class="atk">${card.a}</span>`}<span class="mid"><span class="ebw">${elemGem(card.color,16)}</span>${wd}</span><span class="hp">♥${card.h}</span></div>`;
+      ?`<div class="stats"><span class="atk"></span><span class="mid"></span><span class="hp"></span></div>`
+      :`<div class="stats">${isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>`:`<span class="atk">${card.a}</span>`}<span class="mid">${wd}</span><span class="hp">♥${card.h}</span></div>`;
     d.innerHTML=`${head}<div class="hcbody">${art}${ribbon}${rules}${stats}</div>`;
     if(G.turn==='you'&&!G.busy&&!G.over)d.addEventListener('click',()=>onHand(i));
     addInspect(d,()=>inspectHand(i));
@@ -4518,9 +4532,10 @@ function inspCardHTML(c,opts){
              :(!isS&&c.up?`<span class="cap neg">⚒-${c.up}</span>`:'');
   const pow=isS?'<span class="atk"></span>':isB?`<span class="eff">${c.eff==='mana'?('◆+'+(c.val||0)):'⚒'}</span>`:`<span class="atk">${c.a!=null?c.a:''}</span>`;
   const hp=isS?'<span class="hp"></span>':`<span class="hp">♥${opts.hp!=null?opts.hp:c.h}</span>`;
-  return `<div class="hc big ${cls}"><div class="hchead"><div class="cost">${c.c!=null?c.c:''}</div><div class="nmw"><div class="nm">${c.nm}</div><div class="tl">${tl}</div></div></div>`+
+  const gem=c.color?`<span class="costgem">${elemGem(c.color,18)}</span>`:'';   // element beside the cost
+  return `<div class="hc big ${cls}"><div class="hchead"><div class="cost">${c.c!=null?c.c:''}</div>${gem}<div class="nmw"><div class="nm">${c.nm}</div><div class="tl">${tl}</div></div></div>`+
     `<div class="hcbody">${art}<div class="ribbon">${rib}</div><div class="rules">${rules}</div>`+
-    `<div class="stats">${pow}<span class="mid"><span class="ebw">${elemGem(c.color,18)}</span>${wd}</span>${hp}</div></div></div>`;
+    `<div class="stats">${pow}<span class="mid">${wd}</span>${hp}</div></div></div>`;
 }
 function showInspectCard(html,extra){
   const vp=$('viewerPanel'); const box=vp.querySelector('.box');
