@@ -537,38 +537,59 @@
   .hc:hover{transform:translateY(-8%) scale(1.1);z-index:55!important;overflow:visible;}
   .hc.selected{z-index:56!important;overflow:visible;outline:2px solid var(--gold);
     box-shadow:inset 0 0 0 2px var(--ec),inset 0 0 0 3px rgba(0,0,0,.5),0 0 26px rgba(217,176,74,.55);}
-  /* top frame band = the resting peek strip: cost gem + name + race/type line */
+  /* top frame band = the DM name banner (doubles as the resting peek strip):
+     round civ-colored COST circle · NAME centered on an ivory plate · RACE line beneath in civ color */
   .hc .hchead{flex:none;display:flex;align-items:center;gap:5px;height:var(--peek);padding:2px 7px 2px 4px;
-    background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.02) 45%,rgba(0,0,0,.25));
-    border-bottom:1px solid rgba(0,0,0,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 1px 0 var(--ec);}
-  .hc .hchead .cost{flex:none;width:clamp(17px,calc(var(--peek)*.52),27px);height:clamp(17px,calc(var(--peek)*.52),27px);
+    background:linear-gradient(180deg,#f8f3e6,#e4ddc8 62%,#cfc7ae);
+    border-bottom:1px solid rgba(0,0,0,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 1px 0 var(--ec);
+    border-radius:6px 6px 0 0;}
+  .hc .hchead .cost{flex:none;width:clamp(18px,calc(var(--peek)*.6),30px);height:clamp(18px,calc(var(--peek)*.6),30px);
     display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;
-    font-size:clamp(10px,calc(var(--peek)*.3),15px);color:#04121a;text-shadow:0 1px 0 rgba(255,255,255,.35);
-    background:radial-gradient(circle at 35% 28%,#bfeaff,var(--spawn) 58%,#1b6f8f);
-    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);}   /* matches .dbcard-cost (deck builder) */
+    font-size:clamp(10px,calc(var(--peek)*.32),16px);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 2px #000;
+    background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--ec) 45%,#fff 55%),var(--ec) 58%,color-mix(in srgb,var(--ec) 55%,#000 45%));
+    border-radius:50%;border:2px solid #0b0a0e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);}   /* matches .dbcard-cost (deck builder) */
   .hc .hchead .nmw{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
-  .hc .hchead .nm{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(9px,calc(var(--hcw)*.115),14px);text-align:left;line-height:1.05;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-shadow:0 1px 2px #000;}
+  .hc .hchead .nm{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(9px,calc(var(--hcw)*.115),14px);text-align:center;line-height:1.05;
+    color:#1a140a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
   .hc:hover .hchead .nm,.hc.selected .hchead .nm{white-space:normal;overflow:visible;}
-  .hc .hchead .tl{display:none;font-style:italic;font-size:clamp(7px,calc(var(--hcw)*.085),10.5px);color:rgba(255,244,214,.72);
+  .hc .hchead .tl{display:none;font-style:normal;font-weight:700;letter-spacing:.14em;text-transform:uppercase;text-align:center;
+    font-size:clamp(6.5px,calc(var(--hcw)*.08),10px);color:var(--ec);text-shadow:0 0 1px rgba(0,0,0,.3);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .hand:hover .hc .tl,.hand:has(.hc.selected) .hc .tl,.hc.selected .tl{display:block;}
   .hc .hcbody{flex:1;min-height:0;flex-direction:column;gap:2px;padding:5px 7px 5px;} /* display toggled by the resting/hover rules above; padding = the visible colored frame margin */
   .hc .artwin.ph{display:flex;align-items:center;justify-content:center;}
   .hc .artwin.ph .bic{font-size:clamp(22px,calc(var(--hcw)*.4),46px);opacity:.82;text-shadow:0 2px 6px rgba(0,0,0,.6);}
-  .hc .ribbon{flex:none;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.14em;font-size:clamp(6.5px,calc(var(--hcw)*.075),9.5px);
-    color:rgba(255,246,220,.85);text-align:center;padding:1px 3px;white-space:nowrap;overflow:hidden;
-    background:linear-gradient(90deg,transparent,rgba(0,0,0,.4) 14%,rgba(0,0,0,.4) 86%,transparent);
-    border-top:1px solid var(--ec);border-bottom:1px solid rgba(0,0,0,.45);}
+  /* card-type plate (DM style): a civ-colored lozenge riding the art/text seam, left-aligned */
+  .hc .ribbon{flex:none;position:relative;z-index:2;align-self:flex-start;margin:calc(var(--hcw)*-.055) 0 1px 3px;
+    font-family:'Cinzel',serif;font-weight:900;letter-spacing:.13em;font-size:clamp(6.5px,calc(var(--hcw)*.075),9.5px);
+    color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);padding:2px 11px;white-space:nowrap;
+    background:linear-gradient(180deg,color-mix(in srgb,var(--ec) 72%,#fff 28%),color-mix(in srgb,var(--ec) 70%,#000 30%));
+    border:1px solid rgba(0,0,0,.65);border-radius:8px/60%;
+    box-shadow:0 1px 3px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.35);}
   .hc .stats{flex:none;display:flex;justify-content:space-between;align-items:center;gap:2px;padding:0 1px;
     font-family:'Cinzel',serif;font-weight:700;font-size:clamp(10px,calc(var(--hcw)*.125),16px);}
   .hc .stats .atk{flex:none;font-style:italic;font-weight:900;font-size:clamp(12px,calc(var(--hcw)*.20),25px);color:#fff;line-height:1;
     text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 2px 3px rgba(0,0,0,.75);} /* DM power number */
-  .hc .stats .hp{flex:none;color:#ff9a8a;font-size:clamp(8.5px,calc(var(--hcw)*.115),14px);text-shadow:0 1px 2px #000;}
+  .hc .stats .hp{flex:none;color:#ff9a8a;font-weight:900;font-size:clamp(9px,calc(var(--hcw)*.125),15px);
+    text-shadow:-1px 0 0 #000,1px 0 0 #000,0 -1px 0 #000,0 1px 0 #000,0 2px 3px rgba(0,0,0,.7);}  /* health lives bottom-RIGHT (replaces DM's set-info corner) */
   .hc .stats .mid{display:inline-flex;align-items:center;gap:2px;min-width:0;overflow:hidden;}
-  .hc .rules{flex:none;font-style:italic;font-family:'EB Garamond',serif;font-size:clamp(8px,calc(var(--hcw)*.10),12px);line-height:1.25;color:#e8ddc2;
-    background:rgba(0,0,0,.32);border:1px solid rgba(0,0,0,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);border-radius:3px;padding:2px 4px;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  /* ability box (DM style): white plate with a faint civ watermark; holds keywords / spell text */
+  .hc .rules{flex:1;min-height:12%;font-style:normal;font-family:'EB Garamond',serif;font-size:clamp(8px,calc(var(--hcw)*.10),12px);line-height:1.25;color:#241c10;
+    background:radial-gradient(closest-side at 50% 58%,color-mix(in srgb,var(--ec) 15%,transparent),transparent 74%),linear-gradient(180deg,#f6f1e3,#e7e0cb);
+    border:1px solid rgba(0,0,0,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);border-radius:6px;padding:3px 5px;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .hc .rules b{color:#3a2508;} .hc .rules .eff{color:#241c10;} .hc .rules i{color:#5a4a2e;}
+  /* full-size DM frame for the inspect panel (hover / tap) — same chrome as the hand cards, scaled up */
+  .hc.big{--hcw:250px;--peek:40px;width:min(84%,250px);height:auto;aspect-ratio:744/1033;cursor:default;flex:none;margin:0 auto;}
+  .hc.big .hcbody{display:flex;}
+  .hc.big .hchead{height:auto;min-height:var(--peek);padding:4px 8px 3px 5px;}
+  .hc.big .hchead .nm{white-space:normal;overflow:visible;}
+  .hc.big .tl{display:block;}
+  .hc.big .rules{-webkit-line-clamp:unset;display:block;overflow-y:auto;font-size:12.5px;line-height:1.35;padding:5px 8px;}
+  .hc.big:hover{transform:none;z-index:auto;}
+  .icardwrap{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 12px 4px;}
+  .icardwrap .ifund{font-family:'Cinzel',serif;font-size:12.5px;color:var(--ink);text-align:center;}
+  .icardwrap .ichips{margin-top:0;justify-content:center;}
   /* keep the fanned hand in the CENTER span of the castle wall (between the two tower squares);
      cards shrink evenly instead of spilling over the deck/info towers. Phones keep the full width. */
   @media (min-width:700px){
@@ -1186,7 +1207,7 @@
   .dbcard-art{width:100%;aspect-ratio:1/1;background:#0a0a0f;}
   .dbcard-art img{width:100%;height:100%;object-fit:cover;display:block;}
   .dbcard-nm{font-family:'Cinzel',serif;font-weight:700;font-size:10.5px;line-height:1.05;color:var(--ink);padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(180deg,rgba(30,24,40,.25),rgba(8,6,12,.92));box-shadow:inset 0 1px 0 rgba(217,176,74,.14);}
-  .dbcard-cost{position:absolute;top:3px;left:3px;z-index:1;width:19px;height:19px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;font-size:10px;color:#04121a;background:radial-gradient(circle at 35% 28%,#bfeaff,var(--spawn) 58%,#1b6f8f);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);}
+  .dbcard-cost{position:absolute;top:3px;left:3px;z-index:1;width:19px;height:19px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;font-size:10px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9);background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--ec,#4a90c2) 45%,#fff 55%),var(--ec,#4a90c2) 58%,color-mix(in srgb,var(--ec,#4a90c2) 55%,#000 45%));border-radius:50%;border:1px solid #0b0a0e;}
   /* tile bottom bar — the same DM grammar as the hand cards: power / ⚒± chip / ♥, or a spell ribbon */
   .dbcard .stats{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:1px 4px 3px;font-family:'Cinzel',serif;font-weight:700;font-size:10px;background:linear-gradient(180deg,rgba(8,6,12,.9),rgba(8,6,12,.7));}
   .dbcard .stats .atk{font-style:italic;font-weight:900;color:#fff;font-size:12.5px;line-height:1;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
@@ -3297,10 +3318,12 @@ function renderHand(){
     const ribbon=`<div class="ribbon">${isS?(card.trap?'⚠ TRAP':'✦ SPELL'):isB?'STRUCTURE':'CREATURE'}</div>`;
     const wd=isB?(card.sup?`<span class="cap plus">⚒+${card.sup}</span>`:'')
               :(!isS&&card.up?`<span class="cap neg">⚒-${card.up}</span>`:'');
-    const bottom=isS
-      ?`<div class="rules"><span class="eff">${spellText(card)}</span></div>`
+    // DM layout: art → type plate → white ability box → footer (power left · gem center · ♥ right)
+    const rules=`<div class="rules">${abilityBrief(card)}</div>`;
+    const stats=isS
+      ?`<div class="stats"><span class="atk"></span><span class="mid"><span class="ebw">${elemGem(card.color,16)}</span></span><span class="hp"></span></div>`
       :`<div class="stats">${isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>`:`<span class="atk">${card.a}</span>`}<span class="mid"><span class="ebw">${elemGem(card.color,16)}</span>${wd}</span><span class="hp">♥${card.h}</span></div>`;
-    d.innerHTML=`${head}<div class="hcbody">${art}${ribbon}${bottom}</div>`;
+    d.innerHTML=`${head}<div class="hcbody">${art}${ribbon}${rules}${stats}</div>`;
     if(G.turn==='you'&&!G.busy&&!G.over)d.addEventListener('click',()=>onHand(i));
     addInspect(d,()=>inspectHand(i));
     el.appendChild(d);
@@ -3418,6 +3441,28 @@ function spellText(card){
   return 'A spell.';
 }
 function spellRec(card){return {type:'spell',nm:card.nm,c:card.c,trap:!!card.trap,effect:card.effect,val:card.val,ic:card.ic};}
+// short keyword label for the small ability box on hand cards (full text lives on the inspect card)
+function kwName(c){ switch(c&&c.kw){
+  case 'detonate':return 'Detonate '+(c.det||''); case 'undertow':return 'Undertow';
+  case 'entrench':return 'Entrench'; case 'ward':return 'Ward'; case 'reap':return 'Reap '+(c.reap||'');
+  case 'chrysalis':return 'Chrysalis'; case 'scour':return 'Scour'; case 'overcharge':return 'Overcharge';
+} return ''; }
+function abilityBrief(card){
+  if(card.type==='spell'||card.trap) return spellText(card);
+  if(card.type==='building'||card.kind==='building'){ const p=[];
+    if(card.eff==='mana')p.push('<b>Forge.</b> ◆'+(card.val||0)+' each turn');
+    else if(card.eff==='villager')p.push('<b>Longhouse.</b> Trains a worker each turn');
+    else if(card.eff==='damage')p.push('<b>Tower.</b> ⚔'+(card.val||0)+' each turn');
+    else if(card.eff==='wall')p.push('<b>Bulwark.</b> Screens the line');
+    else if(card.eff==='revive')p.push('<b>Reliquary.</b> Recalls the fallen');
+    if(card.sup)p.push('⚒+'+card.sup+' workers');
+    return p.join(' · '); }
+  const p=[];
+  if(card.up)p.push('<b>Upkeep ⚒-'+card.up+'</b>');
+  if(card.fs)p.push('<b>First Strike</b>');
+  const k=kwName(card); if(k)p.push('<b>'+k+'</b>');
+  return p.join(' · ');
+}
 function clearAtk(){G.atk=[];G.cardMenu=null;G.minSel=null;defaultHint();}
 
 function onCell(key,i,o){
@@ -4443,36 +4488,59 @@ function showInspect(title,body){
   vp.style.display='flex';
 }
 function bigArt(card){return (card&&card.nm)?`<div class="iart">${cardArtImg(card,'big')}</div>`:'';}
+// a full-size DM-framed card for the inspect panel — the same chrome classes the hand cards use,
+// scaled up (cost circle · name/race banner · art · type plate · white ability box · power/gem/♥ footer)
+function inspCardHTML(c,opts){
+  opts=opts||{};
+  const isB=(c.type==='building')||(c.kind==='building');
+  const isS=c.type==='spell'||!!c.trap;
+  const cls=isS?'hcs':isB?'hcb':(clsOf[c.color]||'');
+  const tl=opts.tl||(isS?(c.trap?'Trap':'Spell'):isB?'Structure':(typeLine(c)||'Creature'));
+  const rib=isS?(c.trap?'⚠ TRAP':'✦ SPELL'):isB?'STRUCTURE':'CREATURE';
+  const art=c.art?`<div class="artwin">${cardArtImg(c,'big')}</div>`:`<div class="artwin ph"><span class="bic">${isS?(c.trap?'⚠':'✦'):isB?(c.ic||'⌂'):'⚔'}</span></div>`;
+  const rules=(opts.rules!=null?opts.rules:abilityBrief(c))||'';
+  const wd=isB?((c.sup)?`<span class="cap plus">⚒+${c.sup}</span>`:'')
+             :(!isS&&c.up?`<span class="cap neg">⚒-${c.up}</span>`:'');
+  const pow=isS?'<span class="atk"></span>':isB?`<span class="eff">${c.eff==='mana'?('◆+'+(c.val||0)):'⚒'}</span>`:`<span class="atk">${c.a!=null?c.a:''}</span>`;
+  const hp=isS?'<span class="hp"></span>':`<span class="hp">♥${opts.hp!=null?opts.hp:c.h}</span>`;
+  return `<div class="hc big ${cls}"><div class="hchead"><div class="cost">${c.c!=null?c.c:''}</div><div class="nmw"><div class="nm">${c.nm}</div><div class="tl">${tl}</div></div></div>`+
+    `<div class="hcbody">${art}<div class="ribbon">${rib}</div><div class="rules">${rules}</div>`+
+    `<div class="stats">${pow}<span class="mid"><span class="ebw">${elemGem(c.color,18)}</span>${wd}</span>${hp}</div></div></div>`;
+}
+function showInspectCard(html,extra){
+  const vp=$('viewerPanel'); const box=vp.querySelector('.box');
+  const hov=!!window.__hoverInspecting;
+  box.innerHTML=`<div class="icardwrap">${html}${extra||''}</div>${hov?'':'<button class="pclose" onclick="closeViewer()">Close</button>'}`;
+  vp.classList.add('left'); vp.classList.toggle('hover',hov); vp.style.display='flex';
+}
 function inspectRef(owner,which,i){
   const o=cellArr(owner,which)[i]; if(!o)return; const me=owner==='you';
   if(o.kind==='charge'){
     if(!me){ showInspect('Face-down · hidden',
       `Your opponent's set card — its identity is concealed.<br>Banked so far: <b>◆${o.inv}</b> (resources are always public; the card is not).<br>It could be a creature <i>or</i> a structure. <b>Attack it to provoke it:</b> if it's under-funded it's interrupted and destroyed (banked ◆ lost); if it's fully funded it flips up and fights back.`); return; }
     const isB=o.ctype==='building';
-    const stat=isB?`♥${o.card.h}`:`⚔${o.card.a} / ♥${o.card.h}${o.card.fs?' · First Strike':''}`;
-    const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):([o.card.fs?'<b>First Strike.</b> Deals its damage first.':'',kwText(o.card)].filter(Boolean).join('<br>')||'');
+    const eff=isB?bldEffectText(o.card.eff,o.card.val,o.card.sup):([o.card.up?`<b>Upkeep ⚒-${o.card.up}.</b>`:'',o.card.fs?'<b>First Strike.</b> Deals its damage first.':'',kwText(o.card)].filter(Boolean).join('<br>')||'');
     const ready=o.inv>=o.card.c;
-    showInspect(`${o.card.nm} · face-down ${isB?'structure':'creature'}`,
-      `${bigArt(o.card)}Only you can see what this is.<br>${isB?'Raise':'Summon'} cost <b>◆${o.card.c}</b> · banked <b>◆${o.inv}</b>${ready?' ✓ funded':` (◆${o.card.c-o.inv} more to fund)`} · ${stat}<br>${eff}`);
+    showInspectCard(inspCardHTML(Object.assign({type:isB?'building':'creature'},o.card),{rules:eff}),
+      `<div class="ifund">face-down — banked <b>◆${o.inv}</b>${ready?' ✓ funded':` · ◆${o.card.c-o.inv} more to fund`}</div>`);
     return;
   }
   if(o.kind==='trap'){
     if(!me){ showInspect('Face-down · hidden', `Your opponent's set card — concealed. It may be a <b>trap</b>: attacking or summoning into it can spring it. Probe with care.`); return; }
-    showInspect(`${o.card.nm} · Trap (armed)`,
-      `${bigArt(o.card)}${spellText(o.card)}`);
+    showInspectCard(inspCardHTML(Object.assign({type:'spell'},o.card),{rules:spellText(o.card)}),
+      `<div class="ifund">armed — springs on your opponent's turn</div>`);
     return;
   }
   if(o.kind==='building'){
     const bchips=[]; if(o.bank>0)bchips.push(`<span class="ichip gold" title="stored mana">◆${o.bank}</span>`);
-    showInspect(`${o.nm} · Structure`,
-      `${bigArt(o)}<div class="istat"><span class="m">◆${o.c}</span>${o.sup?`<span>⚒+${o.sup}</span>`:''}<span class="h">♥${o.h}/${o.maxh}</span></div>${bldEffectText(o.eff,o.val,o.sup)}${bchips.length?`<div class="ichips">${bchips.join('')}</div>`:''}`);
+    showInspectCard(inspCardHTML(o,{rules:bldEffectText(o.eff,o.val,o.sup),hp:`${o.h}/${o.maxh}`}),
+      bchips.length?`<div class="ichips">${bchips.join('')}</div>`:'');
     return;
   }
-  // creature — DM-style: stat line, ability text only (no reminder prose), status as symbol chips
-  const role=o.worker?'Minion (⚒ worker)':'Creature';
+  // creature — the full DM frame; status is symbol chips under the card, never prose on it
+  if(o.worker){ showInspect('⚒ Worker · Minion','<b>Harvester.</b> Harvests with its row. Blocks; cannot attack.'); return; }
   const abilities=[];
-  if(o.worker) abilities.push('<b>Harvester.</b> Harvests with its row. Blocks; cannot attack.');
-  if(!o.worker&&o.up>0) abilities.push(`<b>Upkeep ⚒-${o.up}.</b>`);
+  if(o.up>0) abilities.push(`<b>Upkeep ⚒-${o.up}.</b>`);
   if(o.fs) abilities.push('<b>First Strike.</b> Deals its damage first.');
   { const kt=kwText(o); if(kt) abilities.push(kt); }
   const chips=[];
@@ -4481,25 +4549,16 @@ function inspectRef(owner,which,i){
   if(o.tapped)chips.push('<span class="ichip" title="has acted — tapped">⟳</span>');
   if(o.bank>0)chips.push(`<span class="ichip gold" title="stored mana">◆${o.bank}</span>`);
   if(which==='center')chips.push('<span class="ichip" title="contesting the center">⚑</span>');
-  showInspect(`${o.nm}${(!o.worker&&typeLine(o))?' · '+typeLine(o):''} · ${role}`,
-    `${bigArt(o)}<div class="istat"><span class="m">◆${o.c}</span><span class="a">⚔${o.a}</span><span class="h">♥${o.h}/${o.maxh}</span></div>${abilities.length?abilities.join('<br>'):''}${chips.length?`<div class="ichips">${chips.join('')}</div>`:''}`);
+  showInspectCard(inspCardHTML(o,{rules:abilities.join('<br>'),hp:`${o.h}/${o.maxh}`}),
+    chips.length?`<div class="ichips">${chips.join('')}</div>`:'');
 }
 function inspectHand(i){
   const c=G.P.you.hand[i]; if(!c)return; const isB=c.type==='building';
-  if(c.type==='spell'){
-    if(c.trap){
-      showInspect(`${c.nm} · Trap card`,
-        `${bigArt(c)}<div class="istat"><span class="m">Set ◆1</span></div>${spellText(c)}`);
-    } else {
-      showInspect(`${c.nm} · Spell card`,
-        `${bigArt(c)}<div class="istat"><span class="m">◆${c.c}</span></div>${spellText(c)}`);
-    }
-    return;
-  }
-  const stat=isB?`${c.sup?`<span>⚒+${c.sup}</span>`:''}<span class="h">♥${c.h}</span>`:`<span class="a">⚔${c.a}</span><span class="h">♥${c.h}</span>`;
-  const eff=isB?bldEffectText(c.eff,c.val,c.sup):([c.up?`<b>Upkeep ⚒-${c.up}.</b>`:'',c.fs?'<b>First Strike.</b> Deals its damage first.':'',kwText(c)].filter(Boolean).join('<br>'));
-  showInspect(`${c.nm}${(!isB&&typeLine(c))?' · '+typeLine(c):''} · ${isB?'Structure':'Creature'} (in hand)`,
-    `${bigArt(c)}<div class="istat"><span class="m">◆${c.c}</span>${stat}</div>${eff||''}`);
+  let rules;
+  if(c.type==='spell') rules=spellText(c);
+  else if(isB) rules=bldEffectText(c.eff,c.val,c.sup);
+  else rules=[c.up?`<b>Upkeep ⚒-${c.up}.</b>`:'',c.fs?'<b>First Strike.</b> Deals its damage first.':'',kwText(c)].filter(Boolean).join('<br>');
+  showInspectCard(inspCardHTML(c,{rules}));
 }
 
 /* ---------- deck / graveyard viewer ---------- */
