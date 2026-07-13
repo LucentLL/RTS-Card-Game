@@ -196,6 +196,8 @@
   .cmdzone.you .keepname{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cmdzone .keephp{margin-top:1px;font-family:'Cinzel',serif;font-weight:900;font-size:12.5px;color:#ff9a8a;text-shadow:0 1px 3px #000;line-height:1;}
   .cmdzone .keephp .heart{color:#ff6a5a;margin-right:1px;}
+  .cmdzone .keephp.lifeaim{cursor:pointer;pointer-events:auto;padding:2px 8px;border-radius:9px;background:rgba(227,91,79,.14);
+    box-shadow:0 0 0 2px rgba(227,91,79,.85),0 0 16px rgba(227,91,79,.5);animation:pulse 1.1s ease-in-out infinite;}
   .cmdzone.keepTarget{cursor:pointer;border-radius:10px;box-shadow:0 0 0 2px rgba(227,91,79,.8),0 0 16px rgba(227,91,79,.55);animation:pulse 1.1s ease-in-out infinite;}
   .cmdfig{width:clamp(40px,5vw,62px);height:clamp(48px,6vw,74px);z-index:2;pointer-events:auto;cursor:pointer;
     filter:drop-shadow(0 5px 5px rgba(0,0,0,.6));animation:bob 3.4s ease-in-out infinite;}
@@ -270,7 +272,7 @@
   .spritewrap{position:absolute;inset:0;z-index:3;pointer-events:none;}
   .spriteshadow{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);width:58cqw;height:12cqh;border-radius:50%;
     background:radial-gradient(ellipse at center,rgba(0,0,0,.55),rgba(0,0,0,0) 72%);}
-  .spritebob{position:absolute;left:50%;bottom:11%;animation:spritebob 3.4s ease-in-out infinite;transform-origin:50% 100%;will-change:transform;}
+  .spritebob{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);animation:spritebob 3.4s ease-in-out infinite;transform-origin:50% 100%;will-change:transform;}  /* base translateX keeps the standee centered even when the bob animation is off (laid / structures) */
   .spritefig{display:block;height:min(150cqh,120cqw);width:auto;max-width:165cqw;object-fit:contain;object-position:bottom;
     filter:drop-shadow(0 7px 5px rgba(0,0,0,.5));}  /* cqw cap: extreme-mode cells grow DEEP to fill the tilt — don't let standees inflate with the depth */
   .spritefig.fromart{height:min(104cqh,84cqw);border-radius:9px;box-shadow:0 5px 12px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.14);}
@@ -1776,20 +1778,28 @@ function typeLine(o){ return o ? [o.tribe||'',o.subtype||''].filter(Boolean).joi
    its `prereq` bids are present on your field (and you can afford it and have an empty slot). */
 function forgeArt(el){ return FORGE_ART[el]||phArt(el,'bld'); }
 const STRUCT_DEFS={
-  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:3000,  eff:'mana',     val:1, sup:2, ic:'⚒', prereq:[],          color:null, art:phArt('earth','bld'), desc:'Town hall of the host. Yields ◆1 a turn and raises ⚒+2. Unlocks the forges and the Longhouse.'},
-  longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:3000,  eff:'villager', val:0, sup:3, ic:'⌂', prereq:['foundry'], color:null, art:ART.longhouse,        desc:'Hearth and full benches — trains a Worker each turn and raises ⚒+3. Your main workforce.'},
+  // BUILDABLE from the menu. `up2` = in-place upgrade targets (bids); `from` marks a tier reached only by upgrading.
+  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:3000,  eff:'mana',     val:1, sup:2, ic:'⚒', prereq:[],          color:null, up2:['keep'],    art:phArt('earth','bld'), desc:'Town hall of the host. Yields ◆1 a turn and raises ⚒+2. Unlocks the forges and the Longhouse. Upgrades (in the back row) to a Keep.'},
+  encampment:{bid:'encampment',nm:'Encampment',c:2, h:2500,  eff:'none',     val:0, sup:2, ic:'⛺', prereq:['foundry'], color:null, up2:['longhouse'],art:phArt('wind','bld'), desc:'A staging camp — raises ⚒+2. Upgrade it (in the front row) into a Longhouse.'},
+  longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:3000,  eff:'villager', val:0, sup:3, ic:'⌂', prereq:['foundry'], color:null, row:'front', up2:['barracks'],art:ART.longhouse, desc:'Hearth and full benches — trains a Worker each turn and raises ⚒+3. Your main workforce. Upgrades to a Barracks.'},
   vault:    {bid:'vault',    nm:'Mana Vault',  c:4, h:3000,  eff:'vault',    val:4, sup:0, ic:'◈', prereq:['foundry'], color:null, art:phArt('water','bld'), desc:'Cisterns that hold the surplus — keeps up to ◆4 of your unspent mana across the turn. ⚒0.'},
   bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:6000, eff:'wall',     val:0, sup:1, ic:'▣', prereq:['forge'],   color:null, art:phArt('earth','bld'), desc:'A heavy wall that screens the line — it can intercept and be raided. Raises ⚒+1.'},
+  outpost:  {bid:'outpost',  nm:'Outpost',     c:2, h:3000,  eff:'none',     val:0, sup:1, ic:'⛨', prereq:['forge'],   color:null, up2:['tower','bastion'], art:phArt('wind','bld'), desc:'A forward post — raises ⚒+1. Branches on upgrade into a Cannon Tower (offense) or a Bastion (defense).'},
   tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:4000,  eff:'damage',   val:1000, sup:-2,ic:'⤢', prereq:['forge'],   color:null, art:phArt('fire','bld'),  desc:'Guns that never sleep — strikes the nearest enemy creature for 1000 each turn. Needs ⚒2 to crew (build it where a row has the workers to spare).'},
   reliquary:{bid:'reliquary',nm:'Reliquary',  c:5, h:3500,  eff:'revive',    val:0, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:phArt('dark','bld'),  desc:'Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.'},
+  // UPGRADE-ONLY tiers (reached by upgrading the structure named in `from`; `row` gates where the tier may live).
+  keep:     {bid:'keep',     nm:'Keep',        c:3, h:5000,  eff:'mana',     val:2, sup:3, ic:'♜', prereq:[], from:'foundry', row:'back',  up2:['citadel'], color:null, art:phArt('earth','bld'), desc:'The Foundry grown into a Keep — ◆2 a turn, ⚒+3, far sturdier walls. Upgrades to a Citadel.'},
+  citadel:  {bid:'citadel',  nm:'Citadel',     c:4, h:7500,  eff:'mana',     val:3, sup:4, ic:'♛', prereq:[], from:'keep',    row:'back',  color:null, art:phArt('earth','bld'), desc:'The seat of your realm — ◆3 a turn, ⚒+4, and a mighty rampart of stone.'},
+  barracks: {bid:'barracks', nm:'Barracks',    c:3, h:5000,  eff:'villager', val:0, sup:4, ic:'⚔', prereq:[], from:'longhouse',row:'front', color:null, art:ART.longhouse,        desc:'Drill yards and armories — trains a Worker each turn and raises ⚒+4.'},
+  bastion:  {bid:'bastion',  nm:'Bastion',     c:3, h:9000,  eff:'wall',     val:0, sup:2, ic:'▣', prereq:[], from:'outpost', color:null, art:phArt('earth','bld'), desc:'A fortified bastion — a towering wall that screens the line and raises ⚒+2.'},
 };
-function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:2, sup:2, ic:'⛭', prereq:['foundry'], color:el, art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2 each turn and raises ⚒+2.'}; }
-function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:3, sup:3, ic:'⛭', prereq:['forge'], color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3 each turn and raises ⚒+3.'}; }
+function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:2, sup:2, ic:'⛭', prereq:['foundry'], color:el, up2:['grandforge'], art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2 each turn and raises ⚒+2. Upgrades to a Grand Forge.'}; }
+function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:3, sup:3, ic:'⛭', prereq:['forge'], from:'forge', color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3 each turn and raises ⚒+3.'}; }
 // the ordered list of structures a given commander can build (its colors expand the forges)
 function buildList(ccId){
   const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];
   cols.forEach(el=>out.push(forgeDef(el)));
-  out.push(STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower, STRUCT_DEFS.reliquary);
+  out.push(STRUCT_DEFS.encampment, STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.outpost, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower, STRUCT_DEFS.reliquary);
   cols.forEach(el=>out.push(grandForgeDef(el)));
   return out;
 }
@@ -2277,7 +2287,10 @@ function kwText(o){ switch(o&&o.kw){
 
 /* ===== RTS structure building — commander build menu (cost = mana; prerequisite tech tree) ===== */
 function ownBuildings(owner){ return ownUnits(owner).filter(o=>o.kind==='building'&&!o.cc); }
-function hasBuild(owner,bid){ return ownBuildings(owner).some(b=>b.bid===bid); }
+// a structure's tier lineage: its own bid plus every base it was UPGRADED from (via `from`), so an
+// upgraded tier still satisfies tech-tree prereqs its base unlocked (e.g. Keep still counts as a Foundry).
+function bidLineage(b){ const out=[]; let cur=b&&b.bid, g=0; while(cur&&g++<8){ out.push(cur); const d=resolveStruct(cur,b.color); cur=d&&d.from; } return out; }
+function hasBuild(owner,bid){ return ownBuildings(owner).some(b=>bidLineage(b).indexOf(bid)>=0); }
 function prereqMet(owner,def){ return (def.prereq||[]).every(p=>hasBuild(owner,p)); }
 function hasEmptyDeploy(owner){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x); }); }
 // a worker-COSTING building (negative sup, e.g. a tower) may only go in a row that stays non-negative
@@ -2290,7 +2303,8 @@ function drawBuild(){
   const list=buildList(G.P.you.cc), have=manaTotal('you');
   const rows=list.map(def=>{
     const ok=canBuild('you',def);
-    const why=!prereqMet('you',def)?('needs '+def.prereq.map(p=>p==='foundry'?'a Foundry':'a Forge').join(' + ')):(have<def.c?('need ◆'+def.c):(!hasPlacement('you',def)?((def.sup||0)<0?'no row with ⚒ to spare':'no open space'):''));
+    const PRN={foundry:'a Foundry',forge:'a Forge',longhouse:'a Longhouse',encampment:'an Encampment',outpost:'an Outpost'};
+    const why=!prereqMet('you',def)?('needs '+def.prereq.map(p=>PRN[p]||('a '+p)).join(' + ')):(have<def.c?('need ◆'+def.c):(!hasPlacement('you',def)?((def.sup||0)<0?'no row with ⚒ to spare':'no open space'):''));
     const dot=def.color?`<span class="cdot" style="background:var(--${def.color})"></span>`:'';
     return `<div class="bdrow${ok?'':' off'}"><div class="bdic">${def.ic}</div>`+
       `<div class="bdmid"><div class="bdnm">${dot}${escHtml(def.nm)}</div><div class="bddesc">${escHtml(def.desc)}</div></div>`+
@@ -2312,14 +2326,60 @@ function placeBuild(which,i){ const def=G.build; if(!def)return;
   payAny('you',def.c); cellArr('you',which)[i]=mkBld(def,'you');
   log(`<span class="y">You raise a ${escHtml(def.nm)}.</span>`,'y');
   G.build=null; afterDeploy('you'); defaultHint(); render(); checkWin(); }
+/* ----- STRUCTURE UPGRADES: level a built structure up IN PLACE (keeps its tile + stored ◆), following
+   its `up2` chain. Row-gated tiers (Keep/Citadel back, Barracks front) enforce the RTS "line lives in
+   that row" feel. Branching (Outpost → Cannon Tower | Bastion) just lists more than one target. ----- */
+function upgradeTargets(o){
+  if(!o||o.kind!=='building'||o.cc||!o.bid)return [];
+  const src=resolveStruct(o.bid,o.color); const ids=(src&&src.up2)||[];
+  return ids.map(bid=>resolveStruct(bid,o.color)).filter(Boolean);
+}
+function upgradeWhy(owner,o,key,def){
+  if(def.row&&whichOf(key)!==def.row) return def.row==='back'?'only in your back row':'only in your front row';
+  if(manaTotal(owner)<def.c) return 'need ◆'+def.c;
+  if((def.sup||0)<0 && (rowWorkers(owner,whichOf(key))-(o.sup||0)+(def.sup||0))<0) return 'row has no ⚒ to spare';
+  return '';
+}
+function canUpgradeTo(owner,o,key,def){ return !!def && upgradeWhy(owner,o,key,def)===''; }
+function applyUpgrade(o,def){                     // swap the tier's stats onto the SAME unit (id/owner/bank/tile kept)
+  o.bid=def.bid; o.nm=def.nm; o.eff=def.eff; o.val=def.val||0; o.sup=def.sup||0; o.ic=def.ic;
+  o.h=def.h; o.maxh=def.h; o.c=def.c; o.art=def.art;   // rebuilt sturdier → full HP at the new tier
+  if(def.color) o.color=def.color;
+}
+window.upgradeStruct=function(key,i,bid){
+  if(!acting())return;
+  const o=rowArr(key)[i]; if(!o||o.kind!=='building'||o.owner!=='you'||o.cc)return;
+  const def=upgradeTargets(o).find(d=>d.bid===bid); if(!def)return;
+  if(!canUpgradeTo('you',o,key,def)){ setHint(`Can’t upgrade to <b>${escHtml(def.nm)}</b> — ${escHtml(upgradeWhy('you',o,key,def))}.`); render(); return; }
+  const oldNm=o.nm; payAny('you',def.c); applyUpgrade(o,def);
+  log(`<span class="y">You upgrade ${escHtml(oldNm)} into a ${escHtml(def.nm)}.</span>`,'y');
+  G.cardMenu=null; syncWorkers('you'); afterDeploy('you'); defaultHint(); render(); checkWin();
+};
+// find a placed unit's board coords (key + slot) for its owner
+function buildingLoc(owner,unit){
+  for(const w of ['back','front','center']){ const a=cellArr(owner,w); if(!a)continue; const i=a.indexOf(unit); if(i>=0) return {key:(w==='center'?'center':rowKeyFor(owner,w)), i}; }
+  return null;
+}
+// AI: upgrade one eligible structure in place (chain order; branches take the first affordable target)
+function aiUpgrade(owner){
+  for(const b of ownBuildings(owner)){
+    const loc=buildingLoc(owner,b); if(!loc)continue;
+    const def=upgradeTargets(b).find(d=>canUpgradeTo(owner,b,loc.key,d));
+    if(!def)continue;
+    const old=b.nm; payAny(owner,def.c); applyUpgrade(b,def); syncWorkers(owner);
+    log(`<span class="e">Opponent upgrades ${escHtml(old)} into a ${escHtml(def.nm)}.</span>`,'e');
+    return true;
+  }
+  return false;
+}
 // ----- AI building: foundry -> a forge for each color -> longhouse / bulwark -----
 function aiBuild(owner){
   const ccId=G.P[owner].cc, list=buildList(ccId);
   // priority order = buildList order; cap how many of each the AI wants
-  const CAP={foundry:1,longhouse:1,vault:1,bulwark:1,tower:2,reliquary:1};
+  const CAP={foundry:1,encampment:1,longhouse:1,vault:1,outpost:1,bulwark:1,tower:2,reliquary:1};
   for(const def of list){
-    if(CAP[def.bid] && ownBuildings(owner).filter(b=>b.bid===def.bid).length>=CAP[def.bid]) continue;
-    if(def.bid==='forge' && ownBuildings(owner).some(b=>b.bid==='forge'&&b.color===def.color)) continue;       // one forge per color
+    if(CAP[def.bid] && ownBuildings(owner).filter(b=>bidLineage(b).indexOf(def.bid)>=0).length>=CAP[def.bid]) continue;  // an upgraded tier still counts toward its base's cap
+    if(def.bid==='forge' && ownBuildings(owner).some(b=>bidLineage(b).indexOf('forge')>=0&&b.color===def.color)) continue;   // one forge (or its Grand upgrade) per color
     if(def.bid==='grandforge' && ownBuildings(owner).some(b=>b.bid==='grandforge'&&b.color===def.color)) continue;
     if(!canBuild(owner,def)) continue;
     const which=['back','front'].find(w=>freeDeploySlot(owner,w)>=0&&placeRowOK(owner,w,def)); if(!which)continue;
@@ -3306,10 +3366,15 @@ function renderCmdZone(owner){
     +`<div class="cmdvit sub"><span class="bct">⌂</span><b>${structuresOf('you').length}</b><span class="wct">⚒</span><b>${totalWorkers('you')}</b></div>`
     +`<button class="cmdbuild" ${canBuild?'':'disabled'} onclick="openBuildMenu()" title="Build a structure">⚒ Build</button>`):'';
   const fc=`var(--${def.colors[0]})`;
+  // the ENEMY life pool is a direct attack target ("the face") — always available while you have
+  // attackers, even if their back row is full of bodies. Interceptors may still meet the strike.
+  const aimLife=!me&&(G.turn==='you'&&!G.busy&&!G.over&&canAttack());
   el.innerHTML=`<div class="keepname" style="color:${fc}" title="${def.name}">♜ ${escHtml(def.name)}</div>`+
-    `<div class="keephp"><span class="heart">♥</span>${Math.max(0,P.life)}</div>`+vit;
+    `<div class="keephp${aimLife?' lifeaim':''}"${aimLife?' title="Strike the enemy life directly"':''}><span class="heart">♥</span>${Math.max(0,P.life)}</div>`+vit;
   if(me) el.appendChild(workerColumn());   // five-row vertical worker readout in the left tower
-  el.style.pointerEvents=me?'auto':'none';
+  el.style.pointerEvents=(me||aimLife)?'auto':'none';
+  if(aimLife){ const hp=el.querySelector('.keephp'); if(hp){ hp.style.cursor='pointer';
+    hp.addEventListener('click',()=>{ if(G.turn==='you'&&!G.busy&&!G.over&&canAttack()) attackBackRow('foe',G.atk.length?G.atk[0].i:BASE_COL); }); } }
 }
 function renderCenter(){
   const el=$('center'); el.innerHTML='';
@@ -3392,7 +3457,7 @@ function decorate(cell,key,i,o){
   if(handSel&&G.sel.mode&&G.sel.mode!=='cast'&&!o&&handDeployOK(key,i)) cell.classList.add('tappable');
   if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0&&deployKey) cell.classList.add('target');
   if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
-  if(G.atk.length&&canAttack()&&colReach(G.atk[0].i,i)){ // ±1 column reach
+  if(G.atk.length&&canAttack()){                       // any enemy field object is targetable (a body, a structure, a face-down); the defender's counterplay is interception, not column reach
     if(foe) cell.classList.add('target');
     else if(!o&&key==='foeBack') cell.classList.add('target');   // an open stronghold column — strike it for life damage
   }
@@ -3521,7 +3586,13 @@ function onCell(key,i,o){
   if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.'); return; }
   if(mine&&o.kind==='charge'){ if(G.atk.length===0) openCharge(key,i); return; }
   if(mine&&o.kind==='building'){
-    if(o.bank>0){ G.cardMenu={k:key,i,html:`<button onclick="startSendMana('${key}',${i})">◆ Send ${o.bank}</button><span class="taphint">stored mana — move it, or play a card on top to spend it</span>`}; setHint('Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
+    const ups=(!o.cc&&acting())?upgradeTargets(o):[];
+    const upBtns=ups.map(d=>{ const ok=canUpgradeTo('you',o,key,d);
+      return `<button ${ok?`onclick="upgradeStruct('${key}',${i},'${d.bid}')"`:`disabled title="${escHtml(upgradeWhy('you',o,key,d))}"`}>⬆ ${escHtml(d.nm)} ◆${d.c}</button>`; }).join('');
+    const send=o.bank>0?`<button onclick="startSendMana('${key}',${i})">◆ Send ${o.bank}</button>`:'';
+    if(upBtns||send){ const hint=ups.length?(send?'upgrade this structure, or move its stored ◆':'upgrade this structure to the next tier'):'stored mana — move it, or play a card on top to spend it';
+      G.cardMenu={k:key,i,html:`${upBtns}${send}<span class="taphint">${hint}</span>`};
+      setHint(ups.length?`<b>${escHtml(o.nm)}</b> — upgrade it${send?', or manage its stored ◆':''}.`:'Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
     else setHint('Structures hold the base — they don\u2019t move or fight.');
     render(); return;
   }
@@ -3539,10 +3610,10 @@ function onCell(key,i,o){
     }
     if(G.atk.length===1){
       const s=G.atk[0]; const su=rowArr(s.k)[s.i]; const sd=su.bank>0?`<button onclick="startSendMana('${s.k}',${s.i})">◆ Send ${su.bank}</button>`:'';
-      G.cardMenu={k:s.k,i:s.i,html:`${moveBtn(s.k,s.i)}${sd}<span class="taphint">⚔ tap an enemy unit — or an open enemy back-row column — to strike</span>`};
-      setHint('<b>1</b> ready — strike a foe, or use an action above the card.');
+      G.cardMenu={k:s.k,i:s.i,html:`${moveBtn(s.k,s.i)}${sd}<span class="taphint">⚔ tap any enemy unit, face-down, structure, an open back-row column, or their ♥ life to strike</span>`};
+      setHint('<b>1</b> ready — strike any foe or their ♥ life, or use an action above the card.');
     } else if(G.atk.length){
-      setHint(`<b>${G.atk.length}</b> ready — tap an enemy unit, structure, or open back-row column to strike. (Move is solo only.)`);
+      setHint(`<b>${G.atk.length}</b> ready — tap any enemy unit, structure, face-down, open back-row column, or their ♥ life to strike. (Move is solo only.)`);
     } else defaultHint();
     render(); return;
   }
@@ -3996,7 +4067,6 @@ function doAttack(tgtKey,ti){
   const aCol=G.atk.length?G.atk[0].i:ti;                 // the attacker's column governs reach
   const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
   const tgt=unitAt(tgtKey,ti); if(!tgt){clearAtk();render();return;}
-  if(!colReach(aCol,ti)){ setHint('Out of column — a unit reaches only its own column and the two beside it.'); render(); return; }
   attackers.forEach(a=>a.tapped=true);
   const scour=groupIsScour(attackers);                   // Wind fliers ignore interceptors
   dischargeOvercharge(attackers);                         // Electric attackers spend their banked ◆
@@ -4025,7 +4095,6 @@ function attackBackRow(defOwner,col){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
   const aCol=G.atk.length?G.atk[0].i:col;
-  if(!colReach(aCol,col)){ setHint('Out of column — a unit reaches only its own column and the two beside it.'); render(); return; }
   const tgtKey=defOwner==='foe'?'foeBack':'youBack'; const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
   attackers.forEach(a=>a.tapped=true);
   const scour=groupIsScour(attackers);
@@ -4397,6 +4466,7 @@ async function foeTurn(){
   // build a structure sometimes
   // RTS building: the AI techs up from its commander's build menu (Foundry -> Forge -> ...), up to twice a turn
   if(aiBuild('foe')) aiBuild('foe');
+  aiUpgrade('foe');                       // level an existing structure up in place when it can afford it
   // cast a raze spell on one of your structures
   let rzi=F.hand.findIndex(c=>c.type==='spell'&&c.effect==='raze'&&canPay('foe',c));
   if(rzi>=0){ let tk=null,ti=-1; ROWS.forEach(key=>rowArr(key).forEach((o,j)=>{if(o&&o.owner==='you'&&o.kind==='building'){tk=key;ti=j;}}));
@@ -4563,7 +4633,10 @@ function inspectRef(owner,which,i){
   }
   if(o.kind==='building'){
     const bchips=[]; if(o.bank>0)bchips.push(`<span class="ichip gold" title="stored mana">◆${o.bank}</span>`);
-    showInspectCard(inspCardHTML(o,{rules:bldEffectText(o.eff,o.val,o.sup),hp:`${o.h}/${o.maxh}`}),
+    let rules=bldEffectText(o.eff,o.val,o.sup);
+    const ups=me?upgradeTargets(o):[];   // show the upgrade path on your own structures
+    if(ups.length) rules+=`<br><b>⬆ Upgrades to:</b> ${ups.map(d=>`${escHtml(d.nm)} <span style="color:var(--ink-dim)">(◆${d.c}${d.row?', '+d.row+' row':''})</span>`).join(' · ')}`;
+    showInspectCard(inspCardHTML(o,{rules,hp:`${o.h}/${o.maxh}`}),
       bchips.length?`<div class="ichips">${bchips.join('')}</div>`:'');
     return;
   }
@@ -5443,9 +5516,15 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   let pinned=false;
   const setPinned=v=>{ if(v!==pinned){ pinned=v; document.body.classList.toggle('wall-open',v); } };
   const bandTop=()=>innerHeight-(parseFloat(getComputedStyle(hud).height)||180)-6;
+  // the commander tower (Build button + worker column) stands ABOVE the wall band, so moving off the
+  // hand up to it would otherwise cross bandTop and retract the wall before you reach Build. Treat the
+  // whole commander cluster as part of the keep-open zone so the cursor can travel there.
+  const cmd=document.querySelector('.cmdzone.you');
+  const overCmd=(x,y)=>{ if(!cmd)return false; const r=cmd.getBoundingClientRect(); return r.width&&x>=r.left-8&&x<=r.right+8&&y>=r.top-8&&y<=r.bottom+8; };
+  const keepOpen=e=> e.clientY>=bandTop() || overCmd(e.clientX,e.clientY) || (e.target&&e.target.closest&&!!e.target.closest('#hand,.cmdzone.you,.wallzone,.wallvit,#cardActions'));
   hand.addEventListener('pointerenter',()=>setPinned(true));   // entering the hand opens the wall and pins it
   document.addEventListener('pointermove',e=>{
-    if(pinned){ if(e.clientY < bandTop()) setPinned(false); }        // moved back up onto the board → release
+    if(pinned){ if(!keepOpen(e)) setPinned(false); }                 // moved fully up onto the board (not over the tower) → release
     else if(e.clientY >= innerHeight-64) setPinned(true);            // hover anywhere over the resting wall band (rail + peek strip, full width) → reveal the wall
   });
   document.addEventListener('pointerleave',()=>setPinned(false));
@@ -6220,6 +6299,16 @@ const MPAPPLY=(function(){
     log(`<span class="e">Opponent raises a ${escHtml(def.nm)}.</span>`,'e');
     afterDeploy('foe'); render(); checkWin(); }
 
+  function upgrade(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');   // mirrors upgradeStruct for 'foe'
+    const a=rowArr(m.k); const o=a&&a[m.i|0];
+    if(!o||o.kind!=='building'||o.owner!=='foe'||o.cc)return bad(m.q,'target');
+    const def=upgradeTargets(o).find(d=>d.bid===m.bid);
+    if(!def)return bad(m.q,'bid');
+    if(!canUpgradeTo('foe',o,m.k,def))return bad(m.q,'illegal');
+    const old=o.nm; payAny('foe',def.c); applyUpgrade(o,def);
+    log(`<span class="e">Opponent upgrades ${escHtml(old)} into a ${escHtml(def.nm)}.</span>`,'e');
+    syncWorkers('foe'); afterDeploy('foe'); render(); checkWin(); }
+
   async function attack(m){                                        // NEW GLUE — guest attacks; host defends
     if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');
     if(!Array.isArray(m.atk)||!m.atk.length||m.atk.some(s=>s.k!==m.atk[0].k))return bad(m.q,'row'); // group shares a row (onCell L3346)
@@ -6229,13 +6318,13 @@ const MPAPPLY=(function(){
     const aKey=m.atk[0].k, aIdx=rowIdx(aKey), aCol=m.atk[0].i;
     // resolve target + validate BEFORE tapping anything
     let tIdx, tgt=null;
-    if(m.kind==='back'){ if(!(m.col>=0&&m.col<SLOTS)||rowArr('youBack')[m.col])return bad(m.q,'col');
-      if(!colReach(aCol,m.col))return bad(m.q,'reach'); tIdx=rowIdx('youBack'); }
+    if(m.kind==='back'){ if(!(m.col>=0&&m.col<SLOTS))return bad(m.q,'col');   // a life ('back') strike can target any column, occupied or not (the cmdzone ♥ path bypasses the wall) — mirrors attackBackRow
+      tIdx=rowIdx('youBack'); }
     else if(m.kind==='workers'){ if(!minPool('you',m.wWhich).length)return bad(m.q,'pool');
       tIdx=rowIdx(zoneKey('you',m.wWhich)); }
     else { tgt=rowArr(m.tk)&&rowArr(m.tk)[m.ti];
       if(!tgt||tgt.owner!=='you')return bad(m.q,'target');
-      if(!colReach(aCol,m.ti))return bad(m.q,'reach'); tIdx=rowIdx(m.tk); }
+      tIdx=rowIdx(m.tk); }
     // from here on: mirrors doAttack L3788–3816 / attackBackRow L3819–3843 / attackMinionStack L3719–3738 with sides swapped
     attackers.forEach(a=>a.tapped=true);
     const scour=groupIsScour(attackers);
@@ -6294,7 +6383,8 @@ const MPAPPLY=(function(){
       case 'move':move(m);break;          case 'place':await placeI(m);break;
       case 'pour':pour(m);break;          case 'flip':flipI(m);break;
       case 'sendmana':sendMana(m);break;  case 'cast':cast(m);break;
-      case 'build':build(m);break;        case 'attack':await attack(m);break;
+      case 'build':build(m);break;        case 'upgrade':upgrade(m);break;
+      case 'attack':await attack(m);break;
       case 'end':end(m);break;            default:bad(m.q,'unknown');
     } MP.pushNow(); }).catch(e=>{ console.warn('MP apply',e); MP.pushNow(); }); }
   return {dispatch,resolveRefs};
@@ -6390,6 +6480,14 @@ const MPAPPLY=(function(){
       if(guestTurn())MP.intent({a:'build',bid:def.bid,color:def.color||null,w:which,i});
       else if(hostTurn())MP.fx({ev:'enter',k:rowKeyFor('you',which),i});
     } };
+
+  // --- structure upgrade (upgradeStruct): success = the unit's bid became the target tier
+  const _upgradeStructMP=window.upgradeStruct;
+  window.upgradeStruct=function(key,i,bid){ const o=rowArr(key)&&rowArr(key)[+i]; const before=o&&o.bid;
+    _upgradeStructMP(key,i,bid);
+    const now=rowArr(key)&&rowArr(key)[+i];
+    if(guestTurn()&&now&&now===o&&now.bid===bid&&before!==bid)MP.intent({a:'upgrade',k:K(key),i:+i,bid,color:o.color||null});
+  };
 
   // --- ATTACKS: guest = send-and-wait (not optimistic); host = two-phase (guest may interpose)
   MP.sendAttack=function(d){                                       // d in guest-LOCAL coords
