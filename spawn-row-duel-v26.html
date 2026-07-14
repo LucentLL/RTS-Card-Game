@@ -1266,6 +1266,12 @@
   .dbfsep{width:1px;height:16px;background:var(--hairline-dim);margin:0 3px;}
   .dbchip{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.02em;padding:5px 10px;border-radius:999px;cursor:pointer;color:var(--ink-dim);background:#1a1622;border:1px solid #2a2433;}
   .dbchip.on{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border-color:var(--gold);}
+  .dbchip.sm{font-size:9px;padding:4px 8px;}
+  .dbflab{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.05em;color:var(--ink-dim);text-transform:uppercase;opacity:.75;margin-right:1px;align-self:center;}
+  .dbfspace{flex:1 1 auto;}
+  .dbclear{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.03em;padding:5px 11px;border-radius:999px;cursor:pointer;color:#e7b7a0;background:#2a1622;border:1px solid #5a2a3a;}
+  .dbclear:hover{background:#3a1e2e;color:#ffd9c8;}
+  .dbpoolcount{color:var(--ink-dim);font-weight:400;font-size:11px;letter-spacing:0;text-transform:none;margin-left:5px;}
   .dbechip{width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;background:#1a1622;border:1px solid #2a2433;opacity:.55;transition:opacity .12s,box-shadow .12s;}
   .dbechip:hover{opacity:1;}
   .dbechip.on{opacity:1;border-color:var(--ec,var(--gold));box-shadow:0 0 8px var(--ec,var(--gold));}
@@ -1615,7 +1621,7 @@
       <div id="dbDeckList" class="dbcardgrid"></div>
     </div>
     <div class="dbcol dbpool">
-      <div class="dbpoolhead">Cards</div>
+      <div class="dbpoolhead">Cards<span id="dbPoolCount" class="dbpoolcount"></span></div>
       <div class="dbtools">
         <input id="dbSearch" class="dbsearch" placeholder="Search cards…" oninput="dbSetSearch(this.value)">
         <select id="dbSort" class="dbsort" onchange="dbSetSort(this.value)">
@@ -2835,8 +2841,8 @@ function openDeckBuilder(editIndex,ret){
   if(editIndex==null&&decks.length>=MAX_DECKS){ showSoloDeckPick(); return; }
   hideAllScreens();
   const back=ret||'menu';
-  if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back,sel:null,filter:{q:'',type:'',elem:'',cost:null},sort:'type'};
-  else dbState={cc:'fire',name:'',cards:{},editIndex:null,back,sel:null,filter:{q:'',type:'',elem:'',cost:null},sort:'type'};
+  if(editIndex!=null&&decks[editIndex]) dbState={cc:decks[editIndex].cc,name:decks[editIndex].name,cards:{...decks[editIndex].cards},editIndex,back,sel:null,filter:{q:'',type:'',elem:'',cost:null,kw:'',tag:''},sort:'type'};
+  else dbState={cc:'fire',name:'',cards:{},editIndex:null,back,sel:null,filter:{q:'',type:'',elem:'',cost:null,kw:'',tag:''},sort:'type'};
   renderDeckBuilder(); showScreen('deckBuilder');
 }
 function dbReturn(){ const back=dbState&&dbState.back; dbState=null; if(back==='solo')showSoloDeckPick(); else showMainMenu(); }
@@ -2850,7 +2856,12 @@ const DB_SORT={
   name:(a,b)=>a.nm.localeCompare(b.nm),
   atk:(a,b)=>((b.tpl.a||0)-(a.tpl.a||0))||a.nm.localeCompare(b.nm),
 };
-function renderDbFilters(){ const el=$('dbTypeChips'); if(!el)return; const f=dbState.filter||{};
+const DB_KW_LABEL={fs:'First Strike',detonate:'Detonate',undertow:'Undertow',entrench:'Entrench',scour:'Scour',chrysalis:'Chrysalis',overcharge:'Overcharge',ward:'Ward',reap:'Reap'};
+const DB_KW_ORDER=['fs','detonate','undertow','entrench','scour','chrysalis','overcharge','ward','reap'];
+function dbAvailKw(reg){ const s=new Set(); reg.forEach(e=>{ if(e.type!=='creature'||!e.tpl)return; if(e.tpl.fs)s.add('fs'); if(e.tpl.kw)s.add(e.tpl.kw); }); return DB_KW_ORDER.filter(k=>s.has(k)); }
+function dbAvailTags(reg){ const s=new Set(); reg.forEach(e=>{ if(!e.tpl)return; if(e.tpl.tribe)s.add(e.tpl.tribe); if(e.tpl.subtype)s.add(e.tpl.subtype); }); return [...TRIBES,...SUBTYPES].filter(t=>s.has(t)); }
+function dbFilterActive(f){ return !!(f.type||f.elem||f.cost||f.kw||f.tag||(f.q&&f.q.length)); }
+function renderDbFilters(){ const el=$('dbTypeChips'); if(!el)return; const f=dbState.filter||{}; const reg=regForCC(dbState.cc);
   const types=[['','All'],['creature','⚔ Creatures'],['spell','✦ Spells']];
   const trow=types.map(([t,lab])=>`<button class="dbchip${(f.type||'')===t?' on':''}" onclick="dbSetType('${t}')">${lab}</button>`).join('');
   const cols=((CCS[dbState.cc]&&CCS[dbState.cc].colors)||MAJORS).concat(['neutral']);
@@ -2858,12 +2869,20 @@ function renderDbFilters(){ const el=$('dbTypeChips'); if(!el)return; const f=db
     ?`<button class="dbechip${f.elem==='neutral'?' on':''}" style="--ec:#6a6a76" onclick="dbSetElem('neutral')" title="Neutral"><span style="color:#9a9aa6;font-size:13px">◇</span></button>`
     :`<button class="dbechip${f.elem===c?' on':''}" style="--ec:var(--${c})" onclick="dbSetElem('${c}')" title="${cap(c)}">${elemBadge(c,15)}</button>`).join('');
   const crow=[1,2,3,4,5,6].map(c=>`<button class="dbchip${f.cost===c?' on':''}" onclick="dbSetCost(${c})">◆${c===6?'6+':c}</button>`).join('');
-  el.innerHTML=`<div class="dbfrow">${trow}</div><div class="dbfrow">${erow}<span class="dbfsep"></span>${crow}</div>`;
+  const kws=dbAvailKw(reg);
+  const kwrow=kws.length?`<div class="dbfrow"><span class="dbflab">Ability</span>${kws.map(k=>`<button class="dbchip sm${f.kw===k?' on':''}" onclick="dbSetKw('${k}')">${DB_KW_LABEL[k]}</button>`).join('')}</div>`:'';
+  const tags=dbAvailTags(reg);
+  const tagrow=tags.length?`<div class="dbfrow"><span class="dbflab">Tribe</span>${tags.map(t=>`<button class="dbchip sm${f.tag===t?' on':''}" onclick="dbSetTag('${jsq(t)}')">${escHtml(t)}</button>`).join('')}</div>`:'';
+  const clear=dbFilterActive(f)?`<span class="dbfspace"></span><button class="dbclear" onclick="dbClearFilters()">Clear ✕</button>`:'';
+  el.innerHTML=`<div class="dbfrow">${trow}${clear}</div><div class="dbfrow">${erow}<span class="dbfsep"></span>${crow}</div>${kwrow}${tagrow}`;
 }
 window.dbSetSearch=(v)=>{ if(!dbState)return; dbState.filter.q=(v||'').toLowerCase(); renderDbPool(); };
 window.dbSetType=(t)=>{ if(!dbState)return; dbState.filter.type=t; renderDbFilters(); renderDbPool(); };
 window.dbSetElem=(c)=>{ if(!dbState)return; dbState.filter.elem=dbState.filter.elem===c?'':c; renderDbFilters(); renderDbPool(); };
 window.dbSetCost=(c)=>{ if(!dbState)return; dbState.filter.cost=dbState.filter.cost===c?null:c; renderDbFilters(); renderDbPool(); };
+window.dbSetKw=(k)=>{ if(!dbState)return; dbState.filter.kw=dbState.filter.kw===k?'':k; renderDbFilters(); renderDbPool(); };
+window.dbSetTag=(t)=>{ if(!dbState)return; dbState.filter.tag=dbState.filter.tag===t?'':t; renderDbFilters(); renderDbPool(); };
+window.dbClearFilters=()=>{ if(!dbState)return; dbState.filter={q:'',type:'',elem:'',cost:null,kw:'',tag:''}; const s=$('dbSearch'); if(s)s.value=''; renderDbFilters(); renderDbPool(); };
 window.dbSetSort=(v)=>{ if(!dbState)return; dbState.sort=v; renderDbPool(); };
 function renderDbStats(){ const el=$('dbStats'); if(!el)return;
   let cre=0,spl=0; const curve={};
@@ -2915,9 +2934,12 @@ function renderDbPool(){
     if(ty&&e.type!==ty)return false;
     if(f.elem){ if(f.elem==='neutral'?e.color:e.color!==f.elem)return false; }
     if(f.cost){ const cc=e.tpl.c||0; if(f.cost===6?cc<6:cc!==f.cost)return false; }
-    if(q&&!(`${e.nm} ${e.type} ${e.color||''}`.toLowerCase().includes(q)))return false;
+    if(f.kw){ if(f.kw==='fs'){ if(!e.tpl.fs)return false; } else if(e.tpl.kw!==f.kw)return false; }
+    if(f.tag&&e.tpl.tribe!==f.tag&&e.tpl.subtype!==f.tag)return false;
+    if(q&&!(`${e.nm} ${e.type} ${e.color||''} ${e.tpl.kw||''} ${e.tpl.tribe||''} ${e.tpl.subtype||''} ${e.tpl.fs?'first strike':''}`.toLowerCase().includes(q)))return false;
     return true;
   }).sort(DB_SORT[dbState.sort]||DB_SORT.type);
+  const cnt=$('dbPoolCount'); if(cnt)cnt.textContent=' · '+list.length;
   const nameCount=dbPoolNameCount();
   $('dbPool').innerHTML=(list.map(e=>{
     const n=dbState.cards[e.key]||0; const sel=e.key===dbState.sel?' sel':''; const label=dbCardLabel(e,nameCount);
@@ -2965,7 +2987,7 @@ function refreshDbCounter(){
   $('dbSave').disabled=!(valid&&room&&named);
   $('dbHint').textContent=!named?'Name your deck.':(!room?('You have '+MAX_DECKS+' decks — edit or delete one.'):(valid?'Ready to save.':deckErrors(deck)[0]));
 }
-window.dbPickCC=(id)=>{ if(!dbState)return; dbState.cc=id; dbState.filter.elem=''; for(const k of Object.keys(dbState.cards)) if(!cardColorOK(k,id)) delete dbState.cards[k]; if(dbState.sel&&!cardColorOK(dbState.sel,id))dbState.sel=null; renderDeckBuilder(); };
+window.dbPickCC=(id)=>{ if(!dbState)return; dbState.cc=id; dbState.filter.elem='';dbState.filter.kw='';dbState.filter.tag=''; for(const k of Object.keys(dbState.cards)) if(!cardColorOK(k,id)) delete dbState.cards[k]; if(dbState.sel&&!cardColorOK(dbState.sel,id))dbState.sel=null; renderDeckBuilder(); };
 window.dbStep=(key,dir)=>{ if(!dbState)return; if(dir>0&&deckTotal(dbState.cards)>=DECK_SIZE)return; const n=(dbState.cards[key]||0)+(+dir); if(n<=0)delete dbState.cards[key]; else dbState.cards[key]=Math.min(MAX_COPIES,n); renderDeckBuilder(); };
 window.dbSave=()=>{ if(!dbState)return; const deck=currentDbDeck(); if(!deckValid(deck)||!deck.name)return; const decks=loadDecks();
   if(dbState.editIndex!=null&&decks[dbState.editIndex]) decks[dbState.editIndex]=deck; else decks.push(deck);
