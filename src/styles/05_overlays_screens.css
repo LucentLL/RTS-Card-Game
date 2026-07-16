@@ -1,0 +1,500 @@
+  /* ---------- pause-to-respond priority bar ---------- */
+  #respBar{position:fixed;left:50%;bottom:clamp(84px,18vh,170px);transform:translateX(-50%);z-index:24;
+    display:none;flex-direction:column;align-items:center;gap:7px;min-width:230px;max-width:min(92vw,430px);
+    background:linear-gradient(165deg,rgba(32,24,39,.96),rgba(18,13,24,.96));border:1px solid #8a7f9e;
+    border-radius:999px;padding:9px 20px 11px;box-shadow:0 10px 34px rgba(0,0,0,.55);pointer-events:auto;}
+  #respBar.defend{border-color:var(--gold);border-radius:16px;}
+  #respBar .resplab{font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.08em;color:var(--ink);white-space:nowrap;}
+  #respBar.defend .resplab{color:var(--gold);}
+  #respBar .respdesc{font-size:11px;color:var(--ink-dim);text-align:center;max-width:380px;}
+  #respBar .respacts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+  #respBar .respacts button{font-family:'Cinzel',serif;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer;
+    border:1px solid #4a4060;background:#2a2640;color:var(--ink);}
+  #respBar .respacts button.trapbtn{border-color:var(--gold);color:var(--gold);}
+  #respBar .respacts button.pausebtn{border-color:var(--tide);color:var(--tide);}
+  #respBar .respacts button:active{transform:scale(.96);}
+  #respBar .resptrack{width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;}
+  #respBar .respfill{width:100%;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--tide),var(--gold));
+    transform-origin:left center;will-change:transform;}   /* scaleX only — compositor-friendly */
+  @keyframes respShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+  #respBar .respnum{font-family:'Cinzel',serif;font-size:12px;color:var(--ink-dim);}
+  @media (prefers-reduced-motion: reduce){ #respBar .respfill{display:none;} }
+  /* board-angle modes (toggled in Settings; static .matmain rule below is the 'tilt' default) */
+  /* each mode's translateY folds in --wallY (0 by default) so the whole field can lift when the
+     castle wall raises — without re-stating rotateX (CSS transforms are not additive). */
+  body.board-tilt .matmain{transform:translateY(calc(-6% + var(--wallY,0%))) rotateX(32deg);height:106%;}
+  body.board-tilt .mat{perspective:none;}
+  body.board-topdown .matmain{transform:translateY(var(--wallY,0%));height:100%;}
+  body.board-topdown .mat{perspective:none;}
+  /* extreme: perspective is vh-relative so the projection scales with the board on any screen
+     and the foreshortened field stays inside the flat box fitBoard already sized (no row falls off) */
+  /* Tilted view: a flatter perspective (less near-row fish-eye magnification → less auto-shrink) and a
+     slightly gentler tilt fill far more of the screen; -2% keeps the field low so it isn't stranded high
+     above the hand. Was 50deg / 140vh / -8% which letterboxed ~100px side + ~150px bottom on landscape. */
+  body.board-extreme{--tiltx:45deg;}
+  body.board-extreme .matmain{transform:translateY(calc(-2% + var(--wallY,0%))) rotateX(var(--tiltx)) scale(var(--extscale,1));transform-origin:50% 50%;height:100%;transform-style:preserve-3d;}
+  body.board-extreme .mat{perspective:260vh;perspective-origin:50% 44%;}
+  /* (D) shift the field to make room for whichever castle wall extends, then re-center on retract:
+     the FOE wall (top) pushes the board DOWN; the player's wall (bottom) lifts it UP. Hover sets
+     .wall-open/.foewall-open, touch selects a card (:has(.hc.selected)); a drag also selects, so the
+     board makes room mid-drag. Player-side rules come last so they win if both ever apply. */
+  .matmain{transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
+  body.foewall-open,body:has(#hudbarFoe:hover),body:has(.foehand:hover){--wallY:9%;}
+  body.board-extreme.foewall-open,body.board-extreme:has(#hudbarFoe:hover),body.board-extreme:has(.foehand:hover){--wallY:8%;}
+  body.wall-open,body:has(.hc.selected){--wallY:-14%;}
+  body.board-extreme.wall-open,body.board-extreme:has(.hc.selected){--wallY:-12%;}
+  /* drag-and-drop: a ghost follows the pointer; cards/cells own the touch gesture (no scroll) */
+  .hc,.cell{touch-action:none;}
+  .dragghost{position:fixed;z-index:9999;left:0;top:0;pointer-events:none;opacity:.92;
+    transform:translate(-50%,-56%) rotate(-2deg) scale(1.05);filter:drop-shadow(0 10px 18px rgba(0,0,0,.65));
+    border-radius:8px;will-change:left,top;}
+  .dragghost .inspect,.dragghost .spritewrap{display:none;}
+  body.dragging{cursor:grabbing;}
+  .cell.draghover{outline:2px solid var(--gold);outline-offset:-2px;border-radius:8px;}
+  /* RTS marquee (PC): drag a box over your ready creatures to select the attack group */
+  .marquee{position:fixed;z-index:9998;pointer-events:none;border:1.5px solid rgba(120,220,150,.95);
+    background:rgba(120,220,150,.16);border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4),inset 0 0 12px rgba(120,220,150,.25);}
+  .cell.marqhi{outline:2px solid rgba(120,220,150,.95);outline-offset:-2px;border-radius:8px;box-shadow:0 0 14px rgba(120,220,150,.4);}
+  body.marqueeing{cursor:crosshair;}
+  /* diorama: the field lies in perspective but creature figures STAND upright (billboard) like
+     standees on a tilted board (DS-Yu-Gi-Oh look). Keep a 3D context all the way down to the
+     sprite so it can pop out of the board plane, then cancel the tilt on the figure itself. */
+  body.board-extreme .row,body.board-extreme .centerwrap,body.board-extreme .side,
+  body.board-extreme .rowsbox,body.board-extreme .cell.hasSprite,
+  body.board-extreme .spritewrap,body.board-extreme .spritebob{transform-style:preserve-3d;}
+  body.board-extreme .cell.hasSprite:not(.laid) .spritefig{transform:rotateX(calc(-1 * var(--tiltx)));transform-origin:50% 100%;}  /* creatures AND structures billboard upright out of the tilted board */
+  body.board-extreme .cell.hasSprite .spriteshadow{opacity:.85;}   /* shadow stays flat on the ground */
+  /* idle creature (can't act this turn) lies down: in the diorama it stays in the tilted board plane (no billboard); everywhere it dims + stops bobbing */
+  body.board-extreme .cell.hasSprite.laid .spritefig{transform:rotateX(6deg);transform-origin:50% 100%;}
+  body:not(.board-extreme) .cell.hasSprite.laid .spritefig{transform:scale(.86) translateY(6%);transform-origin:50% 100%;}
+  .cell.hasSprite.laid .spritebob{animation:none;}
+  .cell.hasSprite.laid .spritefig{filter:grayscale(.4) brightness(.6) drop-shadow(0 3px 4px rgba(0,0,0,.55));opacity:.9;}
+  .cell.hasSprite.laid .spriteshadow{opacity:.4;}
+  /* structures STAND UP from their slot like a creature standee — planted (no idle bob), grounded by a shadow */
+  .cell.bldSprite .spritebob{bottom:12%;top:auto;left:50%;transform:translateX(-50%);}
+  .cell.bldSprite .spritefig{height:min(122cqh,102cqw);width:auto;max-width:132cqw;object-position:bottom;}
+  .cell.bldSprite .spritefig.fromart{height:min(110cqh,92cqw);max-width:none;}
+  .cell.bldSprite .spriteshadow{display:block;}
+  /* battle cut-in (DS-Yu-Gi-Oh style): the cards involved flash up on a clash */
+  #battleView{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;}
+  #battleView.show{animation:bvshow 1.1s ease forwards;}
+  @keyframes bvshow{0%{opacity:0;}14%{opacity:1;}80%{opacity:1;}100%{opacity:0;}}
+  #battleView .bvinner{display:flex;align-items:center;gap:clamp(10px,4vw,42px);background:rgba(8,6,14,.74);padding:16px clamp(16px,4vw,30px);border-radius:16px;box-shadow:0 0 60px rgba(0,0,0,.75),inset 0 0 0 1px rgba(255,255,255,.06);}
+  #battleView .bvside{display:flex;gap:7px;}
+  #battleView.show .bvside.left{animation:bvleft .45s cubic-bezier(.2,1.2,.4,1);}
+  #battleView.show .bvside.right{animation:bvright .45s cubic-bezier(.2,1.2,.4,1);}
+  @keyframes bvleft{from{transform:translateX(-70px) rotate(-6deg);opacity:0;}to{transform:none;opacity:1;}}
+  @keyframes bvright{from{transform:translateX(70px) rotate(6deg);opacity:0;}to{transform:none;opacity:1;}}
+  #battleView .bvcard{width:clamp(72px,15vw,118px);aspect-ratio:.72;border-radius:9px;overflow:hidden;position:relative;border:2px solid #4a4060;background:#15121d;display:flex;flex-direction:column;box-shadow:0 6px 18px rgba(0,0,0,.6);}
+  #battleView .bvname{font-family:'Cinzel',serif;font-weight:700;font-size:9px;text-align:center;padding:2px 3px;background:rgba(0,0,0,.55);color:#e7eefb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #battleView .bvart{flex:1;min-height:0;} #battleView .bvart img{width:100%;height:100%;object-fit:cover;display:block;}
+  #battleView .bvtype{font-size:7.5px;text-align:center;color:#cdbcf2;background:rgba(0,0,0,.5);padding:1px;letter-spacing:.04em;}
+  #battleView .bvstats{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-weight:900;font-size:11px;padding:2px 6px;background:rgba(0,0,0,.62);}
+  #battleView .bvstats span:first-child{color:#ff9a6a;} #battleView .bvstats span:last-child{color:#8affb0;}
+  #battleView .bvvs{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(24px,6vw,44px);color:var(--gold);text-shadow:0 0 20px rgba(217,176,74,.8);}
+  #battleView.show .bvvs{animation:bvvs .55s cubic-bezier(.2,1.4,.4,1);}
+  @keyframes bvvs{0%{transform:scale(0) rotate(-40deg);}60%{transform:scale(1.35) rotate(12deg);}100%{transform:scale(1) rotate(0);}}
+  /* (attacker ⚔ badge now lives on the CELL — see .cell.selected::after — so it shows above standees) */
+  .fxtitle{margin-bottom:14px;}
+  .fxtitle .t1{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(26px,8vw,42px);letter-spacing:.16em;color:var(--gold);
+    text-shadow:0 0 28px rgba(217,176,74,.5),0 2px 4px #000;animation:pulse 3.2s ease-in-out infinite;}
+  .fxtitle .t2{font-style:italic;color:var(--ink-dim);font-size:12.5px;margin-top:4px;letter-spacing:.04em;}
+  @media (prefers-reduced-motion: reduce){
+    .fx-fly,.fx-slash,.fx-ring,.fx-spark,.fx-conf,.efx-p,.efx-ray,.efx-shot,.efx-bolt,.efx-whip{display:none;}
+    .fx-shake,#hurtVig.on,#turnRibbon.on,#splashFx .spbox{animation:none;}
+    #turnRibbon.on{opacity:1;transition:opacity .2s;}
+    .mmrays,.mmring{animation:none;}
+    .mmember{display:none;}
+    .screen-in,.screen-in>.mmbox,.screen-in>.csbox,.screen-in>.dbbox{animation:none;}
+    .mmbtn::after{display:none;}
+    .deckbox,.dbcard{transition:none;}
+  }
+  /* ===== BATTLEFIELD SCENERY (built by buildBattlefield(); sits UNDER the rows) =====
+     #battlefield      = clipped flat ground (terrain bands, textures, lane paths, scorched center, smoke, cloud, motes)
+     #battlefieldProps = unclipped prop layer so upright props can billboard in the diorama (standee technique).
+     Both are first children of .matmain: positioned + z-index:0, so the cells (position:relative, later
+     in DOM) always paint above them. Everything here is pointer-events:none. */
+  #battlefield,#battlefieldProps{position:absolute;inset:-3% -2.5%;z-index:0;pointer-events:none;}
+  #battlefield{border-radius:14px;overflow:hidden;}
+  #battlefield>div{position:absolute;}
+  /* ground plane: foe territory (top) / churned no-man's-land / your territory (bottom).
+     Tints come from --terr-* vars set inline by JS from ELEMENTS[el].bg. The tiling textures are
+     monochrome (black shadow + white highlight strokes) so one SVG works over any element tint. */
+  .bf-ground{inset:0;background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cpath d='M14 70l5-5 8 2 2 6-6 3-8-2z' fill='%23000' fill-opacity='.28'/%3E%3Cpath d='M15 69l5-4 7 2' fill='none' stroke='%23fff' stroke-opacity='.12'/%3E%3Cpath d='M66 28l6-3 7 3 1 5-7 3-7-3z' fill='%23000' fill-opacity='.25'/%3E%3Cpath d='M67 27l6-3 6 3' fill='none' stroke='%23fff' stroke-opacity='.1'/%3E%3Ccircle cx='40' cy='14' r='2.4' fill='%23000' fill-opacity='.24'/%3E%3Ccircle cx='85' cy='74' r='3' fill='%23000' fill-opacity='.26'/%3E%3Ccircle cx='28' cy='42' r='1.8' fill='%23000' fill-opacity='.2'/%3E%3Ccircle cx='58' cy='60' r='1.5' fill='%23000' fill-opacity='.2'/%3E%3C/svg%3E") repeat,
+    linear-gradient(180deg,var(--terr-foe,#0f3a52) 0%,var(--terr-foe-deep,#0a2230) 28%,#241708 38%,#170e06 46%,#140c05 54%,#241708 62%,var(--terr-you-deep,#2a0f08) 72%,var(--terr-you,#5e1d10) 100%);}
+  /* grass tufts only on the two territories (masked out of the churned center) */
+  .bf-ground::before{content:"";position:absolute;inset:0;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cg stroke='%23000' stroke-opacity='.3' stroke-width='1.3'%3E%3Cpath d='M10 62q1-7-1-11m4 11q0-6 3-9m-9 9q-2-4-4-6'/%3E%3Cpath d='M52 30q1-7-1-11m4 11q0-6 3-9m-9 9q-2-4-4-6'/%3E%3Cpath d='M31 45q1-5-1-8m3 8q0-4 2-6'/%3E%3C/g%3E%3Cg stroke='%23fff' stroke-opacity='.12' stroke-width='1'%3E%3Cpath d='M11 61q1-6-1-10m4 10q0-5 3-8'/%3E%3Cpath d='M53 29q1-6-1-10m4 10q0-5 3-8'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    -webkit-mask-image:linear-gradient(180deg,#000 0 34%,transparent 42% 58%,#000 66%);
+    mask-image:linear-gradient(180deg,#000 0 34%,transparent 42% 58%,#000 66%);}
+  /* frontier trench ridges at the row seams (+ stronghold glow where supported) */
+  .bf-ground::after{content:"";position:absolute;inset:0;background:
+    linear-gradient(180deg,transparent 35%,rgba(0,0,0,.4) 35.9%,rgba(120,92,52,.16) 36.6%,transparent 37.6%),
+    linear-gradient(180deg,transparent 62.4%,rgba(120,92,52,.16) 63.4%,rgba(0,0,0,.4) 64.1%,transparent 65%);}
+  @supports (background:color-mix(in srgb,red 10%,transparent)){
+    .bf-ground::after{background:
+      radial-gradient(60% 22% at 50% -2%,color-mix(in srgb,var(--terr-foe-col,#3fa3e0) 24%,transparent),transparent 72%),
+      radial-gradient(60% 22% at 50% 102%,color-mix(in srgb,var(--terr-you-col,#e0613f) 24%,transparent),transparent 72%),
+      linear-gradient(180deg,transparent 35%,rgba(0,0,0,.4) 35.9%,rgba(120,92,52,.16) 36.6%,transparent 37.6%),
+      linear-gradient(180deg,transparent 62.4%,rgba(120,92,52,.16) 63.4%,rgba(0,0,0,.4) 64.1%,transparent 65%);}}
+  /* worn crossing paths down lanes 1/3/5 — JS centers them on the real columns via --cw + measured gap */
+  .bf-path{top:24%;bottom:24%;width:calc(var(--cw,60px)*.62);transform:translateX(-50%);border-radius:12px;
+    background:
+      repeating-linear-gradient(90deg,rgba(0,0,0,.2) 0 2px,transparent 2px 7px),
+      linear-gradient(180deg,rgba(56,40,22,0),rgba(56,40,22,.5) 16%,rgba(38,26,14,.55) 50%,rgba(56,40,22,.5) 84%,rgba(56,40,22,0));
+    box-shadow:inset 0 0 8px rgba(0,0,0,.35);}
+  /* the scorched frontier: cracked earth, crater rims (dark bowl + lit rim ring), ember patches */
+  .bf-center{left:0;right:0;top:36%;bottom:36%;background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.3' stroke-width='1'%3E%3Cpath d='M6 8l12 9 3 12-9 8m6-20 14-5 6-14m-6 14 8 10 14 2M52 44l10 10-4 14M18 52l10 6 2 12M2 40l10 4'/%3E%3C/g%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.06' stroke-width='1'%3E%3Cpath d='M7 10l12 9M42 6l-6 13M53 45l10 10M19 53l10 6'/%3E%3C/g%3E%3C/svg%3E") repeat,
+    radial-gradient(circle at 18% 42%,rgba(0,0,0,.55) 0 4.5%,rgba(126,92,54,.3) 5.5% 7%,transparent 9.5%),
+    radial-gradient(circle at 71% 62%,rgba(0,0,0,.5) 0 3.5%,rgba(126,92,54,.28) 4.5% 6%,transparent 8.5%),
+    radial-gradient(circle at 45% 26%,rgba(0,0,0,.45) 0 2.5%,rgba(126,92,54,.24) 3.5% 5%,transparent 7%),
+    radial-gradient(circle at 88% 30%,rgba(255,110,40,.1) 0 2%,transparent 8%),
+    linear-gradient(180deg,transparent,rgba(8,5,2,.42) 28% 72%,transparent);}
+  .bf-ember{width:calc(var(--cw,60px)*.55);aspect-ratio:2.2;border-radius:50%;transform:translate(-50%,-50%);
+    background:radial-gradient(ellipse at center,rgba(255,140,60,.32),rgba(255,70,20,.1) 48%,transparent 72%);
+    animation:bfember 3.8s ease-in-out infinite;}
+  @keyframes bfember{0%,100%{opacity:.45}50%{opacity:1}}
+  /* two drifting smoke wisps over the frontier — soft gradient blobs on slow transform loops */
+  .bf-smoke{top:22%;height:56%;width:30%;border-radius:50%;will-change:transform;
+    background:radial-gradient(ellipse at center,rgba(185,175,165,.11),transparent 62%);
+    animation:bfsmoke 30s ease-in-out infinite alternate;}
+  .bf-smoke.s1{left:14%;}
+  .bf-smoke.s2{left:56%;animation-duration:39s;animation-delay:-16s;}
+  @keyframes bfsmoke{from{transform:translate3d(-8%,6%,0) scale(1);}to{transform:translate3d(16%,-8%,0) scale(1.2);}}
+  /* one huge cloud-shadow sweeping the whole field */
+  .bf-cloud{top:-20%;left:-30%;width:160%;height:140%;will-change:transform;
+    background:radial-gradient(42% 34% at 50% 50%,rgba(0,0,0,.16),transparent 70%);
+    animation:bfcloud 64s ease-in-out infinite alternate;}
+  @keyframes bfcloud{from{transform:translate3d(-14%,-6%,0);}to{transform:translate3d(16%,8%,0);}}
+  /* ambient element motes: one generic tintable system, 4 per half, tinted by each side's accent */
+  .bf-parts{inset:0;}
+  .bf-part{position:absolute;width:5px;height:5px;border-radius:50%;opacity:0;will-change:transform,opacity;
+    background:radial-gradient(circle,var(--pc,#fff) 0 30%,transparent 70%);box-shadow:0 0 6px var(--pc,#fff);
+    animation:bfmote var(--pd,8s) linear infinite;}
+  @keyframes bfmote{0%{transform:translateY(14px);opacity:0}12%{opacity:.55}80%{opacity:.22}100%{transform:translateY(-80px);opacity:0}}
+  /* props: bottom-anchored so they billboard exactly like standees in the diorama */
+  .bf-prop{position:absolute;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));}
+  .bf-prop svg{display:block;width:100%;height:auto;overflow:visible;}
+  body.board-extreme #battlefieldProps{transform-style:preserve-3d;}
+  body.board-extreme .bf-prop.up{transform:translate(-50%,-100%) rotateX(calc(-1*var(--tiltx)));transform-origin:50% 100%;}
+  .bf-flame{position:absolute;left:50%;bottom:56%;width:46%;aspect-ratio:.6;display:block;transform:translateX(-50%);transform-origin:50% 100%;
+    border-radius:50% 50% 42% 42%/62% 62% 38% 38%;
+    background:radial-gradient(50% 62% at 50% 78%,#ffd977 0 18%,#ff9a2e 40%,rgba(255,90,20,.55) 62%,transparent 80%);
+    animation:bfflick .8s ease-in-out infinite;}
+  @keyframes bfflick{0%,100%{transform:translateX(-50%) scale(1,1);opacity:.92}35%{transform:translateX(-52%) scale(.9,1.14);opacity:1}70%{transform:translateX(-48%) scale(1.06,.9);opacity:.82}}
+  /* soft table vignette; isolation:isolate contains the ::after's z inside .mat's own stacking
+     context — WITHOUT it, z:32 would paint over #hudbar(23)/#cardActions(22)/.handwrap(25) */
+  .mat{position:relative;isolation:isolate;}
+  .mat::after{content:"";position:absolute;inset:0;z-index:32;pointer-events:none;
+    background:radial-gradient(120% 95% at 50% 42%,transparent 58%,rgba(0,0,0,.32) 100%);}
+  /* fallbacks: static field for reduced motion; fewer layers on small screens */
+  @media (prefers-reduced-motion:reduce){
+    #battlefield *,#battlefieldProps *{animation:none!important;}
+    .bf-part,.bf-cloud{display:none;} .bf-smoke{opacity:.6;}}
+  @media (max-width:880px),(max-height:430px){
+    .bf-cloud,.bf-smoke.s2{display:none;}
+    .bf-parts .bf-part:nth-child(n+5){display:none;}
+    .bf-prop{filter:none;}}
+  /* ===== screen transitions ===== */
+  .screen-in{animation:scrFade .26s ease-out both;}
+  .screen-in>.mmbox,.screen-in>.csbox,.screen-in>.dbbox{animation:scrRise .34s var(--ease-pop) both;}
+  @keyframes scrFade{from{opacity:0;}}
+  @keyframes scrRise{from{opacity:0;transform:translateY(14px) scale(.988);}}
+  /* ===== main menu ===== */
+  #mainMenu{position:fixed;inset:0;z-index:42;display:none;align-items:center;justify-content:center;
+    background:radial-gradient(1100px 700px at 50% -10%,#241a36 0%,transparent 60%),radial-gradient(900px 600px at 50% 120%,#2a1410 0%,transparent 55%),#050409;padding:20px;overflow:hidden;}
+  #mainMenu .mmbg{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .mmrays{position:absolute;left:50%;top:34%;width:120vmax;height:120vmax;transform:translate(-50%,-50%);
+    background:repeating-conic-gradient(from 0deg,rgba(217,176,74,.045) 0deg 5deg,transparent 5deg 14deg);
+    -webkit-mask:radial-gradient(closest-side,#000 0%,transparent 66%);mask:radial-gradient(closest-side,#000 0%,transparent 66%);
+    animation:mmspin 160s linear infinite;will-change:transform;}
+  .mmring{position:absolute;left:50%;top:42%;width:min(74vmin,560px);height:min(74vmin,560px);transform:translate(-50%,-50%);animation:mmspin 90s linear infinite reverse;will-change:transform;}
+  @keyframes mmspin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+  .mmembers{position:absolute;inset:0;overflow:hidden;}
+  .mmember{position:absolute;bottom:-8px;border-radius:50%;background:#ff8a1f;opacity:0;box-shadow:0 0 6px 1px rgba(255,150,60,.45);animation:mmrise linear infinite;will-change:transform,opacity;}
+  @keyframes mmrise{0%{transform:translateY(0);opacity:0;}8%{opacity:.85;}55%{opacity:.5;transform:translateY(-55vh) translateX(3vw);}100%{transform:translateY(-108vh) translateX(-2vw);opacity:0;}}
+  #mainMenu .mmbox{width:100%;max-width:430px;text-align:center;position:relative;}
+  .mmtitle{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(30px,6.5vw,54px);letter-spacing:.08em;
+    background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.85)) drop-shadow(0 0 22px rgba(217,176,74,.28));}
+  .mmsub{font-family:'EB Garamond',serif;font-style:italic;font-size:13px;color:var(--ink-dim);margin:6px 0 26px;letter-spacing:.02em;}
+  .mmbtns{display:flex;flex-direction:column;gap:11px;}
+  .mmbtn{display:flex;align-items:center;gap:14px;text-align:left;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.05em;font-size:16px;padding:12px 16px;border-radius:12px;cursor:pointer;position:relative;overflow:hidden;
+    color:#f3e7c0;background:linear-gradient(180deg,rgba(52,40,22,.92),rgba(24,18,9,.94));border:1px solid var(--hairline);box-shadow:inset 0 1px 0 rgba(255,230,160,.16),var(--glow-soft);}
+  .mmbtn .mi{flex:none;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#1a140a;background:var(--metal);box-shadow:0 2px 5px rgba(0,0,0,.5);}
+  .mmbtn .ml{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+  .mmbtn .ms{font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:11px;letter-spacing:.03em;color:var(--ink-dim);}
+  .mmbtn::after{content:"";position:absolute;inset:0;background:var(--sheen);transform:translateX(-130%);transition:transform .5s var(--ease-pop);pointer-events:none;}
+  .mmbtn:hover:not(:disabled)::after{transform:translateX(130%);}
+  .mmbtn:hover:not(:disabled){border-color:var(--gold);box-shadow:inset 0 1px 0 rgba(255,230,160,.25),var(--glow-gold);}
+  .mmbtn:active:not(:disabled){transform:translateY(2px);}
+  .mmbtn.primary{color:#1a140a;background:var(--metal);border-color:#f0d68a;box-shadow:0 4px 0 #4d3a10,0 8px 22px rgba(0,0,0,.5);}
+  .mmbtn.primary .mi{background:rgba(26,20,10,.85);color:var(--gold);}
+  .mmbtn.primary .ms{color:#4d3a10;}
+  .mmbtn.ghost{background:var(--glass);border:1px solid #3a3450;box-shadow:var(--glow-soft);font-size:13.5px;padding:9px 14px;}
+  .mmbtn.ghost .mi{width:28px;height:28px;font-size:14px;background:#2a2336;color:var(--gold);box-shadow:none;}
+  .mmbtn.off{color:var(--ink-dim);background:rgba(13,11,18,.6);border:1px dashed #3a3450;box-shadow:none;cursor:default;filter:grayscale(.4);}
+  .mmbtn.off .mi{background:#241f30;color:var(--ink-dim);box-shadow:none;}
+  .mmbtn .soon{display:block;font-family:'EB Garamond',serif;font-style:italic;font-weight:400;font-size:10.5px;letter-spacing:.04em;color:var(--ink-dim);text-transform:uppercase;}
+  /* ---------- multiplayer: lobby, drop overlay, RTT chip ---------- */
+  #mpLobby,#mpDrop{position:fixed;inset:0;z-index:44;display:none;align-items:flex-start;justify-content:center;background:rgba(4,3,8,.96);backdrop-filter:blur(3px);padding:18px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #mpLobby .csbox,#mpDrop .csbox{max-width:560px;width:100%;text-align:center;margin:auto;}
+  #mpLobby h1,#mpDrop h1{font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--gold);margin:4px 0 4px;}
+  #mpLobby .cssub,#mpDrop .cssub{font-size:12.5px;color:var(--ink-dim);margin-bottom:12px;}
+  #mpLobby .csback{margin-top:10px;background:none;border:none;color:var(--ink-dim);font-size:13px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.05em;}
+  #mpLobby details{margin-top:16px;text-align:left;background:#0d0b12;border:1px solid #241f2d;border-radius:10px;padding:2px 12px 8px;}
+  #mpLobby summary{font-family:'Cinzel',serif;font-size:11.5px;letter-spacing:.06em;color:var(--ink-dim);cursor:pointer;padding:8px 0;}
+  #mpLobby .mmbtn[disabled]{opacity:.45;cursor:default;}
+  .mpstatus{font-family:'EB Garamond',serif;font-style:italic;font-size:13px;color:var(--gold);text-align:center;margin:6px 0 12px;min-height:18px;}
+  .mpmode{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:10px 0;}
+  .mpmode .mmbtn{min-width:200px;}
+  .mpcard{margin:10px auto 0;max-width:460px;text-align:left;}
+  .mplab{font-family:'Cinzel',serif;font-size:11.5px;letter-spacing:.06em;color:var(--ink-dim);margin:10px 0 4px;}
+  .mpin{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #3d3450;background:#14101d;color:var(--ink);font-size:13px;}
+  .mpcode{width:100%;box-sizing:border-box;height:64px;resize:vertical;padding:7px 9px;border-radius:8px;border:1px solid #3d3450;background:#14101d;color:var(--ink-dim);font-family:monospace;font-size:10px;line-height:1.25;word-break:break-all;}
+  .mprow{display:flex;gap:6px;align-items:stretch;}
+  .mprow .mpbtn{flex:none;align-self:center;}
+  .mpbtn{font-family:'Cinzel',serif;font-size:12px;padding:8px 12px;border-radius:8px;cursor:pointer;border:1px solid #4a4060;background:#2a2640;color:var(--ink);margin:6px 0;}
+  .mpbtn:disabled{filter:grayscale(.85) brightness(.6);cursor:default;}
+  .mpbtn.go{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;border-color:var(--gold);font-weight:700;width:100%;}
+  #mpLink{position:fixed;top:12px;right:50px;z-index:64;display:none;font-family:'Cinzel',serif;font-size:11px;color:var(--ink-dim);background:rgba(10,8,15,.7);border:1px solid #3a3450;border-radius:999px;padding:3px 9px;pointer-events:none;}
+  .mmfoot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:7px 14px;font-family:'EB Garamond',serif;font-size:11px;color:var(--ink-dim);letter-spacing:.04em;border-top:1px solid var(--hairline-dim);background:rgba(6,5,10,.55);pointer-events:none;}
+  @media (min-width:900px) and (min-height:520px){ /* MTG-Arena left-anchored nav on wide screens */
+    #mainMenu{justify-content:flex-start;}
+    #mainMenu .mmbox{margin-left:clamp(40px,7vw,120px);text-align:left;max-width:400px;}
+    .mmring{left:66%;top:50%;}
+  }
+  @media (max-height:430px){ /* mobile landscape: two-column nav, trim ornament */
+    .mmsub{margin-bottom:12px;}
+    .mmbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .mmbtn{font-size:13.5px;padding:9px 12px;gap:10px;} .mmbtn .mi{width:27px;height:27px;font-size:14px;}
+    .mmring,.mmfoot{display:none;}
+  }
+  /* ===== deck builder (Master-Duel-style three columns: detail · deck · pool) ===== */
+  #deckBuilder{position:fixed;inset:0;z-index:44;display:none;align-items:stretch;justify-content:stretch;background:rgba(4,3,8,.97);backdrop-filter:blur(3px);padding:0;}
+  #deckBuilder .dbbox{width:100%;max-width:none;height:100dvh;display:flex;flex-direction:column;gap:10px;
+    background:linear-gradient(165deg,#201827,#120d18);border:none;border-radius:0;padding:14px clamp(16px,3vw,48px);box-shadow:none;}
+  .dbbar{display:flex;align-items:center;gap:11px;flex:none;}
+  .dbback{flex:none;width:36px;height:36px;border-radius:10px;border:1px solid var(--hairline-dim);background:var(--glass);color:var(--gold);font-family:'Cinzel',serif;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 3px;}
+  .dbback:hover{border-color:var(--gold);box-shadow:var(--glow-gold);}
+  .dbtitle{font-family:'Cinzel',serif;font-weight:900;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);flex:none;}
+  .dbnamewrap{flex:1;min-width:0;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--hairline-dim);padding:2px 4px;transition:border-color .15s;}
+  .dbnamewrap:focus-within{border-color:var(--gold);}
+  .dbpencil{color:var(--ink-dim);font-size:13px;flex:none;}
+  .dbbaracts{display:flex;gap:9px;flex:none;}
+  .dbbaracts button{font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;padding:9px 20px;border-radius:9px;cursor:pointer;border:none;}
+  #dbSave{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 3px 0 #4d3a10;}
+  #dbSave:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
+  #dbSave:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  .dbcols{flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,0.9fr) 1.3fr 1.7fr;gap:14px;}
+  .dbcol{min-height:0;display:flex;flex-direction:column;background:var(--glass);border:1px solid var(--hairline-dim);border-radius:var(--panel-r);padding:9px;overflow:hidden;position:relative;}
+  .dbcol::before{content:"";position:absolute;top:0;left:0;width:16px;height:16px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);border-radius:var(--panel-r) 0 0 0;opacity:.5;pointer-events:none;}
+  .dbcol::after{content:"";position:absolute;bottom:0;right:0;width:16px;height:16px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);border-radius:0 0 var(--panel-r) 0;opacity:.5;pointer-events:none;}
+  .dbcolhead,.dbpoolhead{flex:none;font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;margin-bottom:7px;}
+  /* LEFT — card detail */
+  .dbdetail{overflow-y:auto;text-align:center;}
+  .dbd-art{width:100%;aspect-ratio:1/1;border-radius:9px;overflow:hidden;background:#0a0a0f;border:1px solid rgba(0,0,0,.5);box-shadow:inset 0 0 0 1px rgba(217,176,74,.25);}
+  .dbd-art img{width:100%;height:100%;object-fit:cover;display:block;}
+  .dbd-name{font-family:'Cinzel',serif;font-weight:700;font-size:16px;color:var(--ink);margin-top:9px;line-height:1.1;}
+  .dbd-line{display:flex;gap:12px;justify-content:center;align-items:center;font-family:'Cinzel',serif;font-size:13px;margin-top:5px;}
+  .dbd-elem{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin-top:6px;}
+  .dbd-desc{font-family:'EB Garamond',serif;font-style:italic;font-size:12.5px;color:var(--ink-dim);line-height:1.45;margin-top:9px;padding:0 4px;}
+  .dbd-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--ink-dim);font-style:italic;font-size:13px;}
+  .dbd-step{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:12px;}
+  /* CENTER deck header */
+  .dbdeckhead{flex:none;}
+  #dbLeaders{margin-bottom:8px;max-height:26vh;overflow-y:auto;padding-right:2px;}
+  .dbleadlab{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);margin:2px 0 5px;text-align:center;}
+  .dbleadrow{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;}
+  .dbleader{display:flex;align-items:center;gap:4px;font-family:'Cinzel',serif;font-size:11px;padding:4px 9px;border-radius:999px;cursor:pointer;color:var(--ink);background:#1a1622;border:2px solid #2a2433;}
+  .dbleader.on{border-color:var(--lc,var(--gold));box-shadow:0 0 14px rgba(217,176,74,.35);background:#221c2e;}
+  .dbname{flex:1;min-width:0;font-family:'Cinzel',serif;font-weight:700;font-size:16px;letter-spacing:.03em;padding:5px 2px;background:transparent;border:none;outline:none;color:var(--ink);}
+  .dbname::placeholder{color:var(--ink-dim);font-style:italic;font-weight:400;font-family:'EB Garamond',serif;}
+  .dbcounter{flex:none;width:44px;height:44px;border-radius:50%;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;font-family:'Cinzel',serif;gap:1px;background:conic-gradient(var(--rc,#e0a59a) calc(var(--pct,0)*1%),rgba(255,255,255,.08) 0);}
+  .dbcounter::before{content:"";position:absolute;inset:3px;border-radius:50%;background:#141019;}
+  .dbcounter b{position:relative;font-size:14px;font-weight:900;}
+  .dbcounter i{position:relative;font-style:normal;font-size:8px;color:var(--ink-dim);}
+  .dbcounter.ok{--rc:#9ad17f;color:#9ad17f;} .dbcounter.bad{--rc:#e0a59a;color:#e0a59a;}
+  /* card grids (deck + pool) */
+  .dbcardgrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:7px;align-content:start;padding:2px;}
+  .dbcardgrid .dbempty{grid-column:1/-1;color:var(--ink-dim);font-style:italic;font-size:12px;text-align:center;padding:18px 6px;}
+  .dbcard{position:relative;border-radius:9px;border:1px solid var(--ec,#2a2433);background:linear-gradient(180deg,#1c1726,#131019);box-shadow:none;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;transition:transform .12s var(--ease-pop),border-color .1s,box-shadow .12s;}
+  .dbcard:hover{transform:translateY(-2px);border-color:var(--ec,#4a4360);box-shadow:0 6px 14px rgba(0,0,0,.5);}
+  .dbcard.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),var(--glow-gold);}
+  .dbcard-art{width:100%;aspect-ratio:1/1;background:#0a0a0f;}
+  .dbcard-art img{width:100%;height:100%;object-fit:cover;display:block;}
+  .dbcard-nm{font-family:'Cinzel',serif;font-weight:700;font-size:10.5px;line-height:1.05;color:var(--ink);padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(180deg,rgba(30,24,40,.25),rgba(8,6,12,.92));box-shadow:inset 0 1px 0 rgba(217,176,74,.14);}
+  .dbcard-cost{position:absolute;top:3px;left:3px;z-index:1;width:19px;height:19px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;font-size:10px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9);background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--ec,#4a90c2) 45%,#fff 55%),var(--ec,#4a90c2) 58%,color-mix(in srgb,var(--ec,#4a90c2) 55%,#000 45%));border-radius:50%;border:1px solid #0b0a0e;}
+  /* tile bottom bar — the same DM grammar as the hand cards: power / ⚒± chip / ♥, or a spell ribbon */
+  .dbcard .stats{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:1px 4px 3px;font-family:'Cinzel',serif;font-weight:700;font-size:10px;background:linear-gradient(180deg,rgba(8,6,12,.9),rgba(8,6,12,.7));}
+  .dbcard .stats .atk{font-style:italic;font-weight:900;color:#fff;font-size:12.5px;line-height:1;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
+  .dbcard .stats .hp{color:#ff9a8a;}
+  .dbcard .stats .eff{color:var(--spawn);}
+  .dbcard .stats .cap{font-size:8.5px;}
+  .dbcard-rib{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.12em;font-size:8.5px;color:rgba(255,246,220,.85);text-align:center;padding:2px 3px 3px;background:linear-gradient(180deg,rgba(8,6,12,.9),rgba(8,6,12,.7));}
+  .dbcard.fire-c{--ec:var(--fire);} .dbcard.water-c{--ec:var(--water);} .dbcard.earth-c{--ec:var(--earth);} .dbcard.wind-c{--ec:var(--wind);}
+  .dbcard.forest-c{--ec:var(--forest);} .dbcard.electric-c{--ec:var(--electric);} .dbcard.light-c{--ec:var(--light);} .dbcard.dark-c{--ec:var(--dark);}
+  .dbcard.divine-c{--ec:var(--divine);} .dbcard.neutral{--ec:#6a6a76;}
+  .dbdeck .dbcardgrid .dbcard:nth-child(even){background:linear-gradient(180deg,#201a2c,#161220);} /* subtle deck-list striping */
+  .dbcount-badge{position:absolute;top:2px;right:2px;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1a140a;font-family:'Cinzel',serif;font-weight:900;font-size:11px;border-radius:6px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .dbcard-x{position:absolute;bottom:2px;right:2px;width:17px;height:17px;border-radius:50%;background:rgba(40,20,24,.92);border:1px solid #b3504a;color:#ff9a8a;font-size:11px;line-height:15px;text-align:center;cursor:pointer;}
+  .dbstep{display:flex;align-items:center;gap:10px;}
+  .dbstep button{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;font-size:21px;line-height:1;font-family:'Cinzel',serif;color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 2px 0 #4d3a10;}
+  .dbstep button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
+  .dbstep button:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default;}
+  .dbcount{font-family:'Cinzel',serif;font-weight:900;font-size:20px;color:var(--spawn);min-width:22px;text-align:center;}
+  .dbhint{flex:none;font-size:11.5px;color:var(--ink-dim);font-style:italic;text-align:center;min-height:14px;}
+  /* pool toolbar: search + sort + type filter chips */
+  .dbtools{flex:none;display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+  .dbsearch{flex:1;min-width:0;font-family:'EB Garamond',serif;font-size:12.5px;padding:6px 9px;border-radius:8px;background:#0d0b12;border:1px solid #3d3450;color:var(--ink);}
+  .dbsort{flex:none;font-family:'Cinzel',serif;font-size:10.5px;padding:6px 7px;border-radius:8px;background:#1a1622;border:1px solid #3d3450;color:var(--ink);cursor:pointer;}
+  .dbfilters{flex:none;display:flex;flex-direction:column;gap:5px;margin-bottom:7px;}
+  .dbfrow{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+  .dbfsep{width:1px;height:16px;background:var(--hairline-dim);margin:0 3px;}
+  .dbchip{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.02em;padding:5px 10px;border-radius:999px;cursor:pointer;color:var(--ink-dim);background:#1a1622;border:1px solid #2a2433;}
+  .dbchip.on{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border-color:var(--gold);}
+  .dbchip.sm{font-size:9px;padding:4px 8px;}
+  .dbflab{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.05em;color:var(--ink-dim);text-transform:uppercase;opacity:.75;margin-right:1px;align-self:center;}
+  .dbfspace{flex:1 1 auto;}
+  .dbclear{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.03em;padding:5px 11px;border-radius:999px;cursor:pointer;color:#e7b7a0;background:#2a1622;border:1px solid #5a2a3a;}
+  .dbclear:hover{background:#3a1e2e;color:#ffd9c8;}
+  .dbpoolcount{color:var(--ink-dim);font-weight:400;font-size:11px;letter-spacing:0;text-transform:none;margin-left:5px;}
+  .dbechip{width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;background:#1a1622;border:1px solid #2a2433;opacity:.55;transition:opacity .12s,box-shadow .12s;}
+  .dbechip:hover{opacity:1;}
+  .dbechip.on{opacity:1;border-color:var(--ec,var(--gold));box-shadow:0 0 8px var(--ec,var(--gold));}
+  /* floating hover-zoom card preview (desktop / pointer:fine only) */
+  #dbZoom{position:fixed;left:0;top:0;z-index:64;width:min(250px,26vw);pointer-events:none;opacity:0;transition:opacity .12s;will-change:transform;
+    background:var(--glass-2);border:1px solid var(--zc,var(--gold));border-radius:12px;padding:9px;box-shadow:var(--glow-soft);backdrop-filter:blur(6px);}
+  #dbZoom.on{opacity:1;}
+  .dbz-art{width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;background:#0a0a0f;}
+  .dbz-art img{width:100%;height:100%;object-fit:cover;display:block;}
+  .dbz-nm{font-family:'Cinzel',serif;font-weight:700;font-size:14px;margin-top:7px;text-align:center;}
+  .dbz-line{display:flex;gap:10px;justify-content:center;font-family:'Cinzel',serif;font-size:12px;margin-top:3px;}
+  .dbz-desc{font-family:'EB Garamond',serif;font-style:italic;font-size:11.5px;color:var(--ink-dim);line-height:1.4;margin-top:6px;text-align:center;}
+  /* deck stats: type counts + mana curve */
+  .dbstats{flex:none;background:var(--glass-2);border:1px solid var(--hairline-dim);border-radius:9px;padding:7px 9px;margin-bottom:8px;}
+  .dbstatline{display:flex;justify-content:space-around;gap:8px;font-family:'Cinzel',serif;font-size:11px;color:var(--ink-dim);margin-bottom:6px;}
+  .dbstatline b{color:var(--ink);}
+  .dbcurve{display:flex;align-items:flex-end;gap:4px;height:42px;}
+  .dbcbar{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
+  .dbbarfill{width:100%;min-height:2px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#f2d98a,var(--gold) 45%,var(--gold-deep));box-shadow:inset 0 1px 0 rgba(255,240,190,.5);display:flex;align-items:flex-start;justify-content:center;transition:height .25s var(--ease-pop);}
+  .dbbarfill.empty{background:#241f30;box-shadow:none;}
+  .dbcbar:hover .dbbarfill:not(.empty){filter:brightness(1.25);}
+  .dbbarfill span{font-family:'Cinzel',serif;font-size:8.5px;font-weight:900;color:#1a140a;line-height:1;padding-top:1px;}
+  .dbbarlab{font-family:'Cinzel',serif;font-size:8.5px;color:var(--ink-dim);margin-top:2px;}
+  @media (max-width:860px){
+    #deckBuilder .dbbox{padding:9px;}
+    .dbbar{gap:7px;} .dbtitle{display:none;} .dbcounter{width:38px;height:38px;} .dbcounter b{font-size:12px;}
+    .dbbaracts button{padding:8px 12px;font-size:12px;}
+    .dbcols{grid-template-columns:minmax(150px,.85fr) 1.2fr 1.2fr;gap:8px;}
+    .dbcardgrid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:5px;}
+    .dbd-name{font-size:14px;}
+  }
+  /* PC: everything reads bigger — the builder was designed at phone scale */
+  @media (min-width:1200px){
+    .dbtitle{font-size:14px;}
+    .dbcolhead,.dbpoolhead{font-size:14.5px;}
+    .dbchip{font-size:12px;padding:6px 13px;}
+    .dbechip{width:31px;height:31px;}
+    .dbleader{font-size:12.5px;padding:5px 11px;}
+    .dbleadlab{font-size:11.5px;}
+    #dbLeaders{max-height:32vh;}
+    .dbsearch{font-size:14.5px;padding:8px 11px;}
+    .dbsort{font-size:12px;padding:8px 9px;}
+    .dbstatline{font-size:13px;}
+    .dbcurve{height:52px;}
+    .dbbarlab{font-size:10px;} .dbbarfill span{font-size:10px;}
+    .dbname{font-size:18px;}
+    .dbhint{font-size:13.5px;min-height:17px;}
+    .dbd-name{font-size:19px;}
+    .dbd-line{font-size:15px;}
+    .dbd-elem{font-size:12.5px;}
+    .dbd-desc{font-size:14.5px;line-height:1.5;}
+    .dbcount{font-size:23px;}
+    .dbcardgrid{grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:9px;}
+    .dbcard-nm{font-size:12.5px;padding:4px 4px;}
+    .dbcard .stats{font-size:12px;padding:2px 5px 4px;}
+    .dbcard .stats .atk{font-size:15px;}
+    .dbcard .stats .cap{font-size:10px;}
+    .dbcard-rib{font-size:10.5px;}
+    .dbcard-cost{width:23px;height:23px;font-size:12px;}
+    .dbcount-badge{font-size:13px;padding:0 6px;}
+    .dbcard-x{width:21px;height:21px;font-size:13px;line-height:19px;}
+  }
+  /* ===== DM card-frame layer — element accents + frame parts (after all generic element rules) ===== */
+  /* accent scoping: generic .fire-c etc. (minpills, cbtns, vcards) stay untouched; frames read --ec */
+  .hc.fire-c,.card.fire-c{--ec:var(--fire);}       .hc.water-c,.card.water-c{--ec:var(--water);}
+  .hc.earth-c,.card.earth-c{--ec:var(--earth);}    .hc.wind-c,.card.wind-c{--ec:var(--wind);}
+  .hc.forest-c,.card.forest-c{--ec:var(--forest);} .hc.electric-c,.card.electric-c{--ec:var(--electric);}
+  .hc.light-c,.card.light-c{--ec:var(--light);}    .hc.dark-c,.card.dark-c{--ec:var(--dark);}
+  .hc.divine-c,.card.divine-c{--ec:var(--divine);}
+  .hc.ember-c,.card.ember-c{--ec:var(--fire);}     .hc.tide-c,.card.tide-c{--ec:var(--water);} /* legacy aliases */
+  .card.bld{--ec:#8a8a9a;} .card.vil{--ec:#b79a4d;} .card.ccx{--ec:var(--gold);}
+  /* the generic element classes set border-color/box-shadow AFTER .card — reassert the black
+     outer border + colored inset ring for framed board cards (this block is last, so it wins) */
+  .card.crt,.card.bld{border-color:#0a090d;
+    box-shadow:inset 0 0 0 1px var(--ec),inset 0 0 0 2px rgba(0,0,0,.5),inset 0 0 13px rgba(0,0,0,.3);}
+  /* board bottom bar: DM power / gem+worker chip / health */
+  .card .stats .atk{flex:none;font-style:italic;font-weight:900;color:#fff;font-size:clamp(9px,24cqmin,21px);line-height:1;
+    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 2px 2px rgba(0,0,0,.75);}
+  .card .stats .hp{flex:none;font-size:clamp(7px,15cqmin,15px);}
+  .card .stats .mid{display:inline-flex;align-items:center;gap:1px;min-width:0;overflow:hidden;}
+  .card .stats .cap{font-size:clamp(6px,11cqmin,11px);padding:0 2px;}
+  .card .stats .eff{font-size:clamp(7px,15cqmin,15px);}
+  /* element gem: hidden by default, shown only when its container is wide enough.
+     .ebw inside .card resolves against the .cell (container-type:size); inside .hc against the .hc */
+  .ebw{display:none;align-items:center;line-height:0;}
+  .ebw svg{display:block;}
+  @container (min-width:74px){ .card .ebw{display:inline-flex;} .card .ebw svg{width:15cqmin;height:15cqmin;} }
+  .hc .ebw{display:inline-flex;}  /* hand cards always show the gem (no inline-size container — it collapsed the abspos .hand's shrink-to-fit width) */
+  .hc .ebw svg{width:clamp(13px,calc(var(--hcw)*.16),21px);height:clamp(13px,calc(var(--hcw)*.16),21px);}
+  /* variants that manage their own interior keep their old padding (face-downs unchanged, worker tokens, command) */
+  .card.charge{padding:5px;justify-content:space-between;}
+  .card.vil{padding:3px;justify-content:space-between;}
+  .card.ccx{padding:3px 3px 12px;} /* room for the absolute COMMAND ribbon */
+  .card.vil .nm{background:none;border-bottom:none;} /* worker tokens keep their plain token look */
+  /* ===== CARD SLEEVES — one procedural back for every face-down surface ================
+     Parameterized by --sleeve (owner's element tint): foe hand backs + face-down set cards
+     read --foeelem / --youelem; the wall deck piles keep resolving their existing --welem.
+     Recipe = the deck pile's shipped look (emblem halo + diagonal weave + tinted body +
+     double border), so the three surfaces now match. This block is LAST in the sheet on
+     purpose — it out-cascades the older per-surface backgrounds without touching them. */
+  .foehand .fb{--sleeve:var(--foeelem,#7aa0c8);}
+  .wzfull.deckpile .wzlayer.top{--sleeve:var(--welem,#7aa0c8);}
+  .card.charge,.facedown{--sleeve:var(--foeelem,#9a5cc6);}
+  .card.charge.mine{--sleeve:var(--youelem,#d9b04a);}
+  .foehand .fb,.wzfull.deckpile .wzlayer.top,.card.charge,.facedown{
+    background:
+      radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--sleeve) 30%,transparent) 0 15%, transparent 16%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,.045) 0 2px, transparent 2px 7px),
+      linear-gradient(160deg, color-mix(in srgb,var(--sleeve) 22%,#131c2e), #0a0f1c 75%);}
+  /* double border = tinted line + black gutter; outer drop shadows differ per surface */
+  .foehand .fb{border-color:color-mix(in srgb,var(--sleeve) 45%,#2c3448);
+    box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.55),
+               inset 0 0 0 2px color-mix(in srgb,var(--sleeve) 26%,#1a2030);}
+  .foehand .fb::after{content:"❖";display:flex;align-items:center;justify-content:center;
+    background:none;border-color:color-mix(in srgb,var(--sleeve) 30%,transparent);
+    font-size:clamp(10px,1.7vw,19px);line-height:1;color:var(--sleeve);opacity:.55;text-shadow:0 1px 2px #000;}
+  .card.charge,.facedown{border:1px solid color-mix(in srgb,var(--sleeve) 50%,#0a090d);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),
+               inset 0 0 0 2px color-mix(in srgb,var(--sleeve) 28%,#141826),
+               inset 0 0 14px color-mix(in srgb,var(--sleeve) 22%,transparent);}
+  .card.charge .q{color:color-mix(in srgb,var(--sleeve) 55%,#efe8f4);
+    text-shadow:0 1px 2px #000,0 0 10px color-mix(in srgb,var(--sleeve) 55%,transparent);}
+  .card.charge .inv{color:#e6e0ee;}
+  .card.charge.trap .q{color:#f0b89a;}   /* traps keep their armed-⚠ read */
+  .card.charge.trap .inv{color:#e6b09a;}
+  .facedown .rune{color:var(--sleeve);text-shadow:0 0 12px var(--sleeve);}
+  /* ---- IMAGE SLEEVE: assets/sleeves/cardback.(png|webp) — html.sleeve-img + --sleeve-back-url
+     are flipped on by probeSleeves() when the file exists; the procedural pattern turns off. */
+  html.sleeve-img .foehand .fb,html.sleeve-img .wzfull.deckpile .wzlayer.top,
+  html.sleeve-img .card.charge,html.sleeve-img .facedown{
+    background:var(--sleeve-back-url) center/cover no-repeat #0a0f1c;}
+  html.sleeve-img .foehand .fb{box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.6);}
+  html.sleeve-img .card.charge,html.sleeve-img .facedown{box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);}
+  html.sleeve-img .foehand .fb::after{content:"";display:none;}
+  html.sleeve-img .wzfull.deckpile .wzlayer.top::after{display:none;}
+  html.sleeve-img .card.charge .q,html.sleeve-img .card.charge .inv,
+  html.sleeve-img .facedown .rune{text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.9);} /* readable over any art */

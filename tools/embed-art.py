@@ -8,8 +8,8 @@ Run it whenever you add or change art:
 
     python3 tools/embed-art.py
 
-Reads : spawn-row-duel-v26.html      (the editable source, external image refs)
-Writes: spawn-row-duel-v26.portable.html   (self-contained, art embedded)
+Reads : dist/spawn-row-duel.html     (single-file build — tools/build.py runs automatically first)
+Writes: dist/spawn-row-duel.portable.html   (self-contained, art embedded)
 
 Art files follow the auto-convention used by the game: a card named "Magmaw"
 loads  assets/cards/magmaw_cardart.png . This tool scans the folder for every
@@ -18,11 +18,13 @@ loads  assets/cards/magmaw_cardart.png . This tool scans the folder for every
 source file is never modified — your drop-a-file workflow stays intact; just
 re-run this to refresh the portable build.
 """
-import io, os, base64
+import io, os, base64, subprocess, sys
 
 HERE   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC    = os.path.join(HERE, "spawn-row-duel-v26.html")
-OUT    = os.path.join(HERE, "spawn-row-duel-v26.portable.html")
+# always rebuild the single-file from index.html + src/ first, so the portable is never stale
+subprocess.run([sys.executable, os.path.join(HERE, "tools", "build.py")], check=True)
+SRC    = os.path.join(HERE, "dist", "spawn-row-duel.html")
+OUT    = os.path.join(HERE, "dist", "spawn-row-duel.portable.html")
 ARTDIR = os.path.join(HERE, "assets", "cards")
 SUFFIX = "_cardart"
 

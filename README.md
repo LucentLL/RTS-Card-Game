@@ -1,81 +1,78 @@
 # Spawn Row Duel
 
-A 1v1 trading-card game with RTS/MOBA strategic depth, built as a **single
-self-contained HTML/CSS/JS file** (no frameworks). Contest the neutral center
-row, manage workers and colored mana, and win by razing the enemy command center.
+A 1v1 trading-card game with RTS/MOBA strategic depth — vanilla HTML/CSS/JS, no
+frameworks. Contest the neutral center rows, manage workers and mana, and win by
+draining the enemy stronghold's life.
+
+**Play it:** https://lucentll.github.io/RTS-Card-Game/
 
 ## Layout
 
 ```
-spawn-row-duel-v26.html   the whole game — open or serve this one file
-assets/
-  cards/                  your card images (PNG/JPG, square) — the only external assets
-    README.md             art specs + filename checklist
-    _TEMPLATE-512.png     sizing / safe-area guide
+index.html            the game shell — DOM + ordered stylesheet/script includes
+src/
+  styles/             the game's CSS, split by concern (00_base … 05_overlays_screens)
+  js/                 29 modules in LOAD ORDER (filename order IS the architecture):
+                        01–09  data & core rules (cards, board, mana, structures)
+                        10–18  screens, render, input, combat, movement, turns/AI
+                        20–22  SFX/FX + presentation wrappers
+                        30–31  pause-to-respond (RESP) + UI shell
+                        40–44  multiplayer (WebRTC/relay, sync, intents, lobby)
+                        99     bootstrap
+assets/cards/         card images — the only external assets (README has art specs)
+tools/
+  build.py            reassemble ONE single-file build -> dist/spawn-row-duel.html
+  embed-art.py        portable build with art baked in -> dist/spawn-row-duel.portable.html
+  split_monolith.py   the (re-runnable) splitter that produced src/ from the old monolith
+docs/                 ARCHITECTURE.md · MIGRATION.md · PUBLISHING.md (Steam / Play Store)
+sw.js                 service worker: art cached once, HTML/JS always fresh
+spawn-row-duel-v26.html   legacy URL — a redirect stub to index.html
 ```
 
-The game is one self-contained file. Card images are the only thing it loads from
-outside, and if an image can't be found (or can't load), that card shows its
-built-in placeholder drawing — the game always runs.
+The modules are classic scripts sharing one global scope, loaded in filename
+order. Later layers (FX, RESP, MP) wrap earlier functions by reassignment, so
+**never reorder the includes** — see `docs/ARCHITECTURE.md` before adding code.
 
-## Run it
-
-- **Quickest:** open `spawn-row-duel-v26.html` in any browser. The game runs fully.
-- **To load your custom card images** (and to play on a phone), **serve the
-  folder** rather than opening the raw file — browsers block sibling image files
-  over `file://`, especially on mobile:
-
-  ```
-  python3 -m http.server 8000
-  # then open http://localhost:8000/spawn-row-duel-v26.html
-  ```
-
-  Or push to GitHub and enable **GitHub Pages** (Settings → Pages → deploy from
-  `main`). That gives you a URL that works on any device with your art loading.
-
-### Portable single-file build (opens anywhere, incl. phones)
-
-To get a build you can just open on a phone or share — with your art baked in,
-no server required — run:
+## Run it locally
 
 ```
-python3 tools/embed-art.py
+python3 -m http.server 8000
+# then open http://localhost:8000/
 ```
 
-That reads the images in `assets/cards/` and writes
-`spawn-row-duel-v26.portable.html`, a fully self-contained file. Re-run it
-whenever you add or change art. The editable source (`spawn-row-duel-v26.html`)
-is left untouched, so your drop-a-file / swap-by-name workflow stays intact.
+(Serving matters: browsers block sibling files over `file://`. For a
+no-server file, build the portable — below.)
+
+## Builds
+
+```
+py tools/build.py       # dist/spawn-row-duel.html — the game as ONE file (needs assets/ for art)
+py tools/embed-art.py   # dist/spawn-row-duel.portable.html — art baked in, opens anywhere
+```
+
+`dist/` is gitignored — build artifacts are produced, not committed.
 
 ## Adding / swapping card art
 
-Card art is **derived from the card name** — there is no table to edit, for any
-card, ever.
+Card art is **derived from the card name** — no table to edit, ever.
 
-1. Make a square image (512×512+) and name it `<slug>_cardart.<ext>`, where
-   `<slug>` is the card name lowercased with spaces/punctuation removed and a
-   leading "The " dropped (e.g. **Magmaw → `magmaw_cardart.png`**,
-   **Voidwyrm → `voidwyrm_cardart.png`**). `png`, `jpg`, `jpeg`, and
-   `webp` all work. The full checklist is in
-   [`assets/cards/README.md`](assets/cards/README.md).
-2. Drop it in `assets/cards/` and refresh. To swap art later, replace the file
-   with the **same name**. Brand-new cards need no code change — name the file to
-   match and it loads.
+1. Make a square image (512×512+) named `<slug>_cardart.<ext>` — the slug is the
+   card name lowercased with spaces/punctuation removed and a leading "The "
+   dropped (**Magmaw → `magmaw_cardart.png`**). `png/jpg/webp` all work.
+   Full checklist: [`assets/cards/README.md`](assets/cards/README.md).
+2. Drop it in `assets/cards/` and refresh. Missing art falls back to the card's
+   built-in placeholder drawing — the game always runs.
 
-If a card has no matching file, the game shows its built-in placeholder drawing,
-so it always runs.
+On-field standee cut-outs use the same convention with `_fieldart`.
 
-## Toward release (decisions to make)
+## Toward release
 
-- **Steam:** wrap the web build in a desktop shell (Electron or a lightweight
-  web-wrapper).
-- **Play Store:** package via Capacitor or ship a Trusted Web Activity (needs an
-  app shell, icons, store assets).
-- **Hosting/entry name:** GitHub Pages and most wrappers expect `index.html` at
-  the root. The versioned name (`spawn-row-duel-vNN.html`) is kept; when ready,
-  rename the live build to `index.html` or add a tiny `index.html` that redirects.
+See [`docs/PUBLISHING.md`](docs/PUBLISHING.md): Tauri shell for desktop/Steam,
+Capacitor for Android/Play Store (the same stack as
+[DriverCity](https://github.com/LucentLL/Racing-Game-2)). The staged
+de-monolith plan lives in [`docs/MIGRATION.md`](docs/MIGRATION.md).
 
 ## Art ownership
 
-All art is placeholder.  No copyright infringement intended.  Any art that is not
-original to this project will be replaced in final release.
+All art is placeholder. No copyright infringement intended. Any art that is not
+original to this project will be replaced before release.

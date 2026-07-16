@@ -1,0 +1,41 @@
+{
+ "styles": [
+  "00_base.css",
+  "01_board.css",
+  "02_walls_hud.css",
+  "03_cards.css",
+  "04_panels_menus.css",
+  "05_overlays_screens.css"
+ ],
+ "js": [
+  "01_core_defs.js",
+  "02_art.js",
+  "03_cards_creatures.js",
+  "04_cards_leaders.js",
+  "05_board_state.js",
+  "06_mana_workers.js",
+  "07_structures.js",
+  "08_battlefield.js",
+  "09_game_start.js",
+  "10_menus_campaign.js",
+  "11_deck_builder.js",
+  "12_render.js",
+  "13_input.js",
+  "14_spells_traps.js",
+  "15_combat.js",
+  "16_movement.js",
+  "17_turns_ai.js",
+  "18_inspect_viewers.js",
+  "20_sfx.js",
+  "21_fx.js",
+  "22_fx_wrappers.js",
+  "30_resp.js",
+  "31_ui_shell.js",
+  "40_mp_net.js",
+  "41_mp_sync.js",
+  "42_mp_apply.js",
+  "43_mp_intents.js",
+  "44_mp_lobby.js",
+  "99_boot.js"
+ ]
+}

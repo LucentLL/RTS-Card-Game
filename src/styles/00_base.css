@@ -1,0 +1,130 @@
+  :root{
+    --ink:#ece3cf; --ink-dim:#9c9277;
+    --gold:#d9b04a; --gold-deep:#8a6d22;
+    /* element palette (8 deckable elements + reserved Divine) */
+    --fire:#e0613f; --water:#3fa3e0; --earth:#c0863c; --wind:#76c7c0;
+    --forest:#4fae5e; --electric:#f2cf3b; --light:#ece3c0; --dark:#9a5cc6; --divine:#c9d4ec;
+    --ember:var(--fire); --tide:var(--water); --verdant:var(--forest); /* legacy aliases */
+    --spawn:#52c6ec;
+    /* menu-overhaul tokens */
+    --glass:rgba(19,15,27,.78); --glass-2:rgba(10,8,15,.66);
+    --hairline:rgba(217,176,74,.30); --hairline-dim:rgba(217,176,74,.12);
+    --glow-gold:0 0 18px rgba(217,176,74,.32); --glow-soft:0 12px 34px rgba(0,0,0,.55);
+    --metal:linear-gradient(180deg,#f6e6b2 0%,#d9b04a 40%,#8a6d22 62%,#e9cd7e 100%);
+    --sheen:linear-gradient(105deg,transparent 42%,rgba(255,240,190,.28) 50%,transparent 58%);
+    --ease-pop:cubic-bezier(.22,.9,.3,1); --panel-r:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  /* the game is a tap surface, not a document: kill native text selection so a long-press / drag
+     never selects card text (which on mobile pops Android's "search this word" bar) and a PC drag
+     never highlights the UI — this also frees a click-drag to become RTS marquee selection.       */
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  /* inputs still need real selection + the OS caret (MP connect codes, password, deck name) */
+  input,textarea{-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;user-select:text;-webkit-touch-callout:default;}
+  /* card art is <img>: without this a PC click-drag "picks up" a ghost copy of the picture
+     (looks like highlighting). Kill native element dragging + make any stray selection invisible. */
+  img,svg,a,canvas{-webkit-user-drag:none;-khtml-user-drag:none;-moz-user-drag:none;user-drag:none;}
+  ::selection{background:transparent;} ::-moz-selection{background:transparent;}
+  body{
+    font-family:'EB Garamond',Georgia,serif; color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #1c1726 0%, transparent 60%),
+      radial-gradient(900px 600px at 50% 120%, #1a1310 0%, transparent 55%), #08070b;
+    padding:6px 8px; -webkit-font-smoothing:antialiased;
+  }
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.04;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .wrap{width:100%;max-width:100%;height:100dvh;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;
+    --ch: clamp(50px, calc((100dvh - 70px)/5.4), 196px); --cw: calc(var(--ch)*.74);
+    --hch: clamp(96px, calc(var(--ch)*1.34), 230px); --hcw: calc(var(--hch)*.72);
+    --peek: clamp(34px, calc(var(--hch)*.27), 58px);
+    --topzone: clamp(12px, 2.4vh, 28px);            /* room at the top for the opponent's hand (peeks ~14-24px) */
+    --handpad: calc(var(--peek) + 16px);}           /* at rest only the name+cost strip is reserved; the wall rises over it on hover */
+  @supports not (height:100dvh){ .wrap{height:100vh; --ch: clamp(50px, calc((100vh - 70px)/5.4), 196px);} }
+  .main{flex:1;min-height:0;display:flex;gap:0;align-items:stretch;margin-top:0;}
+  .boardcol{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;justify-content:center;position:relative;padding-top:var(--topzone);padding-bottom:var(--handpad);}
+  header{display:none!important;}
+
+  /* ===== corner player badges — vitals stored by the name (Master Duel style) ===== */
+  .pbadge{position:absolute;z-index:26;display:flex;flex-direction:column;gap:1px;padding:6px 13px;border-radius:12px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(26,23,34,.92),rgba(16,13,21,.92));border:1px solid #3a3450;box-shadow:0 6px 18px rgba(0,0,0,.55);}
+  .pbadge.foe{top:6px;right:8px;align-items:flex-end;text-align:right;}
+  .pbadge.you{bottom:6px;left:8px;align-items:flex-start;text-align:left;transition:opacity .2s ease;}
+  /* when the hand/castle wall is raised, the player's vitals show on the wall — hide the corner badge */
+  body:has(.hand:hover) .pbadge.you, body:has(.hc.selected) .pbadge.you, body.wall-open .pbadge.you{opacity:0;pointer-events:none;}
+  .who{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em;display:flex;align-items:center;gap:6px;font-weight:700;}
+  .pbadge.foe .who{flex-direction:row-reverse;}
+  .cdot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;}
+  .elembadge{display:inline-block;vertical-align:middle;margin-right:3px;flex:none;}
+  .vit{font-size:14.5px;display:flex;align-items:center;flex-wrap:wrap;gap:0 2px;} .vit b{font-family:'Cinzel',serif;}
+  .pbadge.foe .vit{justify-content:flex-end;}
+  .vit .mc{font-family:'Cinzel',serif;font-weight:700;margin:0 6px 0 1px;}
+  .vit .elembadge{vertical-align:-2px;}
+  .genorb{display:inline-block;width:13px;height:13px;border-radius:50%;vertical-align:-2px;margin-right:1px;
+    background:radial-gradient(circle at 40% 34%,#d3cee0,#7b7689 58%,#3c3947);border:1px solid rgba(0,0,0,.55);box-shadow:0 0 5px rgba(190,190,210,.4);}
+  .heart{color:#e35b4f;} .mana{color:var(--spawn);}
+  .bct{color:#caa15a;} .wct{color:#9ad17f;} .vit .bct,.vit .wct{font-size:13px;}
+  /* ===== on-board overlay controls (Arena-style) ===== */
+  #boardBtns{position:absolute;right:4px;top:44%;bottom:auto;transform:translateY(-50%);z-index:24;display:flex;flex-direction:column;align-items:flex-end;gap:7px;pointer-events:none;}  /* phase/turn controls hug the screen edge, mid-height (Master Duel coin position) */
+  #boardBtns>*{pointer-events:auto;}
+  .turnlabel{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;text-align:center;
+    background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:999px;padding:3px 10px;}
+  /* the turn-phase tracker: a compact vertical list that lights the current phase */
+  #phaseTrack{display:flex;flex-direction:column;align-items:stretch;gap:3px;background:rgba(13,11,18,.85);border:1px solid #3a3450;border-radius:11px;padding:5px 5px;pointer-events:auto;min-width:74px;}
+  #phaseTrack .phstep{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;text-align:center;color:#8a8298;
+    padding:3px 8px;border-radius:999px;border:1px solid transparent;line-height:1.1;transition:color .12s,background .12s,border-color .12s;position:relative;}
+  #phaseTrack .phstep.sub{font-size:8.5px;letter-spacing:.09em;margin-left:11px;} /* Combat sits indented — a sub-phase of Action */
+  #phaseTrack .phstep.sub::before{content:'↳';position:absolute;left:2px;top:50%;transform:translateY(-50%);opacity:.5;font-size:9px;}
+  #phaseTrack .phstep.done{color:#6a8a5f;}
+  #phaseTrack .phstep.on{color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border-color:#f0d68a;font-weight:900;box-shadow:0 0 12px rgba(217,176,74,.4);}
+  #phaseTrack .phstep.sub.on{background:linear-gradient(180deg,#e79a6a,#b5623a);border-color:#f2b98a;color:#160d08;}
+  #endBtn,#harvestBtn{font-family:'Cinzel',serif;letter-spacing:.07em;font-weight:900;font-size:12.5px;padding:9px 18px;border-radius:999px;cursor:pointer;
+    color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:2px solid #f0d68a;
+    box-shadow:0 4px 0 #4d3a10,0 0 18px rgba(217,176,74,.35),0 8px 20px rgba(0,0,0,.55);}
+  #harvestBtn{background:linear-gradient(180deg,#9ad17f,#4f8a3a);border-color:#c2e8a8;box-shadow:0 4px 0 #23401a,0 0 18px rgba(120,200,110,.35),0 8px 20px rgba(0,0,0,.55);}
+  #harvestBtn:disabled{filter:grayscale(.7) brightness(.62);cursor:not-allowed;box-shadow:0 4px 0 #1c2c16,0 6px 14px rgba(0,0,0,.4);} /* locked until the upkeep shortfall is settled */
+  #endBtn:active,#harvestBtn:active{transform:translatey(2px);box-shadow:0 2px 0 #4d3a10;}
+  #endBtn:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:0 6px 16px rgba(0,0,0,.5);border-color:#555;}
+  #conscriptBtn{font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:10.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
+    color:var(--ink);background:rgba(13,11,18,.9);border:1px solid #6b5d33;box-shadow:0 3px 10px rgba(0,0,0,.5);}
+  #conscriptBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:default;}
+  /* the commander cluster (figure + vitals + Build) stands on the left tower of the castle wall */
+  .cmdzone .cmdvit{margin-top:2px;display:flex;align-items:center;justify-content:center;gap:1px;white-space:nowrap;
+    font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;color:var(--ink);text-shadow:0 1px 3px #000;}
+  .cmdzone .cmdvit .elembadge{vertical-align:-2px;}
+  .cmdzone .cmdvit .mc{margin:0 5px 0 1px;}
+  .cmdzone .cmdvit.sub{font-size:11.5px;gap:3px;color:#d9c7a0;}
+  .cmdzone .cmdvit.sub .bct{color:#caa15a;} .cmdzone .cmdvit.sub .wct{color:#9ad17f;}
+  /* per-row worker chips on the castle wall (replaces the board-side rails): tap yours to harvest */
+  .cmdworkers{display:flex;gap:4px;justify-content:center;align-items:center;margin-top:4px;pointer-events:auto;flex-wrap:nowrap;}
+  .cmdworkers .wtok{padding:2px 6px;font-size:10.5px;gap:3px;}
+  .cmdworkers .wtok .wklab{font-size:.7em;letter-spacing:.06em;text-transform:uppercase;opacity:.75;margin-right:1px;}
+  .cmdworkers .wtok.none{opacity:.55;}
+  /* vertical variant: FIVE worker rows stacked, one per board row, filling the left tower window */
+  .cmdworkers.vcol{flex-direction:column;gap:3px;width:100%;flex-wrap:nowrap;margin-top:5px;}
+  .cmdworkers.vcol .vrow{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;box-sizing:border-box;
+    padding:2px 8px;border-radius:6px;font-size:11px;background:rgba(13,11,18,.55);}
+  .cmdworkers.vcol .vrow .wklab{flex:1;text-align:left;font-size:.72em;letter-spacing:.05em;text-transform:uppercase;opacity:.78;margin:0;white-space:nowrap;}
+  .cmdworkers.vcol .vrow .wval{font-family:'Cinzel',serif;font-weight:700;}
+  .cmdworkers.vcol .vrow.none{opacity:.5;}
+  .cmdworkers.vcol .vrow.short{background:rgba(60,18,20,.9);}
+  .cmdzone .cmdbuild{margin-top:5px;pointer-events:auto;cursor:pointer;
+    font-family:'Cinzel',serif;letter-spacing:.05em;font-weight:700;font-size:11px;padding:6px 14px;border-radius:999px;
+    color:#1a140a;background:linear-gradient(180deg,#e4c878,#a8842e);border:1px solid #f0d68a;box-shadow:0 3px 0 #4d3a10,0 4px 12px rgba(0,0,0,.45);}
+  .cmdzone .cmdbuild:active{transform:translateY(2px);box-shadow:0 1px 0 #4d3a10;}
+  .cmdzone .cmdbuild:disabled{filter:grayscale(.8) brightness(.6);cursor:default;box-shadow:none;opacity:.5;}
+  #logBtn,#rulesBtn,#sprBtn{font-family:'Cinzel',serif;letter-spacing:.06em;font-weight:700;font-size:10px;padding:6px 11px;border-radius:999px;cursor:pointer;
+    color:var(--ink);background:rgba(13,11,18,.88);border:1px solid #3a3450;box-shadow:0 4px 12px rgba(0,0,0,.5);}
+  #logBtn:active,#rulesBtn:active,#sprBtn:active{transform:translateY(1px);}
+  #sprBtn.off{opacity:.5;text-decoration:line-through;}
+  #logPanel,#rulesPanel{position:fixed;inset:0;z-index:27;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.72);backdrop-filter:blur(2px);}
+  #rulesPanel{z-index:50;}/* above the main-menu screens (Rules is reachable from the menu) */
+  #logPanel .box,#rulesPanel .box{width:430px;max-width:92vw;max-height:88dvh;overflow-y:auto;background:linear-gradient(165deg,#201827,#120d18);border:2px solid var(--gold-deep);border-radius:14px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);}
+  #logPanel .ltitle,#rulesPanel .ltitle{font-family:'Cinzel',serif;font-weight:900;font-size:17px;color:var(--gold);text-align:center;margin-bottom:10px;}
+  #logPanel .pclose,#rulesPanel .pclose{display:block;margin:11px auto 0;background:none;border:none;color:var(--ink-dim);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;}
+  #rulesPanel .cmdname{font-family:'Cinzel',serif;font-size:14px;display:flex;align-items:center;gap:7px;justify-content:center;}
+  #rulesPanel .cmdpass{font-size:12.5px;font-style:italic;color:var(--ink-dim);margin:4px 0 10px;text-align:center;}
+  #rulesPanel p{font-size:13px;line-height:1.55;color:var(--ink-dim);margin:7px 0;} #rulesPanel p b{color:var(--ink);} #rulesPanel p i{color:var(--ink-dim);}
+  .btnrow{display:flex;gap:6px;justify-content:flex-end;align-items:center;}
+

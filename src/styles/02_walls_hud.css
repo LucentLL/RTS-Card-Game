@@ -1,0 +1,135 @@
+  /* WC3-style themed STONE command panel along the bottom — always present, element-themed.
+     Stone blocks + mortar via layered repeating gradients; element-coloured top rail with metal
+     studs; faint element glyph ornaments at each end (set per the player's commander). */
+  /* the wall is a crenellated battlement: tall towers on the LEFT and RIGHT, dipping to a low
+     wall across the MIDDLE where the hand cards are displayed. Silhouette via clip-path. */
+  #hudbar{position:fixed;left:0;right:0;bottom:0;height:clamp(170px,26vh,250px);z-index:23;pointer-events:none;transform:translateY(calc(100% - 18px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  #hudbar .wallstone{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--youelem,#caa05a) 30%, transparent) 0, transparent 34%),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.32) 0 1.5px, transparent 1.5px 48px),
+      repeating-linear-gradient(180deg, rgba(0,0,0,.26) 0 1.5px, transparent 1.5px 26px),
+      radial-gradient(120% 140% at 50% 0,#544d44 0,#322d27 38%,#16130e 100%);
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.1), inset 0 -16px 30px rgba(0,0,0,.65), inset 0 0 0 2px rgba(0,0,0,.4);
+    filter:drop-shadow(0 -5px 11px rgba(0,0,0,.55));
+    clip-path:polygon(0% 100%, 0% 6%, 4.6% 6%, 4.6% 18%, 7.7% 18%, 7.7% 6%, 13.3% 6%, 13.3% 18%, 16.4% 18%, 16.4% 6%, 21% 6%, 21% 48%, 23.87% 48%, 23.87% 40%, 28.87% 40%, 28.87% 48%, 31.75% 48%, 31.75% 40%, 36.75% 40%, 36.75% 48%, 39.62% 48%, 39.62% 40%, 44.62% 40%, 44.62% 48%, 47.5% 48%, 47.5% 40%, 52.5% 40%, 52.5% 48%, 55.37% 48%, 55.37% 40%, 60.37% 40%, 60.37% 48%, 63.25% 48%, 63.25% 40%, 68.25% 40%, 68.25% 48%, 71.12% 48%, 71.12% 40%, 76.12% 40%, 76.12% 48%, 79% 48%, 79% 6%, 83.6% 6%, 83.6% 18%, 86.7% 18%, 86.7% 6%, 92.3% 6%, 92.3% 18%, 95.4% 18%, 95.4% 6%, 100% 6%, 100% 100%);}
+  /* the dark framed "window" set into each tower square: left = player info, right = deck + graveyard */
+  .twin{position:absolute;z-index:1;pointer-events:none;border-radius:7px;
+    background:linear-gradient(180deg,rgba(6,7,12,.9),rgba(11,13,21,.84));
+    box-shadow:inset 0 0 0 2px rgba(0,0,0,.6),inset 0 3px 10px rgba(0,0,0,.8),0 0 0 2px rgba(96,86,70,.4),0 0 0 3px rgba(0,0,0,.35);}
+  #hudbar .twin{top:16%;bottom:8%;}
+  #hudbarFoe .twin{top:8%;bottom:16%;}
+  .twin.l{left:1.6%;width:17.8%;} .twin.r{right:1.6%;width:17.8%;}
+  /* castle wall RISES with the hand; at rest only its top rail (+ the name/cost strip & vitals) shows.
+     body.wall-open is set by JS to KEEP it raised while the cursor is anywhere over the wall band,
+     so you can move off the cards onto the commander/Build without it retracting. */
+  body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar, body.wall-open #hudbar{transform:translateY(0);}
+  body:has(.hand:hover) .cmdzone.you, body:has(.hc.selected) .cmdzone.you, body.wall-open .cmdzone.you{transform:translateY(0);}
+  .cmdzone.you{transform:translateY(150%);transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
+  /* DRAW + UPKEEP: keep the player's wall raised so the deck and the worker readout stay in view */
+  body.phase-draw #hudbar, body.phase-upkeep #hudbar{transform:translateY(0);}
+  body.phase-draw .cmdzone.you, body.phase-upkeep .cmdzone.you{transform:translateY(0);}
+  body.phase-draw #hudbar .wallzone, body.phase-upkeep #hudbar .wallzone{display:flex;}
+  body.phase-draw #hudbar .wallzone .wzfull, body.phase-upkeep #hudbar .wallzone .wzfull{display:block;}
+  body.phase-draw #youDeckLine, body.phase-upkeep #youDeckLine{display:none;}
+  body.phase-draw, body.phase-upkeep{--wallY:-14%;}
+  body.board-extreme.phase-draw, body.board-extreme.phase-upkeep{--wallY:-12%;}
+  /* the deck pulses only in the Draw phase — click it to draw */
+  body.phase-draw #youWallDeck{cursor:pointer;border-radius:8px;box-shadow:0 0 0 2px var(--gold),0 0 18px rgba(217,176,74,.6);animation:pulse 1.4s ease-in-out infinite;}
+  #hudbar::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;pointer-events:none;
+    background:repeating-linear-gradient(90deg, var(--youelem,#caa05a) 0 5px, transparent 5px 24px);opacity:.55;
+    -webkit-mask:linear-gradient(180deg,#000,transparent);mask:linear-gradient(180deg,#000,transparent);}
+  #hudbar .hudglyph{position:absolute;bottom:-14%;font-family:serif;font-weight:700;font-size:calc(var(--handpad)*1.55);line-height:1;
+    color:var(--youelem,#caa05a);opacity:.09;pointer-events:none;text-shadow:0 0 18px var(--youelem,#caa05a);}
+  #hudbar .hudglyph.l{left:1.6%;} #hudbar .hudglyph.r{right:1.6%;}
+  /* ---- FOE castle wall: a vertical mirror of #hudbar at the top of the screen ---- */
+  #hudbarFoe{position:fixed;left:0;right:0;top:0;height:clamp(140px,21vh,210px);z-index:23;pointer-events:none;transform:translateY(calc(-100% + 46px));transition:transform .24s cubic-bezier(.34,1.18,.5,1);will-change:transform;}
+  #hudbarFoe .wallstone{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:
+      linear-gradient(0deg, color-mix(in srgb, var(--foeelem,#7aa0c8) 28%, transparent) 0, transparent 34%),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.32) 0 1.5px, transparent 1.5px 48px),
+      repeating-linear-gradient(180deg, rgba(0,0,0,.26) 0 1.5px, transparent 1.5px 26px),
+      radial-gradient(120% 140% at 50% 100%,#544d44 0,#322d27 38%,#16130e 100%);
+    box-shadow:inset 0 -3px 0 rgba(255,255,255,.08), inset 0 16px 30px rgba(0,0,0,.6), inset 0 0 0 2px rgba(0,0,0,.4);
+    filter:drop-shadow(0 5px 11px rgba(0,0,0,.55));
+    clip-path:polygon(0% 0%, 0% 94%, 4.6% 94%, 4.6% 82%, 7.7% 82%, 7.7% 94%, 13.3% 94%, 13.3% 82%, 16.4% 82%, 16.4% 94%, 21% 94%, 21% 52%, 23.87% 52%, 23.87% 60%, 28.87% 60%, 28.87% 52%, 31.75% 52%, 31.75% 60%, 36.75% 60%, 36.75% 52%, 39.62% 52%, 39.62% 60%, 44.62% 60%, 44.62% 52%, 47.5% 52%, 47.5% 60%, 52.5% 60%, 52.5% 52%, 55.37% 52%, 55.37% 60%, 60.37% 60%, 60.37% 52%, 63.25% 52%, 63.25% 60%, 68.25% 60%, 68.25% 52%, 71.12% 52%, 71.12% 60%, 76.12% 60%, 76.12% 52%, 79% 52%, 79% 94%, 83.6% 94%, 83.6% 82%, 86.7% 82%, 86.7% 94%, 92.3% 94%, 92.3% 82%, 95.4% 82%, 95.4% 94%, 100% 94%, 100% 0%);}
+  body:has(#hudbarFoe:hover) #hudbarFoe, body.foewall-open #hudbarFoe{transform:translateY(0);}
+  body:has(.foehand:hover) #hudbarFoe{transform:translateY(0);}
+  /* only ONE wall open at a time — a held/selected player card (or a pinned player wall) forces the foe wall shut */
+  body:has(.hc.selected) #hudbarFoe, body.wall-open #hudbarFoe{transform:translateY(calc(-100% + 46px))!important;}
+  body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull{display:block;}
+  /* hovering the foe wall (or reaching the top edge) also fans the opponent's hand down */
+  body:has(#hudbarFoe:hover) .foehand .fb, body.foewall-open .foehand .fb{height:var(--hch);}
+  #hudbarFoe::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9px;pointer-events:none;
+    background:repeating-linear-gradient(90deg, var(--foeelem,#7aa0c8) 0 5px, transparent 5px 24px);opacity:.5;
+    -webkit-mask:linear-gradient(0deg,#000,transparent);mask:linear-gradient(0deg,#000,transparent);}
+  #hudbarFoe .hudglyph{position:absolute;top:-12%;font-family:serif;font-weight:700;font-size:calc(var(--handpad,40px)*1.35);line-height:1;color:var(--foeelem,#7aa0c8);opacity:.09;pointer-events:none;text-shadow:0 0 18px var(--foeelem,#7aa0c8);}
+  #hudbarFoe .hudglyph.l{left:1.6%;} #hudbarFoe .hudglyph.r{right:1.6%;}
+  /* foe vitals ride the wall's LEFT tower (mirrors the player's left-tower commander), visible on the rail at rest */
+  .wallvit.foe{position:absolute;bottom:5px;left:1.5%;width:23%;z-index:3;pointer-events:auto;text-align:center;
+    font-size:12px;color:#e9dcc0;text-shadow:0 1px 3px #000;line-height:1.25;}
+  /* wall open → the vitals settle into the left tower's framed window */
+  body:has(#hudbarFoe:hover) .wallvit.foe, body.foewall-open .wallvit.foe, body:has(.foehand:hover) .wallvit.foe{
+    left:2.6%;width:15.8%;top:8%;bottom:20%;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:13px;}
+  .wallvit.foe .who{font-family:'Cinzel',serif;font-weight:700;font-size:11px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wallvit.foe .vit{font-size:11.5px;white-space:nowrap;} .wallvit.foe .vit b{color:#fff;}
+  /* deck + graveyard live INSIDE the right tower's framed window — two selectable piles, side by side */
+  .wallzone{position:absolute;z-index:2;pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    width:max(8.2%,44px);border-radius:7px;background:rgba(8,10,16,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:background .15s;}
+  .wallzone:hover{background:rgba(20,26,40,.5);}
+  #hudbar .wallzone{top:22%;bottom:12%;display:none;} #hudbar .wallzone.deck{right:calc(2.4% + max(8.2%,44px) + 6px);} #hudbar .wallzone.grave{right:2.4%;}
+  body:has(.hand:hover) #hudbar .wallzone, body:has(.hc.selected) #hudbar .wallzone, body.wall-open #hudbar .wallzone{display:flex;}
+  .decline{position:absolute;right:5%;top:2px;z-index:4;pointer-events:none;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;color:#e7eefb;text-shadow:0 1px 3px #000;white-space:nowrap;}
+  .decline b{color:#fff;} #foeDeckLine{top:auto;bottom:2px;color:#cfe0f5;}
+  body:has(.hand:hover) #youDeckLine, body:has(.hc.selected) #youDeckLine, body.wall-open #youDeckLine{display:none;}
+  body:has(.foehand:hover) #foeDeckLine, body:has(#hudbarFoe:hover) #foeDeckLine, body.foewall-open #foeDeckLine{display:none;}
+  #hudbarFoe .wallzone{top:12%;bottom:22%;flex-direction:column-reverse;justify-content:center;display:none;} #hudbarFoe .wallzone.deck{right:calc(2.4% + max(8.2%,44px) + 6px);} #hudbarFoe .wallzone.grave{right:2.4%;}
+  body:has(.foehand:hover) #hudbarFoe .wallzone, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone, body.foewall-open #hudbarFoe .wallzone{display:flex;}
+  .wallzone .wzl{font-family:'Cinzel',serif;letter-spacing:.1em;text-transform:uppercase;font-size:9px;color:#9fb6d6;opacity:.85;}
+  .wallzone.grave .wzl{color:#b9b2a0;}
+  /* — REAL card piles: one thin layer per card (capped at 10), the count on a badge riding the
+     top card. Element-tinted via --welem (--youelem / --foeelem). Only 1px edge lines per layer. — */
+  .wallzone .wzfull{position:relative;width:78%;aspect-ratio:.72;display:none;--welem:var(--youelem,#caa05a);}
+  #hudbarFoe .wallzone .wzfull{--welem:var(--foeelem,#7aa0c8);}
+  #hudbar .wallzone .wzfull{margin-top:13px;}       /* headroom: the pile rises UP on your wall */
+  #hudbarFoe .wallzone .wzfull{margin-bottom:13px;} /* …and hangs DOWN on the foe's mirrored wall */
+  .wzfull .wzlayer{position:absolute;inset:0;border-radius:5px;background:#0b1220;
+    transform:translateY(calc(var(--li,0)*-1.2px));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 1px 0 rgba(0,0,0,.85);}
+  #hudbarFoe .wzfull .wzlayer{transform:translateY(calc(var(--li,0)*1.2px));
+    box-shadow:inset 0 -1px 0 rgba(255,255,255,.10),0 -1px 0 rgba(0,0,0,.85);}
+  /* deck: ornamented, element-tinted card BACK on the visible top card */
+  .wzfull.deckpile .wzlayer.top{
+    background:
+      radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--welem) 30%, transparent) 0 15%, transparent 16%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,.045) 0 2px, transparent 2px 7px),
+      linear-gradient(160deg, color-mix(in srgb, var(--welem) 22%, #131c2e), #0a0f1c 75%);
+    box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--welem) 45%, #2c3448),
+               inset 0 0 0 3px rgba(0,0,0,.55),
+               inset 0 1px 0 rgba(255,255,255,.12),0 1px 0 rgba(0,0,0,.85);}
+  .wzfull.deckpile .wzlayer.top::after{content:"❖";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(13px,1.8vw,20px);line-height:1;color:var(--welem);opacity:.85;text-shadow:0 1px 2px #000;pointer-events:none;}
+  /* graveyard: same pile, but the top card lies FACE UP, drained of colour */
+  .wzfull.gravepile .wzlayer{background:#171219;}
+  .wzfull.gravepile .wzlayer.top img{width:100%;height:100%;object-fit:cover;display:block;border-radius:4px;
+    filter:saturate(.4) brightness(.82);}
+  /* empty pile: a flat vacant slot outline */
+  .wzfull.empty{border-radius:5px;border:1.5px dashed rgba(255,255,255,.16);background:rgba(0,0,0,.28);box-shadow:inset 0 0 10px rgba(0,0,0,.5);}
+  .wzfull.empty .wzbadge{opacity:.75;}
+  /* the count badge rides the top card's outer corner (bottom corner on the foe's hanging pile) */
+  .wzbadge{position:absolute;top:-6px;right:-6px;z-index:2;pointer-events:none;
+    font-family:'Cinzel',serif;font-weight:900;font-size:clamp(10px,1.2vw,13px);line-height:1;color:#f2e6c8;
+    background:rgba(10,8,4,.9);border:1px solid var(--gold-deep);border-radius:999px;padding:2px 6px;
+    box-shadow:0 1px 3px rgba(0,0,0,.6);}
+  #hudbarFoe .wzbadge{top:auto;bottom:-6px;}
+  body:has(.hand:hover) #hudbar .wallzone .wzfull, body:has(.hc.selected) #hudbar .wallzone .wzfull, body.wall-open #hudbar .wallzone .wzfull,
+  body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone .wzfull, body.foewall-open #hudbarFoe .wallzone .wzfull{display:block;}
+  .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
+  /* help text lives on the right margin, off the board */
+  .handhint{position:fixed;right:10px;top:auto;bottom:16%;transform:none;text-align:left;z-index:60;  /* below the edge-hugging phase cluster */
+    width:clamp(150px,17vw,250px);font-style:italic;color:var(--ink-dim);font-size:11.5px;line-height:1.4;min-height:0;
+    background:rgba(13,11,18,.9);border:1px solid rgba(58,52,80,.7);border-radius:9px;padding:8px 11px;box-shadow:0 4px 16px rgba(0,0,0,.55);pointer-events:auto;}
+  .handhint:empty{display:none;}
+  .handhint button{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.04em;margin:0 3px;padding:5px 11px;border-radius:8px;cursor:pointer;
+    color:#1a140a;background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:none;box-shadow:0 2px 0 #4d3a10;}
+  .handhint button.set{background:linear-gradient(180deg,#b79bе8,#6a4fa0);color:#150f1f;box-shadow:0 2px 0 #3a2960;}

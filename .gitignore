@@ -19,6 +19,9 @@ dist/
 build/
 *.app
 *.exe
+*.7z
+# legacy portable location (now emitted at dist/spawn-row-duel.portable.html)
+spawn-row-duel-v26.portable.html
 
 # Optional: keep large art masters out of git (uncomment if you store them here)
 # *.psd
