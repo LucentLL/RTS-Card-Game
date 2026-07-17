@@ -41,8 +41,8 @@
   .matmain{transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
   body.foewall-open,body:has(#hudbarFoe:hover),body:has(.foehand:hover){--wallY:9%;}
   body.board-extreme.foewall-open,body.board-extreme:has(#hudbarFoe:hover),body.board-extreme:has(.foehand:hover){--wallY:8%;}
-  body.wall-open,body:has(.hc.selected){--wallY:-14%;}
-  body.board-extreme.wall-open,body.board-extreme:has(.hc.selected){--wallY:-12%;}
+  body.wall-open{--wallY:-14%;}
+  body.board-extreme.wall-open{--wallY:-12%;}
   /* drag-and-drop: a ghost follows the pointer; cards/cells own the touch gesture (no scroll) */
   .hc,.cell{touch-action:none;}
   .dragghost{position:fixed;z-index:9999;left:0;top:0;pointer-events:none;opacity:.92;
@@ -498,3 +498,36 @@
   html.sleeve-img .wzfull.deckpile .wzlayer.top::after{display:none;}
   html.sleeve-img .card.charge .q,html.sleeve-img .card.charge .inv,
   html.sleeve-img .facedown .rune{text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.9);} /* readable over any art */
+
+  /* ---------- touch (no hover): a selected card must still hold the wall open ----------
+     Hover devices dropped these triggers (02_walls_hud.css) — the wall there is pointer-driven,
+     so after tapping Cast/Summon it retracts and the whole board is visible. On touch there is
+     no pointer to hover with, so the selected card keeps the wall and board-lift as before. */
+  @media not (hover: hover){
+    body:has(.hc.selected) #hudbar{transform:translateY(0);}
+    body:has(.hc.selected) .cmdzone.you{transform:translateY(0);}
+    body:has(.hc.selected) #hudbar .wallzone{display:flex;}
+    body:has(.hc.selected) #hudbar .wallzone .wzfull{display:block;}
+    body:has(.hc.selected) #youDeckLine{display:none;}
+    body:has(.hc.selected) .pbadge.you{opacity:0;pointer-events:none;}
+    body:has(.hc.selected) #youBack .deckslot{opacity:0;pointer-events:none;}
+    body:has(.hc.selected){--wallY:-14%;}
+    body.board-extreme:has(.hc.selected){--wallY:-12%;}
+  }
+
+  /* ---------- TARGETING (cast mode or an attack group selected) ----------
+     Clear the approach to the foe rows: the foe hand strip sat exactly over the back row and ATE
+     the click (pointer-events:auto + its :hover shifted the whole board 9% away as you aimed).
+     While targeting it goes ghost + click-through and the foe wall rail lifts fully away. */
+  body.targeting .foehand{pointer-events:none;opacity:.2;transition:opacity .2s;}
+  body.targeting #hudbarFoe{transform:translateY(-100%)!important;}
+  /* cast targeting holds a .hc.selected, whose foe-wall rule (02_walls_hud) is also !important and
+     MORE specific — restate the lift at matching-or-higher specificity so targeting always wins */
+  body.targeting:has(.hc.selected) #hudbarFoe{transform:translateY(-100%)!important;}
+  body.targeting .wallvit.foe{pointer-events:none;}
+  body.targeting #foeDeckLine{display:none;}
+  /* far-row targets must punch through the gloom: bright fill + pulsing rim on every legal target */
+  body.targeting .cell.target{border-color:#ff8663;background:rgba(255,150,90,.10);
+    box-shadow:0 0 0 2px rgba(255,120,80,.75),0 0 22px rgba(255,120,80,.65),inset 0 0 12px rgba(255,140,90,.25);
+    animation:pulse 1.1s ease-in-out infinite;}
+  body.targeting #battlefieldProps,body.targeting .bf-cloud,body.targeting .bf-smoke{opacity:.35;}

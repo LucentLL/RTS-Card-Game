@@ -108,7 +108,7 @@
     }catch(e){}
     const msg={a:'attack',kind:d.kind,atk};
     if(d.kind==='unit'){msg.tk=K(d.tkL);msg.ti=d.ti;} else if(d.kind==='back'){msg.col=d.col;} else {msg.wWhich=d.wWhich;}
-    MP.intent(msg); clearAtk();
+    MP.intent(msg); clearAtk(); render();                          // render: body.targeting + target glows must clear NOW, not at the snapshot
     MP.waitBanner('Attack sent — the opponent may interpose…');    // snapshot (or reject) unfreezes
   };
   function mpHostAttack(run,d){                                    // d: {kind,tkL?,ti?,col?,rowKey?,which?} host-LOCAL

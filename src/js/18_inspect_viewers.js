@@ -1,11 +1,21 @@
 /* ---------- tap-to-inspect: every card explains itself ---------- */
 const FINE_POINTER=!!(window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches);
-function addInspect(host,fn){
-  host._inspect=fn;                 // hover-to-inspect reads this — re-set on every render, so it survives rebuilds
-  if(FINE_POINTER) return;          // fine pointers hover to inspect — no ⓘ button (touch keeps it)
-  const b=document.createElement('div'); b.className='inspect'; b.textContent='ⓘ';
-  b.addEventListener('click',e=>{e.stopPropagation(); fn();});
-  host.appendChild(b);
+function addInspect(host,fn,own){
+  host._inspect=fn;                 // read by hover-to-inspect (fine pointers) and the selection preview —
+  if(FINE_POINTER) return;          // re-set on every render, so it survives rebuilds. The ⓘ button is gone.
+  // Touch replacement: when the board is INERT (opponent's turn, busy/FX, a respond window, MP
+  // freeze, draw/end phase, game over — states where decorate wires no game click) a tap has no
+  // game meaning, so it READS the card instead; ⓘ used to cover exactly these moments. During
+  // your own action phase, taps keep their game meaning — onCell/onHand show card text there
+  // (foe-tap inspect + the left selection preview).
+  host.addEventListener('click',function(){
+    var inert = typeof G==='undefined' || G.over || G.busy || G.turn!=='you'
+      || G.phase==='draw' || G.phase==='end'
+      || (typeof RESP!=='undefined' && RESP.active)
+      || (typeof MP!=='undefined' && MP.frozen)
+      || (G.upkeep && own!=='you');            // upkeep: your creatures keep their settle-tap, foe cards read
+    if(inert) fn();
+  });
 }
 function bldEffectText(eff,val,sup){
   const supTxt=(sup>0)?` Raises <b>⚒+${sup}</b> in its row.`:(sup<0)?` Costs <b>⚒${sup}</b> in its row — build it where workers are to spare.`:'';

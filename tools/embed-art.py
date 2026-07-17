@@ -59,14 +59,19 @@ SPRITEDIR = os.path.join(HERE, "assets", "sprites")
 
 
 def scan(dirpath, suffix, example):
-    """Collect <slug><suffix>.<ext> images from dirpath, keyed by <slug>."""
+    """Collect <slug><suffix>.<ext> images from dirpath — RECURSIVELY, keyed by <slug>.
+    Art may live flat or in the typed subfolders (Creatures/<Element>/, Spells/, Traps/,
+    Structures/); the slug key is folder-independent, matching the game's loader."""
     entries, embedded, skipped = {}, [], []
     if not os.path.isdir(dirpath):
         return entries, embedded, skipped
-    for fn in sorted(os.listdir(dirpath)):
+    files = []
+    for root, _dirs, fns in os.walk(dirpath):
+        for fn in fns:
+            files.append((fn, os.path.join(root, fn)))
+    for fn, full in sorted(files):
         if fn.startswith(".") or fn.startswith("_") or fn.lower().endswith(".md"):
             continue
-        full = os.path.join(dirpath, fn)
         if not os.path.isfile(full):
             continue
         base, ext = os.path.splitext(fn)

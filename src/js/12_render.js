@@ -284,7 +284,7 @@ function renderRow(elId,owner,which){
     const me=!!(o&&o.owner==='you');
     const cell=document.createElement('div');cell.className='cell'+(which==='back'?' backcell':'');
     cell.dataset.key=elId; cell.dataset.owner=o?o.owner:owner; cell.dataset.which=which; cell.dataset.slot=i;   // drag-drop coordinates
-    if(o){ cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i)); attachSprite(cell,o,me,elId,i); }
+    if(o){ cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(owner,which,i),o.owner); attachSprite(cell,o,me,elId,i); }
     decorate(cell,elId,i,o);
     el.appendChild(cell);
   }
@@ -330,7 +330,7 @@ function renderCenter(){
     const cell=document.createElement('div'); cell.className='cell centercell '+(isLane(i)?'centerlane':'centerstruct');
     const o=G.center[i];
     cell.dataset.key='center'; cell.dataset.owner=o?o.owner:'you'; cell.dataset.which='center'; cell.dataset.slot=i;   // drag-drop coords
-    if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i)); attachSprite(cell,o,me,'center',i); }
+    if(o){ const me=o.owner==='you'; cell.classList.add(me?'mineHere':'foeHere'); cell.innerHTML=cardHTML(o,me); addInspect(cell,()=>inspectRef(o.owner,'center',i),o.owner); attachSprite(cell,o,me,'center',i); }
     decorate(cell,'center',i,o);
     el.appendChild(cell);
   }
@@ -365,7 +365,7 @@ function renderHand(){
       :`<div class="stats">${isB?`<span class="eff">${card.eff==='mana'?('◆+'+card.val):'⚒train'}</span>`:`<span class="atk">${card.a}</span>`}<span class="mid">${wd}</span><span class="hp">♥${card.h}</span></div>`;
     d.innerHTML=`${head}<div class="hcbody">${art}${ribbon}${rules}${stats}</div>`;
     if(G.turn==='you'&&!G.busy&&!G.over)d.addEventListener('click',()=>onHand(i));
-    addInspect(d,()=>inspectHand(i));
+    addInspect(d,()=>inspectHand(i),'you');
     el.appendChild(d);
   });
 }

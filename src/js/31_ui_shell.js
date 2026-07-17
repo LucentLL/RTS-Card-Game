@@ -92,7 +92,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     const bandBot=()=>(parseFloat(getComputedStyle(hudF).height)||170)+6;
     document.addEventListener('pointermove',e=>{
       if(fpin){ if(e.clientY > bandBot()) setF(false); }
-      else if(e.clientY <= 28) setF(true);
+      else if(e.clientY <= 28 && !document.body.classList.contains('targeting')) setF(true);  // aiming at the far row must not raise the foe wall over the targets
     });
   }
 })();
@@ -108,7 +108,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     if(e.target&&e.target.closest&&e.target.closest('button,.inspect,.wallzone,.wallvit,#cardActions')) return;
     const y=e.clientY;
     if(y >= innerHeight - EDGE) openWall('you');
-    else if(y <= EDGE) openWall('foe');
+    else if(y <= EDGE && !document.body.classList.contains('targeting')) openWall('foe');  // top-edge taps stay target clicks while aiming
   }, true);
   // OFF-CLICK (all devices): a click on the empty board retracts both walls and deselects a held card + its menu
   document.addEventListener('click', e=>{
@@ -292,11 +292,15 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     if(document.body.classList.contains('dragging')) return true;
     if(typeof G!=='undefined'&&G.over) return true;
     if(modalOpen()) return true;
-    const m=$('cardActions'); if(m&&m.style.display==='block') return true;
+    // (an open card-action menu no longer suppresses hover-inspect — the left panel and the menu
+    // don't overlap, and card text must stay readable while weighing the menu's choices)
     return SCREENS.some(id=>{const e=$(id); return e&&getComputedStyle(e).display!=='none';});
   }
   function hideNow(){
     clearTimeout(showT); showT=null; clearTimeout(hideT); hideT=null; curKey=null;
+    // a held selection falls back to ITS card in the panel, never to blank (cast targeting keeps
+    // the spell readable while the pointer sweeps the board)
+    if(typeof selPreviewKey==='function'&&selPreviewKey()&&!suppressed()){ showSelPreview(); return; }
     const p=vp(); if(p&&p.classList.contains('hover')){ p.style.display='none'; p.classList.remove('left','hover'); }
   }
   function hoverTargetOf(node){
@@ -365,5 +369,44 @@ renderHand=function(){
   document.head.appendChild(css);
 })();
 fitBoard();
+/* ---------- LEFT-PANEL selection preview + body.targeting ----------
+   While a hand card is selected (action menu open, or Cast picking a target) or a placed
+   card's menu is open, the full card sits in the LEFT inspect panel — its text stays
+   readable while deciding. On touch this replaces the removed ⓘ button. body.targeting
+   (cast mode or an attack group held) drives the CSS that ghosts the foe hand strip and
+   lifts the foe wall rail so far-row targets are visible and clickable. */
+function selPreviewKey(){
+  if(typeof G==='undefined'||!G.P||G.over) return null;
+  if(G.sel&&G.sel.kind==='hand'&&G.P.you.hand[G.sel.idx]) return 'h'+G.sel.idx+'|'+(G.sel.mode||'');
+  if(G.cardMenu&&G.cardMenu.k!=null){ const a=rowArr(G.cardMenu.k), o=a&&a[G.cardMenu.i]; if(o) return 'c'+G.cardMenu.k+'|'+G.cardMenu.i+'|'+o.id; }
+  return null;
+}
+function showSelPreview(){
+  const vp=$('viewerPanel');
+  if(vp&&vp.style.display==='flex'&&!vp.classList.contains('hover')) return;   // never fight a real modal (deck/grave viewer)
+  window.__hoverInspecting=true;
+  try{
+    if(G.sel&&G.sel.kind==='hand') inspectHand(G.sel.idx);
+    else if(G.cardMenu){ const k=G.cardMenu.k, o=rowArr(k)[G.cardMenu.i];
+      // inspectRef is addressed by the ROW's owner (contested fronts hold raiders from either side)
+      if(o) inspectRef(k==='center'?o.owner:(k.startsWith('you')?'you':'foe'), k==='center'?'center':whichOf(k), G.cardMenu.i); }
+  }catch(e){} finally{ window.__hoverInspecting=false; }
+}
+(function(){
+  const _render_prev=render; let last=null;
+  render=function(){
+    _render_prev();
+    const tgt=!!(typeof G!=='undefined'&&G.P&&!G.over&&((G.sel&&G.sel.kind==='hand'&&G.sel.mode==='cast')||(G.atk&&G.atk.length)));
+    document.body.classList.toggle('targeting',tgt);
+    // no preview while dragging (it would blanket the drop slots), and none on touch while
+    // targeting (a phone's board matters more than the panel; the card was read on selection)
+    const k=(document.body.classList.contains('dragging')||(!FINE_POINTER&&tgt))?null:selPreviewKey();
+    if(k){ const vp=$('viewerPanel');
+      // re-show when hidden too (e.g. the deck viewer opened over it, then closed) — not only on key change
+      if(k!==last || !(vp&&vp.style.display==='flex')){ last=k; showSelPreview(); }
+    } else if(last!==null){ last=null;
+      const vp=$('viewerPanel'); if(vp&&vp.classList.contains('hover')){ vp.style.display='none'; vp.classList.remove('left','hover'); } }
+  };
+})();
 /* ============================ end v16 layer ============================ */
 

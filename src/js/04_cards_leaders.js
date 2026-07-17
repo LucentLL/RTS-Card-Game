@@ -51,8 +51,33 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   w.ART_EXTS = ['png','jpg','jpeg','webp'];      // tried in order before the placeholder
   w.EMBEDDED = {};                                // slug -> data URI; filled by tools/embed-art.py for the portable build
   w.slugify = function(n){ return String(n||'').toLowerCase().replace(/^the\s+/,'').replace(/[^a-z0-9]+/g,''); };
-  w.artBase = function(n){ return w.ART_DIR + w.slugify(n) + '_cardart'; };   // path without extension
-  w.artPath = function(n){ var s=w.slugify(n); return w.EMBEDDED[s] || (w.artBase(n)+'.'+w.ART_EXTS[0]); };
+  /* Art lives in TYPED subfolders (assets/cards/Creatures/<Element>/, Spells/, Traps/, Structures/)
+     with the flat assets/cards/ layout kept as a fallback — both work, drop-a-file stays intact.
+     The slug->folder table is derived lazily from the card data itself (POOLS/SPELL_NEUTRAL load
+     before any art request; STRUCT_DEFS loads in 07 — lazy build sees them all). */
+  w.DIR_BY_SLUG = null;
+  function dirTable(){
+    if(w.DIR_BY_SLUG) return w.DIR_BY_SLUG;
+    var t = {}, cap = function(c){ return c ? c.charAt(0).toUpperCase()+c.slice(1) : ''; };
+    try{
+      COLORS.forEach(function(el){ (POOLS[el]||[]).forEach(function(c){
+        t[w.slugify(c.nm)] = c.type==='spell' ? (c.trap?'Traps/':'Spells/')
+          : c.type==='building' ? 'Structures/' : 'Creatures/'+cap(c.color||el)+'/'; }); });
+      (typeof SPELL_NEUTRAL!=='undefined'?SPELL_NEUTRAL:[]).forEach(function(c){
+        t[w.slugify(c.nm)] = c.trap ? 'Traps/' : 'Spells/'; });
+      if(typeof STRUCT_DEFS!=='undefined') Object.keys(STRUCT_DEFS).forEach(function(k){
+        t[w.slugify(STRUCT_DEFS[k].nm)] = 'Structures/'; });
+    }catch(e){}
+    return (w.DIR_BY_SLUG = t);
+  }
+  w.artDirs = function(n){ var d = dirTable()[w.slugify(n)];
+    return d ? [w.ART_DIR+d, w.ART_DIR] : [w.ART_DIR]; };
+  // every candidate URL for a card's art, in probe order: typed folder then flat, each x extensions
+  w.artURLs = function(n){ var s=w.slugify(n), out=[];
+    w.artDirs(n).forEach(function(d){ w.ART_EXTS.forEach(function(x){ out.push(d+s+'_cardart.'+x); }); });
+    return out; };
+  w.artBase = function(n){ return w.artDirs(n)[0] + w.slugify(n) + '_cardart'; };   // primary dir, no extension
+  w.artPath = function(n){ var s=w.slugify(n); return w.EMBEDDED[s] || w.artURLs(n)[0]; };
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   w.PLACEHOLDERS = w.PLACEHOLDERS || {};
   w.cardArtImg = function(card, extra){
@@ -60,13 +85,15 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
     var cls = 'cardart' + (extra ? ' ' + extra : '');
     return '<img class="'+cls+'" alt="'+esc(nm)+'" data-card="'+esc(nm)+'" data-ext="0" src="'+w.artPath(nm)+'" onerror="artFallback(this)">';
   };
-  // on a 404, walk the remaining extensions, then fall back to the built-in placeholder
+  // on a 404, walk the remaining candidates (typed folder then flat, each x extensions),
+  // then fall back to the built-in placeholder. data-ext indexes the artURLs list.
   w.artFallback = function(img){
     var nm = (img.getAttribute && img.getAttribute('data-card')) || '';
     var s = w.slugify(nm);
     if(w.EMBEDDED[s]){ img.onerror = null; img.src = w.EMBEDDED[s]; return; }
     var ei = (parseInt(img.getAttribute('data-ext'),10) || 0) + 1;
-    if(ei < w.ART_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.artBase(nm) + '.' + w.ART_EXTS[ei]; return; }
+    var urls = w.artURLs(nm);
+    if(ei < urls.length){ img.setAttribute('data-ext', ei); img.src = urls[ei]; return; }
     img.onerror = null;
     var ph = w.PLACEHOLDERS[nm];
     if(ph) img.src = ph; else img.removeAttribute('src');
@@ -86,8 +113,11 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   w.FIELD_EXTS = ['png','webp','jpg'];
   w.EMBEDDED_FIELD = {};                       // slug -> data URI (filled by tools/embed-art.py for the portable build)
   w.FIELD_MISS = {};                           // slug -> true once we know there's no field cut-out (skip the 404 on later renders)
-  w.fieldBase = function(n){ return w.ART_DIR + w.slugify(n) + '_fieldart'; };
-  w.fieldPath = function(n){ var s=w.slugify(n); return w.EMBEDDED_FIELD[s] || (w.fieldBase(n)+'.'+w.FIELD_EXTS[0]); };
+  w.fieldURLs = function(n){ var s=w.slugify(n), out=[];   // same typed-then-flat probe order as card art
+    w.artDirs(n).forEach(function(d){ w.FIELD_EXTS.forEach(function(x){ out.push(d+s+'_fieldart.'+x); }); });
+    return out; };
+  w.fieldBase = function(n){ return w.artDirs(n)[0] + w.slugify(n) + '_fieldart'; };
+  w.fieldPath = function(n){ var s=w.slugify(n); return w.EMBEDDED_FIELD[s] || w.fieldURLs(n)[0]; };
   w.spriteImg = function(card){
     var nm = card && card.nm ? card.nm : ''; var s = w.slugify(nm);
     if(w.FIELD_MISS[s] && !w.EMBEDDED_FIELD[s])   // known: no field cut-out — borrow the card art straight away (no 404)
@@ -101,14 +131,16 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
     var stage = img.getAttribute('data-stage') || 'field';
     var ei = (parseInt(img.getAttribute('data-ext'),10) || 0) + 1;
     if(stage==='field'){
-      if(ei < w.FIELD_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.fieldBase(nm) + '.' + w.FIELD_EXTS[ei]; return; }
+      var furls = w.fieldURLs(nm);
+      if(ei < furls.length){ img.setAttribute('data-ext', ei); img.src = furls[ei]; return; }
       w.FIELD_MISS[s] = true;                   // no field cut-out for this card — stop re-requesting it every render
       img.classList.add('fromart'); img.setAttribute('data-stage','cardart'); img.setAttribute('data-ext','0');
       img.src = w.artPath(nm); return;
     }
-    // cardart stage: walk the remaining card-art exts, then the built-in placeholder
+    // cardart stage: walk the remaining card-art candidates, then the built-in placeholder
     if(w.EMBEDDED[s]){ img.onerror=null; img.src=w.EMBEDDED[s]; return; }
-    if(ei < w.ART_EXTS.length){ img.setAttribute('data-ext', ei); img.src = w.artBase(nm) + '.' + w.ART_EXTS[ei]; return; }
+    var urls = w.artURLs(nm);
+    if(ei < urls.length){ img.setAttribute('data-ext', ei); img.src = urls[ei]; return; }
     img.onerror = null; var ph = w.PLACEHOLDERS[nm]; if(ph) img.src = ph; else img.removeAttribute('src');
   };
   /* placeholder map auto-synced from the pools above — the always-works safety net */

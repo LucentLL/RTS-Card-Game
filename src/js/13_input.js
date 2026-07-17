@@ -114,7 +114,9 @@ function onCell(key,i,o){
       render(); return; }
     G.sel=null; defaultHint(); render(); return;
   }
-  if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.'); return; }
+  if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.');
+    if(!FINE_POINTER) inspectRef('you', key==='center'?'center':whichOf(key), i);   // touch: the full trap card is otherwise unreadable
+    return; }
   if(mine&&o.kind==='charge'){ if(G.atk.length===0) openCharge(key,i); return; }
   if(mine&&o.kind==='building'){
     const ups=(!o.cc&&acting())?upgradeTargets(o):[];
@@ -124,14 +126,20 @@ function onCell(key,i,o){
     if(upBtns||send){ const hint=ups.length?(send?'upgrade this structure, or move its stored ◆':'upgrade this structure to the next tier'):'stored mana — move it, or play a card on top to spend it';
       G.cardMenu={k:key,i,html:`${upBtns}${send}<span class="taphint">${hint}</span>`};
       setHint(ups.length?`<b>${escHtml(o.nm)}</b> — upgrade it${send?', or manage its stored ◆':''}.`:'Structure holding stored ◆ — Send it elsewhere, or play a card on top.'); }
-    else setHint('Structures hold the base — they don\u2019t move or fight.');
+    else { setHint('Structures hold the base — they don\u2019t move or fight.');
+      if(!FINE_POINTER) inspectRef('you', key==='center'?'center':whichOf(key), i); }  // menu-less structure: touch still reads it
     render(); return;
   }
   if(mine&&o.kind==='creature'){
     const mv=moveBtn(key,i);
     const send=o.bank>0?`<button onclick="startSendMana('${key}',${i})">◆ Send ${o.bank}</button>`:'';
-    if(o.sick){ const h=`${mv}${send}`; if(h)G.cardMenu={k:key,i,html:`${h}<span class="taphint">summoning-sick — acts next turn</span>`}; setHint('Summoning-sick — it can act next turn.'); render(); return; }
-    if(o.tapped){ const h=`${mv}${send}`; if(h)G.cardMenu={k:key,i,html:`${h}<span class="taphint">tapped until your next turn</span>`}; setHint('Tapped until your next turn.'); render(); return; }
+    const rowOwn=key==='center'?o.owner:(key.startsWith('you')?'you':'foe');
+    if(o.sick){ const h=`${mv}${send}`; if(h)G.cardMenu={k:key,i,html:`${h}<span class="taphint">summoning-sick — acts next turn</span>`};
+      else if(!FINE_POINTER) inspectRef(rowOwn, key==='center'?'center':whichOf(key), i);   // no menu -> touch still reads the card
+      setHint('Summoning-sick — it can act next turn.'); render(); return; }
+    if(o.tapped){ const h=`${mv}${send}`; if(h)G.cardMenu={k:key,i,html:`${h}<span class="taphint">tapped until your next turn</span>`};
+      else if(!FINE_POINTER) inspectRef(rowOwn, key==='center'?'center':whichOf(key), i);
+      setHint('Tapped until your next turn.'); render(); return; }
     // soldier
     const k2=G.atk.findIndex(s=>s.k===key&&s.i===i);
     if(k2>=0){ G.atk.splice(k2,1); }
@@ -151,6 +159,13 @@ function onCell(key,i,o){
   if(G.atk.length&&canAttack()){
     if(foe){ doAttack(key,i); return; }
     if(!o&&key==='foeBack'){ attackBackRow('foe',i); return; }
+  }
+  // touch: tapping an enemy card (with no attack group held) reads it — replaces the removed ⓘ button.
+  // inspectRef is addressed by the ROW's owner (a foe raider standing in YOUR front row lives in
+  // cellArr('you','front')) — the occupant's owner would read the mirrored row's card.
+  if(o&&o.owner==='foe'&&!G.atk.length&&!FINE_POINTER){
+    render();   // sweep any open card menu before the modal opens over it
+    inspectRef(key==='center'?o.owner:(key.startsWith('you')?'you':'foe'), key==='center'?'center':whichOf(key), i);
   }
 }
 

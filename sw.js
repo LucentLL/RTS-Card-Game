@@ -41,10 +41,13 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // HTML / JS / everything else: network-first so each iteration gets the newest build.
+  // HTML / JS / CSS / everything else: network-first AND cache-bypassing ('no-store'), so each
+  // iteration gets the newest build. Without this the plain fetch() is answered from the HTTP
+  // cache — GitHub Pages serves max-age=600, so split src/ files could stay 10 minutes stale
+  // after a push (the pre-split single HTML dodged this only because navigations revalidate).
   e.respondWith((async () => {
     try {
-      const resp = await fetch(req);
+      const resp = await fetch(req, { cache: 'no-cache' });   // 'no-cache' = always revalidate (304s stay cheap), never a stale cache hit
       if (resp && resp.ok) { const c = await caches.open(APP_CACHE); c.put(req, resp.clone()); }
       return resp;
     } catch (err) {

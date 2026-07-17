@@ -52,7 +52,7 @@
   .pbadge.foe{top:6px;right:8px;align-items:flex-end;text-align:right;}
   .pbadge.you{bottom:6px;left:8px;align-items:flex-start;text-align:left;transition:opacity .2s ease;}
   /* when the hand/castle wall is raised, the player's vitals show on the wall — hide the corner badge */
-  body:has(.hand:hover) .pbadge.you, body:has(.hc.selected) .pbadge.you, body.wall-open .pbadge.you{opacity:0;pointer-events:none;}
+  body:has(.hand:hover) .pbadge.you, body.wall-open .pbadge.you{opacity:0;pointer-events:none;}
   .who{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em;display:flex;align-items:center;gap:6px;font-weight:700;}
   .pbadge.foe .who{flex-direction:row-reverse;}
   .cdot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;}

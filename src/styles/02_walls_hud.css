@@ -23,8 +23,12 @@
   /* castle wall RISES with the hand; at rest only its top rail (+ the name/cost strip & vitals) shows.
      body.wall-open is set by JS to KEEP it raised while the cursor is anywhere over the wall band,
      so you can move off the cards onto the commander/Build without it retracting. */
-  body:has(.hand:hover) #hudbar, body:has(.hc.selected) #hudbar, body.wall-open #hudbar{transform:translateY(0);}
-  body:has(.hand:hover) .cmdzone.you, body:has(.hc.selected) .cmdzone.you, body.wall-open .cmdzone.you{transform:translateY(0);}
+  /* hover devices: the wall is HOVER-DRIVEN only (the pin IIFE in 31_ui_shell sets body.wall-open
+     while the pointer rides the band). A selected card no longer forces it up — after Cast/Summon
+     the wall drops out of the way so the board is fully visible. Touch re-adds the selected-card
+     hold in 05_overlays_screens.css (@media not (hover:hover)) — no pointer to hover with there. */
+  body:has(.hand:hover) #hudbar, body.wall-open #hudbar{transform:translateY(0);}
+  body:has(.hand:hover) .cmdzone.you, body.wall-open .cmdzone.you{transform:translateY(0);}
   .cmdzone.you{transform:translateY(150%);transition:transform .24s cubic-bezier(.34,1.18,.5,1);}
   /* DRAW + UPKEEP: keep the player's wall raised so the deck and the worker readout stay in view */
   body.phase-draw #hudbar, body.phase-upkeep #hudbar{transform:translateY(0);}
@@ -78,10 +82,10 @@
     width:max(8.2%,44px);border-radius:7px;background:rgba(8,10,16,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:background .15s;}
   .wallzone:hover{background:rgba(20,26,40,.5);}
   #hudbar .wallzone{top:22%;bottom:12%;display:none;} #hudbar .wallzone.deck{right:calc(2.4% + max(8.2%,44px) + 6px);} #hudbar .wallzone.grave{right:2.4%;}
-  body:has(.hand:hover) #hudbar .wallzone, body:has(.hc.selected) #hudbar .wallzone, body.wall-open #hudbar .wallzone{display:flex;}
+  body:has(.hand:hover) #hudbar .wallzone, body.wall-open #hudbar .wallzone{display:flex;}
   .decline{position:absolute;right:5%;top:2px;z-index:4;pointer-events:none;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:.03em;color:#e7eefb;text-shadow:0 1px 3px #000;white-space:nowrap;}
   .decline b{color:#fff;} #foeDeckLine{top:auto;bottom:2px;color:#cfe0f5;}
-  body:has(.hand:hover) #youDeckLine, body:has(.hc.selected) #youDeckLine, body.wall-open #youDeckLine{display:none;}
+  body:has(.hand:hover) #youDeckLine, body.wall-open #youDeckLine{display:none;}
   body:has(.foehand:hover) #foeDeckLine, body:has(#hudbarFoe:hover) #foeDeckLine, body.foewall-open #foeDeckLine{display:none;}
   #hudbarFoe .wallzone{top:12%;bottom:22%;flex-direction:column-reverse;justify-content:center;display:none;} #hudbarFoe .wallzone.deck{right:calc(2.4% + max(8.2%,44px) + 6px);} #hudbarFoe .wallzone.grave{right:2.4%;}
   body:has(.foehand:hover) #hudbarFoe .wallzone, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone, body.foewall-open #hudbarFoe .wallzone{display:flex;}
@@ -122,7 +126,7 @@
     background:rgba(10,8,4,.9);border:1px solid var(--gold-deep);border-radius:999px;padding:2px 6px;
     box-shadow:0 1px 3px rgba(0,0,0,.6);}
   #hudbarFoe .wzbadge{top:auto;bottom:-6px;}
-  body:has(.hand:hover) #hudbar .wallzone .wzfull, body:has(.hc.selected) #hudbar .wallzone .wzfull, body.wall-open #hudbar .wallzone .wzfull,
+  body:has(.hand:hover) #hudbar .wallzone .wzfull, body.wall-open #hudbar .wallzone .wzfull,
   body:has(.foehand:hover) #hudbarFoe .wallzone .wzfull, body:has(#hudbarFoe:hover) #hudbarFoe .wallzone .wzfull, body.foewall-open #hudbarFoe .wallzone .wzfull{display:block;}
   .handwrap{position:fixed;left:0;right:0;bottom:0;height:0;z-index:25;margin:0;pointer-events:none;}
   /* help text lives on the right margin, off the board */
