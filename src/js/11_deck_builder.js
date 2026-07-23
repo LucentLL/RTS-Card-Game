@@ -129,13 +129,10 @@ function renderDbDetail(){
   const el=$('dbDetail'); const e=dbState.sel&&CARD_BY_KEY[dbState.sel];
   if(!e){ el.innerHTML='<div class="dbd-empty">Select a card to see its details.</div>'; return; }
   const n=dbState.cards[e.key]||0; const total=deckTotal(dbState.cards);
-  const label=dbCardLabel(e,dbPoolNameCount());
-  const elem=e.color?`${elemBadge(e.color,18)}${cap(e.color)}`:'◇ Neutral';
-  el.innerHTML=`<div class="dbd-art">${cardArtImg(e.tpl,'big')}</div>`+
-    `<div class="dbd-name">${escHtml(label)}</div>`+
-    `<div class="dbd-line"><span style="color:var(--spawn)">${costGlyph(e)}</span><span>${cardStat(e)}</span></div>`+
-    `<div class="dbd-elem">${elem}</div>`+
-    `<div class="dbd-desc">${cardBlurb(e)}</div>`+
+  // Show the real DM-framed card (same chrome as the hand/inspector), not an image with text under it.
+  // type+color live on the registry entry, not the template — inspCardHTML needs them merged in.
+  const card=Object.assign({},e.tpl,{color:e.color,type:e.type});
+  el.innerHTML=`<div class="dbd-card">${inspCardHTML(card)}</div>`+
     `<div class="dbd-step"><button onclick="dbStep('${jsq(e.key)}',-1)" ${n<=0?'disabled':''}>−</button><span class="dbcount">${n}</span>`+
     `<button onclick="dbStep('${jsq(e.key)}',1)" ${(n>=MAX_COPIES||total>=DECK_SIZE)?'disabled':''}>+</button></div>`;
 }
