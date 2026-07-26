@@ -67,6 +67,9 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
         t[w.slugify(c.nm)] = c.trap ? 'Traps/' : 'Spells/'; });
       if(typeof STRUCT_DEFS!=='undefined') Object.keys(STRUCT_DEFS).forEach(function(k){
         t[w.slugify(STRUCT_DEFS[k].nm)] = 'Structures/'; });
+      // forges aren't in STRUCT_DEFS (built by forgeDef/grandForgeDef) — map them + their Grand tiers
+      if(typeof FORGE_NAMES!=='undefined') Object.keys(FORGE_NAMES).forEach(function(el){
+        var s=w.slugify(FORGE_NAMES[el]); t[s]='Structures/'; t['grand'+s]='Structures/'; });
     }catch(e){}
     return (w.DIR_BY_SLUG = t);
   }
