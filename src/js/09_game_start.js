@@ -14,7 +14,7 @@ function startGame(youId,foeId,youDeck,foeDeck){
   buildBattlefield(cy.colors[0], cf.colors[0]);
   hideAllScreens();
   $('log').innerHTML='';
-  log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. Break through to the enemy back row and drain their ♥ to win — protect your own.</span>`);
+  log(`<span class="y">${cy.name} stands against ${cf.name}${youId===foeId?' (a mirror!)':''}. March on the enemy castle and strike its wall to drain their ♥ — protect your own.</span>`);
   setPhase('upkeep'); upkeepHint(); render();   // turn 1 opens at Upkeep — ⛏ Harvest, then Draw
 }
 let selYou='fire', selFoe='water', csStep=1;

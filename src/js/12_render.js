@@ -183,8 +183,8 @@ window.toggleSprites=()=>{ window.SPRITES_ON=!window.SPRITES_ON; const b=$('sprB
 // strike mid-aim, or a shortfall warning. Returns null otherwise — rows keep their full width.
 function zoneForRow(owner,key){ // which of `owner`'s worker zones lives in global row `key` (null if none)
   if(key==='center')return 'center';
-  if(owner==='you') return key==='youBack'?'back':key==='youFront'?'front':key==='foeFront'?'raid':null;
-  return key==='foeBack'?'back':key==='foeFront'?'front':key==='youFront'?'raid':null;
+  if(owner==='you') return key==='youBack'?'back':key==='youFront'?'front':(key==='foeFront'||key==='foeBack')?'raid':null;   // raid spans BOTH enemy rows
+  return key==='foeBack'?'back':key==='foeFront'?'front':(key==='youFront'||key==='youBack')?'raid':null;
 }
 function rowFloatChips(key,aiming){
   const out=[];
@@ -241,7 +241,7 @@ function workerColumn(){
   const rows=[['Enemy Base',null,false],['Raid','raid',false],['Center','center',true],['Front','front',true],['Base','back',true]];
   for(const [lab,z,harvests] of rows){
     const row=document.createElement('div');
-    if(z===null){ row.className='wtok vrow none'; row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">—</span>`; row.title='the enemy stronghold — you hold no workers here'; box.appendChild(row); continue; }
+    if(z===null){ row.className='wtok vrow none'; row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">—</span>`; row.title='the enemy stronghold row — units besieging it count toward your Raid upkeep'; box.appendChild(row); continue; }
     const n=rowWorkers('you',z);
     const pool=harvests?minPool('you',z):[]; const up=pool.filter(m=>!m.tapped&&!m.sick).length;
     row.className='wtok vrow'+(n<0?' short':'')+(n===0?' none':'');
@@ -407,8 +407,7 @@ function decorate(cell,key,i,o){
   if(handSel&&(G.sel.mode==='summon'||G.sel.mode==='build')&&mine&&o.bank>0&&deployKey) cell.classList.add('target');
   if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
   if(G.atk.length&&canAttack()){                       // any enemy field object is targetable (a body, a structure, a face-down); the defender's counterplay is interception, not column reach
-    if(foe) cell.classList.add('target');
-    else if(!o&&key==='foeBack') cell.classList.add('target');   // an open stronghold column — strike it for life damage
+    if(foe) cell.classList.add('target');              // (the castle wall is struck via the enemy ♥ — open cells are no longer a life target)
   }
   cell.addEventListener('click',()=>onCell(key,i,o));
 }

@@ -54,12 +54,15 @@ function workerCap(owner){ return structSupport(owner) - monsterUpkeep(owner); }
 // units stand with no structures behind them: its figure is never positive, so an army camped there
 // must be paid for (or pulled back) at every upkeep. zoneKey maps a zone to the global row it reads.
 const ZONES=['back','front','center','raid'];
+// 'raid' spans BOTH enemy rows now that the enemy back row is enterable — deep sieges pay the same keep
+function raidKeys(owner){ return owner==='you'?['foeFront','foeBack']:['youFront','youBack']; }
+function zoneKeys(owner,z){ return z==='raid'?raidKeys(owner):[zoneKey(owner,z)]; }
 function zoneKey(owner,z){ return z==='center'?'center':z==='raid'?(owner==='you'?'foeFront':'youFront'):rowKeyFor(owner,z); }
 function rowWorkers(owner,which){
   let s=0;
-  rowArr(zoneKey(owner,which)).forEach(o=>{ if(!o||o.owner!==owner)return;
+  zoneKeys(owner,which).forEach(k=>rowArr(k).forEach(o=>{ if(!o||o.owner!==owner)return;
     if(o.kind==='building')s+=(o.sup||0)+(o.eff==='villager'?(o.val||0):0);
-    else if(o.kind==='creature'&&!o.worker)s-=(o.up||0); });
+    else if(o.kind==='creature'&&!o.worker)s-=(o.up||0); }));
   if(which==='back') s+=CCS[G.P[owner].cc].wk;  // the homeland itself staffs the back row (the old keep's workers)
   return s;
 }
@@ -82,7 +85,7 @@ function zoneDeficit(owner,z){ const paid=(G.P[owner].upaid||{})[z]||0; return M
 function deficitRows(owner){ return ZONES.filter(w=>zoneDeficit(owner,w)>0); }
 function totalDeficit(owner){ return ZONES.reduce((s,w)=>s+zoneDeficit(owner,w),0); }
 function creaturesInRow(owner,which){
-  const out=[]; const k=zoneKey(owner,which);
-  rowArr(k).forEach((o,i)=>{if(o&&o.owner===owner&&o.kind==='creature'&&!o.worker)out.push({which,key:k,i,o});});
+  const out=[];
+  zoneKeys(owner,which).forEach(k=>rowArr(k).forEach((o,i)=>{if(o&&o.owner===owner&&o.kind==='creature'&&!o.worker)out.push({which,key:k,i,o});}));
   return out;
 }

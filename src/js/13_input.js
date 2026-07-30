@@ -149,7 +149,7 @@ function onCell(key,i,o){
     }
     if(G.atk.length===1){
       const s=G.atk[0]; const su=rowArr(s.k)[s.i]; const sd=su.bank>0?`<button onclick="startSendMana('${s.k}',${s.i})">◆ Send ${su.bank}</button>`:'';
-      G.cardMenu={k:s.k,i:s.i,html:`${moveBtn(s.k,s.i)}${sd}<span class="taphint">⚔ tap any enemy unit, face-down, structure, an open back-row column, or their ♥ life to strike</span>`};
+      G.cardMenu={k:s.k,i:s.i,html:`${moveBtn(s.k,s.i)}${sd}<span class="taphint">⚔ tap any enemy unit, face-down, structure, or their ♥ castle wall to strike</span>`};
       setHint(`<b>1</b> attacker · ⚔${su.a} — strike any foe or their ♥ life, tap row-mates to join the attack, or use an action above the card.`);
     } else if(G.atk.length){
       setHint(`<b>${G.atk.length}</b> attackers · ⚔${sumA(selCres())} combined — tap a target to strike, or tap a glowing creature to drop it. (Move is solo only.)`);
@@ -158,7 +158,7 @@ function onCell(key,i,o){
   }
   if(G.atk.length&&canAttack()){
     if(foe){ doAttack(key,i); return; }
-    if(!o&&key==='foeBack'){ attackBackRow('foe',i); return; }
+    if(!o&&key==='foeBack'){ setHint('The castle itself is struck via the enemy <b>♥</b> — or march a creature into their back row to besiege it.'); render(); return; }
   }
   // touch: tapping an enemy card (with no attack group held) reads it — replaces the removed ⓘ button.
   // inspectRef is addressed by the ROW's owner (a foe raider standing in YOUR front row lives in

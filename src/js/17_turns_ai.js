@@ -174,12 +174,12 @@ window.doHarvest=function(){
 };
 window.hvCancel=function(){ $('harvestPanel').style.display='none'; };
 // ----- AI upkeep: rebalance by moving, then PAY the rest (from vaulted mana), sacrificing only when broke -----
-const MOVE_ADJ={back:['front'],front:['back','center'],center:['front'],raid:['center']}; // zone graph ('raid' = the enemy front)
-function aiMoveCreature(owner,fromZ,i,toZ){
-  const arr=rowArr(zoneKey(owner,fromZ)); const o=arr[i]; if(!o)return false;
+const MOVE_ADJ={back:['front'],front:['back','center'],center:['front'],raid:['center']}; // zone graph ('raid' = the enemy rows)
+function aiMoveCreature(owner,fromKey,i,toZ){          // fromKey is a GLOBAL row key — raid spans two rows now
+  const arr=rowArr(fromKey); const o=arr&&arr[i]; if(!o)return false;
   if(o.moved&&(o.moved2||o.tapped))return false;       // two moves max — the same budget the player gets
   const dstKey=zoneKey(owner,toZ); const dst=rowArr(dstKey);
-  let slot=-1; for(const j of [i,i-1,i+1]){ if(j>=0&&j<SLOTS&&!dst[j]&&slotExists(dstKey,j)){slot=j;break;} }  // one square: straight or diagonal, same as the player
+  let slot=-1; for(const j of [i,i-1,i+1]){ if(j>=0&&j<SLOTS&&!dst[j]&&slotExists(dstKey,j)&&adjacentK(owner,fromKey,i,dstKey,j)){slot=j;break;} }  // one REAL square, same as the player
   if(slot<0)return false;
   arr[i]=null;
   if(o.moved){ o.moved2=true; o.tapped=true; } else o.moved=true;   // a second forced move spends its turn
@@ -191,10 +191,10 @@ function aiFixDeficit(owner){
     const which=deficitRows(owner)[0];
     const cres=creaturesInRow(owner,which).sort((a,b)=>(b.o.up||0)-(a.o.up||0));
     if(!cres.length)break;
-    const {i,o}=cres[0]; let moved=false;
+    const {key,i,o}=cres[0]; let moved=false;
     for(const to of (MOVE_ADJ[which]||[])){
-      if(to==='raid')continue;                         // never rebalance INTO the enemy front
-      if(rowWorkers(owner,to)-(o.up||0)>=0&&aiMoveCreature(owner,which,i,to)){
+      if(to==='raid')continue;                         // never rebalance INTO the enemy rows
+      if(rowWorkers(owner,to)-(o.up||0)>=0&&aiMoveCreature(owner,key,i,to)){
         log(`<span class="e">${o.nm} repositions to ${rowName(zoneKey(owner,to))} to balance the workforce.</span>`,'e');
         moved=true; break;
       }
@@ -207,8 +207,8 @@ function aiFixDeficit(owner){
     const which=deficitRows(owner)[0]; if(!which)break;
     const cres=creaturesInRow(owner,which).sort((a,b)=>(b.o.up||0)-(a.o.up||0));
     if(!cres.length)break;
-    const {i,o}=cres[0];
-    rowArr(zoneKey(owner,which))[i]=null; toGrave(owner,o);
+    const {key,i,o}=cres[0];
+    rowArr(key)[i]=null; toGrave(owner,o);
     log(`<span class="e">The enemy sacrifices ${o.nm} — it cannot pay its keep.</span>`,'e');
     syncWorkers(owner);
   }
@@ -253,17 +253,15 @@ function yourFieldTargets(){ const out=[];
   return out;
 }
 function aiPickTarget(m,aCol){
-  // column-aware: an attacker at column aCol can only reach targets within ±1 column
-  const fld=yourFieldTargets().filter(t=>colReach(aCol,t.i));
+  const fld=yourFieldTargets();                          // columns never matter in combat — full board reach
   const ch=fld.filter(t=>t.o.kind==='charge'&&t.o.inv>=2).sort((a,b)=>b.o.inv-a.o.inv)[0];
   if(ch&&Math.random()<0.6) return ch;
   const kill=fld.filter(t=>t.o.kind==='creature'&&!t.o.worker&&m.a>=t.o.h).sort((a,b)=>a.o.h-b.o.h)[0];
   if(kill) return kill;
   const bld=fld.filter(t=>t.o.kind==='building').sort((a,b)=>a.o.h-b.o.h)[0];
   if(bld&&Math.random()<0.3) return bld;
-  // otherwise march on the stronghold — strike any OPEN back-row column within reach for life damage
-  for(const c of [aCol,aCol-1,aCol+1]){ if(c>=0&&c<SLOTS&&!G.P.you.back[c]) return {key:'youBack',i:c,base:true,o:null}; }
-  return kill||bld||ch||fld[0]||null;
+  // otherwise storm the castle wall itself for life damage — interceptors may still meet the strike
+  return {key:'youBack',i:Math.max(0,Math.min(SLOTS-1,aCol)),base:true,o:null};   // i is FX-only
 }
 async function foeTurn(){
   if(typeof MPNET!=='undefined'&&MPNET.active&&MP.started)return;   // MP: there is no AI — the remote player drives 'foe'
@@ -317,26 +315,25 @@ async function foeTurn(){
     const m=unitAt(atk.key,atk.i); if(!m||m.tapped)continue;
     const aIdx=rowIdx(atk.key); const aCol=atk.i;
     const tref=aiPickTarget(m,aCol); if(!tref)continue;
-    const tIdx=rowIdx(tref.key);
+    const tIdx=tref.base?ROWS.length:rowIdx(tref.key);   // the castle wall sits one row beyond youBack
     m.tapped=true;
     const scour=kwOf(m)==='scour';
     dischargeOvercharge([m]);
     let blk=[];
     // PAUSE-TO-RESPOND: defender's priority window at attack declaration (always shown — anti-tell)
-    const respTgt=tref.base?'your STRONGHOLD':'your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
+    const respTgt=tref.base?'your CASTLE WALL':'your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
     const springRef=await RESP.defendWindow('attack',{desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${respTgt}.`});
     if(G.over)return;
-    if(!scour && Math.abs(aIdx-tIdx)>1){
-      const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);
+    if(!scour && aIdx!==tIdx){                           // same row = point-blank, no interposing
+      const elig=eligibleInterceptors('foe',aIdx,tIdx).filter(r=>r.c!==tref.o);   // the target itself fights back, it doesn't "block"
       if(elig.length){
-        const tgtName=tref.base?'your STRONGHOLD':'your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
-        blk=await askBlock({attacker:m,elig,title:'Incoming Attack',desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${tgtName}.`});
+        blk=await askBlock({attacker:m,elig,title:'Incoming Attack',desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${respTgt}.`});
       }
     }
     if(blk.length){ const defs=blk.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean); defs.forEach(d=>{d.tapped=true;d.blocked=true;}); log(`<span class="y">You interpose ${defs.length}!</span>`,'y'); resolveCombat([m],defs); }
     else if(tref.base){
       const dmg=effA(m); G.P.you.life=Math.max(0,G.P.you.life-dmg);
-      log(`<span class="e">${m.nm} breaches your line — ⚔${dmg} strikes your stronghold! (♥${G.P.you.life} remains)</span>`,'e');
+      log(`<span class="e">${m.nm} storms your castle wall — ⚔${dmg}! (♥${G.P.you.life} remains)</span>`,'e');
       if(scour){ scourStrike(m,'you'); cleanup(); }
     }
     else { const o=tref.o;

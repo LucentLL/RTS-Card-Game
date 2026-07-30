@@ -202,11 +202,11 @@ const MPAPPLY=(function(){
     const attackers=m.atk.map(s=>rowArr(s.k)&&rowArr(s.k)[s.i])
       .filter(x=>x&&x.kind==='creature'&&x.owner==='foe'&&!x.worker&&!x.sick&&!x.tapped);
     if(attackers.length!==m.atk.length)return bad(m.q,'attackers');
-    const aKey=m.atk[0].k, aIdx=rowIdx(aKey), aCol=m.atk[0].i;
+    const aKey=m.atk[0].k, aIdx=rowIdx(aKey);
     // resolve target + validate BEFORE tapping anything
     let tIdx, tgt=null;
-    if(m.kind==='back'){ if(!(m.col>=0&&m.col<SLOTS))return bad(m.q,'col');   // a life ('back') strike can target any column, occupied or not (the cmdzone ♥ path bypasses the wall) — mirrors attackBackRow
-      tIdx=rowIdx('youBack'); }
+    if(m.kind==='back'){ if(!(m.col>=0&&m.col<SLOTS))return bad(m.q,'col');   // col is FX-only now — the castle wall is one target
+      tIdx=ROWS.length; }                                          // the wall sits one row beyond youBack
     else if(m.kind==='workers'){ if(!minPool('you',m.wWhich).length)return bad(m.q,'pool');
       tIdx=rowIdx(zoneKey('you',m.wWhich)); }
     else { tgt=rowArr(m.tk)&&rowArr(m.tk)[m.ti];
@@ -220,9 +220,10 @@ const MPAPPLY=(function(){
     MP.fx({ev:'impact', k:(m.kind==='back'?'youBack':(m.kind==='workers'?zoneKey('you',m.wWhich):m.tk)),
            i:(m.kind==='back'?m.col:(m.kind==='workers'?0:m.ti)), el:attackers[0].color||null, well:m.kind==='workers'});
     let chosen=[];
-    const canBlock=(m.kind==='workers') ? Math.abs(aIdx-tIdx)>1 : (!scour&&Math.abs(aIdx-tIdx)>1);
+    const canBlock=(m.kind==='workers') ? aIdx!==tIdx : (!scour&&aIdx!==tIdx);   // same row = point-blank
     if(canBlock){
-      const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);       // attacker-owner arg = 'foe' (recon §2)
+      const elig=eligibleInterceptors('foe',aIdx,tIdx)             // attacker-owner arg = 'foe' (recon §2)
+        .filter(r=>r.c!==tgt&&!(m.kind==='workers'&&minPool('you',m.wWhich).includes(r.c)));   // the target can't screen itself
       if(elig.length){
         MPNET.send({t:'wait',what:'block'});
         chosen=await askBlock({attacker:attackers[0],elig,title:'Incoming Attack',
@@ -237,9 +238,9 @@ const MPAPPLY=(function(){
       clearDischarge(attackers); render(); checkWin(); return;
     }
     if(m.kind==='back'){
-      const dmg=sumA(attackers);                                   // same formula as attackBackRow L3837
+      const dmg=attackers.reduce((s,c)=>s+effA(c),0);              // effA — mirrors attackBackRow
       G.P.you.life=Math.max(0,G.P.you.life-dmg);
-      log(`<span class="e">The enemy breaches your line — ⚔${dmg} strikes your stronghold! (♥${G.P.you.life} remains)</span>`,'e');
+      log(`<span class="e">The enemy storms your castle wall — ⚔${dmg}! (♥${G.P.you.life} remains)</span>`,'e');
       if(scour&&attackers[0]){ scourStrike(attackers[0],'you'); cleanup(); }
     } else if(m.kind==='workers'){
       log(`<span class="e">The enemy strikes your Minions with ${attackers.length} creature(s).</span>`,'e');

@@ -1,6 +1,6 @@
-/* ---------- movement (once/turn; the three MIDDLE rows are contested — both sides may enter,
-   neither may enter the opponent's back row) ---------- */
-function moveChainOf(owner){ return owner==='you'?['youBack','youFront','center','foeFront']:['foeBack','foeFront','center','youFront']; }
+/* ---------- movement (once/turn; every row is reachable — the middle rows are contested and the
+   enemy BACK row may now be entered: the siege square, adjacent to their castle wall) ---------- */
+function moveChainOf(owner){ return owner==='you'?['youBack','youFront','center','foeFront','foeBack']:['foeBack','foeFront','center','youFront','youBack']; }
 // a real, standable slot exists everywhere on the side rows; the center only has slots at its lanes
 function slotExists(w,i){ return i>=0&&i<SLOTS&&(w!=='center'||isLane(i)); }  // works for zone names AND global keys
 // legal one-step destinations for `owner`: ONE square in any direction — sideways, forward, back,
@@ -41,7 +41,7 @@ function moveBtn(key,i){ if(!canMoveCard(key,i))return ''; const c=rowArr(key)[i
 window.startMove=(key,i)=>{ if(G.turn!=='you'||G.busy||G.over)return; i=+i; if(!canMoveCard(key,i))return; G.moveFrom={k:key,i}; G.sel=null; G.atk=[]; G.cardMenu=null; G.moveMana=null;
   const c=rowArr(key)[i];
   setHint((c&&c.moved)?'Second move this upkeep — it will <b>tap</b> the creature (both actions spent). Tap an open space one square away, or tap the unit again to cancel.'
-    :'Tap an open space one square away — sideways, forward, back, or diagonal (never the enemy back row). Tap the unit again to cancel.'); render(); };
+    :'Tap an open space one square away — sideways, forward, back, or diagonal, all the way into the enemy back row. Tap the unit again to cancel.'); render(); };
 window.cancelMove=()=>{ G.moveFrom=null; if(G.upkeep)upkeepHint(); else defaultHint(); render(); };
 function doMove(toK,toI){
   if(!G.moveFrom)return; const {k,i}=G.moveFrom; const c=rowArr(k)[i];
@@ -59,15 +59,15 @@ function attackerRowKey(){ return G.atk.length?G.atk[0].k:'youFront'; }
 function doAttack(tgtKey,ti){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
-  const aCol=G.atk.length?G.atk[0].i:ti;                 // the attacker's column governs reach
   const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
   const tgt=unitAt(tgtKey,ti); if(!tgt){clearAtk();render();return;}
   attackers.forEach(a=>a.tapped=true);
   const scour=groupIsScour(attackers);                   // Wind fliers ignore interceptors
   dischargeOvercharge(attackers);                         // Electric attackers spend their banked ◆
-  // Not adjacent → the strike travels; the enemy may interpose units in any intervening row within ±1 column.
-  if(!scour && Math.abs(aIdx-tIdx)>1){
-    const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
+  // Same row = a point-blank duel, no interposing. Any other row: the strike travels, and the
+  // enemy may interpose from any row it crosses into — the target's own row-mates included.
+  if(!scour && aIdx!==tIdx){
+    const elig=eligibleInterceptors('you',aIdx,tIdx).filter(r=>r.c!==tgt);   // the target itself fights back, it doesn't "block"
     const chosen=aiChooseInterceptors(attackers,{kind:tgt.kind,cc:!!tgt.cc,elig});
     if(chosen.length){
       chosen.forEach(r=>{r.c.tapped=true;r.c.blocked=true;});
@@ -84,28 +84,29 @@ function doAttack(tgtKey,ti){
   clearDischarge(attackers);
   clearAtk(); render(); checkWin();
 }
-// strike an OPEN column of the enemy back row — the stronghold itself. Same row-distance /
-// interception rules as any traveling attack; undefended, the blow drains the defender's life pool.
+// strike the enemy CASTLE WALL itself — the life pool. The wall sits one row beyond the back row
+// (a virtual row with no card slots), so the strike crosses INTO every row on the way — their back
+// row included — and defenders there may interpose. From their back row itself it cannot be stopped.
+// `col` is kept for the FX layer's target rect only — columns never matter in combat.
 function attackBackRow(defOwner,col){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
-  const aCol=G.atk.length?G.atk[0].i:col;
-  const tgtKey=defOwner==='foe'?'foeBack':'youBack'; const tIdx=rowIdx(tgtKey); const aIdx=rowIdx(attackerRowKey());
+  const wallIdx=defOwner==='foe'?-1:ROWS.length; const aIdx=rowIdx(attackerRowKey());
   attackers.forEach(a=>a.tapped=true);
   const scour=groupIsScour(attackers);
   dischargeOvercharge(attackers);
-  if(!scour&&Math.abs(aIdx-tIdx)>1){
-    const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
+  if(!scour){
+    const elig=eligibleInterceptors('you',aIdx,wallIdx);
     const chosen=aiChooseInterceptors(attackers,{kind:'base',cc:true,elig});
     if(chosen.length){
       chosen.forEach(r=>{r.c.tapped=true;r.c.blocked=true;});
-      log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike at the stronghold is met midway.</span>`,'e');
+      log(`<span class="e">The enemy interposes ${chosen.length===1?chosen[0].c.nm:chosen.length+' interceptors'} — your strike at the castle wall is met midway.</span>`,'e');
       resolveCombat(attackers,chosen.map(r=>r.c)); clearDischarge(attackers); clearAtk(); render(); checkWin(); return;
     }
   }
-  const dmg=sumA(attackers);
+  const dmg=attackers.reduce((s,c)=>s+effA(c),0);   // effA — an Overcharge discharge counts at the wall too
   G.P[defOwner].life=Math.max(0,G.P[defOwner].life-dmg);
-  log(`<span class="y">You breach the enemy line — ⚔${dmg} strikes the stronghold! (♥${G.P[defOwner].life} remains)</span>`,'y');
+  log(`<span class="y">You storm the castle wall — ⚔${dmg} strikes the enemy stronghold! (♥${G.P[defOwner].life} remains)</span>`,'y');
   if(scour&&attackers[0]){ scourStrike(attackers[0],defOwner); cleanup(); }
   clearDischarge(attackers);
   clearAtk(); render(); checkWin();
@@ -119,30 +120,28 @@ function askBlock(opts){
     const box=$('contestPanel').querySelector('.box');
     box.innerHTML=`<div class="ptitle" style="color:var(--tide)">${opts.title||'Incoming Attack'}</div>`+
       `<div class="pmeta" style="margin-bottom:6px;color:var(--ink)">${opts.desc||''}</div>`+
-      `<div class="pmeta" style="margin-bottom:8px;font-style:italic;opacity:.7">Interpose untapped units from a single intervening row — they clash with the attacker and the original target is spared.</div>`+
+      `<div class="pmeta" style="margin-bottom:8px;font-style:italic;opacity:.7">Interpose units from any row the strike crosses into — they clash with the attacker and the original target is spared.</div>`+
       `<div class="pmeta" id="bkMeta"></div><div class="cgrid" id="bkGrid"></div>`+
       `<div class="pacts"><button class="flip" id="bkGo"></button></div>`+
       `<button class="pclose" id="bkPass">Let it through</button>`;
-    const grid=box.querySelector('#bkGrid'); const btns=[];
+    const grid=box.querySelector('#bkGrid');
     elig.forEach(e=>{
       const c=e.c;
       const b=document.createElement('button'); b.className='cbtn '+(c.worker?'vil':(clsOf[c.color]||'crt'));
       b.innerHTML=`<div class="nm">${c.worker?'⚒ Minion':c.nm}</div><div class="stats"><span class="atk">⚔${c.a}</span><span class="hp">♥${c.h}</span></div><div style="font-size:9px;opacity:.55">${rowName(e.ref.key)}</div>`;
       b.addEventListener('click',()=>{
         if(sel.has(e.idx)){sel.delete(e.idx);b.classList.remove('bon');}
-        else{ if(sel.size){ const lockRow=elig.find(x=>x.idx===[...sel][0]).ref.key; if(e.ref.key!==lockRow)return; } sel.add(e.idx); b.classList.add('bon'); }
+        else{ sel.add(e.idx); b.classList.add('bon'); }   // blockers may gang up from ANY crossed row
         upd();
       });
-      btns.push({b,row:e.ref.key}); grid.appendChild(b);
+      grid.appendChild(b);
     });
     const go=box.querySelector('#bkGo'), pass=box.querySelector('#bkPass'), meta=box.querySelector('#bkMeta');
     function chosen(){return [...sel].map(ix=>elig.find(x=>x.idx===ix));}
     function upd(){
-      const lockRow=sel.size?elig.find(x=>x.idx===[...sel][0]).ref.key:null;
-      btns.forEach(({b,row})=>{const cross=lockRow&&row!==lockRow;b.disabled=cross;b.style.opacity=cross?'.32':'';});
       const D=chosen().reduce((s,e)=>s+(e.c?e.c.a:0),0);
       go.textContent='Interpose '+sel.size+(sel.size?` (deal ⚔${D})`:''); go.disabled=sel.size===0;
-      meta.textContent=`your interceptors ⚔${D} · incoming ⚔${A}`+(lockRow?` · ${rowName(lockRow)}`:'');
+      meta.textContent=`your interceptors ⚔${D} · incoming ⚔${A}`;
     }
     let _bkTo=null,_bkCt=null;
     function close(){$('contestPanel').style.display='none'; if(_bkTo){clearTimeout(_bkTo);_bkTo=null;} if(_bkCt){clearInterval(_bkCt);_bkCt=null;}}

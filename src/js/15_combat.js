@@ -1,17 +1,24 @@
 /* ---------- combat (row-distance targeting · interception · First Strike · simultaneous, no spillover) ---------- */
 function sumA(a){return a.reduce((s,c)=>s+(c.a||0),0);}
 function whichOf(key){ return key==='center'?'center':(key.slice(-5)==='Front'?'front':'back'); }
-function rowsStrictlyBetween(aIdx,tIdx){ const lo=Math.min(aIdx,tIdx),hi=Math.max(aIdx,tIdx),o=[]; for(let r=lo+1;r<hi;r++) if(r>=0&&r<ROWS.length) o.push(ROWS[r]); return o; }
-// untapped creatures in `key` NOT owned by the attacker (enemy or contesting-center units) — eligible to interpose
-function untappedInterceptors(key,attackerOwner,aCol){ const out=[];
-  // a slotted defender may interpose only if its column is within ±1 of the attacker's column
-  // a creature may block on the opponent's turn even if it tapped (attacked) or is summoning-sick — summoning sickness only bars ATTACKING; blocking is gated once-per-turn by the `blocked` flag
-  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.blocked&&c.owner!==attackerOwner&&(aCol==null||colReach(i,aCol))) out.push({key,i,c}); });
-  // worker stacks have no column — they screen their whole row
+// rows an attack CROSSES INTO: every row past the attacker's, up to and INCLUDING the target row
+// (same row = none — a point-blank duel can't be interposed). tIdx may be a virtual WALL index
+// (-1 beyond foeBack / ROWS.length beyond youBack): walls have no slots, so only real rows count.
+function rowsCrossedInto(aIdx,tIdx){ const o=[];
+  if(aIdx===tIdx) return o;
+  const step=tIdx>aIdx?1:-1;
+  for(let r=aIdx+step; r!==tIdx+step; r+=step) if(r>=0&&r<ROWS.length) o.push(ROWS[r]);
+  return o; }
+// creatures in `key` NOT owned by the attacker (enemy or contesting units) — eligible to interpose.
+// COLUMNS NEVER MATTER IN COMBAT — any defender in a crossed row may block, whatever its column.
+// A creature may block even tapped or summoning-sick; blocking is gated once-per-turn by `blocked`.
+function untappedInterceptors(key,attackerOwner){ const out=[];
+  rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.blocked&&c.owner!==attackerOwner) out.push({key,i,c}); });
+  // worker stacks screen their whole row
   minionsInRow(key).forEach(g=>{ if(g.owner!==attackerOwner&&!g.c.tapped&&!g.c.sick) out.push({key,c:g.c}); });
   return out;
 }
-function eligibleInterceptors(attackerOwner,aIdx,tIdx,aCol){ let out=[]; rowsStrictlyBetween(aIdx,tIdx).forEach(key=>{ out=out.concat(untappedInterceptors(key,attackerOwner,aCol)); }); return out; }
+function eligibleInterceptors(attackerOwner,aIdx,tIdx){ let out=[]; rowsCrossedInto(aIdx,tIdx).forEach(key=>{ out=out.concat(untappedInterceptors(key,attackerOwner)); }); return out; }
 
 // Assign each dealer to ONE target (no spillover). Greedy lethal-first: secure as many kills as possible,
 // then dump any leftover hitters onto the toughest target as chip damage. Returns Map<target, damage>.
@@ -168,10 +175,10 @@ function attackMinionStack(key,owner,which){
   const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
   if(!attackers.length){clearAtk();render();return;}
   const list=minPool(owner,which); if(!list.length){clearAtk();render();return;}
-  const aIdx=rowIdx(attackerRowKey()), tIdx=rowIdx(key); const aCol=G.atk.length?G.atk[0].i:0;
+  const aIdx=rowIdx(attackerRowKey()), tIdx=rowIdx(key);
   attackers.forEach(a=>a.tapped=true);
-  if(Math.abs(aIdx-tIdx)>1){
-    const elig=eligibleInterceptors('you',aIdx,tIdx,aCol);
+  if(aIdx!==tIdx){
+    const elig=eligibleInterceptors('you',aIdx,tIdx).filter(r=>!list.includes(r.c));   // the targeted stack can't screen itself
     const chosen=aiChooseInterceptors(attackers,{kind:'creature',elig});
     if(chosen.length){
       chosen.forEach(r=>{r.c.tapped=true;r.c.blocked=true;});

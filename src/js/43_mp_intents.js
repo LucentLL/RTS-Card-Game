@@ -114,11 +114,13 @@
   function mpHostAttack(run,d){                                    // d: {kind,tkL?,ti?,col?,rowKey?,which?} host-LOCAL
     const attackers=selCres().filter(x=>!x.worker&&!x.sick&&!x.tapped);
     if(!attackers.length)return run();
-    const aIdx=rowIdx(attackerRowKey()), aCol=G.atk.length?G.atk[0].i:0;
-    const tIdx=rowIdx(d.kind==='back'?'foeBack':(d.kind==='workers'?d.rowKey:d.tkL));
+    const aIdx=rowIdx(attackerRowKey());
+    const tIdx=d.kind==='back'?-1:rowIdx(d.kind==='workers'?d.rowKey:d.tkL);   // the wall sits one row beyond foeBack
     const scour=groupIsScour(attackers);
-    const blockable=(d.kind==='workers')?Math.abs(aIdx-tIdx)>1:(!scour&&Math.abs(aIdx-tIdx)>1);
-    const elig=blockable?eligibleInterceptors('you',aIdx,tIdx,aCol):[];   // attacker-owner='you' (L3800/3829/3727)
+    const blockable=(d.kind==='workers')?aIdx!==tIdx:(!scour&&aIdx!==tIdx);    // same row = point-blank
+    const tgtU=d.kind==='unit'?(rowArr(d.tkL)&&rowArr(d.tkL)[d.ti]):null;
+    const elig=blockable?eligibleInterceptors('you',aIdx,tIdx)
+      .filter(r=>r.c!==tgtU&&!(d.kind==='workers'&&minPool('foe',d.which).includes(r.c))):[];   // attacker-owner='you'; the target can't screen itself
     MP.fx({ev:'attack',atk:G.atk.map(s=>({k:s.k,i:s.i})),kind:d.kind,
            tk:d.kind==='unit'?d.tkL:null,ti:d.ti,col:d.col,rk:d.kind==='workers'?d.rowKey:null,el:fxAtkEl()});
     if(!elig.length){ MP.forcedBlock=[]; run(); MP.pushNow(); return; }
