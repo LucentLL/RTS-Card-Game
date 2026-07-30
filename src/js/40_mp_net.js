@@ -5,7 +5,7 @@
 
 /* ---------- 4.1 MPNET: manual-signalling WebRTC transport (password-sealed, compressed connect codes) ---------- */
 const MPNET=(function(){
-  const N={PROTO:1,active:false,onOpen:null,onMsg:null,onDrop:null};
+  const N={PROTO:2,active:false,onOpen:null,onMsg:null,onDrop:null};   // 2: Combat v3 rules (row-interval blocking, wall targets, vault mana)
   let pc=null,dc=null,closing=false;
   // STUN discovers each player's public address so most pairs can hole-punch a direct link.
   // (The old free public TURN relays are gone — verified dead 2026-07-10 — so pairs that can't

@@ -125,7 +125,7 @@
            tk:d.kind==='unit'?d.tkL:null,ti:d.ti,col:d.col,rk:d.kind==='workers'?d.rowKey:null,el:fxAtkEl()});
     if(!elig.length){ MP.forcedBlock=[]; run(); MP.pushNow(); return; }
     MP.askGuest('block',{atk:G.atk.map(s=>({k:s.k,i:s.i})),kind:d.kind,
-        tk:d.kind==='unit'?d.tkL:null,ti:d.ti,col:d.col,rk:d.kind==='workers'?d.rowKey:null},
+        tk:d.kind==='unit'?d.tkL:null,ti:d.ti,col:d.col,rk:d.kind==='workers'?d.rowKey:null,which:d.kind==='workers'?d.which:null},
       resp=>{ MP.forcedBlock=resp.refs||[]; MP.clearWait(); run(); MP.pushNow(); });
     MP.waitBanner('Opponent may interpose…');
   }

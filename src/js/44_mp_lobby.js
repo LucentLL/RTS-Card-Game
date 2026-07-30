@@ -32,11 +32,13 @@ async function mpGuestDecide(m){                                   // respWindow
     MPNET.send({t:'resp',id:m.id,spring:!!ref}); return; }
   if(m.what==='block'){
     const atkL=(m.data.atk||[]).map(s=>({k:MPMAP.k(s.k),i:s.i}));
-    const aKey=atkL[0].k, aIdx=rowIdx(aKey), aCol=atkL[0].i;
-    const tIdx=m.data.kind==='back'?rowIdx('youBack')
+    const aKey=atkL[0].k, aIdx=rowIdx(aKey);
+    const tIdx=m.data.kind==='back'?ROWS.length                    // the castle wall sits one row beyond YOUR back row
       :m.data.kind==='workers'?rowIdx(MPMAP.k(m.data.rk)):rowIdx(MPMAP.k(m.data.tk));
-    const attacker=rowArr(aKey)[aCol]||{nm:'Enemy',a:0,h:0};
-    const elig=eligibleInterceptors('foe',aIdx,tIdx,aCol);         // same call foeTurn makes when the AI attacked (L4166)
+    const attacker=rowArr(aKey)[atkL[0].i]||{nm:'Enemy',a:0,h:0};
+    const tgtU=(m.data.kind!=='back'&&m.data.kind!=='workers')?(rowArr(MPMAP.k(m.data.tk))||[])[m.data.ti]:null;
+    const elig=eligibleInterceptors('foe',aIdx,tIdx)               // same geometry the host validates against
+      .filter(r=>r.c!==tgtU&&!(m.data.kind==='workers'&&m.data.which&&minPool('you',m.data.which).includes(r.c)));
     if(!elig.length){MPNET.send({t:'resp',id:m.id,refs:[]});return;}
     const blk=await askBlock({attacker,elig,title:'Incoming Attack',ms:20000,   // deadline < host's 25s askGuest auto-pass so a real block is never silently dropped
       desc:`${attacker.nm} (⚔${attacker.a}/♥${attacker.h}) strikes from ${rowName(aKey)}.`});
