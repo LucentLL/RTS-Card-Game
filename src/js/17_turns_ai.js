@@ -45,9 +45,9 @@ const PHASE_LABEL={draw:'Draw',upkeep:'Upkeep',action:'Action',combat:'Combat',e
 function setPhase(p){ G.phase=p; G.upkeep=(p==='upkeep'); }
 function acting(){ return G.turn==='you'&&!G.busy&&!G.over&&G.phase==='action'; }  // when the player may summon / move / attack / build
 // the phase shown in the tracker: while attackers are declared during the action phase we're in the Combat sub-phase
-function shownPhase(){ return (G.phase==='action'&&G.atk.length) ? 'combat' : G.phase; }
+function shownPhase(){ return (G.phase==='action'&&(G.atk.length||(G.decls&&G.decls.length))) ? 'combat' : G.phase; }
 function startTurn(owner){
-  G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null;
+  G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null; G.decls=[];
   P.firstExtract=true; // no generic income — mana comes from worker harvest + forge yields (all colored)
   P.upaid={back:0,front:0,center:0,raid:0};   // last turn's keep payments expire — shortfalls are settled anew each upkeep
   ownUnits(owner).forEach(o=>{if(o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.moved2=false;o.paid=false;o.blocked=false;o._dis=0;}});
@@ -224,6 +224,7 @@ function endTurn(){
   if(G.phase==='draw'){ drawHint(); render(); return; }              // must draw first
   if(G.phase==='upkeep'){ upkeepHint(); render(); return; }          // harvest first — the turn begins at ⛏
   if(G.phase!=='action')return;
+  if(typeof CMB!=='undefined'&&CMB.hasDecls()){ CMB.hint(); render(); return; }   // resolve the declared combat first
   // ACTION → END phase: resolve any end-of-turn effects, then hand off to the opponent
   G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;
   setPhase('end'); log('<span class="y">— End phase —</span>','y');
@@ -310,41 +311,76 @@ async function foeTurn(){
     log(`<span class="e">Opponent summons ${c.nm} (⚔${c.a}/♥${c.h}).</span>`,'e'); onCreatureEnter(cr,'foe'); syncWorkers('foe'); render();
     await playerTrapOnSummon(cr,whichOf(key),empty); if(G.over)return; }
   render();
-  // attack — strikes travel across rows; you may interpose units in any row they cross
+  // attack — ALTERNATING DECLARATIONS: the AI declares every strike up front (visible), you assign
+  // blockers with full information, retaliations are directed, then ALL damage lands at once.
+  const declared=[];
   for(const atk of aiAttackers()){
     const m=unitAt(atk.key,atk.i); if(!m||m.tapped)continue;
-    const aIdx=rowIdx(atk.key); const aCol=atk.i;
-    const tref=aiPickTarget(m,aCol); if(!tref)continue;
-    const tIdx=tref.base?ROWS.length:rowIdx(tref.key);   // the castle wall sits one row beyond youBack
+    const tref=aiPickTarget(m,atk.i); if(!tref)continue;
     m.tapped=true;
-    const scour=kwOf(m)==='scour';
-    dischargeOvercharge([m]);
-    let blk=[];
-    // PAUSE-TO-RESPOND: defender's priority window at attack declaration (always shown — anti-tell)
-    const respTgt=tref.base?'your CASTLE WALL':'your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
-    const springRef=await RESP.defendWindow('attack',{desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${respTgt}.`});
+    declared.push({m,a:{k:atk.key,i:atk.i},aIdx:rowIdx(atk.key),tIdx:tref.base?ROWS.length:rowIdx(tref.key),tref,blockers:[]});
+    const nm=tref.base?'your CASTLE WALL':'your '+(tref.o.kind==='charge'?'face-down card':(tref.o.kind==='trap'?'set card':tref.o.nm));
+    log(`<span class="e">⚔ ${m.nm} (⚔${effA(m)}/♥${m.h}) declares an attack on ${nm} from ${rowName(atk.key)}.</span>`,'e');
+  }
+  if(declared.length){
+    render();
+    // PAUSE-TO-RESPOND: one anti-tell priority window over the whole declaration set
+    let springRef=await RESP.defendWindow('attack',{desc:`${declared.length} attack${declared.length===1?'':'s'} declared — you may assign blockers next.`});
     if(G.over)return;
-    if(!scour && aIdx!==tIdx){                           // same row = point-blank, no interposing
-      const elig=eligibleInterceptors('foe',aIdx,tIdx).filter(r=>r.c!==tref.o);   // the target itself fights back, it doesn't "block"
-      if(elig.length){
-        blk=await askBlock({attacker:m,elig,title:'Incoming Attack',desc:`${m.nm} (⚔${m.a}/♥${m.h}) strikes from ${rowName(atk.key)} toward ${respTgt}.`});
-      }
+    // your blocks, one declaration at a time (skip fliers and point-blank duels)
+    let bn=0;
+    for(const d of declared){ bn++;
+      if(kwOf(d.m)==='scour'||d.aIdx===d.tIdx)continue;
+      const elig=eligibleInterceptors('foe',d.aIdx,d.tIdx).filter(r=>r.c!==d.tref.o);   // the target itself fights back, it doesn't "block"
+      if(!elig.length)continue;
+      const tgtName=d.tref.base?'your CASTLE WALL':'your '+(d.tref.o.kind==='charge'?'face-down card':(d.tref.o.kind==='trap'?'set card':d.tref.o.nm));
+      const blk=await askBlock({attacker:d.m,elig,title:`Incoming attack ${bn}/${declared.length}`,
+        desc:`${d.m.nm} (⚔${effA(d.m)}/♥${d.m.h}) strikes from ${rowName(d.a.k)} toward ${tgtName}.`});
+      if(G.over)return;
+      blk.forEach(r=>{ const c=r.c||unitAt(r.key,r.i); if(c){ c.blocked=true; d.blockers.push({...r,c}); } });
+      if(blk.length){ log(`<span class="y">You interpose ${blk.length} against ${d.m.nm}.</span>`,'y'); render(); }
     }
-    if(blk.length){ const defs=blk.map(r=>r.c||unitAt(r.key,r.i)).filter(Boolean); defs.forEach(d=>{d.tapped=true;d.blocked=true;}); log(`<span class="y">You interpose ${defs.length}!</span>`,'y'); resolveCombat([m],defs); }
-    else if(tref.base){
-      const dmg=effA(m); G.P.you.life=Math.max(0,G.P.you.life-dmg);
-      log(`<span class="e">${m.nm} storms your castle wall — ⚔${dmg}! (♥${G.P.you.life} remains)</span>`,'e');
-      if(scour){ scourStrike(m,'you'); cleanup(); }
+    // ——— simultaneous resolution (same engine as your own attacks) ———
+    dischargeOvercharge(declared.map(d=>d.m));
+    const blockedD=declared.filter(d=>d.blockers.some(r=>r.c&&r.c.h>0));
+    const openD=declared.filter(d=>!blockedD.includes(d));
+    for(const d of blockedD){                        // pair fights — the AI picks its absorber itself
+      const blks=d.blockers.map(r=>r.c).filter(b=>b&&b.h>0); if(!blks.length)continue;
+      let ab=0;
+      if(blks.length>1){ const kill=blks.map((b,ix)=>({b,ix})).filter(x=>x.b.h<=effA(d.m)).sort((x,y)=>x.b.h-y.b.h)[0];
+        ab=kill?kill.ix:blks.map((b,ix)=>({b,ix})).sort((x,y)=>y.b.h-x.b.h)[0].ix; }
+      log(`<span class="y">Your interceptors meet ${d.m.nm} midway.</span>`,'y');
+      await CMB.pairFight(d.m,d.blockers.filter(r=>r.c&&r.c.h>0),ab,d.a);
+      if(G.over)return;
     }
-    else { const o=tref.o;
-      if((o.kind==='creature'||o.kind==='building')&&springRef) RESP.springAttackTrapRef('you',springRef,[m],o); // springs only if chosen in the response window; interposed strikes never reach here, so a held trap stays armed
-      if(o.kind==='charge'){ provokeFaceDown('you',tref.key,tref.i,[m]); }
-      else if(o.kind==='trap'){ springTrap('you',tref.key,tref.i,[m]); }
-      else if(o.kind==='building'){ log(`<span class="e">${m.nm} raids your ${o.nm}.</span>`,'e'); applyDmg(focusFire([m],[o])); cleanup(); }
-      else { log(`<span class="e">${m.nm} attacks your ${o.nm}.</span>`,'e'); resolveCombat([m],[o]); }
-      if(scour){ scourStrike(m,'you'); cleanup(); }
+    const byT=new Map();                             // unblocked strikes on your creatures, grouped: ONE retaliation each
+    for(const d of openD){ const o=d.tref.o;
+      if(!d.tref.base&&o&&o.kind==='creature'&&d.m.h>0){ if(!byT.has(o))byT.set(o,[]); byT.get(o).push(d); } }
+    for(const [T,ds] of byT){
+      const grp=ds.map(d=>d.m).filter(a=>a.h>0); if(!grp.length||T.h<=0)continue;
+      if(springRef){ RESP.springAttackTrapRef('you',springRef,grp,T); springRef=null; }
+      let ri=0;
+      if(grp.length>1){ ri=await askRetaliate(T,grp); if(G.over)return; }
+      log(`<span class="e">${grp.length===1?grp[0].nm+' attacks':grp.length+' enemies attack'} your ${T.nm}.</span>`,'e');
+      await CMB.targetFight(grp,T,ri,rowCellEl($(ds[0].tref.key),ds[0].tref.i),ds.map(d=>d.a));
+      if(G.over)return;
+      ds.forEach(d=>{ if(kwOf(d.m)==='scour'&&d.m.h>0){ scourStrike(d.m,'you'); } }); cleanup();
     }
-    clearDischarge([m]);
+    let wallDmg=0; const scourHits=[];               // walls, structures, face-downs, traps
+    for(const d of openD){ if(d.m.h<=0)continue; const o=d.tref.o;
+      if(d.tref.base){ wallDmg+=effA(d.m); if(kwOf(d.m)==='scour')scourHits.push(d.m); continue; }
+      if(o.kind==='creature')continue;               // fought above
+      if(o.kind==='building'){ if(springRef){ RESP.springAttackTrapRef('you',springRef,[d.m],o); springRef=null; }
+        log(`<span class="e">${d.m.nm} raids your ${o.nm}.</span>`,'e'); applyDmg(focusFire([d.m],[o])); cleanup(); }
+      else if(o.kind==='charge'){ provokeFaceDown('you',d.tref.key,d.tref.i,[d.m]); }
+      else if(o.kind==='trap'){ springTrap('you',d.tref.key,d.tref.i,[d.m]); }
+      if(kwOf(d.m)==='scour'&&d.m.h>0)scourHits.push(d.m);
+    }
+    if(wallDmg>0){ G.P.you.life=Math.max(0,G.P.you.life-wallDmg);
+      log(`<span class="e">The enemy storms your castle wall — ⚔${wallDmg}! (♥${G.P.you.life} remains)</span>`,'e');
+      try{ ELEMFX.elemBurst(fxRect($('youCmd')),declared[0].m.color,true); FX.shake(); }catch(e){} }
+    scourHits.forEach(a=>{ if(a.h>0)scourStrike(a,'you'); }); if(scourHits.length)cleanup();
+    clearDischarge(declared.map(d=>d.m));
     render(); checkWin(); if(G.over)return;
   }
   cleanup();render();checkWin();

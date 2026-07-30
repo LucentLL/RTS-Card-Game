@@ -144,7 +144,8 @@ function onCell(key,i,o){
     const k2=G.atk.findIndex(s=>s.k===key&&s.i===i);
     if(k2>=0){ G.atk.splice(k2,1); }
     else {
-      if(G.atk.length&&G.atk[0].k!==key){ setHint('Group attackers must share a row.'); render(); return; }
+      // MP still runs the legacy single-shot attack, which requires a shared row; solo joint attacks may mix rows
+      if(inMPGame()&&G.atk.length&&G.atk[0].k!==key){ setHint('Group attackers must share a row (multiplayer).'); render(); return; }
       G.atk.push({k:key,i});
     }
     if(G.atk.length===1){
@@ -157,7 +158,7 @@ function onCell(key,i,o){
     render(); return;
   }
   if(G.atk.length&&canAttack()){
-    if(foe){ doAttack(key,i); return; }
+    if(foe){ routeAttack('unit',key,i); return; }
     if(!o&&key==='foeBack'){ setHint('The castle itself is struck via the enemy <b>♥</b> — or march a creature into their back row to besiege it.'); render(); return; }
   }
   // touch: tapping an enemy card (with no attack group held) reads it — replaces the removed ⓘ button.

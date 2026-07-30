@@ -214,7 +214,7 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const G={
   turn:'you',busy:false,over:false,turnNo:1,
   phase:'action', upkeep:false,   // phase: draw → upkeep → action (combat = a sub-phase while attackers are declared) → end
-  sel:null, atk:[], moveFrom:null, moveMana:null,
+  sel:null, atk:[], decls:[], moveFrom:null, moveMana:null,   // decls = committed attack declarations awaiting Resolve
   center:Array(SLOTS).fill(null),
   P:{
     you:{color:'fire',life:25,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,cc:'fire',upaid:{back:0,front:0,center:0,raid:0}},

@@ -191,3 +191,169 @@ function attackMinionStack(key,owner,which){
   clearAtk(); render(); checkWin();
 }
 
+/* ═══════════ COMBAT v3 — alternating declarations · universal retaliation · simultaneous damage ═══════════
+   The player declares one attacker + target at a time (a selected group = several declarations at
+   once, a joint attack); the DEFENDER answers each declaration immediately with its blockers — the
+   alternating step — then ⚔ Resolve lands ALL damage. Every attacked creature strikes back with its
+   full power (that is retaliation, not blocking); each creature deals its damage to exactly ONE
+   enemy; a blocked attacker hits ONE chosen blocker; walls and structures never strike back.
+   MP still runs the single-shot legacy path (doAttack/attackBackRow/attackMinionStack). */
+(function(){ const s=document.createElement('style'); s.id='combatV3CSS'; s.textContent=
+  '.cell.declAtk{outline:2px solid #d4af37;outline-offset:-2px;}'+
+  '.cell.declTgt{outline:2px solid #e35b4f;outline-offset:-2px;}'+
+  '.cell.declBlk{outline:2px dashed #7fd0f5;outline-offset:-2px;}';
+  document.head.appendChild(s); })();
+function inMPGame(){ return typeof MPNET!=='undefined'&&MPNET.active&&typeof MP!=='undefined'&&MP.started; }
+// one router for every attack click-site: solo → declaration combat; MP → the legacy single-shot path
+window.routeAttack=function(kind,a,b,c){
+  if(inMPGame()){
+    if(kind==='unit')doAttack(a,b); else if(kind==='wall')attackBackRow('foe',a); else attackMinionStack(a,b,c);
+    return;
+  }
+  if(kind==='unit')CMB.declare('unit',a,b);
+  else if(kind==='wall')CMB.declare('wall',null,null);
+  else CMB.declare('workers',WELL2ROW[a]||a,null,c);
+};
+// fxLunge as a promise (no-op when the FX layer isn't loaded / elements are missing)
+function lungeP(srcEls,tEl,col){ return new Promise(res=>{ try{
+  if(typeof fxLunge==='function'&&tEl&&srcEls&&srcEls.length){ fxLunge(srcEls,tEl,res,col); return; }
+}catch(e){} res(); }); }
+const CMB={};
+window.CMB=CMB;
+CMB.hasDecls=()=>!!(G.decls&&G.decls.length);
+CMB.hint=function(){ const n=G.decls.length;
+  setHint(`<b>${n}</b> attack${n===1?'':'s'} declared — add more attackers and tap targets to join, then <button onclick="CMB.resolve()">⚔ Resolve combat</button>`); };
+/* declare: each selected attacker commits to the tapped target; the AI answers with its blockers at once */
+CMB.declare=function(kind,tk,ti,wWhich){
+  if(G.turn!=='you'||G.busy||G.over||G.phase!=='action')return;
+  const refs=G.atk.slice();
+  const tgt=kind==='unit'?unitAt(tk,ti):null;
+  if(kind==='unit'&&!tgt){clearAtk();render();return;}
+  let any=false;
+  refs.forEach(ref=>{
+    const A=rowArr(ref.k)[ref.i];
+    if(!A||A.kind!=='creature'||A.owner!=='you'||A.worker||A.sick||A.tapped)return;
+    A.tapped=true; any=true;
+    const d={a:ref,kind,tk,ti,wWhich,blockers:[]};
+    G.decls.push(d);
+    const nm=kind==='wall'?'the castle wall':(kind==='workers'?'the enemy workers':tgt.nm);
+    log(`<span class="y">⚔ ${A.nm} declares an attack on ${nm}.</span>`,'y');
+    // the defender's alternating answer — its blockers, committed and visible, Arena-style
+    const aIdx=rowIdx(ref.k); const tIdx=kind==='wall'?-1:rowIdx(tk);
+    if(kwOf(A)!=='scour'&&aIdx!==tIdx){
+      const elig=eligibleInterceptors('you',aIdx,tIdx)
+        .filter(r=>r.c!==tgt&&!(kind==='workers'&&minPool('foe',wWhich).includes(r.c)));
+      const chosen=aiChooseInterceptors([A],{kind:kind==='wall'?'base':(tgt?tgt.kind:'creature'),cc:kind==='wall',elig,power:effA(A)});
+      chosen.forEach(r=>{ r.c.blocked=true; d.blockers.push(r);
+        log(`<span class="e">The enemy interposes ${r.c.worker?'a Minion':r.c.nm} against ${A.nm}!</span>`,'e'); });
+    }
+  });
+  clearAtk();
+  if(any)CMB.hint(); else defaultHint();
+  render();
+};
+/* pair fight: a blocked attacker vs its gang — A's blow lands on ONE chosen blocker, every blocker
+   strikes A back; First Strike blows land in a pre-tier; all blows inside a tier are simultaneous */
+CMB.pairFight=async function(A,blkRefs,ab,aRef){
+  const blks=blkRefs.map(r=>r.c||r).filter(b=>b&&b.h>0);
+  if(!blks.length||!A||A.h<=0)return;
+  blks.forEach(b=>{ b.tapped=true; });
+  try{ const src=aRef?[rowCellEl($(aRef.k),aRef.i)].filter(Boolean):[];
+    const t0=(blkRefs[0]&&blkRefs[0].key!=null&&blkRefs[0].i!=null)?rowCellEl($(blkRefs[0].key),blkRefs[0].i):null;
+    await lungeP(src,t0,A.color); }catch(e){}
+  const group=[A];
+  applyUndertow(group,blks);                       // an Undertow warden may hurl A back to hand
+  if(!group.length||A.h<=0){ cleanup(); render(); return; }
+  const absorber=blks[Math.max(0,Math.min(ab||0,blks.length-1))];
+  const dmg=new Map(); const hit=(u,d)=>dmg.set(u,(dmg.get(u)||0)+d);
+  const tier=fs=>{
+    if(!!A.fs===fs&&A.h>0&&absorber.h>0) hit(absorber,effA(A));
+    blks.forEach(b=>{ if(!!b.fs===fs&&b.h>0&&A.h>0) hit(A,b.a); });
+    dmg.forEach((d,u)=>u.h-=d); dmg.clear();
+  };
+  tier(true); tier(false);
+  cleanup(); render();
+};
+/* target fight: unblocked joint attack on one creature — every attacker's blow lands on the target,
+   the target retaliates against ONE chosen attacker; First Strike pre-tier, tiers simultaneous */
+CMB.targetFight=async function(grp,T,ri,fxTo,srcRefs){
+  applyUndertow(grp,[T]);                          // an Undertow target may hurl the strongest attacker away
+  grp=grp.filter(a=>a&&a.h>0);
+  if(!grp.length||!T||T.h<=0){ cleanup(); render(); return; }
+  try{ const srcs=(srcRefs||[]).map(r=>rowCellEl($(r.k),r.i)).filter(Boolean);
+    await lungeP(srcs,fxTo,grp[0]&&grp[0].color); }catch(e){}
+  const back=grp[Math.max(0,Math.min(ri||0,grp.length-1))];
+  const dmg=new Map(); const hit=(u,d)=>dmg.set(u,(dmg.get(u)||0)+d);
+  const tier=fs=>{
+    grp.forEach(a=>{ if(!!a.fs===fs&&a.h>0&&T.h>0) hit(T,effA(a)); });
+    if(!!T.fs===fs&&T.h>0&&back.h>0) hit(back,T.a);
+    dmg.forEach((d,u)=>u.h-=d); dmg.clear();
+  };
+  tier(true); tier(false);
+  cleanup(); render();
+};
+/* resolve: all declarations land at once (the anti-tell response window runs first, as ever) */
+CMB.resolve=function(){
+  if(G.turn!=='you'||G.over||G.phase!=='action'||!CMB.hasDecls())return;
+  const run=()=>{ CMB._resolveNow(); };
+  if(typeof RESP!=='undefined'&&RESP.actingGate)RESP.actingGate('attack',run); else run();
+};
+CMB._resolveNow=async function(){
+  const decls=G.decls; G.decls=[];
+  G.busy=true;
+  const live=decls.map(d=>({...d,A:rowArr(d.a.k)[d.a.i],tgt:d.kind==='unit'?unitAt(d.tk,d.ti):null}))
+    .filter(x=>x.A&&x.A.kind==='creature'&&x.A.h>0);
+  const attackers=live.map(x=>x.A);
+  dischargeOvercharge(attackers);
+  // partition FIRST: a blocked attacker stays blocked even if it kills its whole gang in the fight
+  const blocked=live.filter(x=>x.blockers.some(r=>r.c&&r.c.h>0));
+  const open=live.filter(x=>!blocked.includes(x));
+  // 1) blocked declarations = pair fights; the ATTACKER (you) picks who eats each gang-blocked blow
+  for(const x of blocked){
+    const blks=x.blockers.map(r=>r.c).filter(b=>b&&b.h>0);
+    if(!blks.length)continue;
+    let ab=0;
+    if(blks.length>1){ G.busy=false; ab=await askAbsorb(x.A,blks); G.busy=true; }
+    await CMB.pairFight(x.A,x.blockers.filter(r=>r.c&&r.c.h>0),ab,x.a);
+    if(G.over){G.busy=false;return;}
+  }
+  // 2) unblocked strikes on creatures, grouped by target — a joint attack draws ONE retaliation
+  const byT=new Map();
+  for(const x of open){ if(x.kind==='unit'&&x.tgt&&x.tgt.kind==='creature'&&x.A.h>0){
+    if(!byT.has(x.tgt))byT.set(x.tgt,[]); byT.get(x.tgt).push(x); } }
+  for(const [T,xs] of byT){
+    const grp=xs.map(x=>x.A).filter(a=>a.h>0);
+    if(!grp.length||T.h<=0)continue;
+    springAttackTrap('foe',grp,T);                 // the foe's attack-trigger trap, as before
+    log(`<span class="y">You attack ${T.nm} with ${grp.length} creature(s).</span>`,'y');
+    await CMB.targetFight(grp,T,0,rowCellEl($(xs[0].tk),xs[0].ti),xs.map(x=>x.a));   // AI retaliation is auto (its own pick)
+    if(G.over){G.busy=false;return;}
+  }
+  // 3) everything else unblocked: structures, face-downs, traps, worker stacks, the wall
+  let wallDmg=0; const scourHits=[];
+  for(const x of open){
+    if(x.A.h<=0)continue;
+    if(x.kind==='wall'){ wallDmg+=effA(x.A); if(kwOf(x.A)==='scour')scourHits.push(x.A); continue; }
+    if(x.kind==='workers'){ log(`<span class="y">${x.A.nm} strikes the enemy Minions.</span>`,'y');
+      resolveCombat([x.A],minPool('foe',x.wWhich).slice());
+      if(kwOf(x.A)==='scour'&&x.A.h>0)scourHits.push(x.A); continue; }
+    const o=x.tgt; if(!o)continue;
+    if(o.kind==='creature'){ if(kwOf(x.A)==='scour'&&x.A.h>0)scourHits.push(x.A); continue; }   // fought above
+    if(o.kind==='building'){ springAttackTrap('foe',[x.A],o);
+      log(`<span class="y">You strike the enemy ${o.nm}.</span>`,'y');
+      try{clashFx([x.A],[o]);}catch(e){} applyDmg(focusFire([x.A],[o])); cleanup(); }
+    else if(o.kind==='charge'){ provokeFaceDown('foe',x.tk,x.ti,[x.A]); }
+    else if(o.kind==='trap'){ springTrap('foe',x.tk,x.ti,[x.A]); }
+    if(kwOf(x.A)==='scour'&&x.A.h>0)scourHits.push(x.A);
+  }
+  if(wallDmg>0){
+    G.P.foe.life=Math.max(0,G.P.foe.life-wallDmg);
+    log(`<span class="y">You storm the castle wall — ⚔${wallDmg} strikes the enemy stronghold! (♥${G.P.foe.life} remains)</span>`,'y');
+    try{ ELEMFX.elemBurst(fxRect($('foeCmd')),attackers[0]&&attackers[0].color,true); FX.shake(); }catch(e){}
+  }
+  scourHits.forEach(a=>{ if(a.h>0)scourStrike(a,'foe'); }); if(scourHits.length)cleanup();
+  clearDischarge(attackers);
+  G.busy=false;
+  defaultHint(); render(); checkWin();
+};
+

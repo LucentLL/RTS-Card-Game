@@ -2,7 +2,7 @@ function startGame(youId,foeId,youDeck,foeDeck){
   const cy=CCS[youId], cf=CCS[foeId];
   Object.assign(G.P.you,{color:cy.colors[0],cc:youId,life:cy.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,upaid:{back:0,front:0,center:0,raid:0}});
   Object.assign(G.P.foe,{color:cf.colors[0],cc:foeId,life:cf.hp,mana:0,cmana:zc(),hand:[],deck:[],grave:[],front:Array(SLOTS).fill(null),back:Array(SLOTS).fill(null),min:{back:[],front:[],center:[]},firstExtract:true,villagerUsed:false,upaid:{back:0,front:0,center:0,raid:0}});
-  G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.phase='upkeep';G.upkeep=true;
+  G.turn='you';G.busy=false;G.over=false;G.turnNo=1;G.sel=null;G.atk=[];G.decls=[];G.moveFrom=null;G.moveMana=null;G.cardMenu=null;G.phase='upkeep';G.upkeep=true;
   G.center=Array(SLOTS).fill(null);
   // no command-center card: the WHOLE back row is each player's stronghold. Life is the standalone
   // pool an undefended strike into the back row drains; the element still sets colors + base workers.

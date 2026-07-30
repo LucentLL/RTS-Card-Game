@@ -154,6 +154,31 @@ function askBlock(opts){
       _bkTo=setTimeout(()=>{ close(); resolve([]); },opts.ms); }
   });
 }
+/* small chooser on the contest panel: pick ONE unit from opts.units — resolves its index.
+   Used for the two Combat-v3 choices: the attacker assigns a gang-blocked blow (askAbsorb),
+   the defender directs a jointly-attacked creature's retaliation (askRetaliate). */
+function askPick(opts){
+  return new Promise(resolve=>{
+    const units=opts.units||[];
+    if(units.length<=1){resolve(0);return;}
+    const box=$('contestPanel').querySelector('.box');
+    box.innerHTML=`<div class="ptitle" style="color:var(--tide)">${opts.title||'Choose'}</div>`+
+      `<div class="pmeta" style="margin-bottom:8px;color:var(--ink)">${opts.desc||''}</div>`+
+      `<div class="cgrid" id="pkGrid"></div>`;
+    const grid=box.querySelector('#pkGrid');
+    units.forEach((c,ix)=>{
+      const b=document.createElement('button'); b.className='cbtn '+(c.worker?'vil':(clsOf[c.color]||'crt'));
+      b.innerHTML=`<div class="nm">${c.worker?'⚒ Minion':c.nm}</div><div class="stats"><span class="atk">⚔${c.a}</span><span class="hp">♥${c.h}</span></div>`;
+      b.addEventListener('click',()=>{ $('contestPanel').style.display='none'; resolve(ix); });
+      grid.appendChild(b);
+    });
+    $('contestPanel').style.display='flex';
+  });
+}
+function askAbsorb(A,blks){ return askPick({title:'Assign the blow',
+  desc:`${A.nm} (⚔${effA(A)}) is gang-blocked — choose which blocker takes its damage. Every blocker still strikes it back.`,units:blks}); }
+function askRetaliate(T,grp){ return askPick({title:'Strike back',
+  desc:`Your ${T.nm} is attacked by ${grp.length} — choose which attacker it retaliates against (full ⚔${T.a}).`,units:grp}); }
 
 function applyRes(base,owner,creature,type){   // deposit harvested mana into the single generic pool (player + AI)
   const P=G.P[owner]; P.mana=Math.min(99,P.mana+base);   // in-turn cap only — unspent mana drains at end of turn (vaults keep their share)

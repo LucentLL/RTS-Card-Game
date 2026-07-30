@@ -100,7 +100,7 @@ function workerTokEl(owner,which,key,aiming){
   tok.title=`${list.length} worker${list.length===1?'':'s'} (${up} ready) — tap to harvest`;
   if(G.turn==='you'&&!G.busy&&!G.over){
     if(me&&up>0&&!G.sel&&!G.moveFrom&&!G.moveMana){ tok.classList.add('tappable'); tok.addEventListener('click',()=>harvestRow(which)); }
-    else if(!me&&aiming){ tok.classList.add('target'); tok.addEventListener('click',()=>attackMinionStack(key,owner,which)); }
+    else if(!me&&aiming){ tok.classList.add('target'); tok.addEventListener('click',()=>routeAttack('workers',key,owner,which)); }
   }
   tok.addEventListener('contextmenu',e=>{e.preventDefault(); inspectMinion(owner,which);});
   return tok;
@@ -205,7 +205,7 @@ function wkSlotEl(owner,which,aiming){
   tok.className='wtok'+(me?'':' foe')+(n<0?' short':'');
   tok.innerHTML=`⚒<b>${n}</b>`;
   tok.title=n<0?(me?'worker shortfall — fix at the start of your turn':'enemy worker shortfall'):`enemy workers here: ${n} — tap to strike the stack`;
-  if(targetable){ tok.classList.add('target'); const rowId=which==='center'?'center':(owner==='foe'?'foe':'you')+(which==='front'?'Front':'Back'); tok.addEventListener('click',()=>attackMinionStack(rowId,owner,which)); }
+  if(targetable){ tok.classList.add('target'); const rowId=which==='center'?'center':(owner==='foe'?'foe':'you')+(which==='front'?'Front':'Back'); tok.addEventListener('click',()=>routeAttack('workers',rowId,owner,which)); }
   tok.addEventListener('contextmenu',e=>{e.preventDefault();inspectMinion(owner,which);});
   slot.appendChild(tok); return slot;
 }
@@ -323,7 +323,7 @@ function renderCmdZone(owner){
   if(me) el.appendChild(workerColumn());   // five-row vertical worker readout in the left tower
   el.style.pointerEvents=(me||aimLife)?'auto':'none';
   if(aimLife){ const hp=el.querySelector('.keephp'); if(hp){ hp.style.cursor='pointer';
-    hp.addEventListener('click',()=>{ if(G.turn==='you'&&!G.busy&&!G.over&&canAttack()) attackBackRow('foe',G.atk.length?G.atk[0].i:BASE_COL); }); } }
+    hp.addEventListener('click',()=>{ if(G.turn==='you'&&!G.busy&&!G.over&&canAttack()) routeAttack('wall',G.atk.length?G.atk[0].i:BASE_COL); }); } }
 }
 function renderCenter(){
   const el=$('center'); el.innerHTML='';
@@ -408,6 +408,11 @@ function decorate(cell,key,i,o){
   if(handSel&&G.sel.mode==='cast'&&foe){ const sc=G.P.you.hand[G.sel.idx]; if(sc&&validSpellTarget(sc,o)) cell.classList.add('target'); }
   if(G.atk.length&&canAttack()){                       // any enemy field object is targetable (a body, a structure, a face-down); the defender's counterplay is interception, not column reach
     if(foe) cell.classList.add('target');              // (the castle wall is struck via the enemy ♥ — open cells are no longer a life target)
+  }
+  if(G.decls&&G.decls.length){                         // Combat v3: declared attackers / targets / committed blockers
+    if(G.decls.some(d=>d.a.k===key&&d.a.i===i)) cell.classList.add('declAtk');
+    if(G.decls.some(d=>d.kind==='unit'&&d.tk===key&&d.ti===i)) cell.classList.add('declTgt');
+    if(G.decls.some(d=>d.blockers.some(r=>r.key===key&&r.i===i))) cell.classList.add('declBlk');
   }
   cell.addEventListener('click',()=>onCell(key,i,o));
 }
