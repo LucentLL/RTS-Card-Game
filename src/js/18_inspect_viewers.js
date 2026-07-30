@@ -23,7 +23,7 @@ function bldEffectText(eff,val,sup){
   if(eff==='villager') return `<b>Longhouse.</b> Trains a free <b>Minion</b> (0/2 ⚒) into its owner's base pool at the start of its owner's turn.${supTxt}`;
   if(eff==='wall') return `<b>Bulwark.</b> A heavy body that screens the line — it can intercept and be raided, but never moves or attacks.${supTxt}`;
   if(eff==='damage') return `<b>Cannon Tower.</b> Strikes the nearest enemy creature for <b>${val}</b> at the start of its owner's turn.${supTxt}`;
-  if(eff==='vault') return `<b>Mana Vault.</b> A relic of leaner times — mana now persists between turns on its own.${supTxt}`;
+  if(eff==='vault') return `<b>Mana Vault.</b> Unspent mana <b>drains at the end of your turn</b> — your vaults keep up to <b>◆${val}</b> of it banked. Upgrade it to hold more.${supTxt}`;
   if(eff==='revive') return `<b>Reliquary.</b> Once per turn at upkeep, returns your most recently fallen creature to your hand.${supTxt}`;
   return `Structure with no upkeep effect.${supTxt}`;
 }

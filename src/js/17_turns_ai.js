@@ -34,6 +34,11 @@ function vaultCap(owner){ return ownUnits(owner).filter(o=>o.kind==='building'&&
 function drainMana(owner){ const P=G.P[owner]; const cap=vaultCap(owner); const lost=Math.max(0,P.mana-cap);
   P.mana=Math.min(P.mana,cap); // vaults keep up to their cap; the rest drains
   return {keep:P.mana,lost}; }
+// end-of-turn drain with its log line — unspent mana evaporates except what the vaults hold
+function endTurnDrain(owner){ const {keep,lost}=drainMana(owner); const cls=owner==='you'?'y':'e';
+  if(lost>0) log(`<span class="${cls}">◆${lost} unspent mana drains away${keep>0?` — ${owner==='you'?'your':'their'} vaults keep ◆${keep}`:''}.</span>`,cls);
+  else if(keep>0) log(`<span class="${cls}">${owner==='you'?'Your':'Their'} vaults keep ◆${keep} through the turn.</span>`,cls);
+}
 // ----- PHASES: upkeep → draw → action (combat is a sub-phase of action) → end -----
 const PHASE_ORDER=['upkeep','draw','action','end'];
 const PHASE_LABEL={draw:'Draw',upkeep:'Upkeep',action:'Action',combat:'Combat',end:'End'};
@@ -168,7 +173,7 @@ window.doHarvest=function(){
   drawHint(); render();
 };
 window.hvCancel=function(){ $('harvestPanel').style.display='none'; };
-// ----- AI upkeep: rebalance by moving, then PAY the rest (mana persists), sacrificing only when broke -----
+// ----- AI upkeep: rebalance by moving, then PAY the rest (from vaulted mana), sacrificing only when broke -----
 const MOVE_ADJ={back:['front'],front:['back','center'],center:['front'],raid:['center']}; // zone graph ('raid' = the enemy front)
 function aiMoveCreature(owner,fromZ,i,toZ){
   const arr=rowArr(zoneKey(owner,fromZ)); const o=arr[i]; if(!o)return false;
@@ -223,7 +228,7 @@ function endTurn(){
   G.sel=null;G.atk=[];G.moveFrom=null;G.moveMana=null;
   setPhase('end'); log('<span class="y">— End phase —</span>','y');
   endPhaseEffects('you');
-  // mana PERSISTS between turns now — no drain
+  endTurnDrain('you');   // unspent mana drains — vaults keep up to their capacity
   if(typeof MPNET!=='undefined'&&MPNET.active&&MP.started){    // MP: hand off to the remote player — no AI, no G.busy latch (cleared only in foeTurn, which never runs in MP)
     if(MP.role==='guest')MP.intent({a:'end'});
     startTurn('foe'); log('<span class="e">— Opponent\'s turn —</span>','e'); render();
@@ -266,7 +271,7 @@ async function foeTurn(){
   // fuel charges (front line + contested center)
   for(let i=0;i<SLOTS;i++){const ch=F.front[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','foeFront',i);}}
   for(let i=0;i<SLOTS;i++){const ch=G.center[i];if(ch&&ch.owner==='foe'&&ch.kind==='charge'){const pour=Math.min(manaTotal('foe'),ch.card.c-ch.inv);payAny('foe',pour);ch.inv+=pour;if(ch.inv>=ch.card.c)flip('foe','center',i);}}
-  // AUTOMATIC harvest — every settled worker extracts ◆1 (same in every row) into the generic pool; mana persists
+  // AUTOMATIC harvest — every settled worker extracts ◆1 (same in every row) into the generic pool
   for(const w of ['back','front','center']){
     const ups=F.min[w].filter(c=>!c.sick&&!c.tapped);
     if(!ups.length)continue;
@@ -347,7 +352,7 @@ async function foeTurn(){
   }
   cleanup();render();checkWin();
   if(G.over)return;
-  // mana persists between turns — no drain
+  endTurnDrain('foe');   // unspent mana drains — vaults keep up to their capacity
   setTimeout(()=>{G.busy=false;startTurn('you');render();},650);
 }
 

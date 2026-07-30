@@ -157,7 +157,7 @@ function askBlock(opts){
 }
 
 function applyRes(base,owner,creature,type){   // deposit harvested mana into the single generic pool (player + AI)
-  const P=G.P[owner]; P.mana=Math.min(99,P.mana+base);   // mana persists between turns — generous cap
+  const P=G.P[owner]; P.mana=Math.min(99,P.mana+base);   // in-turn cap only — unspent mana drains at end of turn (vaults keep their share)
   log(`&nbsp;&nbsp;<span class="s">+${base} ◆.</span>`,'s'); P.firstExtract=false;
 }
 

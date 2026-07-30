@@ -1,5 +1,8 @@
 /* ---------- render ---------- */
-function manaStr(o){return `<b class="mc" style="color:var(--spawn)">◆${G.P[o].mana}</b>`;} // one generic pool
+function manaStr(o){ // one generic pool + the vault capacity chip (what survives the end-of-turn drain)
+  const cap=vaultCap(o);
+  return `<b class="mc" style="color:var(--spawn)">◆${G.P[o].mana}</b>`+
+    (cap>0?`<b class="mc" style="color:var(--spawn);opacity:.7;margin-left:4px" title="Mana Vault capacity — unspent mana above ◈${cap} drains at end of turn">◈${cap}</b>`:'');}
 function render(){
   // life is a standalone pool now (no command-center card) — undefended back-row strikes drain it
   $('foeLife').textContent=G.P.foe.life; $('youLife').textContent=G.P.you.life;

@@ -260,6 +260,7 @@ const MPAPPLY=(function(){
   function end(m){ if(!foesTurn()||G.phase!=='action')return bad(m.q,'phase');
     G.atk=[]; G.sel=null;
     setPhase('end'); endPhaseEffects('foe');
+    endTurnDrain('foe');                                           // unspent mana drains (vaults keep their cap) — mirrors endTurn
     startTurn('you');                                              // 'you' branch: Upkeep + hint + FX ribbon (L3962, L4831)
     render(); }
 
