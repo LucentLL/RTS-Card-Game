@@ -27,6 +27,9 @@ function onHand(i){
 window.chooseMode=function(m){
   if(!G.sel||G.sel.kind!=='hand')return;
   G.sel.mode=m; G.cardMenu=null;
+  // drop the castle wall: the raised hand covers the near board rows on a phone, and the next tap
+  // is a BOARD tap (pick a slot / target) — the chosen card stays readable in the hint + left panel
+  document.body.classList.remove('wall-open','foewall-open');
   const msg=m==='build'?'Tap an empty slot to build (your rows, or a dark center flank) — or tap one of your cards holding ◆ to raise it on top, spending that stored mana.'
     :m==='summon'?'Tap an empty slot in your rows to summon — or tap one of your cards holding ◆ to play on top, spending that stored mana (the card beneath is lost, surplus ◆ stays).'
     :m==='settrap'?'Tap an empty slot in your rows to set your trap face-down \u2014 \u25c61 is placed on it (it springs on your opponent\u2019s turn).'
@@ -112,6 +115,8 @@ function onCell(key,i,o){
         ? (G.sel.mode==='build'?'Build on the dark flanking slots — the glowing lanes are for marching monsters.':'New cards can’t deploy to the contested center — summon to your rows, then march forward.')
         : 'New cards deploy in your back or front row.');
       render(); return; }
+    if(G.sel.mode&&G.sel.mode!=='cast'){       // occupied / illegal cell while placing: keep the selection — a fat-finger miss must not cancel the play
+      setHint('That spot is taken — tap a highlighted open slot, or tap the selected card again to cancel.'); render(); return; }
     G.sel=null; defaultHint(); render(); return;
   }
   if(mine&&o.kind==='trap'){ setHint('A set <b>trap</b> — it springs on its own when provoked (a summon or an attack) on your opponent\u2019s turn.');

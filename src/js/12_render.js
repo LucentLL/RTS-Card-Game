@@ -52,7 +52,7 @@ function renderWalls(){
   };
   fill('youWallDeck','you','deck'); fill('youWallGrave','you','grave');
   fill('foeWallDeck','foe','deck'); fill('foeWallGrave','foe','grave');
-  const fw=$('foeWorkerChips'); if(fw){ fw.innerHTML=''; fw.appendChild(workerChipRow('foe')); }  // foe per-row workers on their wall
+  const fw=$('foeWorkerChips'); if(fw){ fw.innerHTML=''; }  // foe worker counts moved into YOUR wall's worker column (board-aligned)
   const dl=$('youDeckLine'); if(dl) dl.innerHTML=`Deck: <b>${G.P.you.deck.length}</b> &nbsp; GY: <b>${G.P.you.grave.length}</b>`;
   const fl=$('foeDeckLine'); if(fl) fl.innerHTML=`Deck: <b>${G.P.foe.deck.length}</b> &nbsp; GY: <b>${G.P.foe.grave.length}</b>`;
 }
@@ -237,21 +237,25 @@ function workerChipRow(owner){
 // to the board top→bottom (enemy base · raid · center · your front · your base) for at-a-glance reading.
 function workerColumn(){
   const box=document.createElement('div'); box.className='cmdworkers vcol';
-  // [label, zone, harvests?] — zone null = the enemy base row, where you can never staff workers
-  const rows=[['Enemy Base',null,false],['Raid','raid',false],['Center','center',true],['Front','front',true],['Base','back',true]];
-  for(const [lab,z,harvests] of rows){
+  // [label, your zone (null = you can't staff it), harvests?, FOE zone living in that physical row]
+  // — the foe's per-row counts ride beside yours here (their wall no longer shows worker chips)
+  const rows=[['Enemy Base',null,false,'back'],['Raid','raid',false,'front'],['Center','center',true,'center'],['Front','front',true,null],['Base','back',true,null]];
+  for(const [lab,z,harvests,foeZ] of rows){
     const row=document.createElement('div');
-    if(z===null){ row.className='wtok vrow none'; row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">—</span>`; row.title='the enemy stronghold row — units besieging it count toward your Raid upkeep'; box.appendChild(row); continue; }
+    const foeN=foeZ!=null?rowWorkers('foe',foeZ):null;
+    const foeChip=foeN!=null?`<span class="wval" style="opacity:.55;margin-left:6px" title="enemy workers in this row">·&nbsp;⚒${foeN}</span>`:'';
+    if(z===null){ row.className='wtok vrow none'; row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">—</span>${foeChip}`; row.title='the enemy stronghold row — units besieging it count toward your Raid upkeep; ⚒ shows THEIR workers there'; box.appendChild(row); continue; }
     const n=rowWorkers('you',z);
     const pool=harvests?minPool('you',z):[]; const up=pool.filter(m=>!m.tapped&&!m.sick).length;
     row.className='wtok vrow'+(n<0?' short':'')+(n===0?' none':'');
     const ready=(harvests&&n>0&&up<pool.length)?`<span class="wr">${up}✓</span>`:'';
-    row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">⚒<b>${n}</b></span>${ready}`;
-    row.title = z==='raid'
+    row.innerHTML=`<span class="wklab">${lab}</span><span class="wval">⚒<b>${n}</b></span>${ready}${foeChip}`;
+    row.title = (z==='raid'
       ? (n<0?`creatures behind enemy lines — their upkeep (◆${-n}) is paid every turn`:'no units raiding the enemy front')
       : (n<0?'worker shortfall — settle it at upkeep (move, sacrifice, or pay)'
            : (up>0?`${n} worker${n===1?'':'s'} — harvests ◆${up*minYield(z)} at upkeep`
-                 : `${n} worker${n===1?'':'s'}`));
+                 : `${n} worker${n===1?'':'s'}`)))
+      + (foeN!=null?` · enemy ⚒${foeN} here`:'');
     box.appendChild(row);
   }
   return box;
@@ -372,6 +376,33 @@ function renderHand(){
     el.appendChild(d);
   });
 }
+/* forgiving taps: phone rows are small and the tilted projection overlaps neighbouring hitboxes —
+   when a tap misses (or lands on a cell that is NOT legal for the current interaction), snap to the
+   nearest LIT (legal) cell within thumb reach, by PROJECTED rect — the same 44px radius the drag
+   pipeline uses for drops. Ties (a point inside two overlapping rects) go to the nearest centre. */
+function snapLegalCell(x,y){
+  let best=null,bd=Infinity;
+  document.querySelectorAll('.cell.tappable,.cell.target').forEach(cl=>{
+    const r=cl.getBoundingClientRect();
+    const dx=Math.max(r.left-x,x-r.right,0), dy=Math.max(r.top-y,y-r.bottom,0);
+    const d=(dx*dx+dy*dy) || (((r.left+r.width/2-x)**2+(r.top+r.height/2-y)**2)/1e6);
+    if(d<bd){bd=d;best=cl;}
+  });
+  return (best&&bd<=44*44)?best:null;
+}
+function snapContext(){ return !!(G.moveFrom||G.build||(G.sel&&G.sel.kind==='hand'&&G.sel.mode&&G.sel.mode!=='cast')||(G.atk.length&&canAttack())); }
+function onCellRouted(ev,key,i,o){
+  const el=ev&&ev.currentTarget;
+  // only snap EMPTY-cell taps — a tap on an occupied card is an intentional card interaction
+  if(el&&el.classList&&!o&&!el.classList.contains('tappable')&&!el.classList.contains('target')&&snapContext()){
+    const near=snapLegalCell(ev.clientX,ev.clientY);
+    if(near&&near!==el&&near.dataset&&near.dataset.key){
+      const k=near.dataset.key, j=+near.dataset.slot; const a=rowArr(k);
+      onCell(k,j,a?a[j]:null); return;
+    }
+  }
+  onCell(key,i,o);
+}
 function selCres(){return G.atk.map(s=>rowArr(s.k)[s.i]).filter(x=>x&&x.kind==='creature'&&x.owner==='you');}
 function canAttack(){const c=selCres();return c.length>0&&c.every(x=>!x.worker&&!x.sick&&!x.tapped);}
 function canExtract(){return false;} // creatures no longer extract mana — only workers harvest their row
@@ -386,6 +417,10 @@ function decorate(cell,key,i,o){
     const mf=G.moveFrom;
     if(mine&&key===mf.k&&i===mf.i){ cell.classList.add('selected'); cell.addEventListener('click',cancelMove); return; }
     if(!o&&adjacentK('you',mf.k,mf.i,key,i)){ cell.classList.add('tappable'); cell.addEventListener('click',()=>doMove(key,i)); }
+    else if(!o){ cell.addEventListener('click',ev=>{           // near-miss forgiveness + a real hint instead of a dead tap
+      const near=snapLegalCell(ev.clientX,ev.clientY);
+      if(near&&near.dataset&&near.dataset.key){ doMove(near.dataset.key,+near.dataset.slot); return; }
+      setHint('One square only — sideways, forward, back, or diagonal; monsters stand in the center’s three glowing lanes.'); render(); }); }
     return;
   }
   if(G.upkeep){ // upkeep: settle each creature — Move (spends its actions) / Pay its keep / Sacrifice — before Harvest
@@ -398,7 +433,7 @@ function decorate(cell,key,i,o){
     if(mine&&(o.kind==='creature'||o.kind==='building')){ cell.classList.add('target'); cell.addEventListener('click',()=>doSendMana(key,i)); return; }
     cell.addEventListener('click',cancelSendMana); return;
   }
-  if(G.build){ const ok=(deployKey||(key==='center'&&!isLane(i)))&&!o&&placeRowOK('you',which,G.build); if(ok) cell.classList.add('tappable'); cell.addEventListener('click',()=>onCell(key,i,o)); return; }
+  if(G.build){ const ok=(deployKey||(key==='center'&&!isLane(i)))&&!o&&placeRowOK('you',which,G.build); if(ok) cell.classList.add('tappable'); cell.addEventListener('click',ev=>onCellRouted(ev,key,i,o)); return; }
   const handSel=G.sel&&G.sel.kind==='hand';
   if(mine&&o.kind==='creature'&&inAtk(key,i)) cell.classList.add('atksel');
   if(mine&&o.kind==='creature'&&!o.sick&&!o.tapped&&!handSel) cell.classList.add('tappable');
@@ -414,7 +449,7 @@ function decorate(cell,key,i,o){
     if(G.decls.some(d=>d.kind==='unit'&&d.tk===key&&d.ti===i)) cell.classList.add('declTgt');
     if(G.decls.some(d=>d.blockers.some(r=>r.key===key&&r.i===i))) cell.classList.add('declBlk');
   }
-  cell.addEventListener('click',()=>onCell(key,i,o));
+  cell.addEventListener('click',ev=>onCellRouted(ev,key,i,o));
 }
 function setHint(html){$('hint').innerHTML=html;}
 function extractYield(which){return 1;}   // all rows equal — no positional bonus

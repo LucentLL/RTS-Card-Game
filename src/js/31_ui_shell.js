@@ -113,6 +113,14 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   // OFF-CLICK (all devices): a click on the empty board retracts both walls and deselects a held card + its menu
   document.addEventListener('click', e=>{
     if(!e.target||!e.target.closest||e.target.closest('.hc,.cell,.wkslot,#cardActions,.wallzone,.wallvit,button,.inspect,#hudbar,#hudbarFoe,#settingsOverlay,#mainMenu,#charsel,#soloSelect,#deckBuilder,#buildPanel,#cpanel,#viewerPanel,#banner,.cmdzone,#mpLobby,#mpDrop,#respBar')) return;
+    // forgiving taps: a near-miss on the bare mat beside a LIT cell lands ON that cell instead of
+    // deselecting. This also rescues the tilted board's hit-test quirk, where a tap on a cell's
+    // visual position resolves to the mat — lit cells are legal by construction, so routing any
+    // nearby tap to one is always safe; genuinely-far background taps still deselect below.
+    if(typeof snapLegalCell==='function'&&typeof G!=='undefined'&&G.turn==='you'&&!G.busy&&!G.over){
+      const near=snapLegalCell(e.clientX,e.clientY);
+      if(near&&near.dataset&&near.dataset.key){ const k=near.dataset.key,i=+near.dataset.slot; const a=rowArr(k); onCell(k,i,a?a[i]:null); return; }
+    }
     let re=false;
     // deselect ONLY a held hand card (closes its summon/set menu); never touch attack (G.atk) or
     // move (G.moveFrom) selections — a stray cell-miss must not cancel an attack/move mid-action.
@@ -172,7 +180,9 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
     if(cell && cell.dataset.key){
       const k=cell.dataset.key, i=+cell.dataset.slot;
       const arr=rowArr(k), o=arr?arr[i]:null;
-      if(o&&o.kind==='creature'&&o.owner==='you'&&typeof canMoveCard==='function'&&canMoveCard(k,i)){
+      // no board-drag while an attack group is held: building the group is tap-tap-tap, and a
+      // slightly rolled tap must NOT become startMove (which wipes G.atk). Move is solo anyway.
+      if(o&&o.kind==='creature'&&o.owner==='you'&&!(G.atk&&G.atk.length)&&typeof canMoveCard==='function'&&canMoveCard(k,i)){
         drag={kind:'board', k, i, src:cell, x0:e.clientX, y0:e.clientY, on:false, pid:e.pointerId};
       }
     }
@@ -199,9 +209,13 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   function finishMarquee(){ const R=marqRect();
     const hits=ownReadyCells().filter(c=>rectsHit(c.r,R));
     if(!hits.length){ if(G.atk.length){ G.atk=[]; G.cardMenu=null; if(typeof defaultHint==='function')defaultHint(); render(); } return; }
-    const byRow={}; hits.forEach(c=>{ (byRow[c.k]=byRow[c.k]||[]).push(c); });   // attackers must share a row → keep the fullest
-    let bestK=null,bestN=-1; for(const k in byRow){ if(byRow[k].length>bestN){bestN=byRow[k].length;bestK=k;} }
-    G.atk=byRow[bestK].map(c=>({k:c.k,i:c.i})); G.cardMenu=null; G.sel=null; G.moveFrom=null; G.minSel=null;
+    let sel=hits;                                                                // Combat v3: joint attacks may mix rows
+    if(typeof inMPGame==='function'&&inMPGame()){                                // MP legacy attack still needs one shared row
+      const byRow={}; hits.forEach(c=>{ (byRow[c.k]=byRow[c.k]||[]).push(c); });
+      let bestK=null,bestN=-1; for(const k in byRow){ if(byRow[k].length>bestN){bestN=byRow[k].length;bestK=k;} }
+      sel=byRow[bestK];
+    }
+    G.atk=sel.map(c=>({k:c.k,i:c.i})); G.cardMenu=null; G.sel=null; G.moveFrom=null; G.minSel=null;
     if(typeof setHint==='function') setHint(G.atk.length===1
       ? `<b>1</b> attacker · ⚔${sumA(selCres())} — strike any foe or their ♥ life, or use an action above the card.`
       : `<b>${G.atk.length}</b> attackers · ⚔${sumA(selCres())} combined — tap a target to strike, or tap a glowing creature to drop it.`);
@@ -398,6 +412,10 @@ function showSelPreview(){
     _render_prev();
     const tgt=!!(typeof G!=='undefined'&&G.P&&!G.over&&((G.sel&&G.sel.kind==='hand'&&G.sel.mode==='cast')||(G.atk&&G.atk.length)));
     document.body.classList.toggle('targeting',tgt);
+    // placing = a hand card armed with a board-drop mode: the resting hand strip overlaps the near
+    // rows on phones, so non-selected hand cards go inert (taps pass through to the board beneath)
+    const plc=!!(typeof G!=='undefined'&&G.P&&!G.over&&G.sel&&G.sel.kind==='hand'&&G.sel.mode&&G.sel.mode!=='cast');
+    document.body.classList.toggle('placing',plc);
     // no preview while dragging (it would blanket the drop slots), and none on touch while
     // targeting (a phone's board matters more than the panel; the card was read on selection)
     const k=(document.body.classList.contains('dragging')||(!FINE_POINTER&&tgt))?null:selPreviewKey();

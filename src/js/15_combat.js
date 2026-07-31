@@ -201,7 +201,15 @@ function attackMinionStack(key,owner,which){
 (function(){ const s=document.createElement('style'); s.id='combatV3CSS'; s.textContent=
   '.cell.declAtk{outline:2px solid #d4af37;outline-offset:-2px;}'+
   '.cell.declTgt{outline:2px solid #e35b4f;outline-offset:-2px;}'+
-  '.cell.declBlk{outline:2px dashed #7fd0f5;outline-offset:-2px;}';
+  '.cell.declBlk{outline:2px dashed #7fd0f5;outline-offset:-2px;}'+
+  /* aiming: the enemy ♥ must be an easy thumb target — ghost the turn label that overlaps it,
+     raise the foe command cluster above the board chrome, and pad the heart's hit area out */
+  'body.targeting #turnLabel{opacity:.15;pointer-events:none;}'+
+  'body.targeting .cmdzone.foe{z-index:46;}'+
+  '.keephp.lifeaim{position:relative;padding:12px 16px;margin:-12px -16px;cursor:pointer;}'+
+  /* placing: the hand strip overlaps the near rows on phones — every card but the selected one goes
+     inert and dim so board taps land on the board; tapping the selected card still cancels */
+  'body.placing .hc:not(.selected){pointer-events:none;opacity:.35;}';
   document.head.appendChild(s); })();
 function inMPGame(){ return typeof MPNET!=='undefined'&&MPNET.active&&typeof MP!=='undefined'&&MP.started; }
 // one router for every attack click-site: solo → declaration combat; MP → the legacy single-shot path
