@@ -105,7 +105,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(fitBoard,120));
   // TOUCH: tap the bottom edge to raise YOUR wall, the top edge to raise the FOE wall (mutually exclusive)
   document.addEventListener('pointerdown', e=>{
     if(e.pointerType==='mouse') return;
-    if(e.target&&e.target.closest&&e.target.closest('button,.inspect,.wallzone,.wallvit,#cardActions')) return;
+    if(e.target&&e.target.closest&&e.target.closest('button,.inspect,.wallzone,.wallvit,#cardActions,#campaign')) return;  // #campaign: this listener is CAPTURE-phase, so the globe/dialogue can't stopPropagation its way out — an edge-grazing globe drag would otherwise leave a wall class set that leaks into the battle that follows
     const y=e.clientY;
     if(y >= innerHeight - EDGE) openWall('you');
     else if(y <= EDGE && !document.body.classList.contains('targeting')) openWall('foe');  // top-edge taps stay target clicks while aiming

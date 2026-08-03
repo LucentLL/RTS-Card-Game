@@ -17,6 +17,8 @@
   "07_structures.js",
   "08_battlefield.js",
   "09_game_start.js",
+  "10_campaign_dialogue.js",
+  "10_campaign_globe.js",
   "10_menus_campaign.js",
   "11_deck_builder.js",
   "12_render.js",

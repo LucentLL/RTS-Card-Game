@@ -1,27 +1,31 @@
 /* ===== main menu / deck builder / solo screens ===== */
-function hideAllScreens(){ ['mainMenu','charsel','soloSelect','deckBuilder','campaign','mpLobby'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
+function hideAllScreens(){ if(typeof campGlobeStop==='function') campGlobeStop();   // single choke point for every leave-the-map path; a display:none canvas is still isConnected, so the loop won't stop itself
+  ['mainMenu','charsel','soloSelect','deckBuilder','campaign','mpLobby'].forEach(id=>{const e=$(id); if(e)e.style.display='none';}); }
 function showScreen(id){ hideAllScreens(); const e=$(id); if(!e)return; e.style.display='flex'; e.classList.remove('screen-in'); void e.offsetWidth; e.classList.add('screen-in'); }
 function showMainMenu(){ showScreen('mainMenu'); }
 function menuPlaySolo(){ showSoloDeckPick(); }
 function menuDeckBuilder(){ openDeckBuilder(); }
 
 /* ============================ CAMPAIGN MODE ============================
-   A living world map of contiguous hex TERRITORIES (Dawn-of-War style). The map
-   is randomly generated each campaign: a blobby hex continent is carved into ~22
-   territories, grouped into 8 contiguous element empires (one capital each). Pick
-   a faction; your color spreads as you conquer bordering territories. Taking an
-   element's CAPITAL absorbs its lands and unlocks its dual (2-element) deck — the
-   game's existing dual commanders — to field in later battles. Between your turns
-   the rival elements expand and clash (End Turn). Battles reuse startGame();
-   progress persists in localStorage. Territory ids are numeric (0-based) — never
-   test them for truthiness (guard with != null). */
-const CAMP_KEY='srd.campaign.v2';
-let CAMPAIGN=(function(){ try{ const raw=localStorage.getItem(CAMP_KEY); if(raw){ const c=JSON.parse(raw);
-  if(c&&c.faction&&CCS[c.faction]&&c.map&&c.map.terr&&c.map.ids&&c.map.capitals){ c.allies=c.allies||{}; c.target=null; c.battleAs=null; if(!c.turn)c.turn=1; return c; } } }catch(e){} return null; })();
+   A living WORLD GLOBE of territories (Dawn-of-War style, on a planet). The
+   world is a hexsphere (see 10_campaign_globe.js) carved into ~22 contiguous
+   territories, grouped into 8 contiguous element empires (one capital each).
+   Pick a faction; your color spreads as you conquer bordering territories.
+   Taking an element's CAPITAL absorbs its lands and unlocks its dual deck.
+   Between your turns the rival elements expand and clash (End Turn). A
+   challenge opens a Fire Emblem-style dialogue (10_campaign_dialogue.js),
+   then the battle reuses startGame(); progress persists in localStorage.
+   Territory ids are numeric (0-based) — never test them for truthiness
+   (guard with != null). Sphere geometry is deterministic from map.f, so
+   saves carry only tile→territory assignments. */
+const CAMP_KEY='srd.campaign.v3';
+let CAMPAIGN=(function(){ try{ localStorage.removeItem('srd.campaign.v2'); }catch(e){}
+  try{ const raw=localStorage.getItem(CAMP_KEY); if(raw){ const c=JSON.parse(raw);
+  if(c&&c.faction&&CCS[c.faction]&&c.map&&c.map.tileTerr&&c.map.f&&c.map.terr&&c.map.ids&&c.map.capitals
+     // tileTerr must match the sphere its own f rebuilds, else every render indexes past the tile list
+     && c.map.tileTerr.length===(10*c.map.f*c.map.f+2)){ c.allies=c.allies||{}; c.target=null; c.battleAs=null; if(!c.turn)c.turn=1; return c; } } }catch(e){} return null; })();
 function campSave(){ try{ localStorage.setItem(CAMP_KEY,JSON.stringify(CAMPAIGN)); }catch(e){} }
 function campEl(){ return document.getElementById('campaign'); }
-const CAMP_DIRS=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];   // axial neighbours, ordered to match flat-top hex edges 0..5
-function hexCorners(q,r,S){ const cx=S*1.5*q, cy=S*Math.sqrt(3)*(r+q/2); const pts=[]; for(let k=0;k<6;k++){ const a=Math.PI/3*k; pts.push([cx+S*Math.cos(a), cy+S*Math.sin(a)]); } return {cx,cy,pts}; }
 function dualId(a,b){ return COLORS.indexOf(a)<COLORS.indexOf(b)? a+'_'+b : b+'_'+a; }
 function terrById(id){ return CAMPAIGN.map && CAMPAIGN.map.terr[id]; }
 function campPlayerTerr(){ return CAMPAIGN.map.ids.filter(id=>CAMPAIGN.map.terr[id].owner===CAMPAIGN.faction); }
@@ -29,44 +33,39 @@ function campIsCapital(tid){ const caps=CAMPAIGN.map.capitals; for(const el in c
 function campAttackableTerr(id){ const t=terrById(id); if(!t||t.owner===CAMPAIGN.faction)return false; return t.adj.some(u=>terrById(u).owner===CAMPAIGN.faction); }
 
 function campGenMap(faction){
-  const S=32, N=5;
-  function hdist(q,r){ return (Math.abs(q)+Math.abs(r)+Math.abs(q+r))/2; }
-  let land=new Set();
-  for(let attempt=0; attempt<40; attempt++){
-    const raw=new Set();
-    for(let q=-N;q<=N;q++) for(let r=-N;r<=N;r++){ if(hdist(q,r)>N) continue; const d=hdist(q,r);
-      let keep=true; if(d>=N) keep=Math.random()>0.6; else if(d>=N-1) keep=Math.random()>0.22; if(keep) raw.add(q+','+r); }
-    // largest connected component
-    const seen=new Set(); let best=[];
-    for(const k of raw){ if(seen.has(k))continue; const comp=[],stk=[k]; seen.add(k);
-      while(stk.length){ const c=stk.pop(); comp.push(c); const [q,r]=c.split(',').map(Number);
-        for(const [dq,dr] of CAMP_DIRS){ const nk=(q+dq)+','+(r+dr); if(raw.has(nk)&&!seen.has(nk)){ seen.add(nk); stk.push(nk); } } }
-      if(comp.length>best.length) best=comp; }
-    land=new Set(best); if(land.size>=42) break;
-  }
-  const landArr=[...land]; const axial=k=>{ const p=k.split(',').map(Number); return [p[0],p[1]]; };
-  const hkd=(a,b)=>{ const A=axial(a),B=axial(b); return (Math.abs(A[0]-B[0])+Math.abs(A[1]-B[1])+Math.abs(A[0]+A[1]-B[0]-B[1]))/2; };
-  const K=Math.min(landArr.length, 22);
-  const sh=landArr.slice(); for(let i=sh.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=sh[i];sh[i]=sh[j];sh[j]=t; }
-  const seeds=sh.slice(0,K);
-  // claim hexes by multi-source BFS FLOOD from the seeds over the land adjacency graph — a nearest-seed
-  // distance-Voronoi (argmin hkd) does NOT guarantee a territory is a single connected blob on a concave
-  // continent (fragments strand, floating labels, attack-a-sliver); a flood makes every territory contiguous.
-  const hexTerr={}; { const fringe=[]; seeds.forEach((s,i)=>{ hexTerr[s]=i; fringe.push(s); });
-    let fi=0; while(fi<fringe.length){ const k=fringe[fi++]; const a=axial(k); const ti=hexTerr[k];
-      for(const [dq,dr] of CAMP_DIRS){ const nk=(a[0]+dq)+','+(a[1]+dr); if(land.has(nk)&&hexTerr[nk]==null){ hexTerr[nk]=ti; fringe.push(nk); } } } }
-  const terr={}, ids=[]; for(let i=0;i<K;i++){ terr[i]={id:i,hexes:[],adj:[],owner:null,garrison:0,cx:0,cy:0}; ids.push(i); }
-  for(const k of landArr){ terr[hexTerr[k]].hexes.push(k); }
-  const adj={}; ids.forEach(i=>adj[i]=new Set());
-  for(const k of landArr){ const [q,r]=axial(k); const ti=hexTerr[k];
-    for(const [dq,dr] of CAMP_DIRS){ const nk=(q+dq)+','+(r+dr); if(land.has(nk)){ const tj=hexTerr[nk]; if(tj!==ti){ adj[ti].add(tj); adj[tj].add(ti); } } } }
-  ids.forEach(i=>{ terr[i].adj=[...adj[i]]; const hs=terr[i].hexes; let sx=0,sy=0;
-    hs.forEach(k=>{ const [q,r]=axial(k); sx+=S*1.5*q; sy+=S*Math.sqrt(3)*(r+q/2); }); const gx=sx/hs.length, gy=sy/hs.length;
-    // snap the label anchor to the OWN hex nearest the centroid, so it never floats over ocean / a rival hex (concave shapes)
-    let bk=hs[0], bd=1e18; hs.forEach(k=>{ const a=axial(k); const hx=S*1.5*a[0], hy=S*Math.sqrt(3)*(a[1]+a[0]/2); const dd=(hx-gx)*(hx-gx)+(hy-gy)*(hy-gy); if(dd<bd){bd=dd;bk=k;} });
-    const ab=axial(bk); terr[i].cx=S*1.5*ab[0]; terr[i].cy=S*Math.sqrt(3)*(ab[1]+ab[0]/2); });
-  // 8 element seeds by farthest-point sampling on centroids
-  const cd=(a,b)=>Math.hypot(terr[a].cx-terr[b].cx, terr[a].cy-terr[b].cy);
+  /* Carve the whole hexsphere into K contiguous territories (multi-source BFS
+     flood — same guarantee as the old flat map: every territory is one blob),
+     then 8 contiguous element empires via farthest-point capital seeds.
+     Validated by an 800-map Monte-Carlo (0 fragmented territories/empires). */
+  const sphere=getSphere(CAMP_FREQ); const T=sphere.tiles, n=T.length;
+  const K=Math.min(22,n);
+  // territory seeds: Mitchell best-candidate (farthest of 8 random picks) —
+  // organic like pure random, but no clustered seeds → no giant-blob-next-to-sliver
+  const seeds=[Math.floor(Math.random()*n)];
+  const chord=(a,b)=>{ const A=T[a].c,B=T[b].c; return Math.hypot(A[0]-B[0],A[1]-B[1],A[2]-B[2]); };
+  while(seeds.length<K){ let best=-1,bd=-1;
+    for(let c=0;c<8;c++){ const cand=Math.floor(Math.random()*n); if(seeds.indexOf(cand)>=0)continue;
+      let d=1e9; seeds.forEach(s=>{ d=Math.min(d,chord(cand,s)); }); if(d>bd){bd=d;best=cand;} }
+    if(best<0)continue; seeds.push(best); }
+  const tileTerr=new Array(n).fill(-1);
+  { const fringe=[]; seeds.forEach((s,i)=>{ tileTerr[s]=i; fringe.push(s); });
+    let fi=0; while(fi<fringe.length){ const t=fringe[fi++]; const ti=tileTerr[t];
+      for(const u of T[t].adj){ if(tileTerr[u]<0){ tileTerr[u]=ti; fringe.push(u); } } } }
+  const terr={}, ids=[];
+  for(let i=0;i<K;i++){ terr[i]={id:i,tiles:[],adj:[],owner:null,garrison:0,anchor:-1}; ids.push(i); }
+  for(let t=0;t<n;t++) terr[tileTerr[t]].tiles.push(t);
+  const adj=ids.map(()=>new Set());
+  for(let t=0;t<n;t++) for(const u of T[t].adj){ const a=tileTerr[t],b=tileTerr[u]; if(a!==b){ adj[a].add(b); adj[b].add(a); } }
+  ids.forEach(i=>{ terr[i].adj=[...adj[i]];
+    // anchor = own tile nearest the territory's centroid direction (marker spot)
+    let sx=0,sy=0,sz=0; terr[i].tiles.forEach(t=>{ const c=T[t].c; sx+=c[0];sy+=c[1];sz+=c[2]; });
+    const l=Math.hypot(sx,sy,sz)||1; const cn=[sx/l,sy/l,sz/l];
+    let bt=terr[i].tiles[0], bd=-2;
+    terr[i].tiles.forEach(t=>{ const c=T[t].c; const d=c[0]*cn[0]+c[1]*cn[1]+c[2]*cn[2]; if(d>bd){bd=d;bt=t;} });
+    terr[i].anchor=bt; });
+  // 8 element seeds by farthest-point sampling on anchor positions
+  const pos=i=>T[terr[i].anchor].c;
+  const cd=(a,b)=>{ const A=pos(a),B=pos(b); return Math.hypot(A[0]-B[0],A[1]-B[1],A[2]-B[2]); };
   const eseeds=[ids[Math.floor(Math.random()*ids.length)]];
   while(eseeds.length<8 && eseeds.length<ids.length){ let best=null,bd=-1; for(const t of ids){ if(eseeds.indexOf(t)>=0)continue; let d=1e9; eseeds.forEach(s=>{ d=Math.min(d,cd(t,s)); }); if(d>bd){bd=d;best=t;} } eseeds.push(best); }
   const others=COLORS.filter(e=>e!==faction); for(let i=others.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=others[i];others[i]=others[j];others[j]=t; }
@@ -76,13 +75,10 @@ function campGenMap(faction){
   let qi=0; while(qi<q2.length){ const t=q2[qi++]; for(const u of terr[t].adj){ if(owner[u]==null){ owner[u]=owner[t]; q2.push(u); } } }
   ids.forEach(t=>{ if(owner[t]==null){ let best=eseeds[0],bd=1e9; eseeds.forEach(s=>{ const d=cd(t,s); if(d<bd){bd=d;best=s;} }); owner[t]=owner[best]; } });
   ids.forEach(t=>{ terr[t].owner=owner[t]; const isCap=Object.keys(capitals).some(el=>capitals[el]===t); terr[t].garrison = 5+Math.floor(Math.random()*7)+(isCap?7:0); });
-  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
-  for(const k of landArr){ const {pts}=hexCorners(axial(k)[0],axial(k)[1],S); pts.forEach(p=>{ minx=Math.min(minx,p[0]);miny=Math.min(miny,p[1]);maxx=Math.max(maxx,p[0]);maxy=Math.max(maxy,p[1]); }); }
-  const pad=S*0.9; const vb={x:minx-pad,y:miny-pad,w:(maxx-minx)+pad*2,h:(maxy-miny)+pad*2};
-  return { S, hex:hexTerr, terr, ids, capitals, vb };
+  return { f:CAMP_FREQ, tileTerr, terr, ids, capitals };
 }
 
-function menuCampaign(){ if(CAMPAIGN&&CAMPAIGN.faction&&CAMPAIGN.map) showCampaignMap(); else showFactionSelect(); }
+function menuCampaign(){ if(CAMPAIGN&&CAMPAIGN.faction&&CAMPAIGN.map&&!CAMPAIGN.lost) showCampaignMap(); else showFactionSelect(); }
 function showFactionSelect(){ hideAllScreens(); renderFactionSelect(); campEl().style.display='flex'; }
 function renderFactionSelect(){
   const cards=COLORS.map(e=>{ const E=ELEMENTS[e];
@@ -93,34 +89,14 @@ function renderFactionSelect(){
     `<div class="cssub">Campaign — hold one home realm on a freshly-drawn world, then conquer it territory by territory. Take an element's capital to absorb its lands and unlock its dual deck.</div>`+
     `<div class="csrow">${cards}</div><button class="csback" onclick="showMainMenu()">← menu</button></div></div>`;
 }
-function campStart(e){ if(!CCS[e]||COLORS.indexOf(e)<0)return; CAMPAIGN={faction:e, turn:1, target:null, battleAs:null, allies:{}, map:campGenMap(e)}; campSave(); showCampaignMap(); }
-function showCampaignMap(){ if(!CAMPAIGN||!CAMPAIGN.map){ showFactionSelect(); return; } CAMPAIGN.target=null; CAMPAIGN.battleAs=null; campSave(); hideAllScreens(); renderCampaignMap(); campEl().style.display='flex'; }
+function campStart(e){ if(!CCS[e]||COLORS.indexOf(e)<0)return; CAMPAIGN={faction:e, turn:1, target:null, battleAs:null, allies:{}, map:campGenMap(e)}; campSave(); campGlobeResetView(); showCampaignMap(); }
+/* display BEFORE render: campGlobeMount measures its parent to size the canvas,
+   and a still-hidden #campaign measures 0×0 (the globe would mount at the 80px
+   floor and only pop to full size when the renderer's self-heal fires). */
+function showCampaignMap(){ if(!CAMPAIGN||!CAMPAIGN.map){ showFactionSelect(); return; } CAMPAIGN.target=null; CAMPAIGN.battleAs=null; campSave(); hideAllScreens(); campEl().style.display='flex'; renderCampaignMap(); }
 
 function renderCampaignMap(){
-  const el=campEl(); const M=CAMPAIGN.map; const fac=CAMPAIGN.faction; const FC=ELEMENTS[fac].color; const S=M.S;
-  let fills='', borders='', labels='';
-  M.ids.forEach(tid=>{ const t=M.terr[tid]; const oc=ELEMENTS[t.owner].color; const mine=t.owner===fac;
-    t.hexes.forEach(k=>{ const p=k.split(',').map(Number); const {pts}=hexCorners(p[0],p[1],S);
-      const d='M'+pts.map(c=>c[0].toFixed(1)+','+c[1].toFixed(1)).join('L')+'Z';
-      fills+=`<path class="chex${mine?' mine':''}" data-terr="${tid}" d="${d}" style="fill:${oc}"/>`; }); });
-  const land=M.hex;
-  Object.keys(land).forEach(k=>{ const p=k.split(',').map(Number); const {pts}=hexCorners(p[0],p[1],S); const ti=land[k]; const aO=M.terr[ti].owner;
-    for(let e=0;e<6;e++){ const dq=CAMP_DIRS[e][0], dr=CAMP_DIRS[e][1]; const nk=(p[0]+dq)+','+(p[1]+dr); const A=pts[e], B=pts[(e+1)%6];
-      if(land[nk]==null){ borders+=`<line class="cbord coast" x1="${A[0].toFixed(1)}" y1="${A[1].toFixed(1)}" x2="${B[0].toFixed(1)}" y2="${B[1].toFixed(1)}"/>`; continue; }
-      if(k<nk){ const tj=land[nk]; if(tj===ti) continue; const bO=M.terr[tj].owner; const emp=aO!==bO; const you=emp&&(aO===fac||bO===fac);
-        const cls=emp?(you?'cbord youedge':'cbord empire'):'cbord internal';
-        borders+=`<line class="${cls}" x1="${A[0].toFixed(1)}" y1="${A[1].toFixed(1)}" x2="${B[0].toFixed(1)}" y2="${B[1].toFixed(1)}"/>`; } }
-  });
-  M.ids.forEach(tid=>{ const t=M.terr[tid]; const capEl=campIsCapital(tid); const mine=t.owner===fac; const att=campAttackableTerr(tid);
-    const R=capEl?17:13; const cls='cmark'+(att?' att':(mine?' mine':''));
-    let inner=`<circle r="${R}" class="${cls}"/>`;
-    if(capEl) inner+=`<text class="cgly" y="-3">${ELEMENTS[capEl].glyph}</text><text class="cgar cap" y="13">${t.garrison}</text>`;
-    else inner+=`<text class="cgar" y="5">${t.garrison}</text>`;
-    labels+=`<g class="cterr${att?' att':''}" transform="translate(${t.cx.toFixed(1)} ${t.cy.toFixed(1)})">${inner}</g>`; });
-  const vb=M.vb;
-  const svg=`<svg viewBox="${vb.x.toFixed(1)} ${vb.y.toFixed(1)} ${vb.w.toFixed(1)} ${vb.h.toFixed(1)}" class="campsvg" xmlns="http://www.w3.org/2000/svg">`+
-    `<rect class="ocean" x="${vb.x.toFixed(1)}" y="${vb.y.toFixed(1)}" width="${vb.w.toFixed(1)}" height="${vb.h.toFixed(1)}"/>`+
-    `<g class="cfills">${fills}</g><g class="cborders">${borders}</g><g class="clabels">${labels}</g></svg>`;
+  const el=campEl(); const M=CAMPAIGN.map; const fac=CAMPAIGN.faction; const FC=ELEMENTS[fac].color;
   const held=campPlayerTerr().length, total=M.ids.length;
   const capsAll=Object.keys(M.capitals); const heldCaps=capsAll.filter(e=>M.terr[M.capitals[e]].owner===fac).length;
   const allyList=Object.keys(CAMPAIGN.allies||{}).filter(e=>CAMPAIGN.allies[e]);
@@ -133,58 +109,76 @@ function renderCampaignMap(){
     `<span class="campstat">Allies ${allyBadges}</span></div>`+
     `<div class="camphudr"><button class="campbtn go" onclick="campEndTurn()">End Turn ▶</button>`+
     `<button class="campbtn ghost" onclick="campReset()">New</button><button class="campbtn ghost" onclick="showMainMenu()">Menu</button></div></div>`;
-  const legend=`<div class="camplegend">`+COLORS.map(e=>`<span class="clg" style="color:${ELEMENTS[e].color}">${elemBadge(e,13)} ${ELEMENTS[e].name}</span>`).join('')+`</div>`;
-  el.innerHTML=hud+`<div class="campwrap">${svg}</div>`+legend+
+  const legend=`<div class="camplegend"><span class="campnote">drag the globe · tap a territory</span>`+COLORS.map(e=>`<span class="clg" style="color:${ELEMENTS[e].color}">${elemBadge(e,13)} ${ELEMENTS[e].name}</span>`).join('')+`</div>`;
+  el.innerHTML=hud+`<div class="campwrap"><canvas class="campglobe"></canvas></div>`+legend+
     `<div id="campConfirm" class="campoverlay" onclick="if(event.target===this)campCloseConfirm()"></div>`+
     `<div id="campTurnLog" class="campoverlay" onclick="if(event.target===this)campTurnLogClose()"></div>`+
     `<div id="campToast"></div>`;
-  const svgEl=el.querySelector('.campsvg');
-  if(svgEl) svgEl.addEventListener('click',ev=>{ const g=ev.target.closest&&ev.target.closest('[data-terr]'); if(g) campTerrClick(+g.getAttribute('data-terr')); });
+  campGlobeMount(el.querySelector('.campglobe'), M, fac, campTerrClick);
 }
 function campTerrClick(tid){ const t=terrById(tid); if(!t)return; const fac=CAMPAIGN.faction;
   if(t.owner===fac){ campToast(`Your territory — garrison <b>${t.garrison}</b>.${campIsCapital(tid)===fac?' <span style="color:var(--gold)">Your capital.</span>':''}`); return; }
   if(!campAttackableTerr(tid)){ campToast(`${cap(ELEMENTS[t.owner].name)} land — not on your front. Advance to a bordering territory first.`); return; }
   campOpenAttack(tid);
 }
-function campOpenAttack(tid){ const box=campEl().querySelector('#campConfirm'); if(!box)return; const t=terrById(tid); const fac=CAMPAIGN.faction; const defEl=t.owner; const capEl=campIsCapital(tid);
+/* Taking this tile absorbs an element? Keyed off the FIXED designation, not the
+   current holder, so a throne a rival already seized still pays out. One helper
+   for the confirm box, the dialogue and the resolution so the three can't drift. */
+function campCapitalPrize(tid){ const c=campIsCapital(tid); return (c && c!==CAMPAIGN.faction) ? c : null; }
+function campOpenAttack(tid){ const box=campEl().querySelector('#campConfirm'); if(!box)return; const t=terrById(tid); const fac=CAMPAIGN.faction; const defEl=t.owner; const capEl=campIsCapital(tid); const prize=campCapitalPrize(tid);
   const combos=[[fac]].concat(Object.keys(CAMPAIGN.allies||{}).filter(e=>CAMPAIGN.allies[e]).map(e=>[fac,e]));
   const opts=combos.map(cols=>{ const cid=cols.length===1?cols[0]:dualId(cols[0],cols[1]); const c=CCS[cid]; if(!c)return '';
     return `<button class="campdeck" onclick="campAttack(${tid},'${cid}')"><span class="campdeckn" style="color:${ELEMENTS[cols[0]].color}">${cols.map(e=>elemBadge(e,14)).join('')} ${c.name}</span><span class="campdeckd">♥${c.hp} · ⚒${c.wk} · ${cols.map(cap).join(' + ')}</span></button>`; }).join('');
-  box.innerHTML=`<div class="campconfbox"><div class="campconftitle" style="color:${ELEMENTS[defEl].color}">${elemBadge(defEl,18)} ${cap(ELEMENTS[defEl].name)} territory${capEl===defEl?` — <span style="color:var(--gold)">CAPITAL</span>`:''}</div>`+
-    `<div class="campconfsub">Garrison <b>${t.garrison}</b>${capEl===defEl?`. Take it to <b>absorb ${cap(ELEMENTS[defEl].name)}</b> — its remaining lands and its dual deck become yours.`:'.'}</div>`+
+  const capTag = prize ? ` — <span style="color:var(--gold)">${cap(ELEMENTS[prize].name).toUpperCase()} CAPITAL</span>`
+    : (capEl===fac ? ` — <span style="color:var(--gold)">YOUR CAPITAL</span>` : '');
+  const capNote = prize ? `. Take it to <b>absorb ${cap(ELEMENTS[prize].name)}</b> — its remaining lands and its dual deck become yours.`
+    : (capEl===fac ? '. <b>Your throne</b>, held by another — retake it.' : '.');
+  box.innerHTML=`<div class="campconfbox"><div class="campconftitle" style="color:${ELEMENTS[defEl].color}">${elemBadge(defEl,18)} ${cap(ELEMENTS[defEl].name)} territory${capTag}</div>`+
+    `<div class="campconfsub">Garrison <b>${t.garrison}</b>${capNote}</div>`+
     `<div class="campconfsub">March under which banner?</div><div class="campdecks">${opts}</div>`+
     `<div class="campconfacts"><button class="campcancel" onclick="campCloseConfirm()" style="width:100%">Cancel</button></div></div>`;
   box.style.display='flex';
 }
 function campAttack(tid,cid){ if(!CAMPAIGN||!CCS[cid])return; const t=terrById(tid); if(!t)return; campCloseConfirm();
   CAMPAIGN.target=tid; CAMPAIGN.battleAs=cid; campSave();
-  startGame(cid, t.owner, deckOf(CCS[cid].colors.slice()), undefined);
+  // owner-relative: the defender's "capital" lines are written in first person
+  // about their OWN throne, so a rival-seized capital must not trigger them
+  campDialogue({ atkEl:CAMPAIGN.faction, defEl:t.owner, capital:campIsCapital(tid)===t.owner,
+    onDone:()=>startGame(cid, t.owner, deckOf(CCS[cid].colors.slice()), undefined) });
 }
 function campResolve(win){ if(!CAMPAIGN||CAMPAIGN.target==null)return; const tid=CAMPAIGN.target; const t=terrById(tid); const fac=CAMPAIGN.faction; let sub='';
   if(!t){ CAMPAIGN.target=null; CAMPAIGN.battleAs=null; campSave(); return; }
   const defEl=t.owner; const capEl=campIsCapital(tid);
   if(win){
-    // Taking an element's THRONE unlocks/absorbs THAT element — key off capEl (fixed designation), not defEl
-    // (the current holder), so a capital a rival already seized still grants its dual deck when you take it.
-    const capitalConquest = capEl && capEl!==fac;
+    const prize=campCapitalPrize(tid);
     t.owner=fac; t.garrison=Math.max(3, Math.floor(t.garrison/2)+2);
     let extra='';
-    if(capitalConquest){ let absorbed=0; CAMPAIGN.map.ids.forEach(id=>{ const u=CAMPAIGN.map.terr[id]; if(u.owner===capEl){ u.owner=fac; absorbed++; } });
-      CAMPAIGN.allies=CAMPAIGN.allies||{}; CAMPAIGN.allies[capEl]=true;
-      const dc=CCS[dualId(fac,capEl)];
-      extra=`<br>The ${cap(ELEMENTS[capEl].name)} capital falls — ${absorbed?`its ${absorbed} remaining land${absorbed===1?'':'s'} bow to you, and `:''}the <b>${dc?dc.name:cap(ELEMENTS[capEl].name)}</b> deck is yours to field.`; }
-    const caps=CAMPAIGN.map.capitals; const total=Object.keys(caps).length; const held=Object.keys(caps).filter(e=>CAMPAIGN.map.terr[caps[e]].owner===fac).length;
-    const done=held>=total;
-    $('bannerMsg').textContent=done?'THE REALM IS UNITED':(capitalConquest?'CAPITAL TAKEN':'TERRITORY WON'); $('bannerMsg').style.color='var(--gold)';
+    if(prize){ CAMPAIGN.allies=CAMPAIGN.allies||{}; let absorbed=0; const gained=[];
+      const swallow=el=>{ CAMPAIGN.allies[el]=true; gained.push(el);
+        CAMPAIGN.map.ids.forEach(id=>{ const u=CAMPAIGN.map.terr[id]; if(u.owner===el){ u.owner=fac; absorbed++; } }); };
+      swallow(prize);
+      // absorbing one element's lands can hand you ANOTHER element's throne; cascade,
+      // else that element lingers as a landless holdout that no attack can ever reach
+      for(let again=true; again;){ again=false;
+        for(const el in CAMPAIGN.map.capitals){ if(el===fac||CAMPAIGN.allies[el])continue;
+          if(CAMPAIGN.map.terr[CAMPAIGN.map.capitals[el]].owner===fac){ swallow(el); again=true; } } }
+      const decks=gained.map(e=>{ const dc=CCS[dualId(fac,e)]; return `<b>${dc?dc.name:cap(ELEMENTS[e].name)}</b>`; }).join(' and ');
+      extra=`<br>The ${cap(ELEMENTS[prize].name)} capital falls — ${absorbed?`its ${absorbed} remaining land${absorbed===1?'':'s'} bow to you, and `:''}the ${decks} deck${gained.length>1?'s are':' is'} yours to field.`; }
+    // victory = the whole map, not just the thrones; latched so it can't re-fire on every later win
+    const done = !CAMPAIGN.completed && campPlayerTerr().length===CAMPAIGN.map.ids.length;
+    if(done) CAMPAIGN.completed=true;
+    $('bannerMsg').textContent=done?'THE REALM IS UNITED':(prize?'CAPITAL TAKEN':'TERRITORY WON'); $('bannerMsg').style.color='var(--gold)';
     sub=`Your banner rises over ${cap(ELEMENTS[defEl].name)} ground.${extra}`;
-    if(done) sub+='<br><b style="color:var(--gold)">Every capital is yours — the eight elements united under one throne.</b>';
+    if(done) sub+='<br><b style="color:var(--gold)">Every land is yours — the eight elements united under one throne.</b>';
   } else { t.garrison=Math.max(1,t.garrison-1);
     $('bannerMsg').textContent='ASSAULT REPELLED'; $('bannerMsg').style.color='#e35b4f';
     sub=`${cap(ELEMENTS[defEl].name)} holds the line. Regroup and strike again.`; }
   CAMPAIGN.target=null; CAMPAIGN.battleAs=null; campSave();
   const bm=$('bannerMsg'); let d=bm.nextElementSibling; if(d&&d.className==='bsub')d.remove();
   d=document.createElement('div'); d.className='bsub'; d.style.cssText='font-size:14px;color:var(--ink);margin-top:6px;'; d.innerHTML=sub; bm.after(d);
-  const acts=$('bannerActs'); if(acts)acts.innerHTML='<button onclick="campReturn()">↩ World Map</button>';
+  const acts=$('bannerActs'); if(acts)acts.innerHTML=CAMPAIGN.completed
+    ? '<button onclick="campDoReset()">New Campaign</button><button onclick="campReturn()">↩ World Map</button>'
+    : '<button onclick="campReturn()">↩ World Map</button>';
 }
 function campReturn(){ $('banner').style.display='none'; const a=$('bannerActs'); if(a)a.innerHTML='<button onclick="location.reload()">Duel Again</button>'; showCampaignMap(); }
 function campEndTurn(){ if(!CAMPAIGN||!CAMPAIGN.map)return; const M=CAMPAIGN.map, fac=CAMPAIGN.faction; const logs=[]; CAMPAIGN.turn++;
@@ -207,7 +201,7 @@ function campTurnLog(logs){ const box=campEl().querySelector('#campTurnLog'); if
   box.innerHTML=`<div class="campconfbox"><div class="campconftitle" style="color:var(--gold)">Turn ${CAMPAIGN.turn} — the world stirs</div><div class="tlscroll">${body}</div><div class="campconfacts"><button class="campgo" onclick="campTurnLogClose()" style="width:100%">Continue</button></div></div>`;
   box.style.display='flex'; }
 function campTurnLogClose(){ const b=campEl().querySelector('#campTurnLog'); if(b)b.style.display='none'; }
-function campDefeat(){ campSave(); hideAllScreens();
+function campDefeat(){ CAMPAIGN.lost=true; campSave(); hideAllScreens();   // flagged so a reload lands on faction select, not a dead map
   $('bannerMsg').textContent='YOUR BANNER HAS FALLEN'; $('bannerMsg').style.color='#e35b4f';
   const bm=$('bannerMsg'); let d=bm.nextElementSibling; if(d&&d.className==='bsub')d.remove();
   d=document.createElement('div'); d.className='bsub'; d.style.cssText='font-size:14px;color:var(--ink);margin-top:6px;'; d.innerHTML='The last of your holdings is lost. The campaign is over.'; bm.after(d);
@@ -238,27 +232,9 @@ function campToast(msg){ const t=campEl().querySelector('#campToast'); if(!t)ret
 .campbtn:hover{border-color:var(--gold);color:#fff;}
 .campbtn.go{background:linear-gradient(180deg,#2f6a3a,#1e4a28);border-color:#4fae5e;color:#eafff0;}
 .campbtn.ghost{background:transparent;color:var(--ink-dim);}
-.campwrap{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;}
-.campsvg{width:auto;height:100%;max-width:100%;max-height:100%;display:block;touch-action:manipulation;}
-.ocean{fill:#0a1626;}
-.chex{cursor:pointer;stroke:rgba(0,0,0,.28);stroke-width:.6;transition:filter .12s;}
-.chex.mine{filter:brightness(1.14) saturate(1.12);}
-.chex:hover{filter:brightness(1.2);}
-.cbord{pointer-events:none;fill:none;stroke-linecap:round;}
-.cbord.coast{stroke:#05101c;stroke-width:3;}
-.cbord.internal{stroke:rgba(0,0,0,.22);stroke-width:1;}
-.cbord.empire{stroke:rgba(240,236,255,.8);stroke-width:2.4;}
-.cbord.youedge{stroke:var(--gold);stroke-width:3.2;}
-.cterr{pointer-events:none;}
-.cmark{fill:rgba(8,6,14,.74);stroke:rgba(255,255,255,.28);stroke-width:1.5;}
-.cmark.mine{stroke:#fff;stroke-width:2;}
-.cmark.att{fill:rgba(8,6,14,.85);stroke:var(--gold);stroke-width:2.6;}
-.cterr.att{animation:camppulse 1.4s ease-in-out infinite;}
-.cgar{font-family:serif;font-weight:700;font-size:15px;text-anchor:middle;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.6);stroke-width:2px;}
-.cgar.cap{font-size:12px;}
-.cgly{font-family:serif;font-weight:700;font-size:16px;text-anchor:middle;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:1.5px;}
-@keyframes camppulse{0%,100%{opacity:.55;}50%{opacity:1;}}
-.camplegend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;padding:5px 8px 2px;}
+.campwrap{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;position:relative;}
+.camplegend{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 14px;padding:5px 8px 2px;}
+.campnote{font-family:'EB Garamond',serif;font-size:12px;color:var(--ink-dim);font-style:italic;margin-right:6px;}
 .clg{font-family:'EB Garamond',serif;font-size:12px;display:inline-flex;align-items:center;gap:4px;opacity:.9;}
 .campoverlay{position:fixed;inset:0;z-index:41;display:none;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(2px);padding:18px;}
 .campconfbox{background:linear-gradient(180deg,#1c1630,#120c1e);border:1px solid rgba(180,160,220,.4);border-radius:14px;padding:18px 20px;max-width:460px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.6);}
@@ -268,7 +244,7 @@ function campToast(msg){ const t=campEl().querySelector('#campToast'); if(!t)ret
 .campgo{flex:1;font-family:'Cinzel',serif;font-size:14px;letter-spacing:.05em;color:#fff;background:linear-gradient(180deg,#8a6b1e,#6a4f12);border:1px solid var(--gold);border-radius:9px;padding:11px;cursor:pointer;}
 .campgo:hover{filter:brightness(1.15);}
 .campcancel{font-family:'Cinzel',serif;font-size:13px;color:var(--ink-dim);background:transparent;border:1px solid rgba(180,160,220,.3);border-radius:9px;padding:11px 16px;cursor:pointer;}
-.campdecks{display:flex;flex-direction:column;gap:7px;margin-top:4px;}
+.campdecks{display:flex;flex-direction:column;gap:7px;margin-top:4px;max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}  /* grows to 8 banners late in a campaign — scroll the list, keep Cancel pinned */
 .campdeck{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:rgba(40,32,58,.7);border:1px solid rgba(180,160,220,.32);border-radius:9px;padding:8px 12px;cursor:pointer;}
 .campdeck:hover{border-color:var(--gold);background:rgba(52,42,74,.8);}
 .campdeckn{font-family:'Cinzel',serif;font-size:14px;display:inline-flex;align-items:center;gap:5px;}

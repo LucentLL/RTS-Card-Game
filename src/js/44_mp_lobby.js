@@ -125,7 +125,7 @@ function mpStartMatch(){                                           // HOST only:
     foeDeck=expandDeck(foe.deck); }                                // HOST RNG shuffles BOTH decks (only in-duel randomness)
   else foeDeck=deckOf(CCS[foe.cc].colors);
   const youDeck=you.deck?expandDeck(you.deck):deckOf(CCS[you.cc].colors);
-  if(typeof CAMPAIGN!=='undefined'&&CAMPAIGN)CAMPAIGN.target=null; // an MP result must never touch srd.campaign.v2 (checkWin L4208)
+  if(typeof CAMPAIGN!=='undefined'&&CAMPAIGN)CAMPAIGN.target=null; // an MP result must never touch the campaign save (checkWin routes on target!=null)
   MP.started=true; MP.softReset(); MP.started=true;
   startGame(you.cc,foe.cc,youDeck,foeDeck);
   const guestFirst=Math.random()<0.5;
