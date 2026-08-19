@@ -3,16 +3,23 @@
     "rootNamespace": "SpawnRowDuel.Rules.Tests",
     "references": [
         "SpawnRowDuel.Rules",
+        "SpawnRowDuel.View",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
-    "includePlatforms": [ "Editor" ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
-    "precompiledReferences": [ "nunit.framework.dll" ],
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
     "autoReferenced": false,
-    "defineConstraints": [ "UNITY_INCLUDE_TESTS" ],
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
     "versionDefines": [],
     "noEngineReferences": false
 }

@@ -1,0 +1,14 @@
+{
+    "name": "SpawnRowDuel.View",
+    "rootNamespace": "SpawnRowDuel.View",
+    "references": [ "SpawnRowDuel.Rules" ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
