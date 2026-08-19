@@ -27,3 +27,53 @@ spawn-row-duel-v26.portable.html
 # *.psd
 # *.xcf
 # *.kra
+
+# ─────────────────────────────────────────────────────────────
+# Unity project (unity/) — Unity 6000.5.5f1, URP
+# Anchored to unity/ so the HTML build's own dist//build/ rules stay independent.
+# ─────────────────────────────────────────────────────────────
+unity/[Ll]ibrary/
+unity/[Tt]emp/
+unity/[Oo]bj/
+unity/[Bb]uild/
+unity/[Bb]uilds/
+unity/[Ll]ogs/
+unity/[Uu]ser[Ss]ettings/
+unity/[Mm]emoryCaptures/
+unity/[Rr]ecordings/
+
+# Asset meta data for folders Unity itself ignores
+unity/[Aa]ssets/AssetStoreTools*
+unity/[Aa]ssets/Plugins/Editor/JetBrains*
+
+# Generated IDE / solution files — Unity regenerates these on demand
+unity/.vs/
+unity/.gradle/
+unity/*.csproj
+unity/*.unityproj
+unity/*.sln
+unity/*.suo
+unity/*.tmp
+unity/*.user
+unity/*.userprefs
+unity/*.pidb
+unity/*.booproj
+unity/*.svd
+unity/*.pdb
+unity/*.mdb
+unity/*.opendb
+unity/*.VC.db
+
+# Unity3D generated crash / profiler output
+unity/sysinfo.txt
+unity/crashlytics-build.properties
+unity/*.stackdump
+
+# Built player output
+unity/*.apk
+unity/*.aab
+unity/*.unitypackage
+unity/*.app
+
+# Burst / IL2CPP build residue emitted next to the project during player builds
+unity/[Dd]ata/
