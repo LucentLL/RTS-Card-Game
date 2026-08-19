@@ -15,8 +15,8 @@ npm-debug.log*
 .srdtest/
 
 # Local builds / packaging output
-dist/
-build/
+/dist/
+/build/
 *.app
 *.exe
 *.7z
