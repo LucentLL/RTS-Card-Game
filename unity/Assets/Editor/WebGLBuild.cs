@@ -14,7 +14,7 @@ public static class WebGLBuild
     {
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
         PlayerSettings.WebGL.decompressionFallback = true;
-        PlayerSettings.WebGL.template = "APPLICATION:Default";
+        PlayerSettings.WebGL.template = "PROJECT:Fullscreen";
         PlayerSettings.runInBackground = true;
 
         var opts = new BuildPlayerOptions
