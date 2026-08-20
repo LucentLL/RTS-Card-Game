@@ -89,7 +89,14 @@ namespace SpawnRowDuel.Rules
             p.Register(typeof(UpkeepSacrificeCommand), new UpkeepSacrificeHandler());
             p.Register(typeof(MoveUnitCommand), new MoveUnitHandler());
 
-            // M7: PlayCard / BuildStructure / UpgradeStructure / charges
+            // M7 - placement and structures
+            p.Register(typeof(PlayCardCommand), new PlayCardHandler());
+            p.Register(typeof(BuildStructureCommand), new BuildStructureHandler());
+            p.Register(typeof(UpgradeStructureCommand), new UpgradeStructureHandler());
+            p.Register(typeof(PourIntoChargeCommand), new PourIntoChargeHandler());
+            p.Register(typeof(FlipChargeCommand), new FlipChargeHandler());
+            p.Register(typeof(SendBankedManaCommand), new SendBankedManaHandler());
+
             // M8: DeclareAttack / ResolveCombat / Respond
             return p;
         }

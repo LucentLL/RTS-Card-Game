@@ -47,6 +47,19 @@ namespace SpawnRowDuel.Rules
         /// <summary>JS AI never casts chain/bounce and never sets creatures face-down.</summary>
         public bool AiUsesFullSpellSet;
 
+        /// <summary>
+        /// flip()'s structure branch returns before syncWorkers, so a flipped structure's support
+        /// does not register until the next resync (spec 04 s14.2 BUG). false == reproduce that.
+        /// </summary>
+        public bool FlipStructureResyncsWorkers;
+
+        /// <summary>
+        /// A structure played FROM HAND into your own rows skips the placeRowOK worker-support
+        /// gate the build menu enforces (spec 04 s9.2 INCONSISTENT). Unreachable today - no
+        /// structure card is deckable - but place() supports it. false == JS-faithful skip.
+        /// </summary>
+        public bool EnforcePlaceRowOkFromHand;
+
         /// <summary>All-defaults: byte-for-byte JS behaviour. This is the shipping target.</summary>
         public static RulesOptions JsParity { get { return default(RulesOptions); } }
 
@@ -66,6 +79,8 @@ namespace SpawnRowDuel.Rules
                 if (AiUsesStructuralRemainderFallback) b |= 1 << 4;
                 if (AiRetreatsOnRealAdjacency) b |= 1 << 5;
                 if (AiUsesFullSpellSet) b |= 1 << 6;
+                if (FlipStructureResyncsWorkers) b |= 1 << 7;
+                if (EnforcePlaceRowOkFromHand) b |= 1 << 8;
                 return b;
             }
         }
