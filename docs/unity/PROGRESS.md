@@ -14,10 +14,10 @@ this file is status only.
 | M3 — card data pipeline + art link | ✅ done | 2026-08-20 — pure catalog + loader + V1–V11 in Rules (`ce847a7`); SO pipeline, importer, junction, 159 committed assets (`ccf3d22`) |
 | M4 — geometry, determinism, state, codec | ✅ done (write-side) | 2026-08-19/20 (`7fe843b`, `ddbc6ce`) — codec is **write-only** so far: hash + canonical JSON exist, `Read`/migrations/redaction land with the first save/netcode consumer |
 | M5 — commands, events, engine, NewMatch | ✅ done | 2026-08-20 (`bc7e94c`) — full command set, processor (Execute re-validates), events, PendingRequest, DuelEngine, NewMatch. **Core API frozen; view work can start in parallel** |
-| M6 — economy, workers, turn machine, upkeep | ▶ **next** | WorkerMath + Mana + deck/draw already landed with M5; remaining: 12-step BeginTurn, phase transitions + guards, upkeep settlement, StructureUpkeep.Tick, vault drain, cleanup sweep |
-| M7 — placement, movement, set/flip, structures | ⬜ | |
+| M6 — economy, workers, turn machine, upkeep | ✅ done | 2026-08-20 (`08b41d6`) — 12-step BeginTurn, phase guards, doHarvest w/ orphan fallback, Move/Pay/Sacrifice settlement, StructureUpkeep.Tick, vault drain, cleanup sweep, MoveUnit handler pulled forward from M7 |
+| M7 — placement, movement, set/flip, structures | ▶ **next** | MoveUnit + UnitFactory (mkCre/mkBld) already landed with M6; remaining: PlayCard summon/set/settrap/cast modes, deployment row rules, BuildStructure/Upgrade, flip, play-on-top |
 | M8 — combat v3 + legacy engine + pending requests | ⬜ | request/response types + combat command shapes already exist from M5 |
-| M9 — minimal Unity battle scene | ◔ early slice | interactive deployed board generated from rules geometry (`74c503d`) predates the engine; must be rewired to consume `DuelEngine` events once M6 lands |
+| M9 — minimal Unity battle scene | ◑ engine-wired slice | 2026-08-20 (`b3be743`) — the deployed board RUNS the core: MatchController boots NewMatch from the CardDatabase, the HUD button drives Harvest/Draw/EndTurn commands, worker pools render as pawns, a timer feeds the foe's turn commands until M11. Camera fits the viewport per angle; template does first-tap fullscreen on phones. Remaining for M9 proper: hand strip, summon/move interactions, standees |
 | M10 — keywords, spells, traps, response window | ⬜ | |
 | M11 — scripted AI (vertical slice) | ⬜ | |
 | M12 — differential harness vs the JS | ⬜ | build as soon as M8 lands, while the JS is still the living oracle |
@@ -50,12 +50,37 @@ this file is status only.
   True remaining art gap: 27 card / 27 field illustrations, reported not fatal (G1).
 * Runner scripts: `tools/run-unity-tests.sh`, `tools/regen-cards.sh`, `tools/setup-unity-links.mjs`.
 
-### Next session — M6
+### 2026-08-20 (later) — M6 complete, engine-wired playable slice deployed (129 tests)
 
-Turn machine + economy, per PORT_PLAN M6 and design 01 §4: `TurnMachine.SetPhase` as the only
-phase writer, the legal-transition table, the 12-step `BeginTurn` pipeline (stub the keyword /
-structure-upkeep steps it calls with TODO-throwing seams if M7/M10 content is not ready),
-harvest with the stale-`owe` anti-deadlock rule, upkeep Move/Pay/Sacrifice settlement,
-end-of-turn mana drain (vault capacity), and the 200-empty-turns stability test with a per-turn
-hash trace. That makes `BeginTurn`/`Harvest`/`DrawForTurn`/`EndTurn` the first four real
-handlers in `CommandHandlers.CreateDefault`.
+* **M6** (`08b41d6`): the four turn commands are real handlers. BeginTurn's 12 steps land with
+  chrysalis/overcharge as direct ports (fold into the M10 keyword registry later),
+  StructureUpkeep.Tick in the pinned front/back/center order (tower first-match scan, revive
+  latch that arms only on SUCCESS), DeathSweep with the M10 `OnCreatureDeath` seam, doHarvest's
+  stale-owe + credit-in-full anti-deadlock, Pay capped at zone deficit, Sacrifice bypassing
+  death triggers, MoveUnit (pulled forward) with the owner-upkeep-window second move.
+  GraveRecord grew Name/IsToken/IsWorker for the revive filter. Known deviation for M10: a
+  revived HATCHED creature returns as its base card (HandCard carries no stat snapshot yet);
+  unreachable in play until summoning exists.
+* **Slice on Pages** (`b3be743` + fixes): see M9 row. The stand-in foe is a command feeder on a
+  timer - NOT an AI - and says so in the code.
+* **Two deployment bugs found by probing the LIVE build** (verify via `unityInstance.Module.ctx
+  .readPixels` + console - screenshots time out in the pane): worker pawns sat outside the
+  width-fitted portrait frustum (now filed along the board edge and budgeted in FitDistance);
+  and **WebGL engine stripping removed the whole Physics module** because the board + colliders
+  are runtime-generated so no serialized asset referenced physics - every collider add failed
+  and raycast picking was silently dead. `Assets/link.xml` preserves UnityEngine.PhysicsModule
+  and the baked scene carries a tiny collider anchor as a second witness. Console is clean on
+  the deployed build.
+* Deploy loop, scripted: WebGLBuild.Build → copy `unity/Build/WebGL/{index.html,Build}` →
+  `play/` → push → poll the Pages URL by Content-Length until live (~45 s).
+
+### Next session — M7
+
+Placement + structures, per PORT_PLAN M7: PlayCardCommand's five modes over the shared
+place() semantics (summon to own back/front, set ◆1 banking toward the flip, set-trap ◆1
+consumed, play-on-top destroy-and-carry), placeRowOK/centerSlotOK deployment gates,
+BuildStructureCommand from the commander build list (prereq via Lineage, forge colour
+resolution), UpgradeStructureCommand (bidLineage, damage carry `h = max(1, newMax - oldDmg)`,
+bank/id/tile preserved), flip with `sick = turnNo <= setTurn`, and the 39 movement/placement
+vectors from spec 04 §24 as the gate. Then wire summon + move taps into the deployed slice so
+the Pages build becomes a real sandbox.
