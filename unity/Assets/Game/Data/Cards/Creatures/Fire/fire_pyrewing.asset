@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: fire_pyrewing
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: fire|Pyrewing
+  kind: 0
+  displayName: Pyrewing
+  slug: pyrewing
+  element: 1
+  isNeutral: 0
+  isPlayable: 1
+  registryIndex: 5
+  cost: 4
+  poolIndex: 5
+  attack: 1500
+  health: 2000
+  upkeep: 2
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 1
+  subtype: 1
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: 
+  buildId: 
+  structEffect: 0
+  structValue: 0
+  support: 0
+  prereq: []
+  upgradedFrom: 
+  upgradesTo: []
+  rowGate: 0
+  buildable: 0
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: 
+  cardArt: {fileID: 21300000, guid: ff1abf2856195d3439b38d50591287a9, type: 3}
+  fieldArt: {fileID: 21300000, guid: 73f8cd428c0992d4b99c0861c50affe5, type: 3}

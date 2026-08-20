@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: earth_cragtooth
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: earth|Cragtooth
+  kind: 0
+  displayName: Cragtooth
+  slug: cragtooth
+  element: 3
+  isNeutral: 0
+  isPlayable: 1
+  registryIndex: 20
+  cost: 3
+  poolIndex: 4
+  attack: 500
+  health: 2000
+  upkeep: 2
+  firstStrike: 1
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: 
+  buildId: 
+  structEffect: 0
+  structValue: 0
+  support: 0
+  prereq: []
+  upgradedFrom: 
+  upgradesTo: []
+  rowGate: 0
+  buildable: 0
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: 
+  cardArt: {fileID: 21300000, guid: 01e45fc6eef5d22459293cd5c8c883a6, type: 3}
+  fieldArt: {fileID: 21300000, guid: e85c0fc218874ed46b3cf0431e1760eb, type: 3}

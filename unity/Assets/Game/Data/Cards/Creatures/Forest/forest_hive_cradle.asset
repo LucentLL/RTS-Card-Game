@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: forest_hive_cradle
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: forest|Hive Cradle
+  kind: 0
+  displayName: Hive Cradle
+  slug: hivecradle
+  element: 5
+  isNeutral: 0
+  isPlayable: 1
+  registryIndex: 39
+  cost: 6
+  poolIndex: 7
+  attack: 1500
+  health: 3000
+  upkeep: 3
+  firstStrike: 0
+  keyword: 6
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: 1
+  hatch: 2
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: Broodtitan
+  intoAttack: 4000
+  intoHealth: 3500
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: 
+  buildId: 
+  structEffect: 0
+  structValue: 0
+  support: 0
+  prereq: []
+  upgradedFrom: 
+  upgradesTo: []
+  rowGate: 0
+  buildable: 0
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: 
+  cardArt: {fileID: 0}
+  fieldArt: {fileID: 0}

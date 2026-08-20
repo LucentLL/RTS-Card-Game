@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: foundry
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: foundry
+  kind: 2
+  displayName: The Foundry
+  slug: foundry
+  element: 0
+  isNeutral: 1
+  isPlayable: 1
+  registryIndex: 0
+  cost: 2
+  poolIndex: -1
+  attack: 0
+  health: 3000
+  upkeep: 0
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: "\u2692"
+  buildId: foundry
+  structEffect: 1
+  structValue: 1
+  support: 2
+  prereq: []
+  upgradedFrom: 
+  upgradesTo:
+  - keep
+  rowGate: 0
+  buildable: 1
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: "Town hall of the host. Yields \u25C61 a turn and raises \u2692+2.
+    Unlocks the forges and the Longhouse. Upgrades (in the back row) to a Keep."
+  cardArt: {fileID: 21300000, guid: 2c59aa464f9c17c4596b7b1016d4dd18, type: 3}
+  fieldArt: {fileID: 21300000, guid: 14d0edc3507b6c344821c3002a278dff, type: 3}

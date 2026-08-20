@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: tower
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: tower
+  kind: 2
+  displayName: Cannon Tower
+  slug: cannontower
+  element: 0
+  isNeutral: 1
+  isPlayable: 1
+  registryIndex: 6
+  cost: 4
+  poolIndex: -1
+  attack: 0
+  health: 4000
+  upkeep: 0
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: "\u2922"
+  buildId: tower
+  structEffect: 5
+  structValue: 1000
+  support: -2
+  prereq:
+  - forge
+  upgradedFrom: 
+  upgradesTo: []
+  rowGate: 0
+  buildable: 1
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: "Guns that never sleep \u2014 strikes the nearest enemy creature for
+    1000 each turn. Needs \u26922 to crew (build it where a row has the workers to
+    spare)."
+  cardArt: {fileID: 21300000, guid: 3d8a83e154c026d43a1bd03e45e4bdd3, type: 3}
+  fieldArt: {fileID: 21300000, guid: a1c8e609632c5b04882d2dd69711c126, type: 3}

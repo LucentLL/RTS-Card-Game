@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: grandforge_dark
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: grandforge:dark
+  kind: 2
+  displayName: Grand Gloomwell
+  slug: grandgloomwell
+  element: 8
+  isNeutral: 0
+  isPlayable: 0
+  registryIndex: 28
+  cost: 6
+  poolIndex: -1
+  attack: 0
+  health: 3500
+  upkeep: 0
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: "\u26ED"
+  buildId: grandforge
+  structEffect: 1
+  structValue: 3
+  support: 3
+  prereq:
+  - forge
+  upgradedFrom: forge
+  upgradesTo: []
+  rowGate: 0
+  buildable: 0
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: "Furnaces past mortal heat \u2014 yields \u25C63 each turn and raises
+    \u2692+3."
+  cardArt: {fileID: 21300000, guid: 60d666c5b5dc56d46a22e5c054ef5209, type: 3}
+  fieldArt: {fileID: 21300000, guid: 96eeaba431b5d1d419de11b6a402a96b, type: 3}

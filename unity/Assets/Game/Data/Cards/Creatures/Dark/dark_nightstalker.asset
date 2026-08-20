@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: dark_nightstalker
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: dark|Nightstalker
+  kind: 0
+  displayName: Nightstalker
+  slug: nightstalker
+  element: 8
+  isNeutral: 0
+  isPlayable: 1
+  registryIndex: 60
+  cost: 3
+  poolIndex: 4
+  attack: 2000
+  health: 500
+  upkeep: 2
+  firstStrike: 1
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: 
+  buildId: 
+  structEffect: 0
+  structValue: 0
+  support: 0
+  prereq: []
+  upgradedFrom: 
+  upgradesTo: []
+  rowGate: 0
+  buildable: 0
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: 
+  cardArt: {fileID: 0}
+  fieldArt: {fileID: 0}

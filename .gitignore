@@ -66,6 +66,11 @@ unity/*.VC.db
 
 # Unity3D generated crash / profiler output
 unity/sysinfo.txt
+
+# Card art junction -> <repo>/assets/cards (tools/setup-unity-links.mjs). The real
+# files and their .meta sidecars are tracked at assets/cards/; recursing into the
+# junction would duplicate all of it. The folder Cards.meta sidecar IS tracked.
+unity/[Aa]ssets/Game/Art/Cards/
 unity/crashlytics-build.properties
 unity/*.stackdump
 

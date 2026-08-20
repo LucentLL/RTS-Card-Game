@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: grandvault
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: grandvault
+  kind: 2
+  displayName: Grand Vault
+  slug: grandvault
+  element: 0
+  isNeutral: 1
+  isPlayable: 0
+  registryIndex: 12
+  cost: 5
+  poolIndex: -1
+  attack: 0
+  health: 4500
+  upkeep: 0
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: "\u25C8"
+  buildId: grandvault
+  structEffect: 3
+  structValue: 10
+  support: 0
+  prereq: []
+  upgradedFrom: vault
+  upgradesTo: []
+  rowGate: 0
+  buildable: 0
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: "Deep cisterns behind bank-vault doors \u2014 keeps up to \u25C610
+    of your unspent mana across the turn. \u26920."
+  cardArt: {fileID: 0}
+  fieldArt: {fileID: 0}

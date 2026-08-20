@@ -4,6 +4,8 @@
     "references": [
         "SpawnRowDuel.Rules",
         "SpawnRowDuel.View",
+        "SpawnRowDuel.Data",
+        "SpawnRowDuel.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

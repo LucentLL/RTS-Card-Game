@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: light
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: el|light
+  kind: 4
+  displayName: Light
+  slug: 
+  element: 7
+  isNeutral: 0
+  isPlayable: 1
+  registryIndex: 6
+  cost: 0
+  poolIndex: -1
+  attack: 0
+  health: 0
+  upkeep: 0
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: 
+  buildId: 
+  structEffect: 0
+  structValue: 0
+  support: 0
+  prereq: []
+  upgradedFrom: 
+  upgradesTo: []
+  rowGate: 0
+  buildable: 0
+  life: 10000
+  baseWorkers: 3
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: "\u5149"
+  colorHex: '#ece3c0'
+  accentHex: '#ffffff'
+  deepHex: '#b0a45e'
+  bgStops:
+  - '#3a3622'
+  - '#221f12'
+  - '#0a0905'
+  description: A gold-vaulted cloister where dawnlight never fails. Patient walls,
+    unyielding grace.
+  cardArt: {fileID: 0}
+  fieldArt: {fileID: 0}

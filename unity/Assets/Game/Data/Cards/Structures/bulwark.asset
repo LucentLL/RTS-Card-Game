@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: bulwark
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: bulwark
+  kind: 2
+  displayName: Bulwark
+  slug: bulwark
+  element: 0
+  isNeutral: 1
+  isPlayable: 1
+  registryIndex: 4
+  cost: 5
+  poolIndex: -1
+  attack: 0
+  health: 6000
+  upkeep: 0
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: "\u25A3"
+  buildId: bulwark
+  structEffect: 4
+  structValue: 0
+  support: 1
+  prereq:
+  - forge
+  upgradedFrom: 
+  upgradesTo: []
+  rowGate: 0
+  buildable: 1
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: "A heavy wall that screens the line \u2014 it can intercept and be
+    raided. Raises \u2692+1."
+  cardArt: {fileID: 21300000, guid: b193f3eff33f5624daa915473433be1e, type: 3}
+  fieldArt: {fileID: 21300000, guid: 54b48fcb14f26ac429625775a6d49ef2, type: 3}

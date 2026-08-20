@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
+  m_Name: longhouse
+  m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
+  exportKey: longhouse
+  kind: 2
+  displayName: Longhouse
+  slug: longhouse
+  element: 0
+  isNeutral: 1
+  isPlayable: 1
+  registryIndex: 2
+  cost: 4
+  poolIndex: -1
+  attack: 0
+  health: 3000
+  upkeep: 0
+  firstStrike: 0
+  keyword: 0
+  detonate: -1
+  reap: -1
+  wardHp: -1
+  grow: -1
+  hatch: -1
+  entrench: 0
+  tribe: 0
+  subtype: 0
+  intoName: 
+  intoAttack: 0
+  intoHealth: 0
+  isTrap: 0
+  spellEffect: 0
+  spellValue: -1
+  spellTarget: 0
+  trapTrigger: 0
+  glyph: "\u2302"
+  buildId: longhouse
+  structEffect: 2
+  structValue: 0
+  support: 3
+  prereq:
+  - foundry
+  upgradedFrom: 
+  upgradesTo:
+  - barracks
+  rowGate: 2
+  buildable: 1
+  life: 0
+  baseWorkers: 0
+  colors: 
+  buildList: []
+  dual: 0
+  glyphKanji: 
+  colorHex: 
+  accentHex: 
+  deepHex: 
+  bgStops: []
+  description: "Hearth and full benches \u2014 trains a Worker each turn and raises
+    \u2692+3. Your main workforce. Upgrades to a Barracks."
+  cardArt: {fileID: 21300000, guid: 6572ceeb89e3d9e41814e710208f98a8, type: 3}
+  fieldArt: {fileID: 21300000, guid: 9d72ab6d7ddef144bb575b285568cb2a, type: 3}
