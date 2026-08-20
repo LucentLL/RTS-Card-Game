@@ -74,7 +74,8 @@ namespace SpawnRowDuel.View
         float FitDistance(Quaternion rot)
         {
             float cellPitch = _board.CellSize + _board.CellGap;
-            float halfW = Rules.Board.Columns * cellPitch * 0.5f + 0.25f;
+            // +1.2 budgets the worker-pawn strips hugging each edge (MatchController.MakePawn)
+            float halfW = Rules.Board.Columns * cellPitch * 0.5f + 1.2f;
             // walls sit at virtual rows -1 and 5: three row-pitches out from the center row
             float halfD = 3f * cellPitch + 0.45f;
 

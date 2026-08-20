@@ -195,12 +195,16 @@ namespace SpawnRowDuel.View
             Destroy(go.GetComponent<Collider>());   // pawns are scenery - the board owns picking
             go.transform.SetParent(transform, false);
 
+            // Hug the board edge - You on the left, Foe on the right - stacked in short files
+            // of four along the row so they stay inside the fitted camera on a portrait phone
+            // (BoardInput.FitDistance budgets for exactly this strip).
             float pitch = Board.CellSize + Board.CellGap;
             var row = Board.WorldOf(new CellRef(Rules.Board.RowFor(side, (SlotName)zone), 0));
-            float edgeX = (Rules.Board.Columns / 2f + 0.9f) * pitch;
-            float x = side == Side.You ? -edgeX - index * 0.34f : edgeX + index * 0.34f;
+            float edgeX = Rules.Board.Columns * pitch * 0.5f + 0.42f + (index / 4) * 0.32f;
+            float x = side == Side.You ? -edgeX : edgeX;
+            float z = row.z + ((index % 4) - 1.5f) * 0.27f;
 
-            go.transform.localPosition = new Vector3(x, 0.36f, row.z);
+            go.transform.localPosition = new Vector3(x, 0.36f, z);
             go.transform.localScale = new Vector3(0.22f, 0.3f, 0.22f);
             return go.transform;
         }
