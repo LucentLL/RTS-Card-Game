@@ -6,13 +6,14 @@ using UnityEngine;
 namespace SpawnRowDuel.View
 {
     /// <summary>
-    /// Boots a real match on the real engine and keeps the scene a pure function of its state.
+    /// Boots a real match on the real engine and keeps the scene a pure function of its state:
+    /// every card on the board renders as a standee with its imported art, worker pools render
+    /// as pawns, and every interaction - summon, set, build, upgrade-free move, flip - goes
+    /// through DuelEngine commands. Legal cells are discovered by PROBING CanApply, never by a
+    /// view-side reimplementation, so the picture cannot disagree with the rules.
     ///
-    /// This is the M9 slice, engine-wired: the deployed build now RUNS the rules core - phases,
-    /// harvest, draw, the mana drain, worker pools - through the same DuelEngine command funnel
-    /// everything else will use. The opponent is NOT an AI yet (that is M11): while it is the
-    /// foe's turn this controller simply feeds the legal turn commands on a timer, which is
-    /// exactly what the scripted policy will replace.
+    /// The opponent is still a command feeder on a timer (M11 replaces it with the scripted
+    /// AI): harvest, draw, one greedy summon, end.
     /// </summary>
     public class MatchController : MonoBehaviour
     {
@@ -20,20 +21,34 @@ namespace SpawnRowDuel.View
         public BoardView Board;
 
         public DuelEngine Engine { get; private set; }
-        public ulong Seed { get; private set; }
+
+        /// <summary>Bumped on every state-shaped change so painters know to refresh.</summary>
+        public int Version { get; private set; }
 
         private readonly List<string> _log = new List<string>();
         public IReadOnlyList<string> Log { get { return _log; } }
 
-        private float _beat;
+        // ---- pending interaction (what the next board tap means) -------------------------
+        public enum Intent : byte { None = 0, PlayCard = 1, Build = 2 }
 
-        // worker pawn pools, keyed (side, zone) - reconciled to state every frame
+        public Intent Pending { get; private set; }
+        public int PendingHandIndex { get; private set; }
+        public Rules.PlayMode PendingMode { get; private set; }
+        public StructureDef PendingBuild { get; private set; }
+        public readonly List<CellRef> LegalCells = new List<CellRef>();
+
+        private float _beat;
+        private bool _foeActed;
+
         private readonly List<Transform>[,] _pawns = new List<Transform>[2, 3];
+        private readonly Dictionary<int, Transform> _standees = new Dictionary<int, Transform>();
+        private readonly List<int> _deadStandees = new List<int>();
         private MaterialPropertyBlock _mpb;
+        private Dictionary<string, CardDefinition> _defByName;
 
         private static readonly Color YouTint = new Color(0.85f, 0.70f, 0.25f);
         private static readonly Color FoeTint = new Color(0.35f, 0.50f, 0.85f);
-        private static readonly Color TappedTint = new Color(0.28f, 0.28f, 0.30f);
+        private static readonly Color TappedTint = new Color(0.30f, 0.30f, 0.33f);
 
         void Awake()
         {
@@ -50,13 +65,14 @@ namespace SpawnRowDuel.View
                 return;
             }
 
-            var catalog = Database.ToCatalog();
+            _defByName = new Dictionary<string, CardDefinition>(System.StringComparer.Ordinal);
+            foreach (var d in Database.All)
+                if (d != null && !_defByName.ContainsKey(d.DisplayName)) _defByName[d.DisplayName] = d;
 
-            // The view picks the seed; the core only ever consumes it. Fixed commanders until
-            // the character select lands (M15).
-            Seed = (ulong)System.DateTime.Now.Ticks;
+            var catalog = Database.ToCatalog();
+            ulong seed = (ulong)System.DateTime.Now.Ticks;
             var state = MatchSetup.NewMatch(catalog,
-                new CommanderId("fire"), new CommanderId("water"), Seed, RulesOptions.JsParity);
+                new CommanderId("fire"), new CommanderId("water"), seed, RulesOptions.JsParity);
             Engine = new DuelEngine(state, catalog);
 
             Push("— Your turn · Upkeep — ⛏ Harvest to begin —");
@@ -68,20 +84,138 @@ namespace SpawnRowDuel.View
             PumpEvents();
             Autopilot();
             ReconcilePawns();
+            ReconcileStandees();
         }
 
-        /// <summary>The HUD's one entry point. Rejections become hints, never exceptions.</summary>
+        // ---- commands from the HUD / input ------------------------------------------------
+
         public Rejection TryHuman(ICommand cmd)
         {
             var r = Engine.Apply(cmd);
             if (r.Status == CommandStatus.Rejected) return r.Rejection;
+            Touch();
             return Rejection.None;
         }
 
+        /// <summary>Arm a hand play; the next legal-cell tap completes it.</summary>
+        public void BeginPlay(int handIndex, Rules.PlayMode mode)
+        {
+            Pending = Intent.PlayCard;
+            PendingHandIndex = handIndex;
+            PendingMode = mode;
+            PendingBuild = null;
+            ProbeLegalCells(cell => new PlayCardCommand(Side.You, handIndex, mode, cell));
+        }
+
+        public void BeginBuild(StructureDef def)
+        {
+            Pending = Intent.Build;
+            PendingBuild = def;
+            ProbeLegalCells(cell => new BuildStructureCommand(Side.You, def.Bid, def.Element, cell));
+        }
+
+        public void CancelPending()
+        {
+            Pending = Intent.None;
+            PendingBuild = null;
+            LegalCells.Clear();
+            Touch();
+        }
+
+        private void ProbeLegalCells(System.Func<CellRef, ICommand> make)
+        {
+            LegalCells.Clear();
+            for (int i = 0; i < Rules.Board.Cells; i++)
+            {
+                var cell = CellRef.FromIndex(i);
+                if (Engine.CanApply(make(cell)) == Rejection.None) LegalCells.Add(cell);
+            }
+            Touch();
+        }
+
         /// <summary>
-        /// The stand-in opponent: after a short beat, feed the next legal turn command. Also
-        /// hands the turn across after the player's End phase.
+        /// A board tap while something is armed. An illegal drop keeps the selection - a
+        /// fat-finger miss must never silently cancel the play (spec 04 s10.2).
         /// </summary>
+        public bool TryCellTap(CellRef cell)
+        {
+            if (Pending == Intent.None) return false;
+
+            ICommand cmd = Pending == Intent.PlayCard
+                ? (ICommand)new PlayCardCommand(Side.You, PendingHandIndex, PendingMode, cell)
+                : new BuildStructureCommand(Side.You, PendingBuild.Bid, PendingBuild.Element, cell);
+
+            var r = Engine.Apply(cmd);
+            if (r.Status == CommandStatus.Rejected)
+            {
+                Push("· " + Hint(r.Rejection));
+                return true;               // consumed - the armed card stays armed
+            }
+
+            CancelPending();
+            return true;
+        }
+
+        /// <summary>Legal one-square moves for a unit, discovered by probing the engine.</summary>
+        public List<CellRef> LegalMovesFor(CellRef from)
+        {
+            var moves = new List<CellRef>();
+            var u = Engine.State.At(from) as CreatureUnit;
+            if (u == null || u.Owner != Side.You) return moves;
+
+            System.Span<CellRef> buf = stackalloc CellRef[8];
+            int n = Rules.Board.Neighbours(from, buf);
+            for (int i = 0; i < n; i++)
+                if (Engine.CanApply(new MoveUnitCommand(Side.You, from, buf[i], u.Id)) == Rejection.None)
+                    moves.Add(buf[i]);
+            return moves;
+        }
+
+        public Rejection TryMove(CellRef from, CellRef to)
+        {
+            var u = Engine.State.At(from) as CreatureUnit;
+            if (u == null) return Rejection.NoSuchUnit;
+            return TryHuman(new MoveUnitCommand(Side.You, from, to, u.Id));
+        }
+
+        public CardDefinition DefOf(string displayName)
+        {
+            CardDefinition d;
+            return _defByName.TryGetValue(displayName, out d) ? d : null;
+        }
+
+        public CardDefinition DefOfStructure(StructId bid, Element color)
+        {
+            var def = Engine.Catalog.Structure(bid, color);
+            if (def == null) return null;
+            CardDefinition d;
+            return Database.TryByExportKey(def.ExportKey, out d) ? d : null;
+        }
+
+        public static string Hint(Rejection why)
+        {
+            switch (why)
+            {
+                case Rejection.ShortfallUnsettled: return "Settle the worker shortfall first";
+                case Rejection.WrongPhase: return "Not in this phase";
+                case Rejection.NotYourTurn: return "Not your turn";
+                case Rejection.NotEnoughMana: return "Not enough ◆";
+                case Rejection.NeedsOneMana: return "Setting costs ◆1";
+                case Rejection.DestinationNotDeployable: return "Deploy to your own rows";
+                case Rejection.CenterLaneForStructure: return "Structures take the dark flanks";
+                case Rejection.CellOccupied: return "That spot is taken";
+                case Rejection.MissingPrereq: return "Missing a prerequisite structure";
+                case Rejection.RowLacksWorkers: return "That row has no workers to spare";
+                case Rejection.MoveAlreadySpent: return "Its move is spent";
+                case Rejection.ChargeUnderfunded: return "Pour more ◆ before flipping";
+                default: return why.ToString();
+            }
+        }
+
+        void Touch() { Version++; }
+
+        // ---- the stand-in opponent --------------------------------------------------------
+
         void Autopilot()
         {
             var s = Engine.State;
@@ -95,18 +229,66 @@ namespace SpawnRowDuel.View
                 _beat = 0f;
                 switch (s.Phase)
                 {
-                    case TurnPhase.Upkeep: Engine.Apply(new HarvestCommand(Side.Foe)); break;
-                    case TurnPhase.Draw: Engine.Apply(new DrawForTurnCommand(Side.Foe)); break;
-                    case TurnPhase.Action: Engine.Apply(new EndTurnCommand(Side.Foe)); break;
-                    case TurnPhase.End: Engine.Apply(new BeginTurnCommand(Side.You)); break;
+                    case TurnPhase.Upkeep: Apply(new HarvestCommand(Side.Foe)); break;
+                    case TurnPhase.Draw: Apply(new DrawForTurnCommand(Side.Foe)); _foeActed = false; break;
+                    case TurnPhase.Action:
+                        if (!_foeActed && FoeSummonsSomething()) { _foeActed = true; break; }
+                        Apply(new EndTurnCommand(Side.Foe));
+                        break;
+                    case TurnPhase.End: Apply(new BeginTurnCommand(Side.You)); break;
                 }
             }
             else if (s.Phase == TurnPhase.End)
             {
                 _beat = 0f;
-                Engine.Apply(new BeginTurnCommand(Side.Foe));
+                Apply(new BeginTurnCommand(Side.Foe));
             }
         }
+
+        void Apply(ICommand cmd)
+        {
+            if (Engine.Apply(cmd).Applied) Touch();
+        }
+
+        /// <summary>
+        /// One greedy summon per foe turn: costliest affordable card, back-row slots in the
+        /// aiPickDeploySlot order. Pure legal commands - a placeholder for the M11 policy.
+        /// </summary>
+        bool FoeSummonsSomething()
+        {
+            var s = Engine.State;
+            var hand = s.P(Side.Foe).Hand;
+
+            int bestIdx = -1, bestCost = -1;
+            for (int i = 0; i < hand.Count; i++)
+            {
+                CreatureCard c;
+                if (!Engine.Catalog.TryCreature(hand[i].Id, out c)) continue;
+                if (c.Cost <= s.P(Side.Foe).Mana && c.Cost > bestCost) { bestCost = c.Cost; bestIdx = i; }
+            }
+            if (bestIdx < 0) return false;
+
+            int[] order = { 2, 4, 3, 1, 5, 0, 6 };      // the JS back-row preference
+            var back = Rules.Board.RowFor(Side.Foe, SlotName.Back);
+            var front = Rules.Board.RowFor(Side.Foe, SlotName.Front);
+            for (int pass = 0; pass < 2; pass++)
+            {
+                var row = pass == 0 ? back : front;
+                for (int i = 0; i < order.Length; i++)
+                {
+                    var cmd = new PlayCardCommand(Side.Foe, bestIdx, Rules.PlayMode.Summon,
+                        new CellRef(row, order[i]));
+                    if (Engine.CanApply(cmd) == Rejection.None)
+                    {
+                        Apply(cmd);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // ---- events -> log ----------------------------------------------------------------
 
         void PumpEvents()
         {
@@ -114,6 +296,7 @@ namespace SpawnRowDuel.View
             {
                 var line = Describe(ev);
                 if (line != null) Push(line);
+                Touch();
             }
         }
 
@@ -132,35 +315,61 @@ namespace SpawnRowDuel.View
 
             var harvest = ev as HarvestCollected;
             if (harvest != null)
-                return (Engine.State.Turn == Side.You ? "You harvest ◆" : "Foe harvests ◆") +
-                       harvest.Amount + " (" + harvest.Zone.ToString().ToLowerInvariant() + ")";
+                return (Engine.State.Turn == Side.You ? "You harvest ◆" : "Foe harvests ◆") + harvest.Amount;
 
             var drawn = ev as CardDrawn;
             if (drawn != null)
-                return Engine.State.Turn == Side.You
-                    ? "You draw " + drawn.Card.Value
-                    : "Foe draws a card";
+                return Engine.State.Turn == Side.You ? "You draw " + drawn.Card.Value : "Foe draws a card";
+
+            var summoned = ev as UnitSummoned;
+            if (summoned != null) return NameOf(summoned.UnitId) + " enters at " + summoned.At;
+
+            var moved = ev as UnitMoved;
+            if (moved != null) return NameOf(moved.UnitId) + " advances to " + moved.To;
+
+            var raised = ev as StructureRaised;
+            if (raised != null) return "The " + raised.Def.Value + " rises";
+
+            var upgraded = ev as StructureUpgraded;
+            if (upgraded != null) return upgraded.From.Value + " becomes " + upgraded.To.Value;
+
+            var flipped = ev as CardFlipped;
+            if (flipped != null)
+                return NameOf(flipped.UnitId) + " surges into being" +
+                       (flipped.Sick ? " — must rest" : " — battle-ready!");
 
             var drained = ev as ManaDrained;
-            if (drained != null)
-                return drained.Lost > 0
-                    ? "◆" + drained.Lost + " unspent mana drains away" +
-                      (drained.Kept > 0 ? " — vaults keep ◆" + drained.Kept : "")
-                    : "Vaults keep ◆" + drained.Kept;
+            if (drained != null && drained.Lost > 0)
+                return "◆" + drained.Lost + " unspent mana drains away" +
+                       (drained.Kept > 0 ? " — vaults keep ◆" + drained.Kept : "");
 
             var yielded = ev as ManaYielded;
             if (yielded != null) return "A structure yields ◆" + yielded.Amount;
 
             var revived = ev as CreatureRevived;
-            if (revived != null) return "The Reliquary returns " + revived.Card.Value + " to hand";
+            if (revived != null) return "The Reliquary returns " + revived.Card.Value;
 
-            var fired = ev as TowerFired;
-            if (fired != null) return "A tower fires for " + fired.Amount;
+            var destroyed = ev as UnitDestroyed;
+            if (destroyed != null && destroyed.OnBoard) return "A " +
+                (destroyed.Kind == UnitKind.Building ? "structure is razed" : "creature falls");
 
             var ended = ev as MatchEnded;
             if (ended != null) return "— MATCH OVER: " + ended.Outcome + " —";
 
-            return null;   // phase changes etc. are visible in the HUD already
+            return null;
+        }
+
+        string NameOf(int unitId)
+        {
+            foreach (var kv in Engine.State.Objects())
+            {
+                if (kv.Value.Id != unitId) continue;
+                var c = kv.Value as CreatureUnit;
+                if (c != null) return c.Name;
+                var b = kv.Value as StructureUnit;
+                if (b != null) return b.DefId.Value;
+            }
+            return "A unit";
         }
 
         // ---- worker pawns -------------------------------------------------------------------
@@ -169,7 +378,6 @@ namespace SpawnRowDuel.View
         {
             var s = Engine.State;
             for (int side = 0; side < 2; side++)
-            {
                 for (int z = 0; z < 3; z++)
                 {
                     var pool = s.Players[side].Workers[z].Members;
@@ -183,21 +391,17 @@ namespace SpawnRowDuel.View
                     }
 
                     for (int i = 0; i < pawns.Count; i++)
-                        TintPawn(pawns[i], (Side)side, pool[i]);
+                        Tint(pawns[i], (Side)side, pool[i].Tapped, pool[i].Sick);
                 }
-            }
         }
 
         Transform MakePawn(Side side, WorkerZone zone, int index)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             go.name = side + "_" + zone + "_worker" + index;
-            Destroy(go.GetComponent<Collider>());   // pawns are scenery - the board owns picking
+            Destroy(go.GetComponent<Collider>());
             go.transform.SetParent(transform, false);
 
-            // Hug the board edge - You on the left, Foe on the right - stacked in short files
-            // of four along the row so they stay inside the fitted camera on a portrait phone
-            // (BoardInput.FitDistance budgets for exactly this strip).
             float pitch = Board.CellSize + Board.CellGap;
             var row = Board.WorldOf(new CellRef(Rules.Board.RowFor(side, (SlotName)zone), 0));
             float edgeX = Rules.Board.Columns * pitch * 0.5f + 0.42f + (index / 4) * 0.32f;
@@ -206,18 +410,131 @@ namespace SpawnRowDuel.View
 
             go.transform.localPosition = new Vector3(x, 0.36f, z);
             go.transform.localScale = new Vector3(0.22f, 0.3f, 0.22f);
+
+            // a baked material so the shader variant survives build stripping (magenta fix)
+            go.GetComponent<MeshRenderer>().sharedMaterial = Board.CellMaterial;
             return go.transform;
         }
 
-        void TintPawn(Transform pawn, Side side, CreatureUnit worker)
+        void Tint(Transform t, Side side, bool tapped, bool sick)
         {
-            var baseTint = side == Side.You ? YouTint : FoeTint;
-            var tint = worker.Tapped ? TappedTint : baseTint;
-            if (worker.Sick) tint *= 0.55f;
-
-            var r = pawn.GetComponent<MeshRenderer>();
+            var r = t.GetComponent<MeshRenderer>();
+            if (r == null) return;
+            var tint = tapped ? TappedTint : (side == Side.You ? YouTint : FoeTint);
+            if (sick) tint *= 0.55f;
             _mpb.SetColor("_BaseColor", tint);
             r.SetPropertyBlock(_mpb);
+        }
+
+        // ---- standees: every board object, rendered with its art ---------------------------
+
+        void ReconcileStandees()
+        {
+            var s = Engine.State;
+            var seen = new HashSet<int>();
+
+            foreach (var kv in s.Objects())
+            {
+                var cell = kv.Key;
+                var o = kv.Value;
+                seen.Add(o.Id);
+
+                Transform t;
+                if (!_standees.TryGetValue(o.Id, out t))
+                {
+                    t = MakeStandee(o);
+                    _standees[o.Id] = t;
+                }
+
+                var target = Board.WorldOf(cell);
+                t.localPosition = new Vector3(target.x, t.localPosition.y, target.z);
+
+                var cr = o as CreatureUnit;
+                if (cr != null)
+                {
+                    if (t.childCount > 0) Tint(t.GetChild(0), o.Owner, cr.Tapped, cr.Sick);
+                    var sr = t.GetComponentInChildren<SpriteRenderer>();
+                    if (sr != null)
+                        sr.color = cr.Tapped ? new Color(0.5f, 0.5f, 0.55f)
+                                 : cr.Sick ? new Color(0.75f, 0.75f, 0.8f) : Color.white;
+                }
+            }
+
+            _deadStandees.Clear();
+            foreach (var kv in _standees)
+                if (!seen.Contains(kv.Key)) _deadStandees.Add(kv.Key);
+            foreach (var id in _deadStandees)
+            {
+                Destroy(_standees[id].gameObject);
+                _standees.Remove(id);
+            }
+        }
+
+        Transform MakeStandee(BoardObject o)
+        {
+            var root = new GameObject("unit_" + o.Id);
+            root.transform.SetParent(transform, false);
+            root.transform.localPosition = Vector3.zero;
+
+            // plinth - a low disc the overlay label anchors to; owner-tinted
+            var plinth = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Destroy(plinth.GetComponent<Collider>());     // the CELL owns picking
+            plinth.transform.SetParent(root.transform, false);
+            plinth.transform.localPosition = new Vector3(0f, 0.09f, 0f);
+            plinth.transform.localScale = new Vector3(0.62f, 0.03f, 0.62f);
+            plinth.GetComponent<MeshRenderer>().sharedMaterial = Board.CellMaterial;
+
+            var tintTarget = root.transform;
+            Tint(plinth.transform, o.Owner, false, false);
+
+            Sprite art = ArtFor(o);
+            if (art != null)
+            {
+                var spriteGo = new GameObject("art");
+                spriteGo.transform.SetParent(root.transform, false);
+                var sr = spriteGo.AddComponent<SpriteRenderer>();
+                sr.sprite = art;
+                float h = art.bounds.size.y;
+                float scale = h > 0.01f ? 0.95f / h : 1f;
+                spriteGo.transform.localScale = new Vector3(scale, scale, scale);
+                spriteGo.transform.localPosition = new Vector3(0f, 0.12f + 0.95f * 0.5f, 0f);
+                spriteGo.transform.localRotation = Quaternion.Euler(20f, 0f, 0f);   // lean to camera
+            }
+            else
+            {
+                // face-downs and art-less cards: a card-back block (placeholders ship - G1)
+                var block = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Destroy(block.GetComponent<Collider>());
+                block.transform.SetParent(root.transform, false);
+                block.transform.localPosition = new Vector3(0f, 0.3f, 0f);
+                block.transform.localScale = new Vector3(0.55f, 0.42f, 0.14f);
+                block.transform.localRotation = Quaternion.Euler(18f, 0f, 0f);
+                block.GetComponent<MeshRenderer>().sharedMaterial = Board.StructureSlotMaterial;
+                Tint(block.transform, o.Owner, o is ChargeUnit || o is TrapUnit, false);
+            }
+
+            return tintTarget;
+        }
+
+        Sprite ArtFor(BoardObject o)
+        {
+            var cr = o as CreatureUnit;
+            if (cr != null)
+            {
+                var def = DefOf(cr.Name) ?? DefOf(cr.Card.Value);
+                if (def == null) return null;
+                return def.FieldArt != null ? def.FieldArt : def.CardArt;
+            }
+
+            var b = o as StructureUnit;
+            if (b != null)
+            {
+                var def = DefOfStructure(b.DefId, b.Color);
+                if (def == null) return null;
+                return def.FieldArt != null ? def.FieldArt : def.CardArt;
+            }
+
+            return null;                                   // charges and traps stay face-down
         }
     }
 }

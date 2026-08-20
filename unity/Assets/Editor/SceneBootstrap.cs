@@ -66,6 +66,16 @@ public static class SceneBootstrap
         anchorCol.size = Vector3.one * 0.01f;
         anchor.transform.position = new Vector3(0f, -50f, 0f);
 
+        // ...and a baked SpriteRenderer for the same reason: the card standees create theirs at
+        // runtime, and without one serialized reference the sprite default shader would strip.
+        var spriteAnchor = new GameObject("SpriteAnchor");
+        spriteAnchor.transform.SetParent(anchor.transform, false);
+        var anchorSprite = spriteAnchor.AddComponent<SpriteRenderer>();
+        anchorSprite.sprite =
+            AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Game/Art/Cards/Creatures/Fire/sparkimp_cardart.png");
+        if (anchorSprite.sprite == null)
+            Debug.LogWarning("[scene] no anchor sprite - run the card importer / junction setup first");
+
         var boardGo = new GameObject("Board");
         var view = boardGo.AddComponent<BoardView>();
         view.CellMaterial = mCell;
