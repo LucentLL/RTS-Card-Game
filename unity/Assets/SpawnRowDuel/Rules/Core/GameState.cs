@@ -41,6 +41,14 @@ namespace SpawnRowDuel.Rules
         public bool IsOver;
         public MatchOutcome Outcome = MatchOutcome.InProgress;
 
+        /// <summary>
+        /// The parked choice, when the engine is waiting on a RespondCommand. Serialized, so a
+        /// snapshot taken mid-resolution is complete and resumable - the property the JS could
+        /// never have because its choices lived in an await chain (design 01 s6).
+        /// PendingRequest instances are immutable; Clone shares the reference.
+        /// </summary>
+        public PendingRequest Pending;
+
         // ---- board ----------------------------------------------------------------------------
 
         private readonly BoardObject[] _cells = new BoardObject[Board.Cells];
@@ -113,6 +121,7 @@ namespace SpawnRowDuel.Rules
                 Phase = Phase,
                 IsOver = IsOver,
                 Outcome = Outcome,
+                Pending = Pending,   // immutable by contract - safe to share
             };
 
             for (int i = 0; i < _cells.Length; i++)

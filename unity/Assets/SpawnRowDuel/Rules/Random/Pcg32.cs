@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SpawnRowDuel.Rules
 {
@@ -63,6 +64,30 @@ namespace SpawnRowDuel.Rules
             uint xorshifted = (uint)(((old >> 18) ^ old) >> 27);
             int rot = (int)(old >> 59);
             return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+        }
+
+        /// <summary>
+        /// Fisher-Yates, descending (i = n-1 down to 1), the JS shuffles' exact loop shape
+        /// (06_mana_workers.js:34,88). The ONLY shuffle in the core - a second shuffle with a
+        /// different draw order would silently desync replays.
+        /// </summary>
+        public void Shuffle<T>(IList<T> list)
+        {
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = NextInt(i + 1);
+                T tmp = list[i];
+                list[i] = list[j];
+                list[j] = tmp;
+            }
+        }
+
+        /// <summary>
+        /// Integer probability: Chance(60, 100) replaces `Math.random() &lt; 0.6`. No floats.
+        /// </summary>
+        public bool Chance(int numerator, int denominator)
+        {
+            return NextInt(denominator) < numerator;
         }
 
         /// <summary>

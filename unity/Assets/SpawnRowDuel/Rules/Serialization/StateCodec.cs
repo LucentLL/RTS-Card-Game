@@ -123,6 +123,8 @@ namespace SpawnRowDuel.Rules
             w.Write("isOver", s.IsOver);
             w.Write("outcome", (int)s.Outcome);
 
+            WritePending(s.Pending, w);
+
             // Board: fixed length, index-ordered. Empty cells are written explicitly so a shifted
             // board can never hash equal to an unshifted one.
             w.BeginArray("cells", Board.Cells);
@@ -139,6 +141,86 @@ namespace SpawnRowDuel.Rules
             w.EndArray();
 
             w.EndObject();
+        }
+
+        /// <summary>
+        /// The suspended choice. The kind tag is written even when None so a state that parks a
+        /// request can never hash equal to one that does not.
+        /// </summary>
+        static void WritePending(PendingRequest p, IStateWriter w)
+        {
+            w.Write("pending", (int)(p == null ? PendingKind.None : p.Kind));
+            if (p == null) return;
+
+            w.BeginObject("pendingReq");
+            w.Write("responder", (int)p.Responder);
+
+            var blocker = p as BlockerRequest;
+            if (blocker != null)
+            {
+                w.Write("attacker", blocker.AttackerId);
+                w.Write("declIndex", blocker.DeclarationIndex);
+                w.Write("declCount", blocker.DeclarationCount);
+                WriteUnitRefs("eligible", blocker.Eligible, w);
+                w.EndObject();
+                return;
+            }
+
+            var absorber = p as AbsorberRequest;
+            if (absorber != null)
+            {
+                w.Write("attacker", absorber.AttackerId);
+                WriteUnitRefs("blockers", absorber.Blockers, w);
+                w.EndObject();
+                return;
+            }
+
+            var retaliation = p as RetaliationRequest;
+            if (retaliation != null)
+            {
+                w.Write("defender", retaliation.DefenderId);
+                WriteUnitRefs("attackers", retaliation.Attackers, w);
+                w.EndObject();
+                return;
+            }
+
+            var window = p as ResponseWindowRequest;
+            if (window != null)
+            {
+                w.Write("trigger", (int)window.Trigger);
+                WriteUnitRefs("traps", window.ArmedTraps, w);
+                w.EndObject();
+                return;
+            }
+
+            w.EndObject();
+        }
+
+        static void WriteUnitRefs(string name, UnitRef[] refs, IStateWriter w)
+        {
+            w.BeginArray(name, refs.Length);
+            for (int i = 0; i < refs.Length; i++)
+            {
+                var r = refs[i];
+                w.BeginObject(null);
+                w.Write("kind", (int)r.Kind);
+                w.Write("unit", r.UnitId);
+                if (r.IsCell)
+                {
+                    var c = r.AsCell;
+                    w.Write("row", (int)c.Row);
+                    w.Write("col", c.Col);
+                }
+                else if (r.IsPool)
+                {
+                    var pr = r.AsPool;
+                    w.Write("owner", (int)pr.Owner);
+                    w.Write("zone", (int)pr.Zone);
+                    w.Write("idx", pr.Index);
+                }
+                w.EndObject();
+            }
+            w.EndArray();
         }
 
         static void WriteObject(BoardObject o, IStateWriter w)

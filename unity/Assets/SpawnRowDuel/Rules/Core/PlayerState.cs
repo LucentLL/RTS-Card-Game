@@ -114,6 +114,12 @@ namespace SpawnRowDuel.Rules
             return Workers[(int)z];
         }
 
+        /// <summary>readyWorkers - all three pools. Only ever called at turn start and match start.</summary>
+        public void ReadyWorkers()
+        {
+            for (int i = 0; i < Workers.Length; i++) Workers[i].Ready();
+        }
+
         public PlayerState Clone()
         {
             var p = new PlayerState
