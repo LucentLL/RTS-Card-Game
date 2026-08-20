@@ -15,9 +15,9 @@ this file is status only.
 | M4 — geometry, determinism, state, codec | ✅ done (write-side) | 2026-08-19/20 (`7fe843b`, `ddbc6ce`) — codec is **write-only** so far: hash + canonical JSON exist, `Read`/migrations/redaction land with the first save/netcode consumer |
 | M5 — commands, events, engine, NewMatch | ✅ done | 2026-08-20 (`bc7e94c`) — full command set, processor (Execute re-validates), events, PendingRequest, DuelEngine, NewMatch. **Core API frozen; view work can start in parallel** |
 | M6 — economy, workers, turn machine, upkeep | ✅ done | 2026-08-20 (`08b41d6`) — 12-step BeginTurn, phase guards, doHarvest w/ orphan fallback, Move/Pay/Sacrifice settlement, StructureUpkeep.Tick, vault drain, cleanup sweep, MoveUnit handler pulled forward from M7 |
-| M7 — placement, movement, set/flip, structures | ▶ **next** | MoveUnit + UnitFactory (mkCre/mkBld) already landed with M6; remaining: PlayCard summon/set/settrap/cast modes, deployment row rules, BuildStructure/Upgrade, flip, play-on-top |
-| M8 — combat v3 + legacy engine + pending requests | ⬜ | request/response types + combat command shapes already exist from M5 |
-| M9 — minimal Unity battle scene | ◑ engine-wired slice | 2026-08-20 (`b3be743`) — the deployed board RUNS the core: MatchController boots NewMatch from the CardDatabase, the HUD button drives Harvest/Draw/EndTurn commands, worker pools render as pawns, a timer feeds the foe's turn commands until M11. Camera fits the viewport per angle; template does first-tap fullscreen on phones. Remaining for M9 proper: hand strip, summon/move interactions, standees |
+| M7 — placement, movement, set/flip, structures | ✅ done | 2026-08-20 (`091becd`) — PlayCard summon/set/settrap + play-on-top, BuildStructure off the commander list w/ lineage prereqs, in-place upgrades w/ damage carry, flip w/ both JS quirks behind flags. Cast waits for M10 |
+| M8 — combat v3 + legacy engine + pending requests | ▶ **next** | request/response types + combat command shapes exist from M5; the whole step machine, blockers, retaliation, damage tiers, checkWin remain |
+| M9 — minimal Unity battle scene | ◕ sandbox | 2026-08-20 — hand strip w/ art thumbnails, tap-to-summon/set/build/flip/move over CanApply-probed lit cells, standees w/ field/card art + stat overlays, greedy-summon foe feeder. Remaining: combat interactions (M8) + settle menus |
 | M10 — keywords, spells, traps, response window | ⬜ | |
 | M11 — scripted AI (vertical slice) | ⬜ | |
 | M12 — differential harness vs the JS | ⬜ | build as soon as M8 lands, while the JS is still the living oracle |
@@ -84,3 +84,28 @@ resolution), UpgradeStructureCommand (bidLineage, damage carry `h = max(1, newMa
 bank/id/tile preserved), flip with `sick = turnNo <= setTurn`, and the 39 movement/placement
 vectors from spec 04 §24 as the gate. Then wire summon + move taps into the deployed slice so
 the Pages build becomes a real sandbox.
+
+### 2026-08-20 (third pass) — M7 complete, the Pages build is a sandbox (147 tests)
+
+* **M7** (`091becd`): summon/set/settrap through one PlayCard funnel with type-checked modes,
+  play-on-top, build menu + lineage prereqs + placeRowOK, in-place upgrades with the support-swap
+  headroom formula and damage carry, flips (surplus banks, setTurn decides sickness, colour-drop
+  and resync quirks behind flags), SendBankedMana. New M10 seams: `RulesHooks.OnCreatureEnter` /
+  `OnSummonTrap`; new flags: `FlipStructureResyncsWorkers`, `EnforcePlaceRowOkFromHand`.
+* **Sandbox view**: hand strip with art thumbnails, armed-play flow (probe all 35 cells with
+  CanApply, light the legal ones, illegal drops keep the card armed), BUILD menu with live
+  affordability, FILL/FLIP charge menu, standees with art + IMGUI stat overlays, and the foe
+  feeder now summons its costliest affordable card each turn.
+* **Two more stripping lessons**: runtime-created primitives lost their material variant
+  (magenta pawns - fixed by using baked scene materials + MPB), and runtime SpriteRenderers
+  need a baked SpriteRenderer anchor in the scene or the sprite shader strips.
+* Deployed and pixel-verified: art renders in the hand strip, console clean.
+
+### Next session — M8 (combat v3)
+
+The big one: CombatState in GameState + codec, DeclareAttack (unit/wall/worker-stack targets,
+row-interval blocking eligibility), the resolver step machine with its serializable cursor,
+BlockerRequest/AbsorberRequest/RetaliationRequest round-trips through RespondCommand, two-tier
+First Strike, the blocked/open partition, wall damage accumulation, LegacyCombat.FocusFire for
+worker stacks, cleanup re-sweeps, checkWin -> MatchEnded. Gate: worked examples A and B from
+spec 03 s15 reproduced exactly. Then wire DeclareAttack + the choice prompts into the sandbox.
