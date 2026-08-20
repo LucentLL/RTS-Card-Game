@@ -63,7 +63,8 @@ namespace SpawnRowDuel.Rules.Tests
             var s = Fresh();
             s.P(Side.You).Hand.Add(new HandCard(new CardId("Emberfly"), Element.Fire));
             s.P(Side.You).Deck.Add(new HandCard(new CardId("Cinderling"), Element.Fire));
-            s.P(Side.You).Grave.Add(new GraveRecord(new CardId("Ashwing"), Element.Fire, UnitKind.Creature, 3));
+            s.P(Side.You).Grave.Add(new GraveRecord(new CardId("Ashwing"), "Ashwing",
+                Element.Fire, UnitKind.Creature, false, false, 3));
 
             var copy = s.Clone();
             copy.P(Side.You).Hand.Clear();

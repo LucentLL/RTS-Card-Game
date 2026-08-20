@@ -39,6 +39,9 @@ namespace SpawnRowDuel.Rules
 
         // face-downs and choices
         ChargeUnderfunded, NotAFaceDown, NoPendingRequest, WrongResponseShape,
+
+        // upkeep settlement
+        NothingToPay,
     }
 
     public enum CommandStatus : byte

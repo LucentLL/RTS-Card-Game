@@ -79,8 +79,17 @@ namespace SpawnRowDuel.Rules
         public static CommandProcessor CreateDefault(ICardCatalog catalog)
         {
             var p = new CommandProcessor(catalog);
-            // M6: BeginTurn / Harvest / DrawForTurn / EndTurn + upkeep settlement
-            // M7: MoveUnit / PlayCard / BuildStructure / UpgradeStructure / charges
+
+            // M6 - the turn machine and upkeep settlement
+            p.Register(typeof(BeginTurnCommand), new BeginTurnHandler());
+            p.Register(typeof(HarvestCommand), new HarvestHandler());
+            p.Register(typeof(DrawForTurnCommand), new DrawForTurnHandler());
+            p.Register(typeof(EndTurnCommand), new EndTurnHandler());
+            p.Register(typeof(UpkeepPayCommand), new UpkeepPayHandler());
+            p.Register(typeof(UpkeepSacrificeCommand), new UpkeepSacrificeHandler());
+            p.Register(typeof(MoveUnitCommand), new MoveUnitHandler());
+
+            // M7: PlayCard / BuildStructure / UpgradeStructure / charges
             // M8: DeclareAttack / ResolveCombat / Respond
             return p;
         }

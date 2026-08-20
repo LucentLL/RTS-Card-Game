@@ -146,6 +146,35 @@ namespace SpawnRowDuel.Rules
         public CardFlipped(int unitId, CellRef at, bool sick) { UnitId = unitId; At = at; Sick = sick; }
     }
 
+    /// <summary>A cocoon swelled but did not hatch. It re-sicks every upkeep.</summary>
+    public sealed class ChrysalisGrew : GameEvent
+    {
+        public readonly int UnitId;
+        public readonly int Count;
+        public readonly int HatchAt;
+        public ChrysalisGrew(int unitId, int count, int hatchAt)
+        { UnitId = unitId; Count = count; HatchAt = hatchAt; }
+    }
+
+    /// <summary>In-place hatch: same unit id, new name and stats.</summary>
+    public sealed class CreatureHatched : GameEvent
+    {
+        public readonly int UnitId;
+        public readonly string NewName;
+        public readonly int Attack;
+        public readonly int Hp;
+        public CreatureHatched(int unitId, string newName, int attack, int hp)
+        { UnitId = unitId; NewName = newName ?? ""; Attack = attack; Hp = hp; }
+    }
+
+    /// <summary>An Overcharge creature banked another point toward its next discharge.</summary>
+    public sealed class Overcharged : GameEvent
+    {
+        public readonly int UnitId;
+        public readonly int Bank;
+        public Overcharged(int unitId, int bank) { UnitId = unitId; Bank = bank; }
+    }
+
     public sealed class TokenSpawned : GameEvent
     {
         public readonly int UnitId;

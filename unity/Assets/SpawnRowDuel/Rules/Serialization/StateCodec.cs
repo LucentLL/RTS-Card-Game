@@ -333,8 +333,11 @@ namespace SpawnRowDuel.Rules
             {
                 w.BeginObject(null);
                 w.Write("id", p.Grave[i].Id.Value);
+                w.Write("name", p.Grave[i].Name);
                 w.Write("color", (int)p.Grave[i].Color);
                 w.Write("kind", (int)p.Grave[i].Kind);
+                w.Write("token", p.Grave[i].IsToken);
+                w.Write("worker", p.Grave[i].IsWorker);
                 w.Write("turn", p.Grave[i].TurnDied);
                 w.EndObject();
             }

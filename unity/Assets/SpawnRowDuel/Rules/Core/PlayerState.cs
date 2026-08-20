@@ -11,17 +11,27 @@ namespace SpawnRowDuel.Rules
         public HandCard(CardId id, Element color) { Id = id; Color = color; }
     }
 
-    /// <summary>What a death leaves behind. Kept for revive and for the graveyard viewer.</summary>
+    /// <summary>
+    /// What a death leaves behind. Kept for the Reliquary's revive and the graveyard viewer.
+    /// Name is denormalised because a hatched Chrysalis creature dies under its hatched name
+    /// while Id keeps the catalog origin; IsWorker mirrors the JS 'villager' grave type and
+    /// IsToken the token flag - both exist so revive can skip them (spec 05 s4.2).
+    /// </summary>
     public readonly struct GraveRecord
     {
         public readonly CardId Id;
+        public readonly string Name;
         public readonly Element Color;
         public readonly UnitKind Kind;
+        public readonly bool IsToken;
+        public readonly bool IsWorker;
         public readonly int TurnDied;
 
-        public GraveRecord(CardId id, Element color, UnitKind kind, int turnDied)
+        public GraveRecord(CardId id, string name, Element color, UnitKind kind,
+                           bool isToken, bool isWorker, int turnDied)
         {
-            Id = id; Color = color; Kind = kind; TurnDied = turnDied;
+            Id = id; Name = name ?? ""; Color = color; Kind = kind;
+            IsToken = isToken; IsWorker = isWorker; TurnDied = turnDied;
         }
     }
 
