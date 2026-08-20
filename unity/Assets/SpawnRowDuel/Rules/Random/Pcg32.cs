@@ -35,7 +35,26 @@ namespace SpawnRowDuel.Rules
             NextUInt();
         }
 
+        private Pcg32(ulong state, ulong increment, bool raw)
+        {
+            _state = state;
+            _increment = increment;
+        }
+
+        /// <summary>
+        /// Rebuild a generator sitting at an exact stream position. Needed because RNG position is
+        /// part of GameState: a clone, a save, or a replay that resumed from a re-seeded generator
+        /// would silently diverge.
+        /// </summary>
+        public static Pcg32 FromRaw(ulong state, ulong increment)
+        {
+            return new Pcg32(state, increment | 1UL, true);
+        }
+
         public ulong State { get { return _state; } }
+        public ulong Increment { get { return _increment; } }
+
+        public Pcg32 Clone() { return new Pcg32(_state, _increment, true); }
 
         public uint NextUInt()
         {
