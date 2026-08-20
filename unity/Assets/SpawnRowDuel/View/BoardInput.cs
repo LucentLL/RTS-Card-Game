@@ -6,17 +6,13 @@ using UnityEngine;
 namespace SpawnRowDuel.View
 {
     /// <summary>
-    /// Placeholder interaction layer: raycast cell picking, adjacency preview, and the two camera
-    /// angle presets (Top-Down / Tilted) that the board has always had.
+    /// Placeholder interaction layer: raycast cell picking, adjacency preview, and the two
+    /// camera angle presets (Top-Down / Tilted) the board has always had - now with the camera
+    /// FIT to the viewport instead of parked at a fixed distance, so a portrait phone frames
+    /// the whole board edge to edge instead of a letterboxed band.
     ///
-    /// This deliberately replaces the browser's CSS elementFromPoint hit-testing with a real
-    /// physics raycast - which is the whole reason the port went to genuine 3D. The proper input
-    /// stack (Input System, marquee group-select, drag-drop summon) is milestone 9; this exists so
-    /// the deployed build is something you can actually poke at.
-    ///
-    /// Uses legacy Input because activeInputHandler is set to Both. IMGUI is used for the readout
-    /// on purpose: it needs no font asset, and the project has no TMP fallback chain yet, so
-    /// anything else would render tofu.
+    /// Uses legacy Input because activeInputHandler is Both; taps arrive as mouse events on
+    /// WebGL. The proper input stack (marquee, drag-drop summon) is milestone 9 proper.
     /// </summary>
     [RequireComponent(typeof(BoardView))]
     public class BoardInput : MonoBehaviour
@@ -28,11 +24,12 @@ namespace SpawnRowDuel.View
         private CellRef? _selected;
         private readonly List<CellRef> _highlighted = new List<CellRef>();
 
-        // Angle presets. "Tilted" is the signature diorama look; Top-Down is the other.
-        private static readonly Vector3 TiltedPos = new Vector3(0f, 6.4f, -6.9f);
-        private static readonly Vector3 TiltedRot = new Vector3(42f, 0f, 0f);
-        private static readonly Vector3 TopDownPos = new Vector3(0f, 9.2f, -0.6f);
-        private static readonly Vector3 TopDownRot = new Vector3(84f, 0f, 0f);
+        public CellRef? Hover { get { return _hover; } }
+        public CellRef? Selected { get { return _selected; } }
+
+        // The two locked angles: Tilted is the signature diorama, Top-Down the flat read.
+        private const float TiltedPitch = 42f;
+        private const float TopDownPitch = 84f;
 
         private bool _tilted = true;
         private float _blend = 1f;
@@ -59,8 +56,52 @@ namespace SpawnRowDuel.View
             float target = _tilted ? 1f : 0f;
             _blend = Mathf.MoveTowards(_blend, target, Time.deltaTime * 2.6f);
             float t = Mathf.SmoothStep(0f, 1f, _blend);
-            Cam.transform.position = Vector3.Lerp(TopDownPos, TiltedPos, t);
-            Cam.transform.rotation = Quaternion.Euler(Vector3.Lerp(TopDownRot, TiltedRot, t));
+
+            float pitch = Mathf.Lerp(TopDownPitch, TiltedPitch, t);
+            var rot = Quaternion.Euler(pitch, 0f, 0f);
+            float dist = FitDistance(rot);
+
+            Cam.transform.rotation = rot;
+            Cam.transform.position = -(rot * Vector3.forward) * dist;
+        }
+
+        /// <summary>
+        /// The smallest camera distance that keeps every board extreme - four corners plus the
+        /// two wall bars - inside the frustum, for the CURRENT aspect ratio. On a portrait
+        /// phone the horizontal fit dominates and the board spans the full width; on a desktop
+        /// the vertical fit leaves headroom for the HUD.
+        /// </summary>
+        float FitDistance(Quaternion rot)
+        {
+            float cellPitch = _board.CellSize + _board.CellGap;
+            float halfW = Rules.Board.Columns * cellPitch * 0.5f + 0.25f;
+            // walls sit at virtual rows -1 and 5: three row-pitches out from the center row
+            float halfD = 3f * cellPitch + 0.45f;
+
+            var extremes = new[]
+            {
+                new Vector3(-halfW, 0f, halfD), new Vector3(halfW, 0f, halfD),
+                new Vector3(-halfW, 0f, -halfD), new Vector3(halfW, 0f, -halfD),
+                new Vector3(0f, 0.45f, halfD), new Vector3(0f, 0.45f, -halfD),
+            };
+
+            float tanV = Mathf.Tan(Cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            float tanH = tanV * Cam.aspect;
+
+            // Margins: a touch of horizontal breathing room; more vertically, where the HUD
+            // header and the action button live.
+            float fitH = tanH * 0.94f;
+            float fitV = tanV * 0.80f;
+
+            var inv = Quaternion.Inverse(rot);
+            float need = 2f;
+            for (int i = 0; i < extremes.Length; i++)
+            {
+                var p = inv * extremes[i];       // camera-space direction, camera at distance d
+                need = Mathf.Max(need, Mathf.Abs(p.x) / fitH - p.z);
+                need = Mathf.Max(need, Mathf.Abs(p.y) / fitV - p.z);
+            }
+            return need * 1.02f;
         }
 
         void UpdateHover()
@@ -102,33 +143,15 @@ namespace SpawnRowDuel.View
 
             _board.Paint(_selected.Value, _board.SelectMaterial);
 
-            // Show exactly what the rules engine says is one step away. This is Board.Neighbours,
-            // not a view-side reimplementation - the picture cannot disagree with the rules.
+            // Exactly what the rules engine says is one step away - Board.Neighbours, never a
+            // view-side reimplementation, so the picture cannot disagree with the rules.
             Span<CellRef> buf = stackalloc CellRef[8];
-            int n = Board.Neighbours(_selected.Value, buf);
+            int n = Rules.Board.Neighbours(_selected.Value, buf);
             for (int i = 0; i < n; i++)
             {
                 _highlighted.Add(buf[i]);
                 _board.Paint(buf[i], _board.HoverMaterial);
             }
-        }
-
-        void OnGUI()
-        {
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 14 };
-            style.normal.textColor = Color.white;
-
-            GUI.Box(new Rect(10, 10, 340, 132), GUIContent.none);
-            var y = 16f;
-            Action<string> line = s => { GUI.Label(new Rect(20, y, 330, 20), s, style); y += 19f; };
-
-            line("Spawn Row Duel - board scaffold");
-            line("angle: " + (_tilted ? "Tilted (diorama)" : "Top-Down") + "   [Tab/Space]");
-            line("hover: " + (_hover.HasValue ? _hover.Value.ToString() : "-"));
-            line("selected: " + (_selected.HasValue ? _selected.Value.ToString() : "-")
-                 + (_selected.HasValue ? "   neighbours: " + _highlighted.Count : ""));
-            line("left-click select, right-click clear");
-            line("placeholder - no cards or rules wired up yet");
         }
     }
 }

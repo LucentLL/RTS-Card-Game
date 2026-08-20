@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &664560126
+--- !u!1 &490691323
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,74 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 664560129}
-  - component: {fileID: 664560128}
-  - component: {fileID: 664560127}
-  m_Layer: 0
-  m_Name: Board
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &664560127
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 664560126}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51aff336e51599a42bb7c20ee850df32, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: SpawnRowDuel.View::SpawnRowDuel.View.BoardInput
-  Cam: {fileID: 1207785568}
---- !u!114 &664560128
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 664560126}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d17a75e1aa049494f8c1fd67a51a8a9e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: SpawnRowDuel.View::SpawnRowDuel.View.BoardView
-  CellMaterial: {fileID: 2100000, guid: be49359f6ac450e47ba1655742b6f4ef, type: 2}
-  LaneMaterial: {fileID: 2100000, guid: 53b86068e4e6b8b4e9f2c026933af6c7, type: 2}
-  StructureSlotMaterial: {fileID: 2100000, guid: 80f0846bf057f3a469c41078204f4719, type: 2}
-  WallMaterial: {fileID: 2100000, guid: 184e215c4f945a648953f34983e8075c, type: 2}
-  HoverMaterial: {fileID: 2100000, guid: 98c5229caa7f5fd47906107ffc81745e, type: 2}
-  SelectMaterial: {fileID: 2100000, guid: c49d59dbdbcedbd47841ec6862b438d3, type: 2}
-  CellSize: 1
-  CellGap: 0.08
---- !u!4 &664560129
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 664560126}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1207785567
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1207785569}
-  - component: {fileID: 1207785568}
+  - component: {fileID: 490691325}
+  - component: {fileID: 490691324}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -202,13 +136,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!20 &1207785568
+--- !u!20 &490691324
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1207785567}
+  m_GameObject: {fileID: 490691323}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -253,13 +187,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &1207785569
+--- !u!4 &490691325
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1207785567}
+  m_GameObject: {fileID: 490691323}
   serializedVersion: 2
   m_LocalRotation: {x: 0.35836798, y: 0, z: 0, w: 0.93358046}
   m_LocalPosition: {x: 0, y: 6.4, z: -6.9}
@@ -268,7 +202,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1240835436
+--- !u!1 &701639565
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -276,8 +210,102 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1240835438}
-  - component: {fileID: 1240835437}
+  - component: {fileID: 701639570}
+  - component: {fileID: 701639569}
+  - component: {fileID: 701639568}
+  - component: {fileID: 701639567}
+  - component: {fileID: 701639566}
+  m_Layer: 0
+  m_Name: Board
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &701639566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 701639565}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8cca29cb29aa42469ce4dbb02eb03ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SpawnRowDuel.View::SpawnRowDuel.View.MatchHud
+--- !u!114 &701639567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 701639565}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 290a6b2c50ddac44e8bc942358156c8c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SpawnRowDuel.View::SpawnRowDuel.View.MatchController
+  Database: {fileID: 11400000, guid: ca578f6ff6792014ebfa428b0fc22aee, type: 2}
+  Board: {fileID: 701639569}
+--- !u!114 &701639568
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 701639565}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51aff336e51599a42bb7c20ee850df32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SpawnRowDuel.View::SpawnRowDuel.View.BoardInput
+  Cam: {fileID: 490691324}
+--- !u!114 &701639569
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 701639565}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d17a75e1aa049494f8c1fd67a51a8a9e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SpawnRowDuel.View::SpawnRowDuel.View.BoardView
+  CellMaterial: {fileID: 2100000, guid: be49359f6ac450e47ba1655742b6f4ef, type: 2}
+  LaneMaterial: {fileID: 2100000, guid: 53b86068e4e6b8b4e9f2c026933af6c7, type: 2}
+  StructureSlotMaterial: {fileID: 2100000, guid: 80f0846bf057f3a469c41078204f4719, type: 2}
+  WallMaterial: {fileID: 2100000, guid: 184e215c4f945a648953f34983e8075c, type: 2}
+  HoverMaterial: {fileID: 2100000, guid: 98c5229caa7f5fd47906107ffc81745e, type: 2}
+  SelectMaterial: {fileID: 2100000, guid: c49d59dbdbcedbd47841ec6862b438d3, type: 2}
+  CellSize: 1
+  CellGap: 0.08
+--- !u!4 &701639570
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 701639565}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1448423350
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1448423352}
+  - component: {fileID: 1448423351}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -285,13 +313,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!108 &1240835437
+--- !u!108 &1448423351
 Light:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1240835436}
+  m_GameObject: {fileID: 1448423350}
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 1
@@ -350,13 +378,13 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!4 &1240835438
+--- !u!4 &1448423352
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1240835436}
+  m_GameObject: {fileID: 1448423350}
   serializedVersion: 2
   m_LocalRotation: {x: 0.3928775, y: -0.23644298, z: 0.105271205, w: 0.8824172}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -369,6 +397,6 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1207785569}
-  - {fileID: 1240835438}
-  - {fileID: 664560129}
+  - {fileID: 490691325}
+  - {fileID: 1448423352}
+  - {fileID: 701639570}

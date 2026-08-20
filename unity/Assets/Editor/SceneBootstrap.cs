@@ -71,6 +71,18 @@ public static class SceneBootstrap
         var input = boardGo.AddComponent<BoardInput>();
         input.Cam = cam;
 
+        // The engine wiring: a real match on the real rules core, booted from the imported
+        // card database. The serialized reference is what pulls the database (and every
+        // CardDefinition it indexes) into the build.
+        var match = boardGo.AddComponent<MatchController>();
+        match.Board = view;
+        match.Database = AssetDatabase.LoadAssetAtPath<SpawnRowDuel.Data.CardDatabase>(
+            "Assets/Game/Data/CardDatabase.asset");
+        if (match.Database == null)
+            Debug.LogWarning("[scene] CardDatabase.asset missing - run the card importer first");
+
+        boardGo.AddComponent<MatchHud>();
+
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };

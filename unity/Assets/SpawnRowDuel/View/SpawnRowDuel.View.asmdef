@@ -1,7 +1,7 @@
 {
     "name": "SpawnRowDuel.View",
     "rootNamespace": "SpawnRowDuel.View",
-    "references": [ "SpawnRowDuel.Rules" ],
+    "references": [ "SpawnRowDuel.Rules", "SpawnRowDuel.Data" ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
