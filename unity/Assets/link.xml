@@ -1,0 +1,7 @@
+<linker>
+  <!-- The board and its pick-colliders are generated AT RUNTIME from the rules geometry, so
+       nothing in any serialized scene references physics - and the WebGL engine stripper
+       removed the whole Physics module, killing every collider add and Physics.Raycast
+       (hover/tap picking). Preserve it explicitly. -->
+  <assembly fullname="UnityEngine.PhysicsModule" preserve="all" />
+</linker>

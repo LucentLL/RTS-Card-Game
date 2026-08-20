@@ -59,6 +59,13 @@ public static class SceneBootstrap
         light.shadows = LightShadows.Soft;
         lightGo.transform.rotation = Quaternion.Euler(48f, -30f, 0f);
 
+        // A baked collider so the scene itself references the Physics module - the runtime-
+        // generated board is invisible to the engine stripper (belt to link.xml's braces).
+        var anchor = new GameObject("PhysicsAnchor");
+        var anchorCol = anchor.AddComponent<BoxCollider>();
+        anchorCol.size = Vector3.one * 0.01f;
+        anchor.transform.position = new Vector3(0f, -50f, 0f);
+
         var boardGo = new GameObject("Board");
         var view = boardGo.AddComponent<BoardView>();
         view.CellMaterial = mCell;
