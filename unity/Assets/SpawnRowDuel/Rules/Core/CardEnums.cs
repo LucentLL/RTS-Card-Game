@@ -29,7 +29,8 @@ namespace SpawnRowDuel.Rules
         Overcharge = 8,
     }
 
-    public enum Tribe : byte { None = 0, Dragon = 1 }
+    /// <summary>Declared registry vocabulary is Human+Dragon; only Dragon is used by a card today.</summary>
+    public enum Tribe : byte { None = 0, Dragon = 1, Human = 2 }
 
     public enum Subtype : byte { None = 0, Warrior = 1, Wizard = 2 }
 
