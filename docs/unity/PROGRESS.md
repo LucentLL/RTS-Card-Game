@@ -109,3 +109,23 @@ BlockerRequest/AbsorberRequest/RetaliationRequest round-trips through RespondCom
 First Strike, the blocked/open partition, wall damage accumulation, LegacyCombat.FocusFire for
 worker stacks, cleanup re-sweeps, checkWin -> MatchEnded. Gate: worked examples A and B from
 spec 03 s15 reproduced exactly. Then wire DeclareAttack + the choice prompts into the sandbox.
+
+### 2026-08-21 — layout overhaul + editor Play fix (147 tests)
+
+* **Editor**: `EditorStartup.cs` pins `playModeStartScene` to Battle.unity on every domain load
+  (re-applied post-import, mid-refresh re-queues, batchmode untouched) and opens Battle when a
+  session starts untitled — pressing Play in the editor now always runs the game. Latent note:
+  if PlayMode tests ever run non-batch (M8+), clear the pin during test runs.
+* **HUD**: scales by the SHORT side (~480 logical) and lays out in BANDS — opaque top bar,
+  opaque bottom band (hand/contextual/action rows), camera viewport shrunk to the gap via
+  `HudLayout` — so board and UI can never overlap; landscape no longer inherits portrait math.
+  Build menu = opaque clamped scrolling panel; hand strip scrolls past 11 cards; unit overlays
+  size to their on-screen cell pitch and clip; log auto-hides after 5 s; a minimal upkeep
+  settle UI (PAY / SACRIFICE on the selected creature) closes the shortfall softlock.
+* **Input arbitration (found by the 14-agent adversarial review, verify pass refuted 6/10
+  claims)**: legacy Input never sees IMGUI consume events and Update precedes OnGUI, so menu
+  taps ALSO tapped the board behind them (one tap could move a creature and open a build).
+  BoardInput accepts taps/hover only inside `Cam.pixelRect` and outside published
+  `HudLayout.MenuPx/LogPx`; band taps no longer clear the selection, which FILL/FLIP and
+  PAY/SACRIFICE depend on. Standee sprites billboard to the camera (fixed lean went edge-on
+  top-down). Deployed and pixel-verified in BOTH orientations; console clean.
