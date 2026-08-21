@@ -187,6 +187,30 @@ namespace SpawnRowDuel.Rules
         }
 
         /// <summary>
+        /// spellText (13_input.js:63-70). The only in-game documentation a spell or trap has, so
+        /// the strings are part of the port, not decoration - a player deciding whether to spring
+        /// a trap is reading this. Keyed on effect, like everything else here.
+        /// </summary>
+        public static string TextOf(SpellCard card)
+        {
+            if (card == null) return "";
+            int v = card.Value ?? 0;
+            switch (card.Effect)
+            {
+                case SpellEffect.Burn:
+                    return card.IsTrap
+                        ? "Backlash. When your line is struck, every attacker takes " + v + "."
+                        : "Bolt. Deal " + v + " damage to an enemy creature, structure, or face-down card.";
+                case SpellEffect.Raze: return "Sunder. Destroy a target enemy structure.";
+                case SpellEffect.Pitfall: return "Snare. When your opponent summons a creature, destroy it.";
+                case SpellEffect.Chain: return "Arc. Deal " + v + " to the two highest-attack enemy creatures.";
+                case SpellEffect.Bounce: return "Riptide. Return target enemy creature to its owner's hand (Entrench resists).";
+                case SpellEffect.Thornmail: return "Overgrowth. When your line is struck, the defending creature gains +500/+1000 permanently.";
+                default: return "A spell.";
+            }
+        }
+
+        /// <summary>
         /// spellRec (13_input.js:71): a spent spell leaves a card in the grave. It shares the
         /// Trap kind because the JS graves both as `type:'spell'` - and because that is exactly
         /// what keeps the Reliquary, which only recalls creatures, from ever returning one.

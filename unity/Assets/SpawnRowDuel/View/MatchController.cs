@@ -13,7 +13,9 @@ namespace SpawnRowDuel.View
     /// view-side reimplementation, so the picture cannot disagree with the rules.
     ///
     /// The opponent is still a command feeder on a timer (M11 replaces it with the scripted
-    /// AI): harvest, draw, one greedy summon, end.
+    /// AI): harvest, draw, one spell or trap, one greedy summon, storm the wall, end - and it
+    /// answers its own response windows by springing the first armed trap, which is what the
+    /// JS auto-spring did.
     /// </summary>
     public class MatchController : MonoBehaviour
     {
@@ -39,6 +41,7 @@ namespace SpawnRowDuel.View
 
         private float _beat;
         private bool _foeActed;
+        private bool _foePlayedSpell;
         private bool _foeAttacked;
 
         private readonly List<Transform>[,] _pawns = new List<Transform>[2, 3];
@@ -261,16 +264,23 @@ namespace SpawnRowDuel.View
 
             // parked choices the FOE must answer - the stand-in policy, not an AI:
             // block with the ported defending heuristic, absorb/retaliate at index 0 (the JS
-            // defender's hardcoded pick). Choices for YOU wait on the HUD.
+            // defender's hardcoded pick), and spring the first armed trap - which is exactly
+            // what the JS's auto-spring did before the window existed. Choices for YOU wait
+            // on the HUD.
             if (s.Pending != null)
             {
                 if (s.Pending.Responder != Side.Foe) return;
                 _beat = 0f;
 
                 var blockerReq = s.Pending as BlockerRequest;
+                var windowReq = s.Pending as ResponseWindowRequest;
                 if (blockerReq != null)
                     Apply(new RespondCommand(Side.Foe,
                         new BlockersChosen(AiPolicy.ChooseInterceptors(s, blockerReq))));
+                else if (windowReq != null)
+                    Apply(new RespondCommand(Side.Foe, windowReq.ArmedTraps.Length > 0
+                        ? new TrapChosen(windowReq.ArmedTraps[0])
+                        : TrapChosen.Passed));
                 else
                     Apply(new RespondCommand(Side.Foe, new IndexChosen(0)));
                 return;
@@ -285,9 +295,12 @@ namespace SpawnRowDuel.View
                     case TurnPhase.Draw:
                         Apply(new DrawForTurnCommand(Side.Foe));
                         _foeActed = false;
+                        _foePlayedSpell = false;
                         _foeAttacked = false;
                         break;
                     case TurnPhase.Action:
+                        if (!_foePlayedSpell && FoePlaysASpell()) { _foePlayedSpell = true; break; }
+                        _foePlayedSpell = true;
                         if (!_foeActed && FoeSummonsSomething()) { _foeActed = true; break; }
                         _foeActed = true;
                         if (!_foeAttacked && FoeDeclaresAnAttack()) break;
@@ -336,6 +349,56 @@ namespace SpawnRowDuel.View
         void Apply(ICommand cmd)
         {
             if (Engine.Apply(cmd).Applied) Touch();
+        }
+
+        /// <summary>
+        /// One spell OR one trap per foe turn, so M10 is visible from the player's side of the
+        /// table: cast the costliest spell that has a legal target, else lay a trap in the back
+        /// row. Deliberately naive - the real spell decisions are M11's aiPickTarget.
+        /// </summary>
+        bool FoePlaysASpell()
+        {
+            var s = Engine.State;
+            var hand = s.P(Side.Foe).Hand;
+
+            int bestIdx = -1, bestCost = -1;
+            CellRef bestTarget = default(CellRef);
+            for (int i = 0; i < hand.Count; i++)
+            {
+                SpellCard sp;
+                if (!Engine.Catalog.TrySpell(hand[i].Id, out sp) || sp.IsTrap) continue;
+                if (sp.Cost > s.P(Side.Foe).Mana || sp.Cost <= bestCost) continue;
+
+                var targets = SpellTargeting.Targets(s, sp, Side.Foe);
+                for (int t = 0; t < targets.Count; t++)
+                {
+                    var cmd = new PlayCardCommand(Side.Foe, i, Rules.PlayMode.Cast, targets[t]);
+                    if (Engine.CanApply(cmd) != Rejection.None) continue;
+                    bestIdx = i; bestCost = sp.Cost; bestTarget = targets[t];
+                    break;
+                }
+            }
+            if (bestIdx >= 0)
+            {
+                Apply(new PlayCardCommand(Side.Foe, bestIdx, Rules.PlayMode.Cast, bestTarget));
+                return true;
+            }
+
+            for (int i = 0; i < hand.Count; i++)
+            {
+                SpellCard sp;
+                if (!Engine.Catalog.TrySpell(hand[i].Id, out sp) || !sp.IsTrap) continue;
+                var back = Rules.Board.RowFor(Side.Foe, SlotName.Back);
+                for (int col = Rules.Board.Columns - 1; col >= 0; col--)
+                {
+                    var cmd = new PlayCardCommand(Side.Foe, i, Rules.PlayMode.SetTrap,
+                        new CellRef(back, col));
+                    if (Engine.CanApply(cmd) != Rejection.None) continue;
+                    Apply(cmd);
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -456,10 +519,30 @@ namespace SpawnRowDuel.View
                        wall.Amount + " — ♥" + wall.LifeRemaining + " remains";
 
             var bounced = ev as UnitBounced;
-            if (bounced != null) return "Undertow! A creature is hurled back to hand";
+            if (bounced != null)
+                return (bounced.Cause == BounceCause.Undertow ? "Undertow! " : "") +
+                       "A creature is hurled back to " +
+                       (bounced.ToHand == Side.You ? "your" : "their") + " hand";
 
             var sprung = ev as TrapSprung;
             if (sprung != null) return sprung.Card.Value + " springs!";
+
+            var token = ev as TokenSpawned;
+            if (token != null)
+                return (token.Owner == Side.You ? "You conjure " : "They conjure ") + token.Name +
+                       " (" + token.Attack / 500 + "/" + (token.Hp + 499) / 500 + ")";
+
+            var hatched = ev as CreatureHatched;
+            if (hatched != null)
+                return "It hatches! " + hatched.NewName + " ⚔" + hatched.Attack / 500 +
+                       "/♥" + (hatched.Hp + 499) / 500;
+
+            var grew = ev as ChrysalisGrew;
+            if (grew != null) return "A cocoon swells (" + grew.Count + "/" + grew.HatchAt + ")";
+
+            var cast = ev as SpellResolved;
+            if (cast != null)
+                return (cast.Caster == Side.You ? "You cast " : "They cast ") + cast.Card.Value;
 
             var ended = ev as MatchEnded;
             if (ended != null) return "— MATCH OVER: " + ended.Outcome + " —";
@@ -615,6 +698,18 @@ namespace SpawnRowDuel.View
                 spriteGo.transform.localScale = new Vector3(scale, scale, scale);
                 spriteGo.transform.localPosition = new Vector3(0f, 0.12f + 0.95f * 0.5f, 0f);
                 // rotation is set every frame in ReconcileStandees - full camera billboard
+            }
+            else if (o is CreatureUnit && ((CreatureUnit)o).IsToken)
+            {
+                // Lumen and Shade have no registry card and so no art at all - give them a
+                // small conjured orb rather than a card back, which reads as a face-down
+                var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Destroy(orb.GetComponent<Collider>());
+                orb.transform.SetParent(root.transform, false);
+                orb.transform.localPosition = new Vector3(0f, 0.28f, 0f);
+                orb.transform.localScale = new Vector3(0.34f, 0.34f, 0.34f);
+                orb.GetComponent<MeshRenderer>().sharedMaterial = Board.CellMaterial;
+                Tint(orb.transform, o.Owner, false, false);
             }
             else
             {

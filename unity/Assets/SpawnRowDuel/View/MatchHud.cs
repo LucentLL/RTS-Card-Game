@@ -280,8 +280,10 @@ namespace SpawnRowDuel.View
                         if (GUI.Button(new Rect(w / 2f - 60, by, 120, 24), "SET TRAP ◆1", _button))
                             Arm(Rules.PlayMode.SetTrap);
                     }
-                    else
-                        GUI.Label(new Rect(0, by, w, 24), "spells cast at M10 — hold on to it", _center);
+                    else if (!SpellTargeting.HasAnyTarget(s, sp, Side.You))
+                        GUI.Label(new Rect(0, by, w, 24), "no legal target for " + sp.Name, _center);
+                    else if (GUI.Button(new Rect(w / 2f - 60, by, 120, 24), "CAST ◆" + sp.Cost, _button))
+                        Arm(Rules.PlayMode.Cast);
                 }
                 return;
             }
@@ -459,6 +461,12 @@ namespace SpawnRowDuel.View
             var blocker = pending as BlockerRequest;
             var absorber = pending as AbsorberRequest;
             var retaliation = pending as RetaliationRequest;
+            var window = pending as ResponseWindowRequest;
+            if (window != null)
+            {
+                DrawResponseWindow(s, window, w, h);
+                return;
+            }
             if (blocker != null)
             {
                 title = "BLOCK " + UnitLabel(s, blocker.AttackerId) + "?";
@@ -528,6 +536,61 @@ namespace SpawnRowDuel.View
             }
         }
 
+        /// <summary>
+        /// The response window: your set traps, offered against something the opponent just did.
+        /// One button per armed trap plus HOLD.
+        ///
+        /// The anti-tell pause the JS ran here (a constant-length "opponent may respond…" pill,
+        /// 30_resp.js) is still owed - it belongs on the ACTING side, and it is a view concern
+        /// by design, so it lands with the presentation pass rather than in the rules.
+        /// </summary>
+        void DrawResponseWindow(GameState s, ResponseWindowRequest req, float w, float h)
+        {
+            const float rowH = 26f;
+            const float pw = 300f;
+
+            string what = req.Trigger == TrapTrigger.Summon
+                ? "The opponent summons " + UnitLabel(s, req.Subject.UnitId)
+                : "Your line is struck" + (req.Subject.UnitId != 0
+                    ? " — " + UnitLabel(s, req.Subject.UnitId) + " defends" : "");
+
+            float contentH = req.ArmedTraps.Length * (rowH + 20) + rowH + 46;
+            float regionTop = TopH + 6;
+            float regionBottom = h - BottomH - 6;
+            float ph = Mathf.Min(contentH, regionBottom - regionTop);
+            float py = regionTop + (regionBottom - regionTop - ph) / 2f;
+            var panel = new Rect(w / 2f - pw / 2f, py, pw, ph);
+
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            GUI.Label(new Rect(panel.x + 8, panel.y + 4, pw - 16, 20), "RESPOND?", _small);
+            GUI.Label(new Rect(panel.x + 8, panel.y + 22, pw - 16, 20), what, _small);
+
+            float y = panel.y + 46;
+            for (int i = 0; i < req.ArmedTraps.Length; i++)
+            {
+                var trapUnit = s.FindById(req.ArmedTraps[i].UnitId, out _, out _) as TrapUnit;
+                string label = "⚠ " + (trapUnit != null ? trapUnit.Card.Value : "trap");
+                if (GUI.Button(new Rect(panel.x + 8, y, pw - 16, rowH - 3), label, _button))
+                    Try(new RespondCommand(Side.You, new TrapChosen(req.ArmedTraps[i])));
+                y += rowH;
+
+                // what it actually does - nobody should have to remember their own set cards
+                SpellCard card;
+                if (trapUnit != null && _match.Engine.Catalog.TrySpell(trapUnit.Card, out card))
+                {
+                    GUI.Label(new Rect(panel.x + 14, y - 4, pw - 22, 24), SpellEngine.TextOf(card),
+                        _small);
+                    y += 20;
+                }
+            }
+
+            if (GUI.Button(new Rect(panel.x + 8, y, pw - 16, rowH - 3), "HOLD", _button))
+                Try(new RespondCommand(Side.You, TrapChosen.Passed));
+        }
+
         string UnitLabel(GameState s, int unitId)
         {
             CellRef at;
@@ -570,11 +633,23 @@ namespace SpawnRowDuel.View
 
                 var cr = o as CreatureUnit;
                 var b = o as StructureUnit;
+                int lineH = roomy ? 26 : 13;
                 if (cr != null)
                 {
                     string stats = cr.EffectiveAttack / 500 + "/" + (cr.Hp + 499) / 500 +
                                    (cr.Bank > 0 ? " ◆" + cr.Bank : "");
-                    text = roomy ? cr.Name + "\n" + stats : stats;   // tight cells keep the numbers
+                    // the two keywords whose state CHANGES have to be readable on the board -
+                    // a cocoon's progress and a banked discharge are decisions, not flavour
+                    string kw = "";
+                    if (cr.Keyword == Keyword.Chrysalis)
+                        kw = "Chrysalis " + cr.ChrysalisCount + "/" + (cr.Hatch > 0 ? cr.Hatch : 3);
+                    else if (cr.Keyword == Keyword.Overcharge && cr.OverchargeBank > 0)
+                        kw = "Overcharge ◆" + cr.OverchargeBank;
+                    else kw = KeywordEngine.LabelOf(cr);
+
+                    text = roomy ? cr.Name + "\n" + stats + (kw.Length > 0 ? "\n" + kw : "")
+                                 : stats;                    // tight cells keep the numbers
+                    if (roomy && kw.Length > 0) lineH = 38;
                     st = cr.Owner == Side.You ? _ovYou : _ovFoe;
                 }
                 else if (b != null)
@@ -595,7 +670,7 @@ namespace SpawnRowDuel.View
                     st = _ovNeutral;
                 }
 
-                GUI.Label(new Rect(x - pitchPx / 2f, y, pitchPx, roomy ? 26 : 13), text, st);
+                GUI.Label(new Rect(x - pitchPx / 2f, y, pitchPx, lineH), text, st);
             }
         }
 

@@ -136,7 +136,14 @@ namespace SpawnRowDuel.Rules
                         s.Put(m.To, cr);
                         ev.Add(new UnitSummoned(cr.Id, m.To));
 
-                        WorkerMath.Resync(s, m.Actor, cat);          // afterDeploy, BEFORE the trap
+                        // afterDeploy runs BEFORE the trap resolves - which is the RESP-layer
+                        // ordering, not the bare place() one. RESP.actingGate defers
+                        // foeTrapOnSummon to the end of its window (30_resp.js:118-121), so the
+                        // synchronous tail - syncWorkers included - has already run by the time
+                        // the trap springs. It is observable: a trapped creature's upkeep is
+                        // counted into the worker figure and stays counted until the next
+                        // resync, because cleanup() deliberately does not resync.
+                        WorkerMath.Resync(s, m.Actor, cat);
                         Triggers.CreatureSummoned(s, cr, m.To, m.Actor, cat, ev);
                         return;
                     }
