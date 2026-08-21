@@ -38,6 +38,8 @@ namespace SpawnRowDuel.View
         private float _scale = 1f;
         private int _lastLogCount;
         private float _logShownUntil;
+        private readonly HashSet<int> _chosenBlockers = new HashSet<int>();
+        private PendingRequest _seenPending;
 
         private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center;
         private GUIStyle _ovYou, _ovFoe, _ovNeutral;
@@ -123,6 +125,7 @@ namespace SpawnRowDuel.View
             DrawModeRow(s, w, h);
             DrawActionRow(s, w, h);
             if (_buildMenuOpen) DrawBuildMenu(s, w, h);
+            DrawChoicePanel(s, w, h);
 
             if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
                 GUI.Label(new Rect(0, h - BottomH - 22, w, 20), _hint, _center);
@@ -308,6 +311,18 @@ namespace SpawnRowDuel.View
                     return;
                 }
 
+                // an aimed attacker: enemy targets are lit; the wall is a button
+                var atk = s.At(cell) as CreatureUnit;
+                if (atk != null && atk.Owner == Side.You && s.Phase == TurnPhase.Action
+                    && _match.Engine.CanApply(new DeclareAttackCommand(Side.You, cell, atk.Id,
+                        new WallTarget(Side.Foe))) == Rejection.None)
+                {
+                    GUI.Label(new Rect(6, by, w / 2f - 135, 24), "tap a target, or:", _small);
+                    if (GUI.Button(new Rect(w / 2f - 125, by, 250, 24), "⚔ STRIKE THE WALL", _button))
+                        Try(new DeclareAttackCommand(Side.You, cell, atk.Id, new WallTarget(Side.Foe)));
+                    return;
+                }
+
                 // Upkeep settle: Move is the lit cells; Pay / Sacrifice live here
                 var cr = s.At(cell) as CreatureUnit;
                 if (cr != null && cr.Owner == Side.You && !cr.IsWorker && s.Phase == TurnPhase.Upkeep)
@@ -340,9 +355,13 @@ namespace SpawnRowDuel.View
 
             if (s.Turn != Side.You || s.Phase == TurnPhase.End) return;
 
+            bool resolving = s.Phase == TurnPhase.Action && s.Combat.HasDeclarations;
             string caption = s.Phase == TurnPhase.Upkeep ? "HARVEST"
-                : s.Phase == TurnPhase.Draw ? "DRAW" : "END TURN";
+                : s.Phase == TurnPhase.Draw ? "DRAW"
+                : resolving ? "⚔ RESOLVE (" + s.Combat.Declarations.Count + ")"
+                : "END TURN";
 
+            GUI.enabled = s.Pending == null;
             if (GUI.Button(new Rect(w / 2f - 75, by, 150, 40), caption, _bigButton))
             {
                 _selectedHandIndex = -1;
@@ -350,8 +369,10 @@ namespace SpawnRowDuel.View
                 _match.CancelPending();
                 Try(s.Phase == TurnPhase.Upkeep ? new HarvestCommand(Side.You)
                     : s.Phase == TurnPhase.Draw ? (ICommand)new DrawForTurnCommand(Side.You)
+                    : resolving ? new ResolveCombatCommand(Side.You)
                     : new EndTurnCommand(Side.You));
             }
+            GUI.enabled = true;
 
             if (s.Phase == TurnPhase.Action)
             {
@@ -412,6 +433,114 @@ namespace SpawnRowDuel.View
         }
 
         // ---- board overlays -------------------------------------------------------------------
+
+        /// <summary>
+        /// A parked combat choice YOU must answer: assign blockers to an incoming attack,
+        /// pick the absorber for your gang-blocked attacker, or pick who your creature strikes
+        /// back at. An opaque centered panel that publishes its rect so the board cannot be
+        /// tapped through it; there is no cancel - the duel waits on the answer.
+        /// </summary>
+        void DrawChoicePanel(GameState s, float w, float h)
+        {
+            var pending = s.Pending;
+            if (pending == null || pending.Responder != Side.You) return;
+
+            if (!ReferenceEquals(pending, _seenPending))
+            {
+                _seenPending = pending;
+                _chosenBlockers.Clear();
+            }
+
+            const float rowH = 26f;
+            const float pw = 300f;
+
+            string title = "";
+            UnitRef[] options = null;
+            var blocker = pending as BlockerRequest;
+            var absorber = pending as AbsorberRequest;
+            var retaliation = pending as RetaliationRequest;
+            if (blocker != null)
+            {
+                title = "BLOCK " + UnitLabel(s, blocker.AttackerId) + "?";
+                options = blocker.Eligible;
+            }
+            else if (absorber != null)
+            {
+                title = "ASSIGN THE BLOW — " + UnitLabel(s, absorber.AttackerId) + " is gang-blocked";
+                options = absorber.Blockers;
+            }
+            else if (retaliation != null)
+            {
+                title = "STRIKE BACK — " + UnitLabel(s, retaliation.DefenderId) + " retaliates at:";
+                options = retaliation.Attackers;
+            }
+            else return;
+
+            int extraRows = blocker != null ? 2 : 1;           // commit/pass rows
+            float contentH = (options.Length + extraRows) * rowH + 30;
+            float regionTop = TopH + 6;
+            float regionBottom = h - BottomH - 6;
+            float ph = Mathf.Min(contentH, regionBottom - regionTop);
+            float py = regionTop + (regionBottom - regionTop - ph) / 2f;
+            var panel = new Rect(w / 2f - pw / 2f, py, pw, ph);
+
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            GUI.Label(new Rect(panel.x + 8, panel.y + 4, pw - 16, 22), title, _small);
+            float y = panel.y + 28;
+
+            for (int i = 0; i < options.Length; i++)
+            {
+                string label = UnitLabel(s, options[i].UnitId);
+                if (blocker != null)
+                {
+                    bool on = _chosenBlockers.Contains(i);
+                    if (GUI.Button(new Rect(panel.x + 8, y, pw - 16, rowH - 3),
+                            (on ? "✔ " : "   ") + label, _button))
+                    {
+                        if (on) _chosenBlockers.Remove(i);
+                        else _chosenBlockers.Add(i);
+                    }
+                }
+                else
+                {
+                    if (GUI.Button(new Rect(panel.x + 8, y, pw - 16, rowH - 3), label, _button))
+                        Try(new RespondCommand(Side.You, new IndexChosen(i)));
+                }
+                y += rowH;
+            }
+
+            if (blocker != null)
+            {
+                if (GUI.Button(new Rect(panel.x + 8, y, (pw - 20) / 2f, rowH - 3),
+                        "COMMIT (" + _chosenBlockers.Count + ")", _button))
+                {
+                    var picks = new List<UnitRef>();
+                    for (int i = 0; i < options.Length; i++)
+                        if (_chosenBlockers.Contains(i)) picks.Add(options[i]);
+                    Try(new RespondCommand(Side.You, new BlockersChosen(picks.ToArray())));
+                }
+                if (GUI.Button(new Rect(panel.x + 12 + (pw - 20) / 2f, y, (pw - 20) / 2f, rowH - 3),
+                        "LET IT THROUGH", _button))
+                    Try(new RespondCommand(Side.You, new BlockersChosen(new UnitRef[0])));
+            }
+        }
+
+        string UnitLabel(GameState s, int unitId)
+        {
+            CellRef at;
+            bool onBoard;
+            var o = s.FindById(unitId, out at, out onBoard);
+            var c = o as CreatureUnit;
+            if (c != null)
+                return c.Name + " " + c.EffectiveAttack / 500 + "/" + (c.Hp + 499) / 500 +
+                       (c.IsWorker ? " (worker)" : "");
+            var b = o as StructureUnit;
+            if (b != null) return b.DefId.Value;
+            return "unit " + unitId;
+        }
 
         void DrawUnitOverlays(GameState s, float scale, float w, float h)
         {

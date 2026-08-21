@@ -22,6 +22,7 @@ namespace SpawnRowDuel.View
         private CellRef? _selected;
         private readonly List<CellRef> _highlighted = new List<CellRef>();
         private readonly List<CellRef> _legalMoves = new List<CellRef>();
+        private readonly List<CellRef> _legalAttacks = new List<CellRef>();
         private int _seenVersion = -1;
 
         public CellRef? Hover { get { return _hover; } }
@@ -81,20 +82,37 @@ namespace SpawnRowDuel.View
                 return;
             }
 
-            // 3. otherwise select, and light what the engine says this unit may do
+            // 3. a lit enemy object declares an attack - aim, then tap the target
+            if (_selected.HasValue && _legalAttacks.Contains(cell.Value))
+            {
+                _match.TryAttack(_selected.Value, cell.Value);
+                ClearSelection();
+                return;
+            }
+
+            // 4. otherwise select, and light what the engine says this unit may do
             ClearSelection();
             _selected = cell;
             _board.Paint(cell.Value, _board.SelectMaterial);
+            LightLegal(cell.Value);
+        }
 
-            if (_match != null)
+        void LightLegal(CellRef from)
+        {
+            if (_match == null) return;
+            _legalMoves.Clear();
+            _legalMoves.AddRange(_match.LegalMovesFor(from));
+            _legalAttacks.Clear();
+            _legalAttacks.AddRange(_match.LegalAttacksFor(from));
+            foreach (var c in _legalMoves)
             {
-                _legalMoves.Clear();
-                _legalMoves.AddRange(_match.LegalMovesFor(cell.Value));
-                foreach (var c in _legalMoves)
-                {
-                    _highlighted.Add(c);
-                    _board.Paint(c, _board.HoverMaterial);
-                }
+                _highlighted.Add(c);
+                _board.Paint(c, _board.HoverMaterial);
+            }
+            foreach (var c in _legalAttacks)
+            {
+                _highlighted.Add(c);
+                _board.Paint(c, _board.HoverMaterial);
             }
         }
 
@@ -103,6 +121,7 @@ namespace SpawnRowDuel.View
             foreach (var c in _highlighted) _board.Restore(c);
             _highlighted.Clear();
             _legalMoves.Clear();
+            _legalAttacks.Clear();
             if (_selected.HasValue) _board.Restore(_selected.Value);
             _selected = null;
         }
@@ -117,6 +136,7 @@ namespace SpawnRowDuel.View
             {
                 if (_selected.HasValue) { _board.Restore(_selected.Value); _selected = null; }
                 _legalMoves.Clear();
+                _legalAttacks.Clear();
                 foreach (var c in _match.LegalCells)
                 {
                     _highlighted.Add(c);
@@ -125,13 +145,7 @@ namespace SpawnRowDuel.View
             }
             else if (_selected.HasValue)
             {
-                _legalMoves.Clear();
-                _legalMoves.AddRange(_match.LegalMovesFor(_selected.Value));
-                foreach (var c in _legalMoves)
-                {
-                    _highlighted.Add(c);
-                    _board.Paint(c, _board.HoverMaterial);
-                }
+                LightLegal(_selected.Value);
             }
         }
 

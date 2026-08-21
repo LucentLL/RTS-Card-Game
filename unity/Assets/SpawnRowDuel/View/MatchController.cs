@@ -39,6 +39,7 @@ namespace SpawnRowDuel.View
 
         private float _beat;
         private bool _foeActed;
+        private bool _foeAttacked;
 
         private readonly List<Transform>[,] _pawns = new List<Transform>[2, 3];
         private readonly Dictionary<int, Transform> _standees = new Dictionary<int, Transform>();
@@ -156,6 +157,40 @@ namespace SpawnRowDuel.View
             return true;
         }
 
+        /// <summary>Enemy cells this creature may legally declare an attack on right now.</summary>
+        public List<CellRef> LegalAttacksFor(CellRef from)
+        {
+            var targets = new List<CellRef>();
+            var u = Engine.State.At(from) as CreatureUnit;
+            if (u == null || u.Owner != Side.You) return targets;
+
+            foreach (var kv in Engine.State.Objects())
+            {
+                if (kv.Value.Owner == Side.You) continue;
+                var cmd = new DeclareAttackCommand(Side.You, from, u.Id,
+                    new UnitTarget(kv.Key, kv.Value.Id));
+                if (Engine.CanApply(cmd) == Rejection.None) targets.Add(kv.Key);
+            }
+            return targets;
+        }
+
+        /// <summary>A tap on an enemy object while one of your ready creatures is selected.</summary>
+        public Rejection TryAttack(CellRef from, CellRef targetCell)
+        {
+            var u = Engine.State.At(from) as CreatureUnit;
+            var t = Engine.State.At(targetCell);
+            if (u == null || t == null) return Rejection.NoSuchUnit;
+            return TryHuman(new DeclareAttackCommand(Side.You, from, u.Id,
+                new UnitTarget(targetCell, t.Id)));
+        }
+
+        public Rejection TryAttackWall(CellRef from)
+        {
+            var u = Engine.State.At(from) as CreatureUnit;
+            if (u == null) return Rejection.NoSuchUnit;
+            return TryHuman(new DeclareAttackCommand(Side.You, from, u.Id, new WallTarget(Side.Foe)));
+        }
+
         /// <summary>Legal one-square moves for a unit, discovered by probing the engine.</summary>
         public List<CellRef> LegalMovesFor(CellRef from)
         {
@@ -224,15 +259,44 @@ namespace SpawnRowDuel.View
             _beat += Time.deltaTime;
             if (_beat < 0.7f) return;
 
+            // parked choices the FOE must answer - the stand-in policy, not an AI:
+            // block with the ported defending heuristic, absorb/retaliate at index 0 (the JS
+            // defender's hardcoded pick). Choices for YOU wait on the HUD.
+            if (s.Pending != null)
+            {
+                if (s.Pending.Responder != Side.Foe) return;
+                _beat = 0f;
+
+                var blockerReq = s.Pending as BlockerRequest;
+                if (blockerReq != null)
+                    Apply(new RespondCommand(Side.Foe,
+                        new BlockersChosen(AiPolicy.ChooseInterceptors(s, blockerReq))));
+                else
+                    Apply(new RespondCommand(Side.Foe, new IndexChosen(0)));
+                return;
+            }
+
             if (s.Turn == Side.Foe)
             {
                 _beat = 0f;
                 switch (s.Phase)
                 {
                     case TurnPhase.Upkeep: Apply(new HarvestCommand(Side.Foe)); break;
-                    case TurnPhase.Draw: Apply(new DrawForTurnCommand(Side.Foe)); _foeActed = false; break;
+                    case TurnPhase.Draw:
+                        Apply(new DrawForTurnCommand(Side.Foe));
+                        _foeActed = false;
+                        _foeAttacked = false;
+                        break;
                     case TurnPhase.Action:
                         if (!_foeActed && FoeSummonsSomething()) { _foeActed = true; break; }
+                        _foeActed = true;
+                        if (!_foeAttacked && FoeDeclaresAnAttack()) break;
+                        _foeAttacked = true;
+                        if (s.Combat.HasDeclarations)
+                        {
+                            Apply(new ResolveCombatCommand(Side.Foe));
+                            break;
+                        }
                         Apply(new EndTurnCommand(Side.Foe));
                         break;
                     case TurnPhase.End: Apply(new BeginTurnCommand(Side.You)); break;
@@ -241,8 +305,29 @@ namespace SpawnRowDuel.View
             else if (s.Phase == TurnPhase.End)
             {
                 _beat = 0f;
-                Apply(new BeginTurnCommand(Side.Foe));
+                Apply(new BeginTurnCommand(Side.You == s.Turn ? Side.Foe : Side.You));
             }
+        }
+
+        /// <summary>Every ready foe creature storms your wall, one declaration per beat - the
+        /// v3 texture (the AI always attacks the wall; defended walls cost bodies).</summary>
+        bool FoeDeclaresAnAttack()
+        {
+            var s = Engine.State;
+            foreach (var kv in s.Objects())
+            {
+                var c = kv.Value as CreatureUnit;
+                if (c == null || c.Owner != Side.Foe || c.IsWorker) continue;
+                if (c.Sick || c.Tapped || c.Hp <= 0) continue;
+
+                var cmd = new DeclareAttackCommand(Side.Foe, kv.Key, c.Id, new WallTarget(Side.You));
+                if (Engine.CanApply(cmd) == Rejection.None)
+                {
+                    Apply(cmd);
+                    return true;
+                }
+            }
+            return false;
         }
 
         void Apply(ICommand cmd)
@@ -352,6 +437,26 @@ namespace SpawnRowDuel.View
             var destroyed = ev as UnitDestroyed;
             if (destroyed != null && destroyed.OnBoard) return "A " +
                 (destroyed.Kind == UnitKind.Building ? "structure is razed" : "creature falls");
+
+            var declared = ev as AttackDeclared;
+            if (declared != null) return "⚔ " + NameOf(declared.AttackerId) + " declares an attack";
+
+            var blocks = ev as BlockersAssigned;
+            if (blocks != null)
+                return blocks.BlockerIds.Length == 0
+                    ? "The attack is let through"
+                    : blocks.BlockerIds.Length + " blocker(s) interpose";
+
+            var wall = ev as WallStruck;
+            if (wall != null)
+                return (wall.Defender == Side.You ? "Your" : "The enemy") + " wall is stormed for ⚔" +
+                       wall.Amount + " — ♥" + wall.LifeRemaining + " remains";
+
+            var bounced = ev as UnitBounced;
+            if (bounced != null) return "Undertow! A creature is hurled back to hand";
+
+            var sprung = ev as TrapSprung;
+            if (sprung != null) return sprung.Card.Value + " springs!";
 
             var ended = ev as MatchEnded;
             if (ended != null) return "— MATCH OVER: " + ended.Outcome + " —";
