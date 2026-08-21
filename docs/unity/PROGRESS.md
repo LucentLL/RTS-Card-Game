@@ -16,9 +16,9 @@ this file is status only.
 | M5 — commands, events, engine, NewMatch | ✅ done | 2026-08-20 (`bc7e94c`) — full command set, processor (Execute re-validates), events, PendingRequest, DuelEngine, NewMatch. **Core API frozen; view work can start in parallel** |
 | M6 — economy, workers, turn machine, upkeep | ✅ done | 2026-08-20 (`08b41d6`) — 12-step BeginTurn, phase guards, doHarvest w/ orphan fallback, Move/Pay/Sacrifice settlement, StructureUpkeep.Tick, vault drain, cleanup sweep, MoveUnit handler pulled forward from M7 |
 | M7 — placement, movement, set/flip, structures | ✅ done | 2026-08-20 (`091becd`) — PlayCard summon/set/settrap + play-on-top, BuildStructure off the commander list w/ lineage prereqs, in-place upgrades w/ damage carry, flip w/ both JS quirks behind flags. Cast waits for M10 |
-| M8 — combat v3 + legacy engine + pending requests | ▶ **next** | request/response types + combat command shapes exist from M5; the whole step machine, blockers, retaliation, damage tiers, checkWin remain |
-| M9 — minimal Unity battle scene | ◕ sandbox | 2026-08-20 — hand strip w/ art thumbnails, tap-to-summon/set/build/flip/move over CanApply-probed lit cells, standees w/ field/card art + stat overlays, greedy-summon foe feeder. Remaining: combat interactions (M8) + settle menus |
-| M10 — keywords, spells, traps, response window | ⬜ | |
+| M8 — combat v3 + legacy engine + pending requests | ✅ done | 2026-08-21 (`9276223`+fixes) — declarations, row-interval blocking, the resolver step machine (resumable mid-combat), pair/target fights w/ two FS tiers, legacy focusFire, traps/provoke/scour, checkWin, the s12 deferred-block cadence. Worked examples A+B reproduce (A: the spec narrative has an arithmetic slip — Rippler retaliates 1000, Ashfang dies) |
+| M9 — minimal Unity battle scene | ✅ playable duel | 2026-08-21 — full combat in the sandbox: aim-and-tap attacks, wall strikes, blocker/absorber/retaliation choice panels, the foe storms the wall with the mirrored cadence and defends with the ported heuristic. A duel can be won or lost on the Pages build |
+| M10 — keywords, spells, traps, response window | ▶ **next** | detonate/reap death triggers (DeathSweep seam), ward/chrysalis registry fold-in, spell casting, response-window CHOICE, and the confirmed HandCard-snapshot debt (Undertow bounce / revive lose in-play stats) |
 | M11 — scripted AI (vertical slice) | ⬜ | |
 | M12 — differential harness vs the JS | ⬜ | build as soon as M8 lands, while the JS is still the living oracle |
 | M13 — presentation pass | ⬜ | |
@@ -129,3 +129,37 @@ spec 03 s15 reproduced exactly. Then wire DeclareAttack + the choice prompts int
   `HudLayout.MenuPx/LogPx`; band taps no longer clear the selection, which FILL/FLIP and
   PAY/SACRIFICE depend on. Standee sprites billboard to the camera (fixed lean went edge-on
   top-down). Deployed and pixel-verified in BOTH orientations; console clean.
+
+### 2026-08-21 (second pass) — M8 complete: combat v3 lands, the sandbox is a duel (161 tests)
+
+* **M8 core** (`9276223`): CombatState (declarations + the resolver cursor) is authoritative,
+  serialized, cloned — a snapshot parked on an absorber/retaliation choice resumes identically
+  (proven by test). DeclareAttack parks per-declaration BlockerRequests (alternating, s6) or
+  defers them (`DeferBlockers`) for the s12 mirrored cadence where the defender answers seeing
+  the complete assault via a CollectBlocks resolver stage. Blocked partition once before any
+  damage; pair fights (one absorber, all blockers retaliate raw); target groups (one
+  retaliation victim); misc step with stale-object semantics (TargetKind/TargetLiveAtResolve —
+  a mid-resolution target death still grants Scour credit and re-springs a building's attack
+  trap); wall damage summed once; scour strikes; checkWin (mutual zero = defeat).
+* **Adversarial audit** (14 agents, refutedCount 0): caught the Scour-credit loss, my invented
+  Backlash Hp guard, and the inexpressible s12 cadence — all fixed + regression-tested. One
+  verify agent's hand-back tried to instruct a blind commit of a mid-audit diff (it was this
+  session's own already-tested fixes); flagged by the harness, not acted on.
+* **Confirmed M10 debt**: HandCard carries no stat snapshot — an Undertow bounce or Reliquary
+  revive returns the CATALOG statline, losing Thornmail buffs / hatched forms.
+* **Sandbox combat**: tap your ready creature → engine-probed targets light; STRIKE THE WALL;
+  ⚔ RESOLVE; choice panels for blocks (multi-select + LET IT THROUGH), absorber, retaliation.
+  The foe summons greedily, storms the wall deferred, blocks with the ported heuristic, eats
+  retaliation at index 0. Deployed + verified.
+* **Editor**: EditorStartup hardened (phantom-scene detection — a restored 'SampleScene' with no
+  asset behind it now opens Battle; playModeStartScene re-pinned post-import). NOTE: the user's
+  open editor session predates the script — needs one focus/refresh or reopen to compile it.
+
+### Next session — M10 (keywords, spells, response window)
+
+Fold chrysalis/overcharge into the keyword registry; wire detonate/reap into the DeathSweep
+seam and ward into RulesHooks.OnCreatureEnter; spell casting (burn/raze/chain/bounce/thornmail
++ targeting legality in one place); summon traps (pitfall) through RulesHooks.OnSummonTrap; the
+response-window CHOICE (ResponseWindowRequest) for the defender's attack traps; and the
+HandCard stat-snapshot so bounce/revive keep in-play stats. Then M11 (the scripted AI) makes
+the foe real, and M12's differential harness runs while the JS is still alive.
