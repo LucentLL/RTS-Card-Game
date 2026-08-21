@@ -433,6 +433,11 @@ namespace SpawnRowDuel.View
             var s = Engine.State;
             var seen = new HashSet<int>();
 
+            // Art quads billboard to the camera - a fixed lean goes edge-on (invisible) the
+            // moment the player toggles to the top-down angle.
+            var cam = Camera.main;
+            var camRot = cam != null ? cam.transform.rotation : Quaternion.identity;
+
             foreach (var kv in s.Objects())
             {
                 var cell = kv.Key;
@@ -448,6 +453,9 @@ namespace SpawnRowDuel.View
 
                 var target = Board.WorldOf(cell);
                 t.localPosition = new Vector3(target.x, t.localPosition.y, target.z);
+
+                var art = t.Find("art");
+                if (art != null) art.rotation = camRot;
 
                 var cr = o as CreatureUnit;
                 if (cr != null)
@@ -498,7 +506,7 @@ namespace SpawnRowDuel.View
                 float scale = h > 0.01f ? 0.95f / h : 1f;
                 spriteGo.transform.localScale = new Vector3(scale, scale, scale);
                 spriteGo.transform.localPosition = new Vector3(0f, 0.12f + 0.95f * 0.5f, 0f);
-                spriteGo.transform.localRotation = Quaternion.Euler(20f, 0f, 0f);   // lean to camera
+                // rotation is set every frame in ReconcileStandees - full camera billboard
             }
             else
             {

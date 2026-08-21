@@ -43,7 +43,17 @@ namespace SpawnRowDuel.View
         void Update()
         {
             UpdateCamera();
-            UpdateHover();
+
+            // Input arbitration: IMGUI consuming an event never blocks legacy Input, and Update
+            // runs before the frame's GUI events - so without this gate a tap on the build menu
+            // (or the log) would ALSO tap the board cell behind it, and a tap on the opaque
+            // bands would raycast through an extrapolated ray. Taps and hover exist only inside
+            // the camera viewport and outside the published HUD panels.
+            bool overUi = Cam == null
+                || !Cam.pixelRect.Contains((Vector2)Input.mousePosition)
+                || HudLayout.Blocks(Input.mousePosition);
+
+            UpdateHover(overUi);
 
             if (_match != null && _match.Version != _seenVersion)
             {
@@ -51,7 +61,7 @@ namespace SpawnRowDuel.View
                 RepaintHighlights();
             }
 
-            if (Input.GetMouseButtonDown(0)) Tap(_hover);
+            if (Input.GetMouseButtonDown(0) && !overUi) Tap(_hover);
             if (Input.GetMouseButtonDown(1)) ClearSelection();
             if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.Space)) _tilted = !_tilted;
         }
@@ -128,6 +138,16 @@ namespace SpawnRowDuel.View
         void UpdateCamera()
         {
             if (Cam == null) return;
+
+            // The 3D scene renders only BETWEEN the HUD bands (Master-Duel style): the HUD
+            // publishes its reserved top/bottom pixels and the camera viewport stays out of
+            // them, so board and interface can never layer over each other. The HUD paints
+            // both bands fully opaque, so nothing undefined ever shows outside the viewport.
+            float topFrac = Mathf.Clamp01(HudLayout.TopPx / Mathf.Max(1, Screen.height));
+            float botFrac = Mathf.Clamp01(HudLayout.BottomPx / Mathf.Max(1, Screen.height));
+            var viewport = new Rect(0f, botFrac, 1f, Mathf.Max(0.15f, 1f - topFrac - botFrac));
+            if (Cam.rect != viewport) Cam.rect = viewport;
+
             float target = _tilted ? 1f : 0f;
             _blend = Mathf.MoveTowards(_blend, target, Time.deltaTime * 2.6f);
             float t = Mathf.SmoothStep(0f, 1f, _blend);
@@ -154,10 +174,11 @@ namespace SpawnRowDuel.View
                 new Vector3(0f, 1.1f, halfD), new Vector3(0f, 1.1f, -halfD),   // standee headroom
             };
 
+            // The viewport already excludes the HUD bands, so only modest margins remain.
             float tanV = Mathf.Tan(Cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
             float tanH = tanV * Cam.aspect;
-            float fitH = tanH * 0.94f;
-            float fitV = tanV * 0.72f;      // headroom for the HUD header, hand strip and button
+            float fitH = tanH * 0.95f;
+            float fitV = tanV * 0.90f;
 
             var inv = Quaternion.Inverse(rot);
             float need = 2f;
@@ -170,10 +191,10 @@ namespace SpawnRowDuel.View
             return need * 1.02f;
         }
 
-        void UpdateHover()
+        void UpdateHover(bool overUi)
         {
             CellRef? found = null;
-            if (Cam != null)
+            if (Cam != null && !overUi)
             {
                 RaycastHit hit;
                 var ray = Cam.ScreenPointToRay(Input.mousePosition);

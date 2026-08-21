@@ -6,23 +6,46 @@ using UnityEngine;
 namespace SpawnRowDuel.View
 {
     /// <summary>
-    /// The placeholder HUD, engine-truthful and now interactive: a hand strip with the imported
-    /// card art, a build menu off the commander's list, a charge menu for face-downs, and
-    /// name/stat overlays on every board unit. Everything read from GameState each frame;
-    /// every tap becomes a command. IMGUI on purpose - no font asset needed while the glyph
-    /// plan is open (GAPS P0), and it scales itself for phone DPI.
+    /// The placeholder HUD, laid out in BANDS so nothing ever overlaps the board: an opaque top
+    /// bar (both players + turn/phase), an opaque bottom band (hand strip, contextual buttons,
+    /// action row), and the 3D board rendering only in between - BoardInput shrinks the camera
+    /// viewport to the gap HudLayout publishes. Menus are solid panels clamped on-screen and
+    /// scroll when tall. Everything is read from GameState each frame; every tap is a command.
+    ///
+    /// Scaling is by the SHORT side of the screen (~480 logical units), so portrait and
+    /// landscape both get a sane layout instead of landscape inheriting portrait's width math.
+    ///
+    /// IMGUI on purpose - no font asset needed while the glyph plan is open (GAPS P0).
     /// </summary>
     [RequireComponent(typeof(MatchController))]
     public class MatchHud : MonoBehaviour
     {
+        // band heights, logical units
+        const float TopH = 42f;
+        const float ActionH = 46f;
+        const float HandH = 82f;
+        const float ModeH = 28f;
+        const float BottomH = ActionH + HandH + ModeH;
+
         private MatchController _match;
         private BoardInput _input;
         private string _hint = "";
         private float _hintUntil;
         private int _selectedHandIndex = -1;
         private bool _buildMenuOpen;
+        private Vector2 _buildScroll;
+        private Vector2 _handScroll;
+        private float _scale = 1f;
+        private int _lastLogCount;
+        private float _logShownUntil;
 
-        private GUIStyle _label, _small, _tiny, _button, _cardName;
+        private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center;
+        private GUIStyle _ovYou, _ovFoe, _ovNeutral;
+
+        private static readonly Color PanelColor = new Color(0.055f, 0.06f, 0.085f, 1f);
+        private static readonly Color PanelSoft = new Color(0.055f, 0.06f, 0.085f, 0.72f);
+        private static readonly Color CardBack = new Color(0.10f, 0.11f, 0.15f, 1f);
+        private static readonly Color Gold = new Color(1f, 0.85f, 0.4f);
 
         void Awake()
         {
@@ -38,9 +61,28 @@ namespace SpawnRowDuel.View
             _small = new GUIStyle(_label) { fontSize = 11 };
             _small.normal.textColor = new Color(0.75f, 0.78f, 0.85f);
             _tiny = new GUIStyle(_label) { fontSize = 9, alignment = TextAnchor.MiddleCenter };
-            _tiny.normal.textColor = Color.white;
-            _button = new GUIStyle(GUI.skin.button) { fontSize = 16 };
-            _cardName = new GUIStyle(_label) { fontSize = 9, alignment = TextAnchor.LowerCenter, wordWrap = true };
+            _button = new GUIStyle(GUI.skin.button) { fontSize = 14 };
+            _bigButton = new GUIStyle(GUI.skin.button) { fontSize = 18 };
+            _cardName = new GUIStyle(_label) { fontSize = 9, alignment = TextAnchor.MiddleCenter };
+            _center = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter };
+            _center.normal.textColor = Gold;
+
+            // overlay text must CLIP at its cell-pitch rect - spilled ink is how neighbouring
+            // units' labels turned into unreadable stacked text
+            _ovYou = new GUIStyle(_tiny) { clipping = TextClipping.Clip, wordWrap = false };
+            _ovYou.normal.textColor = new Color(1f, 0.9f, 0.55f);
+            _ovFoe = new GUIStyle(_ovYou);
+            _ovFoe.normal.textColor = new Color(0.65f, 0.8f, 1f);
+            _ovNeutral = new GUIStyle(_ovYou);
+            _ovNeutral.normal.textColor = new Color(0.8f, 0.8f, 0.85f);
+        }
+
+        static void Panel(Rect r, Color c)
+        {
+            var old = GUI.color;
+            GUI.color = c;
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            GUI.color = old;
         }
 
         void OnGUI()
@@ -49,14 +91,26 @@ namespace SpawnRowDuel.View
             EnsureStyles();
             var s = _match.Engine.State;
 
-            float scale = Mathf.Max(1f, Screen.width / 460f);
+            // scale by the SHORT side - landscape must not inherit portrait's width math
+            float scale = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height) / 480f);
+            _scale = scale;
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
             float w = Screen.width / scale;
             float h = Screen.height / scale;
 
+            // publish the reserved bands so the camera viewport stays out of them, and reset
+            // the in-viewport blocker rects - the draws below re-publish the ones that exist
+            HudLayout.TopPx = TopH * scale;
+            HudLayout.BottomPx = BottomH * scale;
+            HudLayout.MenuPx = new Rect();
+            HudLayout.LogPx = new Rect();
+
             DrawUnitOverlays(s, scale, w, h);
             DrawTopBar(s, w);
-            DrawLog(h);
+            DrawLog(w);
+
+            // the bottom band is ALWAYS painted opaque - the camera does not render behind it
+            Panel(new Rect(0, h - BottomH, w, BottomH), PanelColor);
 
             if (s.IsOver)
             {
@@ -65,82 +119,104 @@ namespace SpawnRowDuel.View
                 return;
             }
 
-            bool myAction = s.Turn == Side.You && s.Phase == TurnPhase.Action;
+            DrawHand(s, w, h);
+            DrawModeRow(s, w, h);
+            DrawActionRow(s, w, h);
+            if (_buildMenuOpen) DrawBuildMenu(s, w, h);
 
-            if (_buildMenuOpen && myAction) DrawBuildMenu(s, w, h);
-            else DrawHand(s, w, h);
-
-            DrawActionButtons(s, w, h);
-            DrawChargeMenu(s, w, h);
-
-            if (Time.unscaledTime < _hintUntil && _hint.Length > 0)
-            {
-                var hint = new GUIStyle(_label) { alignment = TextAnchor.MiddleCenter };
-                hint.normal.textColor = new Color(1f, 0.85f, 0.4f);
-                GUI.Label(new Rect(0, h - 208, w, 20), _hint, hint);
-            }
+            if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
+                GUI.Label(new Rect(0, h - BottomH - 22, w, 20), _hint, _center);
         }
 
-        // ---- pieces ---------------------------------------------------------------------------
+        // ---- top band -------------------------------------------------------------------------
 
         void DrawTopBar(GameState s, float w)
         {
-            GUI.Box(new Rect(6, 6, w - 12, 62), GUIContent.none);
+            Panel(new Rect(0, 0, w, TopH), PanelColor);
             var foe = s.P(Side.Foe);
             var you = s.P(Side.You);
 
-            GUI.Label(new Rect(12, 8, w - 24, 18),
-                "FOE   ♥" + foe.Life + "   ◆" + foe.Mana + "   hand " + foe.Hand.Count +
-                "   deck " + foe.Deck.Count + "   ⚒ " + Workers(s, Side.Foe), _label);
-            GUI.Label(new Rect(12, 26, w - 24, 18),
-                "YOU   ♥" + you.Life + "   ◆" + you.Mana + "   hand " + you.Hand.Count +
-                "   deck " + you.Deck.Count + "   ⚒ " + Workers(s, Side.You), _label);
-            GUI.Label(new Rect(12, 45, w - 24, 16),
-                "turn " + s.TurnNumber + " · " + (s.Turn == Side.You ? "YOUR" : "FOE") + " turn · " +
-                s.Phase.ToString().ToUpperInvariant() + "    [Tab] camera angle", _small);
+            GUI.Label(new Rect(10, 3, w - 210, 18),
+                "FOE  ♥" + foe.Life + "  ◆" + foe.Mana + "  hand " + foe.Hand.Count +
+                "  deck " + foe.Deck.Count + "  ⚒ " + Workers(s, Side.Foe), _label);
+            GUI.Label(new Rect(10, 21, w - 210, 18),
+                "YOU  ♥" + you.Life + "  ◆" + you.Mana + "  hand " + you.Hand.Count +
+                "  deck " + you.Deck.Count + "  ⚒ " + Workers(s, Side.You), _label);
+
+            var right = new GUIStyle(_small) { alignment = TextAnchor.MiddleRight };
+            right.normal.textColor = s.Turn == Side.You ? Gold : new Color(0.65f, 0.8f, 1f);
+            GUI.Label(new Rect(w - 190, 3, 180, 18), "TURN " + s.TurnNumber, right);
+            GUI.Label(new Rect(w - 190, 21, 180, 18),
+                (s.Turn == Side.You ? "YOUR TURN · " : "FOE TURN · ") +
+                s.Phase.ToString().ToUpperInvariant(), right);
         }
 
-        void DrawLog(float h)
+        void DrawLog(float w)
         {
             var log = _match.Log;
-            int lines = Mathf.Min(4, log.Count);
-            float y = 74;
+            int lines = Mathf.Min(3, log.Count);
+            if (lines <= 0) return;
+
+            // auto-hide: the panel sits over the foe's board corner and (correctly) blocks taps
+            // there, so it only lingers a few seconds after something actually happened
+            if (log.Count != _lastLogCount)
+            {
+                _lastLogCount = log.Count;
+                _logShownUntil = Time.unscaledTime + 5f;
+            }
+            if (Time.unscaledTime > _logShownUntil) return;
+
+            var panel = new Rect(0, TopH, w * 0.55f, lines * 14f + 4f);
+            Panel(panel, PanelSoft);
+            HudLayout.LogPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                       panel.width * _scale, panel.height * _scale);
+            float y = TopH + 2;
             for (int i = log.Count - lines; i < log.Count; i++)
             {
-                GUI.Label(new Rect(12, y, 440, 15), log[i], _small);
+                GUI.Label(new Rect(8, y, w * 0.55f - 12, 14), log[i], _small);
                 y += 14f;
             }
         }
 
+        // ---- bottom band ----------------------------------------------------------------------
+
         void DrawHand(GameState s, float w, float h)
         {
             var hand = s.P(Side.You).Hand;
+            float y0 = h - ActionH - HandH;
             if (hand.Count == 0) return;
 
-            const float cw = 52f, chh = 74f, gap = 4f;
+            const float gap = 4f;
+            float cw = 56f;
+            float maxW = w - 12;
+            if (hand.Count * (cw + gap) - gap > maxW)                 // shrink to fit, floor 38
+                cw = Mathf.Max(38f, (maxW + gap) / hand.Count - gap);
+            float chh = HandH - 6;
             float total = hand.Count * (cw + gap) - gap;
-            float x0 = Mathf.Max(6, (w - total) / 2f);
-            float y0 = h - 64 - chh - 8;
+
+            // a hand too wide even at the floor scrolls horizontally - there is no hand cap
+            bool scrolling = total > maxW;
+            float x0;
+            if (scrolling)
+            {
+                _handScroll = GUI.BeginScrollView(new Rect(6, y0, maxW, HandH), _handScroll,
+                    new Rect(0, 0, total, HandH - 16), false, false);
+                x0 = 0;
+                y0 = -2;
+            }
+            else x0 = (w - total) / 2f;
 
             for (int i = 0; i < hand.Count; i++)
             {
                 float x = x0 + i * (cw + gap);
-                if (x + cw > w - 6) break;                     // clip - a big hand just truncates
-                var rect = new Rect(x, y0, cw, chh);
+                var rect = new Rect(x, y0 + 2, cw, chh);
                 bool selected = i == _selectedHandIndex;
 
-                GUI.Box(rect, GUIContent.none);
-                if (selected)
-                {
-                    var old = GUI.color;
-                    GUI.color = new Color(1f, 0.85f, 0.3f);
-                    GUI.Box(rect, GUIContent.none);
-                    GUI.color = old;
-                }
+                Panel(rect, selected ? new Color(0.55f, 0.45f, 0.12f, 1f) : CardBack);
 
                 var def = _match.DefOf(hand[i].Id.Value);
                 if (def != null && def.CardArt != null)
-                    GUI.DrawTexture(new Rect(x + 3, y0 + 3, cw - 6, chh - 24),
+                    GUI.DrawTexture(new Rect(x + 2, y0 + 4, cw - 4, chh - 26),
                         def.CardArt.texture, ScaleMode.ScaleAndCrop);
 
                 CreatureCard c;
@@ -151,88 +227,135 @@ namespace SpawnRowDuel.View
                 else if (_match.Engine.Catalog.TrySpell(hand[i].Id, out sp))
                     statLine = "◆" + sp.Cost + (sp.IsTrap ? " trap" : " spell");
 
-                GUI.Label(new Rect(x + 2, y0 + chh - 24, cw - 4, 12), hand[i].Id.Value, _cardName);
-                GUI.Label(new Rect(x + 2, y0 + chh - 12, cw - 4, 12), statLine, _tiny);
+                GUI.Label(new Rect(x + 1, y0 + chh - 22, cw - 2, 12), hand[i].Id.Value, _cardName);
+                GUI.Label(new Rect(x + 1, y0 + chh - 10, cw - 2, 11), statLine, _tiny);
 
                 if (GUI.Button(rect, GUIContent.none, GUIStyle.none))
                 {
                     _selectedHandIndex = selected ? -1 : i;
+                    _buildMenuOpen = false;
                     _match.CancelPending();
                 }
             }
 
-            // mode buttons for the selected card
+            if (scrolling) GUI.EndScrollView();
+        }
+
+        /// <summary>The contextual strip above the hand: play modes, charge menu, upkeep settle.</summary>
+        void DrawModeRow(GameState s, float w, float h)
+        {
+            float by = h - ActionH - HandH - ModeH + 2;
+            var hand = s.P(Side.You).Hand;
+            bool myTurn = s.Turn == Side.You;
+
+            // an armed play: guidance only
+            if (_match.Pending != MatchController.Intent.None)
+            {
+                GUI.Label(new Rect(0, by, w, 24),
+                    "tap a lit cell to place — tap the card again to cancel", _center);
+                return;
+            }
+
+            // selected hand card during your action: mode buttons
             if (_selectedHandIndex >= 0 && _selectedHandIndex < hand.Count
-                && s.Turn == Side.You && s.Phase == TurnPhase.Action)
+                && myTurn && s.Phase == TurnPhase.Action)
             {
                 var id = hand[_selectedHandIndex].Id;
                 CreatureCard c;
                 SpellCard sp;
-                float by = y0 - 30;
-
                 if (_match.Engine.Catalog.TryCreature(id, out c))
                 {
-                    if (GUI.Button(new Rect(w / 2f - 130, by, 120, 26), "SUMMON ◆" + c.Cost, _button))
+                    if (GUI.Button(new Rect(w / 2f - 125, by, 120, 24), "SUMMON ◆" + c.Cost, _button))
                         Arm(Rules.PlayMode.Summon);
-                    if (GUI.Button(new Rect(w / 2f + 10, by, 120, 26), "SET ◆1", _button))
+                    if (GUI.Button(new Rect(w / 2f + 5, by, 120, 24), "SET ◆1", _button))
                         Arm(Rules.PlayMode.Set);
                 }
                 else if (_match.Engine.Catalog.TrySpell(id, out sp))
                 {
                     if (sp.IsTrap)
                     {
-                        if (GUI.Button(new Rect(w / 2f - 60, by, 120, 26), "SET TRAP ◆1", _button))
+                        if (GUI.Button(new Rect(w / 2f - 60, by, 120, 24), "SET TRAP ◆1", _button))
                             Arm(Rules.PlayMode.SetTrap);
                     }
                     else
-                        GUI.Label(new Rect(0, by, w, 20), "spells cast at M10 — hold on to it", CenterHint());
+                        GUI.Label(new Rect(0, by, w, 24), "spells cast at M10 — hold on to it", _center);
+                }
+                return;
+            }
+
+            // a selected board cell: charge menu or upkeep settle
+            if (_input != null && _input.Selected.HasValue && myTurn)
+            {
+                var cell = _input.Selected.Value;
+
+                var ch = s.At(cell) as ChargeUnit;
+                if (ch != null && ch.Owner == Side.You && s.Phase == TurnPhase.Action)
+                {
+                    int remaining = Mathf.Max(0, ch.Card.Cost - ch.Invested);
+                    // portrait leaves ~100 px here - the invested/cost fraction is the part
+                    // that matters; the name fits only when there is room
+                    string caption = w >= 620
+                        ? ch.Card.Name + " ◆" + ch.Invested + "/" + ch.Card.Cost
+                        : "◆" + ch.Invested + "/" + ch.Card.Cost;
+                    GUI.Label(new Rect(6, by, w / 2f - 135, 24), caption, _small);
+                    if (remaining > 0 &&
+                        GUI.Button(new Rect(w / 2f - 125, by, 120, 24), "FILL ◆" + remaining, _button))
+                        Try(new PourIntoChargeCommand(Side.You, cell, ch.Id, remaining));
+                    GUI.enabled = ch.Invested >= ch.Card.Cost;
+                    if (GUI.Button(new Rect(w / 2f + 5, by, 120, 24), "FLIP", _button))
+                        Try(new FlipChargeCommand(Side.You, cell, ch.Id));
+                    GUI.enabled = true;
+                    return;
                 }
 
-                if (_match.Pending == MatchController.Intent.PlayCard)
-                    GUI.Label(new Rect(0, by - 22, w, 20),
-                        "tap a lit cell to place — tap the card again to cancel", CenterHint());
+                // Upkeep settle: Move is the lit cells; Pay / Sacrifice live here
+                var cr = s.At(cell) as CreatureUnit;
+                if (cr != null && cr.Owner == Side.You && !cr.IsWorker && s.Phase == TurnPhase.Upkeep)
+                {
+                    var cat = _match.Engine.Catalog;
+                    var zone = Rules.Board.ZoneForRow(Side.You, cell.Row);
+                    int deficit = Upkeep.ZoneDeficit(s, Side.You, zone, cat);
+                    int pay = Mathf.Min(cr.Upkeep, deficit);
+
+                    GUI.enabled = pay > 0 && !cr.PaidUpkeep && s.P(Side.You).Mana >= pay;
+                    if (GUI.Button(new Rect(w / 2f - 125, by, 120, 24), "PAY ◆" + pay, _button))
+                        Try(new UpkeepPayCommand(Side.You, cell, cr.Id));
+                    GUI.enabled = true;
+                    if (GUI.Button(new Rect(w / 2f + 5, by, 120, 24), "SACRIFICE", _button))
+                        Try(new UpkeepSacrificeCommand(Side.You, cell, cr.Id));
+                    return;
+                }
             }
+
+            // idle upkeep guidance when the harvest is locked
+            if (myTurn && s.Phase == TurnPhase.Upkeep
+                && !Upkeep.HarvestUnlocked(s, Side.You, _match.Engine.Catalog))
+                GUI.Label(new Rect(0, by, w, 24),
+                    "shortfall — tap the over-extended creature: move it, PAY, or SACRIFICE", _center);
         }
 
-        void Arm(Rules.PlayMode mode)
+        void DrawActionRow(GameState s, float w, float h)
         {
-            _match.BeginPlay(_selectedHandIndex, mode);
-            if (_match.LegalCells.Count == 0)
-            {
-                _match.CancelPending();
-                Hint("No legal cell for that right now");
-            }
-        }
+            float by = h - ActionH + 3;
 
-        GUIStyle CenterHint()
-        {
-            var st = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter };
-            st.normal.textColor = new Color(1f, 0.85f, 0.4f);
-            return st;
-        }
-
-        void DrawActionButtons(GameState s, float w, float h)
-        {
             if (s.Turn != Side.You || s.Phase == TurnPhase.End) return;
 
             string caption = s.Phase == TurnPhase.Upkeep ? "HARVEST"
                 : s.Phase == TurnPhase.Draw ? "DRAW" : "END TURN";
 
-            var main = new GUIStyle(GUI.skin.button) { fontSize = 19 };
-            if (GUI.Button(new Rect(w / 2f - 70, h - 56, 140, 46), caption, main))
+            if (GUI.Button(new Rect(w / 2f - 75, by, 150, 40), caption, _bigButton))
             {
                 _selectedHandIndex = -1;
+                _buildMenuOpen = false;
                 _match.CancelPending();
-                ICommand cmd = s.Phase == TurnPhase.Upkeep ? new HarvestCommand(Side.You)
+                Try(s.Phase == TurnPhase.Upkeep ? new HarvestCommand(Side.You)
                     : s.Phase == TurnPhase.Draw ? (ICommand)new DrawForTurnCommand(Side.You)
-                    : new EndTurnCommand(Side.You);
-                var why = _match.TryHuman(cmd);
-                if (why != Rejection.None) Hint(MatchController.Hint(why));
+                    : new EndTurnCommand(Side.You));
             }
 
             if (s.Phase == TurnPhase.Action)
             {
-                if (GUI.Button(new Rect(w - 96, h - 52, 88, 40), _buildMenuOpen ? "CLOSE" : "BUILD", _button))
+                if (GUI.Button(new Rect(w / 2f + 85, by, 90, 40), _buildMenuOpen ? "CLOSE" : "BUILD", _button))
                 {
                     _buildMenuOpen = !_buildMenuOpen;
                     _selectedHandIndex = -1;
@@ -242,23 +365,36 @@ namespace SpawnRowDuel.View
             else _buildMenuOpen = false;
         }
 
+        /// <summary>A solid panel clamped inside the board region; scrolls when taller.</summary>
         void DrawBuildMenu(GameState s, float w, float h)
         {
             var cat = _match.Engine.Catalog;
             var list = cat.BuildList(s.P(Side.You).Commander);
 
-            float rowH = 24f;
-            float y0 = h - 64 - list.Count * rowH - 10;
-            GUI.Box(new Rect(w / 2f - 130, y0 - 6, 260, list.Count * rowH + 12), GUIContent.none);
+            const float rowH = 26f;
+            const float pw = 280f;
+            float contentH = list.Count * rowH;
+            float regionTop = TopH + 6;
+            float regionBottom = h - BottomH - 6;
+            float ph = Mathf.Min(contentH + 12, regionBottom - regionTop);
+            float py = regionTop + (regionBottom - regionTop - ph) / 2f;
+            var panel = new Rect(w / 2f - pw / 2f, py, pw, ph);
+
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            _buildScroll = GUI.BeginScrollView(
+                new Rect(panel.x + 4, panel.y + 6, pw - 8, ph - 12), _buildScroll,
+                new Rect(0, 0, pw - 28, contentH), false, contentH > ph - 12);
 
             for (int i = 0; i < list.Count; i++)
             {
                 var def = list[i];
                 bool can = Placement.CanBuild(s, Side.You, def, cat);
-                var rect = new Rect(w / 2f - 124, y0 + i * rowH, 248, rowH - 2);
-
                 GUI.enabled = can;
-                if (GUI.Button(rect, def.Name + "   ◆" + def.Cost + "   ⚒" +
+                if (GUI.Button(new Rect(2, i * rowH, pw - 32, rowH - 3),
+                        def.Name + "   ◆" + def.Cost + "   ⚒" +
                         (def.Support >= 0 ? "+" : "") + def.Support, _button))
                 {
                     _match.BeginBuild(def);
@@ -271,45 +407,18 @@ namespace SpawnRowDuel.View
                 }
                 GUI.enabled = true;
             }
+
+            GUI.EndScrollView();
         }
 
-        void DrawChargeMenu(GameState s, float w, float h)
-        {
-            if (_input == null || !_input.Selected.HasValue) return;
-            var cell = _input.Selected.Value;
-            var ch = s.At(cell) as ChargeUnit;
-            if (ch == null || ch.Owner != Side.You) return;
-            if (s.Turn != Side.You || s.Phase != TurnPhase.Action) return;
-
-            int remaining = Mathf.Max(0, ch.Card.Cost - ch.Invested);
-            float by = h - 172;
-
-            GUI.Label(new Rect(0, by - 20, w, 18),
-                "face-down " + ch.Card.Name + " — ◆" + ch.Invested + " of " + ch.Card.Cost + " invested",
-                CenterHint());
-
-            if (remaining > 0)
-            {
-                if (GUI.Button(new Rect(w / 2f - 130, by, 120, 26), "FILL ◆" + remaining, _button))
-                {
-                    var why = _match.TryHuman(new PourIntoChargeCommand(Side.You, cell, ch.Id, remaining));
-                    if (why != Rejection.None) Hint(MatchController.Hint(why));
-                }
-            }
-
-            GUI.enabled = ch.Invested >= ch.Card.Cost;
-            if (GUI.Button(new Rect(w / 2f + 10, by, 120, 26), "FLIP", _button))
-            {
-                var why = _match.TryHuman(new FlipChargeCommand(Side.You, cell, ch.Id));
-                if (why != Rejection.None) Hint(MatchController.Hint(why));
-            }
-            GUI.enabled = true;
-        }
+        // ---- board overlays -------------------------------------------------------------------
 
         void DrawUnitOverlays(GameState s, float scale, float w, float h)
         {
             var cam = _input != null ? _input.Cam : Camera.main;
             if (cam == null || _match.Board == null) return;
+
+            float pitchWorld = _match.Board.CellSize + _match.Board.CellGap;
 
             foreach (var kv in s.Objects())
             {
@@ -318,41 +427,65 @@ namespace SpawnRowDuel.View
                 if (pt.z <= 0f) continue;
                 float x = pt.x / scale;
                 float y = h - pt.y / scale;
+                if (y < TopH + 2 || y > h - BottomH - 14) continue;   // stay out of the bands
+
+                // the label budget is the unit's ACTUAL on-screen cell pitch - a fixed width
+                // is wider than a cell at every real resolution and neighbours collide
+                var pt2 = cam.WorldToScreenPoint(world + new Vector3(pitchWorld, 1.15f, 0f));
+                float pitchPx = Mathf.Max(24f, Mathf.Abs(pt2.x - pt.x) / scale);
+                bool roomy = pitchPx >= 44f;
 
                 var o = kv.Value;
                 string text;
-                Color tint;
+                GUIStyle st;
 
                 var cr = o as CreatureUnit;
                 var b = o as StructureUnit;
                 if (cr != null)
                 {
-                    text = cr.Name + "\n" + cr.EffectiveAttack / 500 + "/" +
-                           (cr.Hp + 499) / 500 + (cr.Bank > 0 ? " ◆" + cr.Bank : "");
-                    tint = cr.Owner == Side.You ? new Color(1f, 0.9f, 0.55f) : new Color(0.65f, 0.8f, 1f);
+                    string stats = cr.EffectiveAttack / 500 + "/" + (cr.Hp + 499) / 500 +
+                                   (cr.Bank > 0 ? " ◆" + cr.Bank : "");
+                    text = roomy ? cr.Name + "\n" + stats : stats;   // tight cells keep the numbers
+                    st = cr.Owner == Side.You ? _ovYou : _ovFoe;
                 }
                 else if (b != null)
                 {
-                    text = b.DefId.Value + "\n♥" + (b.Hp + 499) / 500 +
-                           (b.Bank > 0 ? " ◆" + b.Bank : "");
-                    tint = b.Owner == Side.You ? new Color(1f, 0.9f, 0.55f) : new Color(0.65f, 0.8f, 1f);
+                    string stats = "♥" + (b.Hp + 499) / 500 + (b.Bank > 0 ? " ◆" + b.Bank : "");
+                    text = roomy ? b.DefId.Value + "\n" + stats : stats;
+                    st = b.Owner == Side.You ? _ovYou : _ovFoe;
                 }
                 else if (o is ChargeUnit)
                 {
                     var chu = (ChargeUnit)o;
                     text = o.Owner == Side.You ? "SET ◆" + chu.Invested : "SET ?";
-                    tint = new Color(0.8f, 0.8f, 0.85f);
+                    st = _ovNeutral;
                 }
                 else
                 {
-                    text = o.Owner == Side.You ? "TRAP" : "SET ?";   // the foe cannot tell
-                    tint = new Color(0.8f, 0.8f, 0.85f);
+                    text = o.Owner == Side.You ? "TRAP" : "SET ?";
+                    st = _ovNeutral;
                 }
 
-                var st = new GUIStyle(_tiny);
-                st.normal.textColor = tint;
-                GUI.Label(new Rect(x - 45, y, 90, 26), text, st);
+                GUI.Label(new Rect(x - pitchPx / 2f, y, pitchPx, roomy ? 26 : 13), text, st);
             }
+        }
+
+        // ---- helpers --------------------------------------------------------------------------
+
+        void Arm(Rules.PlayMode mode)
+        {
+            _match.BeginPlay(_selectedHandIndex, mode);
+            if (_match.LegalCells.Count == 0)
+            {
+                _match.CancelPending();
+                Hint("No legal cell for that right now");
+            }
+        }
+
+        void Try(ICommand cmd)
+        {
+            var why = _match.TryHuman(cmd);
+            if (why != Rejection.None) Hint(MatchController.Hint(why));
         }
 
         static string Workers(GameState s, Side side)
