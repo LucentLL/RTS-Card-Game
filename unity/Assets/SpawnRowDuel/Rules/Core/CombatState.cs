@@ -22,6 +22,20 @@ namespace SpawnRowDuel.Rules
         public Side TargetSide;         // Wall / WorkerStack: whose wall / whose stack
         public WorkerZone TargetZone;   // WorkerStack only
 
+        /// <summary>What the unit target WAS at declaration. The JS captured target OBJECTS at
+        /// resolve start, so a target dying mid-resolution still granted the Scour credit and a
+        /// razed building still re-sprang the defender's attack trap - this snapshot carries
+        /// those stale-object semantics through our by-id resolution.</summary>
+        public UnitKind TargetKind;
+
+        /// <summary>Set at resolution entry: was the unit target alive when resolution began?
+        /// (The JS's step-2 capture - a target already dead at resolve start does nothing.)</summary>
+        public bool TargetLiveAtResolve;
+
+        /// <summary>This declaration's blocker answer is still owed - collected at resolve
+        /// start (the s12 mirrored cadence). Cleared when answered.</summary>
+        public bool BlockersDeferred;
+
         public readonly List<UnitRef> Blockers = new List<UnitRef>();
 
         public AttackDeclaration Clone()
@@ -35,6 +49,9 @@ namespace SpawnRowDuel.Rules
                 TargetUnitId = TargetUnitId,
                 TargetSide = TargetSide,
                 TargetZone = TargetZone,
+                TargetKind = TargetKind,
+                TargetLiveAtResolve = TargetLiveAtResolve,
+                BlockersDeferred = BlockersDeferred,
             };
             d.Blockers.AddRange(Blockers);
             return d;
@@ -49,6 +66,10 @@ namespace SpawnRowDuel.Rules
         UnblockedMisc = 3,
         ApplyWallDamage = 4,
         ScourStrikes = 5,
+
+        /// <summary>Deferred blocker answers being collected before anything fights - the s12
+        /// mirrored cadence, entered only when a declaration deferred its blocks.</summary>
+        CollectBlocks = 6,
     }
 
     /// <summary>

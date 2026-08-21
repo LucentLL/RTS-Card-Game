@@ -289,6 +289,75 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
+        public void ScourCredit_Survives_TheTargetDyingDuringResolution()
+        {
+            // The JS captured target OBJECTS at resolve start, so a Scour attacker whose target
+            // died in the group fight still got its on-hit strike in the misc step. (Audit
+            // finding: by-id resolution silently dropped it.)
+            GameState s;
+            var e = Engine(out s);
+            TapWorkers(s, Side.Foe);
+
+            var zephyr = Place(s, Side.You, "Talonwind", RowKey.FoeFront, 2); // 2500/1000 scour - survives the 500 retaliation
+            var t = Place(s, Side.Foe, "Mistling", RowKey.FoeFront, 5);      // 500/1000 - dies
+
+            var charge = new ChargeUnit();
+            charge.Id = s.NewUid();
+            charge.Owner = Side.Foe;
+            charge.Color = Element.Water;
+            charge.SetIn = SlotName.Back;
+            charge.Card = new CardSnapshot(new CardId("Rippler"), "Rippler", Element.Water,
+                2, 1000, 1000, 1, Keyword.None, false, false, StructId.None);
+            charge.Invested = 2;
+            charge.SetTurn = 0;
+            s.Put(new CellRef(RowKey.FoeBack, 3), charge);
+
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.FoeFront, 2),
+                zephyr.Id, new UnitTarget(new CellRef(RowKey.FoeFront, 5), t.Id))).Applied,
+                "scour is unblockable - no window even cross-row");
+            Assert.IsTrue(e.Apply(new ResolveCombatCommand(Side.You)).Applied);
+
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeFront, 5)), "the target died in the group fight");
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeBack, 3)),
+                "the connecting strike's Scour credit survived the target's death - the "
+                + "face-down in the back row shattered");
+        }
+
+        [Test]
+        public void BacklashKilledAttacker_StillLandsItsBlowOnTheBuilding()
+        {
+            // The JS building branch strikes with NO alive re-check after the trap springs -
+            // the dying attacker's blow lands anyway. (Audit finding: an invented Hp guard.)
+            GameState s;
+            var e = Engine(out s);
+
+            var a = Place(s, Side.You, "Cinderling", RowKey.FoeBack, 2);     // 1000/1000
+
+            var foundry = UnitFactory.MakeStructure(s, Side.Foe,
+                TestData.Catalog.Structure(new StructId("foundry"), Element.None));
+            s.Put(new CellRef(RowKey.FoeBack, 6), foundry);                  // 3000 hp
+
+            var trap = new TrapUnit();
+            trap.Id = s.NewUid();
+            trap.Owner = Side.Foe;
+            trap.Color = Element.Water;
+            trap.SetIn = SlotName.Front;
+            trap.Card = new CardId("Backlash");
+            trap.Effect = SpellEffect.Burn;
+            trap.Trigger = TrapTrigger.Attack;
+            trap.Value = 1500;
+            trap.SetTurn = 0;
+            s.Put(new CellRef(RowKey.FoeFront, 0), trap);
+
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.FoeBack, 2),
+                a.Id, new UnitTarget(new CellRef(RowKey.FoeBack, 6), foundry.Id))).Applied);
+            Assert.IsTrue(e.Apply(new ResolveCombatCommand(Side.You)).Applied);
+
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeBack, 2)), "Backlash's 1500 killed the attacker");
+            Assert.AreEqual(2000, foundry.Hp, "its 1000 blow landed anyway - no alive re-check");
+        }
+
+        [Test]
         public void ProvokedFaceDown_Funded_FlipsBattleReady_AndFightsBack()
         {
             GameState s;

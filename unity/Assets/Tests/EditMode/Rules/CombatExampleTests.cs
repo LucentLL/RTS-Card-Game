@@ -144,6 +144,54 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
+        public void ExampleA_DeferredCadence_SameOutcome_WithTheFullAssaultVisible()
+        {
+            // The s12 mirrored protocol: both declarations land BEFORE any blocker answer;
+            // the defender then answers per declaration at resolve time, seeing the complete
+            // assault. Same heuristic answers - identical net outcome to the alternating flow.
+            GameState s;
+            var e = Engine(out s);
+
+            var a1 = Place(s, Side.You, "Ashfang", RowKey.YouFront, 2);
+            var a2 = Place(s, Side.You, "Magmaw", RowKey.YouFront, 3);
+            var b1 = Place(s, Side.Foe, "Mistling", RowKey.FoeFront, 0);
+            b1.Tapped = true;
+            var b2 = Place(s, Side.Foe, "Rippler", RowKey.FoeBack, 4);
+            var b3 = Place(s, Side.Foe, "Undertow", RowKey.Center, 1);
+            TapWorkers(s, Side.Foe);
+
+            Assert.AreEqual(CommandStatus.Applied, e.Apply(new DeclareAttackCommand(Side.You,
+                new CellRef(RowKey.YouFront, 2), a1.Id, new WallTarget(Side.Foe), true)).Status,
+                "deferred - no immediate blocker window");
+            Assert.AreEqual(CommandStatus.Applied, e.Apply(new DeclareAttackCommand(Side.You,
+                new CellRef(RowKey.YouFront, 3), a2.Id, new WallTarget(Side.Foe), true)).Status);
+
+            var r = e.Apply(new ResolveCombatCommand(Side.You));
+            Assert.AreEqual(CommandStatus.AwaitingChoice, r.Status);
+            var req1 = (BlockerRequest)s.Pending;
+            Assert.AreEqual(2, s.Combat.Declarations.Count,
+                "the defender answers seeing BOTH declarations");
+            Assert.AreEqual(0, req1.DeclarationIndex);
+            AnswerBlocksWithHeuristic(e, s);                   // [B1, B2] for Ashfang
+
+            var req2 = (BlockerRequest)s.Pending;
+            Assert.AreEqual(1, req2.DeclarationIndex, "then the second declaration's answer");
+            Assert.AreEqual(1, req2.Eligible.Length, "the HasBlocked cascade held: only B3 left");
+            AnswerBlocksWithHeuristic(e, s);                   // [B3] for Magmaw
+
+            var absorb = (AbsorberRequest)s.Pending;           // straight into the pair fights
+            Assert.AreEqual(Side.You, absorb.Responder);
+            Assert.IsTrue(e.Apply(new RespondCommand(Side.You, new IndexChosen(0))).Applied);
+
+            // identical net outcome to the alternating flow
+            Assert.AreEqual(10000, s.P(Side.Foe).Life);
+            Assert.IsNull(s.At(new CellRef(RowKey.YouFront, 3)), "Magmaw bounced");
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeFront, 0)), "Mistling died absorbing");
+            Assert.IsNull(s.At(new CellRef(RowKey.YouFront, 2)), "Ashfang fell to Rippler's 1000");
+            Assert.AreEqual(CombatStage.Idle, s.Combat.Stage);
+        }
+
+        [Test]
         public void ExampleB_SameRowJointAttack_Uninterposable_WithOvergrowth()
         {
             GameState s;

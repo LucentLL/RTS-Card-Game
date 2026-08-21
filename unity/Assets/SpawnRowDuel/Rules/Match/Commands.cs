@@ -204,10 +204,20 @@ namespace SpawnRowDuel.Rules
         public readonly int UnitId;
         public readonly AttackTarget Target;
 
-        public DeclareAttackCommand(Side actor, CellRef attacker, int unitId, AttackTarget target)
+        /// <summary>
+        /// The spec 03 s12 mirrored cadence: an ATTACKING AI declares its whole assault first
+        /// and the defender answers blockers afterwards, one declaration at a time, seeing the
+        /// complete attack. true skips the immediate per-declaration BlockerRequest; the
+        /// resolver collects the answers at resolve time instead. The player-attacking flow
+        /// (s6) keeps the default immediate parking.
+        /// </summary>
+        public readonly bool DeferBlockers;
+
+        public DeclareAttackCommand(Side actor, CellRef attacker, int unitId, AttackTarget target,
+                                    bool deferBlockers = false)
             : base(actor)
         {
-            Attacker = attacker; UnitId = unitId; Target = target;
+            Attacker = attacker; UnitId = unitId; Target = target; DeferBlockers = deferBlockers;
         }
     }
 

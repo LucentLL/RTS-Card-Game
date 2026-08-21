@@ -75,6 +75,7 @@ namespace SpawnRowDuel.Rules
                 d.TargetCell = at;
                 d.TargetUnitId = ut.UnitId;
                 d.TargetSide = t.Owner;
+                d.TargetKind = t.Kind;      // for the stale-object semantics at resolve time
             }
             else if (wt != null)
             {
@@ -91,6 +92,12 @@ namespace SpawnRowDuel.Rules
             s.Combat.Declarations.Add(d);
             int index = s.Combat.Declarations.Count - 1;
             ev.Add(new AttackDeclared(a.Id, m.Target, index));
+
+            if (m.DeferBlockers)
+            {
+                d.BlockersDeferred = true;      // collected at resolve start (the s12 cadence)
+                return;
+            }
 
             // the defender answers IMMEDIATELY - a parked choice - unless nothing may block
             var eligible = CombatEligibility.ForDeclaration(s, d, m.Actor);
@@ -197,6 +204,14 @@ namespace SpawnRowDuel.Rules
                 }
                 ev.Add(new BlockersAssigned(blockerReq.DeclarationIndex, ids));
                 s.Pending = null;
+
+                // a deferred answer arrived mid-CollectBlocks: mark it settled and let the
+                // resolver park the next declaration's request or fall through to the fights
+                if (s.Combat.Stage == CombatStage.CollectBlocks)
+                {
+                    d.BlockersDeferred = false;
+                    CombatResolver.Step(s, cat, ev);
+                }
                 return;
             }
 

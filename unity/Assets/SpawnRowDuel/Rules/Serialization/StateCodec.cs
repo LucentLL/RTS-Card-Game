@@ -222,6 +222,9 @@ namespace SpawnRowDuel.Rules
                 w.Write("tId", d.TargetUnitId);
                 w.Write("tSide", (int)d.TargetSide);
                 w.Write("tZone", (int)d.TargetZone);
+                w.Write("tKind", (int)d.TargetKind);
+                w.Write("tLive", d.TargetLiveAtResolve);
+                w.Write("deferred", d.BlockersDeferred);
                 WriteUnitRefs("blockers", d.Blockers.ToArray(), w);
                 w.EndObject();
             }

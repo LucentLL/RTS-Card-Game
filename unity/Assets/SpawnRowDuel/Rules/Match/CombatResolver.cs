@@ -18,20 +18,62 @@ namespace SpawnRowDuel.Rules
     /// </summary>
     public static class CombatResolver
     {
-        /// <summary>Resolution entry: live-filter, discharge Overcharge, partition ONCE.</summary>
+        /// <summary>
+        /// Resolution entry. Declarations that DEFERRED their blocker answers (the s12
+        /// mirrored cadence - the whole assault visible before any block commits) collect them
+        /// first; then the main resolution starts: live-filter, discharge, partition ONCE.
+        /// </summary>
         public static void Begin(GameState s, ICardCatalog cat, EventSink ev)
+        {
+            var c = s.Combat;
+            bool anyDeferred = false;
+            for (int i = 0; i < c.Declarations.Count; i++)
+                if (c.Declarations[i].BlockersDeferred) anyDeferred = true;
+
+            if (anyDeferred)
+            {
+                c.Stage = CombatStage.CollectBlocks;
+                c.Cursor = 0;
+                Step(s, cat, ev);
+                return;
+            }
+
+            StartMainResolution(s, cat, ev);
+            Step(s, cat, ev);
+        }
+
+        /// <summary>Live-filter, discharge Overcharge, partition ONCE - the JS step 1-4.</summary>
+        static void StartMainResolution(GameState s, ICardCatalog cat, EventSink ev)
         {
             var c = s.Combat;
             c.BlockedDeclIndices.Clear();
             c.OpenDeclIndices.Clear();
+            c.GroupTargetIds.Clear();
+            c.GroupOffsets.Clear();
+            c.GroupDeclIndices.Clear();
             c.ResolutionAttackerIds.Clear();
             c.ScourHitUnitIds.Clear();
             c.AccumulatedWallDamage = 0;
             c.HasAnswer = false;
+            c.AnsweredIndex = 0;
 
             for (int i = 0; i < c.Declarations.Count; i++)
             {
                 var d = c.Declarations[i];
+
+                // the JS's step-2 capture: what a unit-declaration does in the misc step
+                // depends on whether its target was alive when resolution BEGAN
+                if (d.Kind == DeclarationKind.Unit)
+                {
+                    CellRef tAt;
+                    bool tOnBoard;
+                    var tObj = s.FindById(d.TargetUnitId, out tAt, out tOnBoard);
+                    var tCre = tObj as CreatureUnit;
+                    d.TargetLiveAtResolve = tObj != null && tOnBoard
+                        && (tCre == null || tCre.Hp > 0)
+                        && !(tObj is StructureUnit && ((StructureUnit)tObj).Hp <= 0);
+                }
+
                 var a = s.FindById(d.AttackerUnitId, out _, out _) as CreatureUnit;
                 if (a == null || a.Hp <= 0) continue;          // dead declarations drop silently
                 c.ResolutionAttackerIds.Add(a.Id);
@@ -51,7 +93,6 @@ namespace SpawnRowDuel.Rules
             c.Stage = CombatStage.BlockedPairFights;
             c.Cursor = 0;
             c.SubCursor = 0;
-            Step(s, cat, ev);
         }
 
         /// <summary>Advance as far as possible; parks on s.Pending when a choice is needed.</summary>
@@ -67,6 +108,46 @@ namespace SpawnRowDuel.Rules
                 {
                     case CombatStage.Idle:
                         return;
+
+                    // ── STEP 0: collect deferred blocker answers, declaration order ───────
+                    case CombatStage.CollectBlocks:
+                        {
+                            if (c.Cursor >= c.Declarations.Count)
+                            {
+                                StartMainResolution(s, cat, ev);
+                                continue;
+                            }
+
+                            var d = c.Declarations[c.Cursor];
+                            if (!d.BlockersDeferred)
+                            {
+                                c.Cursor++;
+                                continue;
+                            }
+
+                            var a = s.FindById(d.AttackerUnitId, out _, out _) as CreatureUnit;
+                            if (a == null || a.Hp <= 0)
+                            {
+                                d.BlockersDeferred = false;    // a dead assault asks nothing
+                                c.Cursor++;
+                                continue;
+                            }
+
+                            var eligible = CombatEligibility.ForDeclaration(s, d, actor);
+                            if (eligible.Count == 0)
+                            {
+                                d.BlockersDeferred = false;
+                                c.Cursor++;
+                                continue;
+                            }
+
+                            // the defender answers seeing the COMPLETE assault (s12); the
+                            // HasBlocked cascade still holds because each answer lands before
+                            // the next request is parked
+                            s.Pending = new BlockerRequest(defender, a.Id, c.Cursor,
+                                s.Combat.Declarations.Count, eligible.ToArray());
+                            return;
+                        }
 
                     // ── STEP 1: blocked declarations, pair fights, declaration order ──────
                     case CombatStage.BlockedPairFights:
@@ -188,10 +269,26 @@ namespace SpawnRowDuel.Rules
                                     continue;
                                 }
 
+                                // a target already dead when resolution BEGAN does nothing -
+                                // the JS's step-2 capture came back null (spec 03 s7 step 7)
+                                if (!d.TargetLiveAtResolve) continue;
+
                                 CellRef at;
                                 bool onBoard;
                                 var o = s.FindById(d.TargetUnitId, out at, out onBoard);
-                                if (o == null || !onBoard) continue;
+
+                                if (o == null || !onBoard)
+                                {
+                                    // died DURING this resolution: the JS held the captured
+                                    // object, so the declaration still plays out against the
+                                    // corpse - a razed building still re-springs the attack
+                                    // trap, and every kind still grants the Scour credit
+                                    if (d.TargetKind == UnitKind.Building)
+                                        Traps.SpringAttackTrap(s, defender,
+                                            new List<CreatureUnit> { a }, null, ev);
+                                    if (scour && a.Hp > 0) c.ScourHitUnitIds.Add(a.Id);
+                                    continue;
+                                }
 
                                 if (o is CreatureUnit)         // fought already in step 2
                                 {
@@ -204,12 +301,11 @@ namespace SpawnRowDuel.Rules
                                 if (b != null)
                                 {
                                     Traps.SpringAttackTrap(s, defender, single, b, ev);
-                                    if (a.Hp > 0)              // Backlash may have killed it
-                                    {
-                                        var map = LegacyCombat.FocusFire(single,
-                                            new List<BoardObject> { b });
-                                        LegacyCombat.ApplyDamage(map, ev);   // ONE-WAY
-                                    }
+                                    // NO alive guard: a Backlash-killed attacker's blow still
+                                    // lands - the JS strikes with no re-check
+                                    var map = LegacyCombat.FocusFire(single,
+                                        new List<BoardObject> { b });
+                                    LegacyCombat.ApplyDamage(map, ev);       // ONE-WAY
                                     DeathSweep.Cleanup(s, cat, ev);
                                 }
                                 else if (o is ChargeUnit)

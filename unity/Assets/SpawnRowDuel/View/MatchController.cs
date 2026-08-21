@@ -320,7 +320,10 @@ namespace SpawnRowDuel.View
                 if (c == null || c.Owner != Side.Foe || c.IsWorker) continue;
                 if (c.Sick || c.Tapped || c.Hp <= 0) continue;
 
-                var cmd = new DeclareAttackCommand(Side.Foe, kv.Key, c.Id, new WallTarget(Side.You));
+                // deferred: the s12 mirrored cadence - you answer blocks at resolve time,
+                // seeing the foe's COMPLETE assault, not one declaration at a time blind
+                var cmd = new DeclareAttackCommand(Side.Foe, kv.Key, c.Id,
+                    new WallTarget(Side.You), true);
                 if (Engine.CanApply(cmd) == Rejection.None)
                 {
                     Apply(cmd);
