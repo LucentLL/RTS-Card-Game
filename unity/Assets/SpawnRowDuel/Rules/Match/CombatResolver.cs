@@ -89,7 +89,7 @@ namespace SpawnRowDuel.Rules
                 else c.OpenDeclIndices.Add(i);
             }
 
-            CombatKeywords.DischargeOvercharge(s, c.ResolutionAttackerIds, ev);
+            KeywordEngine.AttackPrep(s, c.ResolutionAttackerIds, ev);
             c.Stage = CombatStage.BlockedPairFights;
             c.Cursor = 0;
             c.SubCursor = 0;
@@ -195,6 +195,7 @@ namespace SpawnRowDuel.Rules
                             {
                                 c.Stage = CombatStage.UnblockedMisc;
                                 c.Cursor = 0;
+                                c.SubCursor = 0;
                                 continue;
                             }
 
@@ -209,7 +210,9 @@ namespace SpawnRowDuel.Rules
 
                             if (c.SubCursor == 0)              // the defender's attack trap, once
                             {
-                                Traps.SpringAttackTrap(s, defender, grp, t, ev);
+                                if (!TrapDecisionReady(s, c, defender, UnitRefOf(s, t)))
+                                    return;                     // parked on the response window
+                                ConsumeTrapDecision(s, c, defender, grp, t, ev);
                                 c.SubCursor = 1;
                                 for (int i = grp.Count - 1; i >= 0; i--)      // Backlash may kill
                                     if (grp[i].Hp <= 0) grp.RemoveAt(i);
@@ -246,17 +249,18 @@ namespace SpawnRowDuel.Rules
                     // ── STEP 3: everything else unblocked, declaration order ──────────────
                     case CombatStage.UnblockedMisc:
                         {
-                            for (; c.Cursor < c.OpenDeclIndices.Count; c.Cursor++)
+                            while (c.Cursor < c.OpenDeclIndices.Count)
                             {
                                 var d = c.Declarations[c.OpenDeclIndices[c.Cursor]];
                                 var a = s.FindById(d.AttackerUnitId, out _, out _) as CreatureUnit;
-                                if (a == null || a.Hp <= 0) continue;
-                                bool scour = a.Keyword == Keyword.Scour && !a.IsWorker;
+                                if (a == null || a.Hp <= 0) { NextMisc(c); continue; }
+                                bool scour = KeywordEngine.HasOnHit(a);
 
                                 if (d.Kind == DeclarationKind.Wall)
                                 {
                                     c.AccumulatedWallDamage += a.EffectiveAttack;
                                     if (scour) c.ScourHitUnitIds.Add(a.Id);
+                                    NextMisc(c);
                                     continue;
                                 }
 
@@ -266,16 +270,18 @@ namespace SpawnRowDuel.Rules
                                     var stack = new List<CreatureUnit>(pool.Members);
                                     LegacyCombat.Resolve(s, new List<CreatureUnit> { a }, stack, cat, ev);
                                     if (scour && a.Hp > 0) c.ScourHitUnitIds.Add(a.Id);
+                                    NextMisc(c);
                                     continue;
                                 }
 
                                 // a target already dead when resolution BEGAN does nothing -
                                 // the JS's step-2 capture came back null (spec 03 s7 step 7)
-                                if (!d.TargetLiveAtResolve) continue;
+                                if (!d.TargetLiveAtResolve) { NextMisc(c); continue; }
 
                                 CellRef at;
                                 bool onBoard;
                                 var o = s.FindById(d.TargetUnitId, out at, out onBoard);
+                                var single = new List<CreatureUnit> { a };
 
                                 if (o == null || !onBoard)
                                 {
@@ -284,23 +290,29 @@ namespace SpawnRowDuel.Rules
                                     // corpse - a razed building still re-springs the attack
                                     // trap, and every kind still grants the Scour credit
                                     if (d.TargetKind == UnitKind.Building)
-                                        Traps.SpringAttackTrap(s, defender,
-                                            new List<CreatureUnit> { a }, null, ev);
+                                    {
+                                        if (!TrapDecisionReady(s, c, defender, UnitRef.None))
+                                            return;
+                                        ConsumeTrapDecision(s, c, defender, single, null, ev);
+                                    }
                                     if (scour && a.Hp > 0) c.ScourHitUnitIds.Add(a.Id);
+                                    NextMisc(c);
                                     continue;
                                 }
 
                                 if (o is CreatureUnit)         // fought already in step 2
                                 {
                                     if (scour && a.Hp > 0) c.ScourHitUnitIds.Add(a.Id);
+                                    NextMisc(c);
                                     continue;
                                 }
 
-                                var single = new List<CreatureUnit> { a };
                                 var b = o as StructureUnit;
                                 if (b != null)
                                 {
-                                    Traps.SpringAttackTrap(s, defender, single, b, ev);
+                                    if (!TrapDecisionReady(s, c, defender, UnitRef.Cell(at, b.Id)))
+                                        return;
+                                    ConsumeTrapDecision(s, c, defender, single, b, ev);
                                     // NO alive guard: a Backlash-killed attacker's blow still
                                     // lands - the JS strikes with no re-check
                                     var map = LegacyCombat.FocusFire(single,
@@ -314,6 +326,7 @@ namespace SpawnRowDuel.Rules
                                     Traps.SpringTrap(s, defender, at, single, cat, ev);
 
                                 if (scour && a.Hp > 0) c.ScourHitUnitIds.Add(a.Id);
+                                NextMisc(c);
                             }
 
                             c.Stage = CombatStage.ApplyWallDamage;
@@ -341,12 +354,12 @@ namespace SpawnRowDuel.Rules
                             {
                                 var a = s.FindById(c.ScourHitUnitIds[i], out _, out _) as CreatureUnit;
                                 if (a == null || a.Hp <= 0) continue;
-                                CombatKeywords.ScourStrike(s, a, defender, cat, ev);
+                                KeywordEngine.OnHit(s, a, defender, cat, ev);
                                 any = true;
                             }
                             if (any) DeathSweep.Cleanup(s, cat, ev);
 
-                            CombatKeywords.ClearDischarge(s, c.ResolutionAttackerIds);
+                            KeywordEngine.AttackEnd(s, c.ResolutionAttackerIds);
                             c.Clear();
                             CheckWin(s, ev);
                             return;
@@ -383,7 +396,7 @@ namespace SpawnRowDuel.Rules
             for (int i = 0; i < blks.Count; i++) blks[i].Tapped = true;
 
             var group = new List<CreatureUnit> { a };
-            CombatKeywords.ApplyUndertow(s, group, blks, cat, ev);
+            KeywordEngine.PreCombat(s, group, blks, cat, ev);
             if (group.Count == 0 || a.Hp <= 0)
             {
                 DeathSweep.Cleanup(s, cat, ev);
@@ -418,7 +431,7 @@ namespace SpawnRowDuel.Rules
         public static void TargetFight(GameState s, List<CreatureUnit> grp, CreatureUnit t,
                                        int retaliationIndex, ICardCatalog cat, EventSink ev)
         {
-            CombatKeywords.ApplyUndertow(s, grp, new List<CreatureUnit> { t }, cat, ev);
+            KeywordEngine.PreCombat(s, grp, new List<CreatureUnit> { t }, cat, ev);
             for (int i = grp.Count - 1; i >= 0; i--)
                 if (grp[i] == null || grp[i].Hp <= 0) grp.RemoveAt(i);
             if (grp.Count == 0 || t == null || t.Hp <= 0)
@@ -445,6 +458,54 @@ namespace SpawnRowDuel.Rules
             }
 
             DeathSweep.Cleanup(s, cat, ev);
+        }
+
+        // ── the attack-trigger response window ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Every site where the JS would have auto-sprung the defender's attack trap now OFFERS
+        /// it instead. False means the resolver parked a ResponseWindowRequest and the caller
+        /// must return; true means an answer is waiting (or the defender holds nothing at all)
+        /// and ConsumeTrapDecision may run.
+        ///
+        /// A site is offered EVERY time it is reached, exactly as the JS re-ran findArmedTrap at
+        /// each one - so a defender holding two traps can still spring both across a resolution.
+        /// Answering "the first armed trap" every time reproduces the old auto-spring outcome.
+        /// The constant-length pause that hides whether a trap is even held is the view's job.
+        /// </summary>
+        static bool TrapDecisionReady(GameState s, CombatState c, Side defender, UnitRef subject)
+        {
+            if (c.TrapAnswered) return true;                     // an answer is waiting
+            var armed = Traps.FindArmedTraps(s, defender, TrapTrigger.Attack);
+            if (armed.Count == 0) return true;                   // nothing to ask about
+
+            s.Pending = new ResponseWindowRequest(defender, TrapTrigger.Attack,
+                                                  armed.ToArray(), subject);
+            return false;
+        }
+
+        /// <summary>Spend the parked answer. A pass, or no window at all, does nothing.</summary>
+        static void ConsumeTrapDecision(GameState s, CombatState c, Side defender,
+                                        List<CreatureUnit> attackers, BoardObject target,
+                                        EventSink ev)
+        {
+            if (!c.TrapAnswered) return;
+            var chosen = c.ChosenTrap;
+            c.TrapAnswered = false;
+            c.ChosenTrap = UnitRef.None;
+            if (chosen.Kind != UnitRefKind.Cell) return;         // passed
+            Traps.SpringAttackTrap(s, defender, chosen, attackers, target, ev);
+        }
+
+        static void NextMisc(CombatState c) { c.Cursor++; c.SubCursor = 0; }
+
+        static UnitRef UnitRefOf(GameState s, BoardObject o)
+        {
+            if (o == null) return UnitRef.None;
+            CellRef at;
+            bool onBoard;
+            s.FindById(o.Id, out at, out onBoard);
+            return onBoard ? UnitRef.Cell(at, o.Id) : UnitRef.None;
         }
 
         // ── helpers ─────────────────────────────────────────────────────────────────────────

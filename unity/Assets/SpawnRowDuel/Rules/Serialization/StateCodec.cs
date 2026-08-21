@@ -190,6 +190,7 @@ namespace SpawnRowDuel.Rules
             {
                 w.Write("trigger", (int)window.Trigger);
                 WriteUnitRefs("traps", window.ArmedTraps, w);
+                WriteUnitRefs("subject", new[] { window.Subject }, w);
                 w.EndObject();
                 return;
             }
@@ -207,6 +208,8 @@ namespace SpawnRowDuel.Rules
             w.Write("wallDmg", c.AccumulatedWallDamage);
             w.Write("hasAnswer", c.HasAnswer);
             w.Write("answered", c.AnsweredIndex);
+            w.Write("trapAnswered", c.TrapAnswered);
+            WriteUnitRefs("chosenTrap", new[] { c.ChosenTrap }, w);
 
             w.BeginArray("decls", c.Declarations.Count);
             for (int i = 0; i < c.Declarations.Count; i++)
@@ -247,6 +250,29 @@ namespace SpawnRowDuel.Rules
             w.BeginArray(name, list.Count);
             for (int i = 0; i < list.Count; i++) w.Write(null, list[i]);
             w.EndArray();
+        }
+
+        /// <summary>
+        /// A carried statline. The HasValue flag is always written, so a card that has been on
+        /// the board can never hash equal to a fresh copy of the same card even when the numbers
+        /// happen to match.
+        /// </summary>
+        static void WriteCreatureSnapshot(string name, CreatureSnapshot k, IStateWriter w)
+        {
+            w.BeginObject(name);
+            w.Write("has", k.HasValue);
+            if (k.HasValue)
+            {
+                w.Write("name", k.Name);
+                w.Write("atk", k.Attack); w.Write("hp", k.Health);
+                w.Write("cost", k.Cost); w.Write("up", k.Upkeep);
+                w.Write("fs", k.FirstStrike); w.Write("entrench", k.Entrench);
+                w.Write("kw", (int)k.Keyword);
+                w.Write("det", k.Detonate); w.Write("reap", k.Reap); w.Write("wardHp", k.WardHp);
+                w.Write("grow", k.Grow); w.Write("hatch", k.Hatch); w.Write("into", k.Into.Value);
+                w.Write("tribe", (int)k.Tribe); w.Write("sub", (int)k.Subtype);
+            }
+            w.EndObject();
         }
 
         static void WriteUnitRefs(string name, UnitRef[] refs, IStateWriter w)
@@ -333,6 +359,7 @@ namespace SpawnRowDuel.Rules
                 w.Write("snapFs", ch.Card.FirstStrike);
                 w.Write("snapEnt", ch.Card.Entrench);
                 w.Write("snapDef", ch.Card.StructDef.Value);
+                WriteCreatureSnapshot("live", ch.Snap, w);
                 w.EndObject();
                 return;
             }
@@ -367,6 +394,7 @@ namespace SpawnRowDuel.Rules
                 w.BeginObject(null);
                 w.Write("id", p.Hand[i].Id.Value);
                 w.Write("color", (int)p.Hand[i].Color);
+                WriteCreatureSnapshot("snap", p.Hand[i].Snapshot, w);
                 w.EndObject();
             }
             w.EndArray();
@@ -377,6 +405,7 @@ namespace SpawnRowDuel.Rules
                 w.BeginObject(null);
                 w.Write("id", p.Deck[i].Id.Value);
                 w.Write("color", (int)p.Deck[i].Color);
+                WriteCreatureSnapshot("snap", p.Deck[i].Snapshot, w);
                 w.EndObject();
             }
             w.EndArray();
@@ -392,6 +421,7 @@ namespace SpawnRowDuel.Rules
                 w.Write("token", p.Grave[i].IsToken);
                 w.Write("worker", p.Grave[i].IsWorker);
                 w.Write("turn", p.Grave[i].TurnDied);
+                WriteCreatureSnapshot("snap", p.Grave[i].Snapshot, w);
                 w.EndObject();
             }
             w.EndArray();

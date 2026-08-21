@@ -1,26 +1,6 @@
 namespace SpawnRowDuel.Rules
 {
     /// <summary>
-    /// M10 seams. Summoning and flipping call these the way place()/flip() call
-    /// onCreatureEnter/foeTrapOnSummon; the keyword and trap milestones assign them.
-    /// </summary>
-    public static class RulesHooks
-    {
-        public delegate void CreatureEnter(GameState s, CreatureUnit entered, Side owner,
-                                           ICardCatalog cat, EventSink ev);
-
-        public delegate void SummonTrap(GameState s, CreatureUnit summoned, CellRef at,
-                                        ICardCatalog cat, EventSink ev);
-
-        /// <summary>ENTER - summon or flip. Ward's token spawn lives here (M10).</summary>
-        public static CreatureEnter OnCreatureEnter;
-
-        /// <summary>An enemy 'summon' trap may fire at the newcomer (M10). NOT called on flip -
-        /// that immunity is the mechanical payoff of setting (spec 04 s13.3).</summary>
-        public static SummonTrap OnSummonTrap;
-    }
-
-    /// <summary>
     /// Deployment legality (spec 04 s9): new cards enter only your own back and front rows;
     /// structures may additionally take center FLANKS through the build path. Creatures can
     /// never be summoned into the center - they must march.

@@ -37,6 +37,62 @@ namespace SpawnRowDuel.Rules
             return c;
         }
 
+        /// <summary>
+        /// The same mkCre, fed by a card that has already been a creature (a bounce or a
+        /// Reliquary recall). Everything comes from the snapshot; nothing is re-read from the
+        /// registry, which is the whole point. `token` is NOT carried - the JS's
+        /// handcardFromCreature omits it, so a bounced Lumen returns as an ordinary card.
+        /// </summary>
+        public static CreatureUnit MakeCreature(GameState s, Side owner, CardId card,
+                                                CreatureSnapshot snap, Element color)
+        {
+            var c = new CreatureUnit();
+            c.Id = s.NewUid();
+            c.Owner = owner;
+            c.Color = color != Element.None ? color : s.P(owner).PrimaryColor;
+            c.Card = card;
+            c.Name = snap.Name;
+            c.Attack = snap.Attack;
+            c.Hp = snap.Health;
+            c.MaxHp = snap.Health;
+            c.Cost = snap.Cost;
+            c.Upkeep = snap.Upkeep;
+            c.FirstStrike = snap.FirstStrike;
+            c.Entrench = snap.Entrench;
+            c.Keyword = snap.Keyword;
+            c.Detonate = snap.Detonate;
+            c.Reap = snap.Reap;
+            c.WardHp = snap.WardHp;
+            c.Grow = snap.Grow;
+            c.Hatch = snap.Hatch;
+            c.Into = snap.Into;
+            c.Tribe = snap.Tribe;
+            c.Subtype = snap.Subtype;
+            return c;                       // cnt / oc deliberately restart at 0, as in the JS
+        }
+
+        /// <summary>
+        /// mkToken (06_mana_workers.js:114): a nameless-in-the-registry body - Ward's Lumen and
+        /// Reap's Shade. Cost and upkeep are 0, there is no catalog card behind it, and `token`
+        /// keeps it out of the Reliquary.
+        /// </summary>
+        public static CreatureUnit MakeToken(GameState s, Side owner, string name, int attack,
+                                             int hp, Element color)
+        {
+            var c = new CreatureUnit();
+            c.Id = s.NewUid();
+            c.Owner = owner;
+            c.Color = color != Element.None ? color : s.P(owner).PrimaryColor;
+            c.Card = CardId.None;
+            c.Name = name ?? "";
+            c.Attack = attack;
+            c.Hp = hp;
+            c.MaxHp = hp;
+            c.WardHp = 2;                   // mkCre's `t.wardhp||2` default, inert on a token
+            c.IsToken = true;
+            return c;
+        }
+
         public static StructureUnit MakeStructure(GameState s, Side owner, StructureDef d)
         {
             var b = new StructureUnit();

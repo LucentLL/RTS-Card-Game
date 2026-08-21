@@ -3,12 +3,35 @@ using System.Collections.Generic;
 
 namespace SpawnRowDuel.Rules
 {
-    /// <summary>A card sitting in hand or deck. Value type - decks are just ordered lists of these.</summary>
+    /// <summary>
+    /// A card sitting in hand or deck. Value type - decks are just ordered lists of these.
+    ///
+    /// Snapshot is empty for every card that was dealt: those resolve through the catalog. It is
+    /// filled only for a card that has already BEEN a creature - bounced by Undertow or Riptide,
+    /// or recalled by the Reliquary - so it comes back with the statline it left with rather than
+    /// the registry's (spec 06 s4.1; the JS's handcardFromCreature).
+    /// </summary>
     public readonly struct HandCard
     {
         public readonly CardId Id;
         public readonly Element Color;
-        public HandCard(CardId id, Element color) { Id = id; Color = color; }
+        public readonly CreatureSnapshot Snapshot;
+
+        public HandCard(CardId id, Element color)
+        {
+            Id = id; Color = color; Snapshot = default(CreatureSnapshot);
+        }
+
+        public HandCard(CardId id, Element color, CreatureSnapshot snapshot)
+        {
+            Id = id; Color = color; Snapshot = snapshot;
+        }
+
+        /// <summary>The statline a play should use: the carried one, else the catalog's.</summary>
+        public static HandCard OfCreature(CreatureUnit c)
+        {
+            return new HandCard(c.Card, c.Color, CreatureSnapshot.From(c));
+        }
     }
 
     /// <summary>
@@ -27,11 +50,22 @@ namespace SpawnRowDuel.Rules
         public readonly bool IsWorker;
         public readonly int TurnDied;
 
+        /// <summary>The creature's statline as it fell - what the Reliquary hands back.</summary>
+        public readonly CreatureSnapshot Snapshot;
+
         public GraveRecord(CardId id, string name, Element color, UnitKind kind,
                            bool isToken, bool isWorker, int turnDied)
+            : this(id, name, color, kind, isToken, isWorker, turnDied,
+                   default(CreatureSnapshot))
+        {
+        }
+
+        public GraveRecord(CardId id, string name, Element color, UnitKind kind,
+                           bool isToken, bool isWorker, int turnDied, CreatureSnapshot snapshot)
         {
             Id = id; Name = name ?? ""; Color = color; Kind = kind;
             IsToken = isToken; IsWorker = isWorker; TurnDied = turnDied;
+            Snapshot = snapshot;
         }
     }
 

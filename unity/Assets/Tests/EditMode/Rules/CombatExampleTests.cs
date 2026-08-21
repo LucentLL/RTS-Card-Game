@@ -224,9 +224,19 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(Rejection.DeclarationsPending, e.CanApply(new EndTurnCommand(Side.You)),
                 "end-turn is blocked while declarations are pending");
 
-            // resolve: the joint group parks the retaliation pick with the DEFENDER
+            // resolve: the defender is OFFERED Overgrowth before anything trades - the JS sprang
+            // it automatically; answering "the first armed trap" is that same outcome
             var r3 = e.Apply(new ResolveCombatCommand(Side.You));
             Assert.AreEqual(CommandStatus.AwaitingChoice, r3.Status);
+
+            var win = (ResponseWindowRequest)s.Pending;
+            Assert.AreEqual(Side.Foe, win.Responder);
+            Assert.AreEqual(TrapTrigger.Attack, win.Trigger);
+            Assert.AreEqual(1, win.ArmedTraps.Length);
+            Assert.AreEqual(t.Id, win.Subject.UnitId, "the window names who is being struck");
+
+            var r3b = e.Apply(new RespondCommand(Side.Foe, new TrapChosen(win.ArmedTraps[0])));
+            Assert.AreEqual(CommandStatus.AwaitingChoice, r3b.Status);
 
             Assert.AreEqual(2500, t.Attack, "Overgrowth sprang first: +500 attack, permanent");
             Assert.AreEqual(2500, t.Hp, "+1000 hp and max");

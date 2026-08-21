@@ -98,7 +98,7 @@ namespace SpawnRowDuel.Rules
 
                 grave.RemoveAt(k);
                 var color = r.Color == Element.None ? s.P(owner).PrimaryColor : r.Color;
-                s.P(owner).Hand.Add(new HandCard(r.Id, color));
+                s.P(owner).Hand.Add(new HandCard(r.Id, color, r.Snapshot));
                 ev.Add(new CreatureRevived(owner, r.Id));
                 return true;
             }

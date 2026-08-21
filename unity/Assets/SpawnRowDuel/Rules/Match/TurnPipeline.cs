@@ -28,8 +28,9 @@ namespace SpawnRowDuel.Rules
                 c.PaidUpkeep = false; c.HasBlocked = false; c.DischargeBonus = 0;
             }
 
-            UpkeepKeywords.ChrysalisTick(s, owner, cat, ev);   // 6. may hatch; always re-sicks
-            UpkeepKeywords.OverchargeTick(s, owner, ev);       // 7. oc = min(3, oc+1)
+            KeywordEngine.UpkeepTick(s, owner, cat, ev);       // 6-7. one pass per keyword, in
+                                                               //   enum order: Chrysalis (hatch,
+                                                               //   re-sick) then Overcharge (+1)
             StructureUpkeep.Tick(s, owner, cat, ev);           // 8. mana -> tower fire -> revive
             DeathSweep.Cleanup(s, cat, ev);                    // 9. sweep what the tower killed
             WorkerMath.Resync(s, owner, cat);                  // 10. pools from the board as it now is

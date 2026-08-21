@@ -138,7 +138,7 @@ namespace SpawnRowDuel.Rules
         public static void Resolve(GameState s, List<CreatureUnit> groupA,
                                    List<CreatureUnit> groupB, ICardCatalog cat, EventSink ev)
         {
-            CombatKeywords.ApplyUndertow(s, groupA, groupB, cat, ev);
+            KeywordEngine.PreCombat(s, groupA, groupB, cat, ev);
 
             List<BoardObject> Live(List<CreatureUnit> g)
             {

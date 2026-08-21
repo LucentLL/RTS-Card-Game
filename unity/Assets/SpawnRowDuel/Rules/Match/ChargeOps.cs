@@ -31,19 +31,18 @@ namespace SpawnRowDuel.Rules
                 return;
             }
 
-            var t = cat.Creature(ch.Card.Id);
             var color = s.Options.FaceDownKeepsColor
                 ? ch.Card.Color
                 : s.P(owner).PrimaryColor;                     // mkCre's fallback - the colour-drop bug
-            var cr = UnitFactory.MakeCreature(s, owner, t, color);
+            var cr = ch.Snap.HasValue
+                ? UnitFactory.MakeCreature(s, owner, ch.Card.Id, ch.Snap, color)
+                : UnitFactory.MakeCreature(s, owner, cat.Creature(ch.Card.Id), color);
             cr.Bank = bank;
             cr.Sick = s.TurnNumber <= ch.SetTurn;
             s.Put(at, cr);
             ev.Add(new CardFlipped(cr.Id, at, cr.Sick));
 
-            if (RulesHooks.OnCreatureEnter != null)
-                RulesHooks.OnCreatureEnter(s, cr, owner, cat, ev);
-            // deliberately NO summon-trap hook - flip immunity is the point of setting
+            Triggers.CreatureFlipped(s, cr, owner, cat, ev);   // ENTER only - no summon trap
 
             WorkerMath.Resync(s, owner, cat);
         }

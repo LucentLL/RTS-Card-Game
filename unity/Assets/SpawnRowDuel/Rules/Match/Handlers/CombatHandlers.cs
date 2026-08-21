@@ -181,7 +181,28 @@ namespace SpawnRowDuel.Rules
                 return Rejection.None;
             }
 
-            return Rejection.WrongResponseShape;                 // ResponseWindow arrives at M10
+            var window = pending as ResponseWindowRequest;
+            if (window != null)
+            {
+                var pick = m.Response as TrapChosen;
+                if (pick == null) return Rejection.WrongResponseShape;
+                if (pick.Pass) return Rejection.None;
+
+                // the trap must be one this window actually offered...
+                bool offered = false;
+                for (int i = 0; i < window.ArmedTraps.Length && !offered; i++)
+                    offered = window.ArmedTraps[i].UnitId == pick.Trap.UnitId;
+                if (!offered) return Rejection.WrongResponseShape;
+
+                // ...and must still be there, armed, and the responder's - re-checked live, the
+                // way a host re-checks a guest's answer
+                CellRef at;
+                if (Traps.ResolveTrapRef(s, m.Actor, pick.Trap, window.Trigger, out at) == null)
+                    return Rejection.WrongResponseShape;
+                return Rejection.None;
+            }
+
+            return Rejection.WrongResponseShape;
         }
 
         public void Execute(GameState s, ICommand cmd, ICardCatalog cat, EventSink ev)
@@ -212,6 +233,28 @@ namespace SpawnRowDuel.Rules
                     d.BlockersDeferred = false;
                     CombatResolver.Step(s, cat, ev);
                 }
+                return;
+            }
+
+            var window = s.Pending as ResponseWindowRequest;
+            if (window != null)
+            {
+                var pick = (TrapChosen)m.Response;
+                s.Pending = null;
+
+                if (window.Trigger == TrapTrigger.Summon)
+                {
+                    // the summon that opened this window is otherwise complete either way
+                    if (!pick.Pass)
+                        Traps.SpringSummonTrap(s, m.Actor, pick.Trap, window.Subject, cat, ev);
+                    CombatResolver.CheckWin(s, ev);
+                    return;
+                }
+
+                // attack trigger: the answer belongs to the spring site the resolver parked on
+                s.Combat.TrapAnswered = true;
+                s.Combat.ChosenTrap = pick.Pass ? UnitRef.None : pick.Trap;
+                CombatResolver.Step(s, cat, ev);
                 return;
             }
 

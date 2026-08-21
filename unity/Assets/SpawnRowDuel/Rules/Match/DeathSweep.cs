@@ -15,16 +15,6 @@ namespace SpawnRowDuel.Rules
     /// </summary>
     public static class DeathSweep
     {
-        /// <summary>
-        /// M10 seam: detonate / reap fire from here once keyword handlers land. The cell is
-        /// already freed when this runs; owner is the dead creature's own tag.
-        /// </summary>
-        public delegate void DeathTrigger(GameState s, CreatureUnit dead, Side owner,
-                                          ICardCatalog cat, EventSink ev);
-
-        /// <summary>Assigned by the keyword milestone; null until then.</summary>
-        public static DeathTrigger OnCreatureDeath;
-
         public static void Cleanup(GameState s, ICardCatalog cat, EventSink ev)
         {
             bool any = true;
@@ -44,8 +34,8 @@ namespace SpawnRowDuel.Rules
                     if (cre != null && cre.Hp <= 0)
                     {
                         s.Put(cell, null);                       // cell freed BEFORE the trigger
-                        if (!cre.IsWorker && OnCreatureDeath != null)
-                            OnCreatureDeath(s, cre, cre.Owner, cat, ev);
+                        if (!cre.IsWorker)
+                            KeywordEngine.OnDeath(s, cre, cre.Owner, cat, ev);
                         ToGrave(s, cre.Owner, cre);
                         ev.Add(new UnitDestroyed(cre.Id, cell, true, cre.Owner, UnitKind.Creature));
                         any = true;
@@ -94,8 +84,11 @@ namespace SpawnRowDuel.Rules
             var cre = obj as CreatureUnit;
             if (cre != null)
             {
+                // the record carries the LIVE statline (toGrave, 07_structures.js:69) so a
+                // Reliquary recall returns the hatched / hardened form, not the registry card
                 s.P(owner).Grave.Add(new GraveRecord(cre.Card, cre.Name, cre.Color,
-                    UnitKind.Creature, cre.IsToken, cre.IsWorker, s.TurnNumber));
+                    UnitKind.Creature, cre.IsToken, cre.IsWorker, s.TurnNumber,
+                    CreatureSnapshot.From(cre)));
                 return;
             }
 

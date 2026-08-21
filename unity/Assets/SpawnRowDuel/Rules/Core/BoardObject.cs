@@ -110,6 +110,11 @@ namespace SpawnRowDuel.Rules
         public int Invested;          // starts at 1 - the mana the set itself cost
         public int SetTurn;
 
+        /// <summary>Set only when the card put face-down had already BEEN a creature (bounced,
+        /// or recalled by the Reliquary): the JS's place() snapshots `{...card}` wholesale, so
+        /// those live stats survive the set and come back on the flip.</summary>
+        public CreatureSnapshot Snap;
+
         public ChargeUnit() { Kind = UnitKind.Charge; }
 
         public override BoardObject Clone()
@@ -117,7 +122,7 @@ namespace SpawnRowDuel.Rules
             var c = new ChargeUnit();
             CopyBaseTo(c);
             c.SetIn = SetIn; c.IsStructure = IsStructure; c.Card = Card;
-            c.Invested = Invested; c.SetTurn = SetTurn;
+            c.Invested = Invested; c.SetTurn = SetTurn; c.Snap = Snap;
             return c;
         }
     }

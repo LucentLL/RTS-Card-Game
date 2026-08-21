@@ -351,7 +351,12 @@ namespace SpawnRowDuel.Rules.Tests
 
             Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.FoeBack, 2),
                 a.Id, new UnitTarget(new CellRef(RowKey.FoeBack, 6), foundry.Id))).Applied);
-            Assert.IsTrue(e.Apply(new ResolveCombatCommand(Side.You)).Applied);
+            Assert.AreEqual(CommandStatus.AwaitingChoice,
+                e.Apply(new ResolveCombatCommand(Side.You)).Status,
+                "the defender is offered Backlash at the building's spring site");
+            var win = (ResponseWindowRequest)s.Pending;
+            Assert.AreEqual(foundry.Id, win.Subject.UnitId);
+            Assert.IsTrue(e.Apply(new RespondCommand(Side.Foe, new TrapChosen(win.ArmedTraps[0]))).Applied);
 
             Assert.IsNull(s.At(new CellRef(RowKey.FoeBack, 2)), "Backlash's 1500 killed the attacker");
             Assert.AreEqual(2000, foundry.Hp, "its 1000 blow landed anyway - no alive re-check");

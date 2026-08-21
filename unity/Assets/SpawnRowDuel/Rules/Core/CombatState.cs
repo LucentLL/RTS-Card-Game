@@ -107,6 +107,11 @@ namespace SpawnRowDuel.Rules
         public bool HasAnswer;
         public int AnsweredIndex;
 
+        /// <summary>The attack-trigger response window's answer, waiting for the spring site
+        /// that asked for it. ChosenTrap is UnitRef.None when the defender passed.</summary>
+        public bool TrapAnswered;
+        public UnitRef ChosenTrap;
+
         public bool HasDeclarations { get { return Declarations.Count > 0; } }
 
         public bool Resolving { get { return Stage != CombatStage.Idle; } }
@@ -127,6 +132,8 @@ namespace SpawnRowDuel.Rules
             ScourHitUnitIds.Clear();
             HasAnswer = false;
             AnsweredIndex = 0;
+            TrapAnswered = false;
+            ChosenTrap = UnitRef.None;
         }
 
         public CombatState Clone()
@@ -139,6 +146,8 @@ namespace SpawnRowDuel.Rules
                 AccumulatedWallDamage = AccumulatedWallDamage,
                 HasAnswer = HasAnswer,
                 AnsweredIndex = AnsweredIndex,
+                TrapAnswered = TrapAnswered,
+                ChosenTrap = ChosenTrap,
             };
             foreach (var d in Declarations) c.Declarations.Add(d.Clone());
             c.BlockedDeclIndices.AddRange(BlockedDeclIndices);

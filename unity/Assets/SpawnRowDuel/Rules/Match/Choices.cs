@@ -80,17 +80,34 @@ namespace SpawnRowDuel.Rules
     /// The anti-tell response window: may a set trap spring? Only the DECISION lives here; the
     /// constant-duration timer that hides whether a trap is even held is entirely the view's
     /// obligation (spec 03 s10.1).
+    ///
+    /// This is the core-side replacement for BOTH JS halves of the summon trap. The JS sprang the
+    /// AI's trap automatically and gave the human a modal (later, a RESP bar) - two code paths
+    /// with different timing. Here the defender is always ASKED, whoever they are; a policy that
+    /// answers "spring the first one" reproduces the old auto-spring exactly, and the human gets
+    /// the choice the RESP layer already gave them (spec 06 s7.4, s7.6).
+    ///
+    /// Subject is what provoked the window: the freshly summoned creature for a Summon trigger,
+    /// or the struck defender for an Attack trigger (UnitRef.None when the blow landed on
+    /// something that is not a unit).
     /// </summary>
     public sealed class ResponseWindowRequest : PendingRequest
     {
         public readonly TrapTrigger Trigger;
         public readonly UnitRef[] ArmedTraps;
+        public readonly UnitRef Subject;
 
         public ResponseWindowRequest(Side responder, TrapTrigger trigger, UnitRef[] armedTraps)
-            : base(responder)
+            : this(responder, trigger, armedTraps, UnitRef.None)
+        {
+        }
+
+        public ResponseWindowRequest(Side responder, TrapTrigger trigger, UnitRef[] armedTraps,
+                                     UnitRef subject) : base(responder)
         {
             Trigger = trigger;
             ArmedTraps = armedTraps ?? new UnitRef[0];
+            Subject = subject;
         }
 
         public override PendingKind Kind { get { return PendingKind.ResponseWindow; } }

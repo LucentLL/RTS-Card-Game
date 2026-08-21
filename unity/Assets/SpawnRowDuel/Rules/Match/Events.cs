@@ -175,12 +175,21 @@ namespace SpawnRowDuel.Rules
         public Overcharged(int unitId, int bank) { UnitId = unitId; Bank = bank; }
     }
 
+    /// <summary>A Ward Lumen or a Reap Shade. Tokens have no registry card, so the event carries
+    /// the statline the view needs rather than a CardId it could not resolve.</summary>
     public sealed class TokenSpawned : GameEvent
     {
         public readonly int UnitId;
         public readonly CellRef At;
-        public readonly CardId Kind;
-        public TokenSpawned(int unitId, CellRef at, CardId kind) { UnitId = unitId; At = at; Kind = kind; }
+        public readonly Side Owner;
+        public readonly string Name;
+        public readonly int Attack;
+        public readonly int Hp;
+
+        public TokenSpawned(int unitId, CellRef at, Side owner, string name, int attack, int hp)
+        {
+            UnitId = unitId; At = at; Owner = owner; Name = name ?? ""; Attack = attack; Hp = hp;
+        }
     }
 
     // ---- combat ---------------------------------------------------------------------------
