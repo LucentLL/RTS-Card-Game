@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SpawnRowDuel.Ai;
 using SpawnRowDuel.Data;
 using SpawnRowDuel.Rules;
 using UnityEngine;
@@ -12,10 +13,9 @@ namespace SpawnRowDuel.View
     /// through DuelEngine commands. Legal cells are discovered by PROBING CanApply, never by a
     /// view-side reimplementation, so the picture cannot disagree with the rules.
     ///
-    /// The opponent is still a command feeder on a timer (M11 replaces it with the scripted
-    /// AI): harvest, draw, one spell or trap, one greedy summon, storm the wall, end - and it
-    /// answers its own response windows by springing the first armed trap, which is what the
-    /// JS auto-spring did.
+    /// The opponent is the real ScriptedAiPolicy - the ported foeTurn - pumped one command per
+    /// beat by AiDriver so a human can watch it play. It goes through exactly the same command
+    /// pipeline you do; there is no privileged AI path into the rules.
     /// </summary>
     public class MatchController : MonoBehaviour
     {
@@ -40,9 +40,8 @@ namespace SpawnRowDuel.View
         public readonly List<CellRef> LegalCells = new List<CellRef>();
 
         private float _beat;
-        private bool _foeActed;
-        private bool _foePlayedSpell;
-        private bool _foeAttacked;
+        private AiDriver _ai;
+        private bool _aiFaulted;
 
         private readonly List<Transform>[,] _pawns = new List<Transform>[2, 3];
         private readonly Dictionary<int, Transform> _standees = new Dictionary<int, Transform>();
@@ -78,6 +77,7 @@ namespace SpawnRowDuel.View
             var state = MatchSetup.NewMatch(catalog,
                 new CommanderId("fire"), new CommanderId("water"), seed, RulesOptions.JsParity);
             Engine = new DuelEngine(state, catalog);
+            _ai = new AiDriver(Engine, new ScriptedAiPolicy(Side.Foe));
 
             Push("— Your turn · Upkeep — ⛏ Harvest to begin —");
         }
@@ -252,191 +252,52 @@ namespace SpawnRowDuel.View
 
         void Touch() { Version++; }
 
-        // ---- the stand-in opponent --------------------------------------------------------
 
+        // ---- the opponent -----------------------------------------------------------------
+
+        /// <summary>
+        /// The real scripted AI, one command per beat so a human can watch it think. It answers
+        /// its own parked choices even on YOUR turn - it is the defender then - while choices
+        /// addressed to you wait on the HUD.
+        /// </summary>
         void Autopilot()
         {
             var s = Engine.State;
             if (s.IsOver) return;
 
             _beat += Time.deltaTime;
-            if (_beat < 0.7f) return;
+            if (_beat < 0.35f) return;
 
-            // parked choices the FOE must answer - the stand-in policy, not an AI:
-            // block with the ported defending heuristic, absorb/retaliate at index 0 (the JS
-            // defender's hardcoded pick), and spring the first armed trap - which is exactly
-            // what the JS's auto-spring did before the window existed. Choices for YOU wait
-            // on the HUD.
-            if (s.Pending != null)
+            if (s.Pending != null && s.Pending.Responder != Side.Foe) return;
+            _beat = 0f;
+
+            var report = new AiDriver.Report();
+            if (_ai.Step(report))
             {
-                if (s.Pending.Responder != Side.Foe) return;
-                _beat = 0f;
-
-                var blockerReq = s.Pending as BlockerRequest;
-                var windowReq = s.Pending as ResponseWindowRequest;
-                if (blockerReq != null)
-                    Apply(new RespondCommand(Side.Foe,
-                        new BlockersChosen(AiPolicy.ChooseInterceptors(s, blockerReq))));
-                else if (windowReq != null)
-                    Apply(new RespondCommand(Side.Foe, windowReq.ArmedTraps.Length > 0
-                        ? new TrapChosen(windowReq.ArmedTraps[0])
-                        : TrapChosen.Passed));
-                else
-                    Apply(new RespondCommand(Side.Foe, new IndexChosen(0)));
+                Touch();
                 return;
             }
 
-            if (s.Turn == Side.Foe)
+            if (report.FirstRejection != Rejection.None && !_aiFaulted)
             {
-                _beat = 0f;
-                switch (s.Phase)
-                {
-                    case TurnPhase.Upkeep: Apply(new HarvestCommand(Side.Foe)); break;
-                    case TurnPhase.Draw:
-                        Apply(new DrawForTurnCommand(Side.Foe));
-                        _foeActed = false;
-                        _foePlayedSpell = false;
-                        _foeAttacked = false;
-                        break;
-                    case TurnPhase.Action:
-                        if (!_foePlayedSpell && FoePlaysASpell()) { _foePlayedSpell = true; break; }
-                        _foePlayedSpell = true;
-                        if (!_foeActed && FoeSummonsSomething()) { _foeActed = true; break; }
-                        _foeActed = true;
-                        if (!_foeAttacked && FoeDeclaresAnAttack()) break;
-                        _foeAttacked = true;
-                        if (s.Combat.HasDeclarations)
-                        {
-                            Apply(new ResolveCombatCommand(Side.Foe));
-                            break;
-                        }
-                        Apply(new EndTurnCommand(Side.Foe));
-                        break;
-                    case TurnPhase.End: Apply(new BeginTurnCommand(Side.You)); break;
-                }
+                // An AI that proposes an illegal command is a policy bug. Say so once, loudly,
+                // rather than stalling silently for the rest of the match.
+                _aiFaulted = true;
+                Push("· AI proposed an illegal " + report.FirstRejectionCommand
+                     + " (" + report.FirstRejection + ")");
+                Debug.LogError("[ai] illegal " + report.FirstRejectionCommand
+                     + ": " + report.FirstRejection);
+                return;
             }
-            else if (s.Phase == TurnPhase.End)
-            {
-                _beat = 0f;
-                Apply(new BeginTurnCommand(Side.You == s.Turn ? Side.Foe : Side.You));
-            }
-        }
 
-        /// <summary>Every ready foe creature storms your wall, one declaration per beat - the
-        /// v3 texture (the AI always attacks the wall; defended walls cost bodies).</summary>
-        bool FoeDeclaresAnAttack()
-        {
-            var s = Engine.State;
-            foreach (var kv in s.Objects())
-            {
-                var c = kv.Value as CreatureUnit;
-                if (c == null || c.Owner != Side.Foe || c.IsWorker) continue;
-                if (c.Sick || c.Tapped || c.Hp <= 0) continue;
-
-                // deferred: the s12 mirrored cadence - you answer blocks at resolve time,
-                // seeing the foe's COMPLETE assault, not one declaration at a time blind
-                var cmd = new DeclareAttackCommand(Side.Foe, kv.Key, c.Id,
-                    new WallTarget(Side.You), true);
-                if (Engine.CanApply(cmd) == Rejection.None)
-                {
-                    Apply(cmd);
-                    return true;
-                }
-            }
-            return false;
+            // nobody wants to act and a side has finished its turn: hand off
+            if (s.Pending == null && s.Phase == TurnPhase.End)
+                Apply(new BeginTurnCommand(TurnMachine.Other(s.Turn)));
         }
 
         void Apply(ICommand cmd)
         {
             if (Engine.Apply(cmd).Applied) Touch();
-        }
-
-        /// <summary>
-        /// One spell OR one trap per foe turn, so M10 is visible from the player's side of the
-        /// table: cast the costliest spell that has a legal target, else lay a trap in the back
-        /// row. Deliberately naive - the real spell decisions are M11's aiPickTarget.
-        /// </summary>
-        bool FoePlaysASpell()
-        {
-            var s = Engine.State;
-            var hand = s.P(Side.Foe).Hand;
-
-            int bestIdx = -1, bestCost = -1;
-            CellRef bestTarget = default(CellRef);
-            for (int i = 0; i < hand.Count; i++)
-            {
-                SpellCard sp;
-                if (!Engine.Catalog.TrySpell(hand[i].Id, out sp) || sp.IsTrap) continue;
-                if (sp.Cost > s.P(Side.Foe).Mana || sp.Cost <= bestCost) continue;
-
-                var targets = SpellTargeting.Targets(s, sp, Side.Foe);
-                for (int t = 0; t < targets.Count; t++)
-                {
-                    var cmd = new PlayCardCommand(Side.Foe, i, Rules.PlayMode.Cast, targets[t]);
-                    if (Engine.CanApply(cmd) != Rejection.None) continue;
-                    bestIdx = i; bestCost = sp.Cost; bestTarget = targets[t];
-                    break;
-                }
-            }
-            if (bestIdx >= 0)
-            {
-                Apply(new PlayCardCommand(Side.Foe, bestIdx, Rules.PlayMode.Cast, bestTarget));
-                return true;
-            }
-
-            for (int i = 0; i < hand.Count; i++)
-            {
-                SpellCard sp;
-                if (!Engine.Catalog.TrySpell(hand[i].Id, out sp) || !sp.IsTrap) continue;
-                var back = Rules.Board.RowFor(Side.Foe, SlotName.Back);
-                for (int col = Rules.Board.Columns - 1; col >= 0; col--)
-                {
-                    var cmd = new PlayCardCommand(Side.Foe, i, Rules.PlayMode.SetTrap,
-                        new CellRef(back, col));
-                    if (Engine.CanApply(cmd) != Rejection.None) continue;
-                    Apply(cmd);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// One greedy summon per foe turn: costliest affordable card, back-row slots in the
-        /// aiPickDeploySlot order. Pure legal commands - a placeholder for the M11 policy.
-        /// </summary>
-        bool FoeSummonsSomething()
-        {
-            var s = Engine.State;
-            var hand = s.P(Side.Foe).Hand;
-
-            int bestIdx = -1, bestCost = -1;
-            for (int i = 0; i < hand.Count; i++)
-            {
-                CreatureCard c;
-                if (!Engine.Catalog.TryCreature(hand[i].Id, out c)) continue;
-                if (c.Cost <= s.P(Side.Foe).Mana && c.Cost > bestCost) { bestCost = c.Cost; bestIdx = i; }
-            }
-            if (bestIdx < 0) return false;
-
-            int[] order = { 2, 4, 3, 1, 5, 0, 6 };      // the JS back-row preference
-            var back = Rules.Board.RowFor(Side.Foe, SlotName.Back);
-            var front = Rules.Board.RowFor(Side.Foe, SlotName.Front);
-            for (int pass = 0; pass < 2; pass++)
-            {
-                var row = pass == 0 ? back : front;
-                for (int i = 0; i < order.Length; i++)
-                {
-                    var cmd = new PlayCardCommand(Side.Foe, bestIdx, Rules.PlayMode.Summon,
-                        new CellRef(row, order[i]));
-                    if (Engine.CanApply(cmd) == Rejection.None)
-                    {
-                        Apply(cmd);
-                        return true;
-                    }
-                }
-            }
-            return false;
         }
 
         // ---- events -> log ----------------------------------------------------------------

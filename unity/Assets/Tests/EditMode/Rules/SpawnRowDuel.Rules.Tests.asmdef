@@ -3,6 +3,7 @@
     "rootNamespace": "SpawnRowDuel.Rules.Tests",
     "references": [
         "SpawnRowDuel.Rules",
+        "SpawnRowDuel.Ai",
         "SpawnRowDuel.View",
         "SpawnRowDuel.Data",
         "SpawnRowDuel.Editor",

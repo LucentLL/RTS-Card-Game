@@ -19,8 +19,8 @@ this file is status only.
 | M8 — combat v3 + legacy engine + pending requests | ✅ done | 2026-08-21 (`9276223`+fixes) — declarations, row-interval blocking, the resolver step machine (resumable mid-combat), pair/target fights w/ two FS tiers, legacy focusFire, traps/provoke/scour, checkWin, the s12 deferred-block cadence. Worked examples A+B reproduce (A: the spec narrative has an arithmetic slip — Rippler retaliates 1000, Ashfang dies) |
 | M9 — minimal Unity battle scene | ✅ playable duel | 2026-08-21 — full combat in the sandbox: aim-and-tap attacks, wall strikes, blocker/absorber/retaliation choice panels, the foe storms the wall with the mirrored cadence and defends with the ported heuristic. A duel can be won or lost on the Pages build |
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
-| M11 — scripted AI (vertical slice) | ▶ **next** | the verbatim 11-step `foeTurn` as a command/pending-request state machine, `aiFixDeficit`/`aiBuild`/`aiUpgrade`/`aiPickTarget`/`aiChooseInterceptors`/`aiPickDeploySlot`/`aiMoveCreature`, the `AiTuning` record, deterministic 200-turn self-play |
-| M12 — differential harness vs the JS | ⬜ | build as soon as M8 lands, while the JS is still the living oracle |
+| M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
+| M12 — differential harness vs the JS | ▶ **next** | `tools/diffjs/runner.mjs` boots the JS in jsdom behind a JSON protocol; replay identical command sequences against both engines and diff the canonical-JSON state. Build it while the JS is still alive to be the oracle |
 | M13 — presentation pass | ⬜ | |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
@@ -203,15 +203,35 @@ spec 03 s15 reproduced exactly. Then wire DeclareAttack + the choice prompts int
   a card back. The foe casts, lays traps, and springs its own.
 * `tools/deploy-webgl.sh`: build headlessly, stage into `play/`, one command.
 
-### Next session — M11 (the scripted AI)
+### 2026-08-21 (fourth pass) — M11 complete: a real opponent (216 tests)
 
-The vertical slice. `ScriptedAiPolicy` as the verbatim 11-step `foeTurn` — a command/pending-request
-state machine, NOT a coroutine — plus `aiFixDeficit` (3 passes), `aiBuild` (buildList order, per-bid
-caps via lineage), `aiUpgrade` (≤1/turn), `aiPickTarget` (the 0.6 / 0.3 rolls on the SEEDED rng),
-`aiChooseInterceptors` (already ported as `AiPolicy`), `aiPickDeploySlot`, the absorber pick, and
-`aiMoveCreature`. Add the `AiTuning` record defaulted to JS behaviour. Gate: deterministic self-play,
-200 turns, zero illegal commands, reproducible hash. Then M12's differential harness — build it while
-the JS is still alive to be the oracle.
+* **`SpawnRowDuel.Ai`** is its own noEngineReferences assembly now; `AiPolicy.ChooseInterceptors`
+  moved out of Rules into it, where a policy belongs.
+* **`ScriptedAiPolicy`** (D13) is `foeTurn` as a COMMAND SOURCE: `Next(engine)` returns the one
+  command the AI wants next, and the engine does the doing through the ordinary validators. No
+  coroutine, no timers, no privileged path into the rules - an AI mistake surfaces as a REJECTION
+  the driver reports rather than a corrupt board. Turn order is the JS's step for step: settle the
+  shortfall (move, then sacrifice only while the bill is unaffordable, then pay) -> harvest -> draw
+  -> fuel -> build x2 -> upgrade -> raze -> burn -> trap -> summon -> declare everything -> resolve
+  -> end.
+* **`AiChoices`** carries the decision procedures separably: the deploy-column preferences, the
+  attacker scan, `PickTarget` (the ONLY randomised decision in the whole AI - both rolls come off
+  the seeded match RNG, drawn in one pass exactly where the JS draws them), and the gang-block
+  absorber pick. Two JS quirks are reproduced and flagged: the 60% face-down roll runs BEFORE the
+  guaranteed-kill check, and the kill test reads RAW attack so an Overcharge discharge does not
+  count. Both have tests that pin the quirk, not the fix.
+* **`AiTuning`** (D14) is the difficulty record the JS never had, kept deliberately OUT of
+  RulesOptions so the parity register can still reach zero active flags.
+* **`AiDriver`** pumps a policy against an engine - one call in self-play, one per beat in the view.
+* **Gate met**: 8/8 self-play seeds reach a real win or loss inside 300 turns, zero illegal
+  commands, and the same seed produces a byte-identical state hash. The sandbox opponent is now
+  this policy rather than the stand-in feeder.
 
-> Do not gold-plate the AI. The JS AI has no difficulty scaling at all; reproduce it faithfully and
-> tune later behind `AiTuning`.
+### Next session — M12 (the differential harness)
+
+Build it while the JS is still alive to be the oracle. `tools/diffjs/runner.mjs` boots `index.html`
++ `src/js/*.js` in jsdom behind a stdin/stdout JSON protocol; the C# side replays the same command
+sequence and the two canonical-JSON states are diffed field by field. Start with the sequences the
+AI already generates - self-play is a free source of long, legal, reproducible traces. Every
+divergence is either a port defect or a RulesOptions flag that has to be justified; the ship gate is
+that the flag register is empty.
