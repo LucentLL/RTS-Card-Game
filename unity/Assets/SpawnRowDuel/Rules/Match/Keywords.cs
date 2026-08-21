@@ -20,7 +20,7 @@ namespace SpawnRowDuel.Rules
         Keyword Keyword { get; }
 
         /// <summary>The card's own rules text, with this instance's numbers filled in (kwText).</summary>
-        string Text(CreatureUnit self);
+        string Text(CreatureUnit self, ICardCatalog cat);
 
         /// <summary>The short label the hand card's ability box shows (kwName).</summary>
         string Label(CreatureUnit self);
@@ -63,7 +63,7 @@ namespace SpawnRowDuel.Rules
     public abstract class KeywordHandler : IKeywordHandler
     {
         public abstract Keyword Keyword { get; }
-        public abstract string Text(CreatureUnit self);
+        public abstract string Text(CreatureUnit self, ICardCatalog cat);
         public abstract string Label(CreatureUnit self);
 
         public virtual void OnEnter(GameState s, CreatureUnit self, Side owner, ICardCatalog cat, EventSink ev) { }
@@ -93,7 +93,7 @@ namespace SpawnRowDuel.Rules
     {
         public override Keyword Keyword { get { return Keyword.Detonate; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
             return "Detonate " + o.Detonate + ". When destroyed, deals " + o.Detonate
                  + " to the deadliest enemy creature (or an enemy structure). Never hits a command center.";
@@ -138,7 +138,7 @@ namespace SpawnRowDuel.Rules
     {
         public override Keyword Keyword { get { return Keyword.Undertow; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
             return "Undertow. When this blocks or is attacked, the strongest attacking creature "
                  + "is hurled back to its owner's hand (re-summoning-sick).";
@@ -166,6 +166,13 @@ namespace SpawnRowDuel.Rules
             s.P(owner.Value).Hand.Add(HandCard.OfCreature(mark));    // live statline, at max HP
             groupA.Remove(mark);
             ev.Add(new UnitBounced(mark.Id, owner.Value, BounceCause.Undertow));
+
+            // The resolver walks attackers by id and so loses sight of one that is now a hand
+            // card; the JS held the object and kept striking with it. Record the departure so
+            // the misc step can still hand out this flier's Scour credit - serialized, because
+            // a resolution parked on a choice has to survive a snapshot.
+            if (s.Combat.Resolving && KeywordEngine.HasOnHit(mark))
+                s.Combat.BouncedScourIds.Add(mark.Id);
         }
     }
 
@@ -178,7 +185,7 @@ namespace SpawnRowDuel.Rules
     {
         public override Keyword Keyword { get { return Keyword.Entrench; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
             return "Entrench. Immovable - cannot be bounced or pushed; effects like Undertow slide off.";
         }
@@ -197,7 +204,7 @@ namespace SpawnRowDuel.Rules
 
         public override Keyword Keyword { get { return Keyword.Ward; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
             return "Ward. On entry, conjures a 0/" + o.WardHp + " Lumen token blocker beside it.";
         }
@@ -228,7 +235,7 @@ namespace SpawnRowDuel.Rules
 
         public override Keyword Keyword { get { return Keyword.Reap; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
             return "Reap " + o.Reap + ". When destroyed, raises a " + o.Reap + "/" + o.Reap
                  + " Shade token in its place.";
@@ -261,11 +268,20 @@ namespace SpawnRowDuel.Rules
     {
         public override Keyword Keyword { get { return Keyword.Chrysalis; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
+            // kwText names the form it becomes and its statline - which is the only place in the
+            // game a player can learn what a cocoon is worth. The hatch form is not a registry
+            // card, so it has to be read off the base card the same way OnUpkeep reads it.
+            string into = "";
+            CreatureCard baseCard;
+            if (cat != null && cat.TryCreature(o.Card, out baseCard) && baseCard.Into != null)
+                into = " " + baseCard.Into.Name + " (attack " + baseCard.Into.Attack
+                     + "/health " + baseCard.Into.Health + ")";
+
             return "Chrysalis " + o.ChrysalisCount + "/" + (o.Hatch > 0 ? o.Hatch : 3)
                  + ". Cannot attack; swells +" + (o.Grow > 0 ? o.Grow : 1)
-                 + " each of your turns, then hatches.";
+                 + " each of your turns, then hatches into" + into + ".";
         }
 
         public override string Label(CreatureUnit o) { return "Chrysalis"; }
@@ -313,7 +329,7 @@ namespace SpawnRowDuel.Rules
     {
         public override Keyword Keyword { get { return Keyword.Scour; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
             return "Scour. Flier - ignores interceptors and shatters an enemy back-row card on attack.";
         }
@@ -324,6 +340,16 @@ namespace SpawnRowDuel.Rules
 
         public override void OnHit(GameState s, CreatureUnit attacker, Side defender,
                                    ICardCatalog cat, EventSink ev)
+        {
+            Shatter(s, attacker.Id, defender, ev);
+        }
+
+        /// <summary>
+        /// The strike itself, keyed on the attacker's ID rather than its body - because
+        /// scourStrike reads nothing off the attacker but its name, and the JS lets a flier
+        /// Undertow has already hurled back to hand deliver one anyway.
+        /// </summary>
+        public static void Shatter(GameState s, int attackerId, Side defender, EventSink ev)
         {
             var back = Board.RowFor(defender, SlotName.Back);
 
@@ -345,7 +371,7 @@ namespace SpawnRowDuel.Rules
                 if (b != null && !b.IsCommandCenter)
                 {
                     b.Hp = 0;                                  // swept by the caller's cleanup
-                    ev.Add(new DamageApplied(b.Id, b.MaxHp, attacker.Id, DamageTier.Trigger));
+                    ev.Add(new DamageApplied(b.Id, b.MaxHp, attackerId, DamageTier.Trigger));
                     return;
                 }
             }
@@ -367,7 +393,7 @@ namespace SpawnRowDuel.Rules
 
         public override Keyword Keyword { get { return Keyword.Overcharge; } }
 
-        public override string Text(CreatureUnit o)
+        public override string Text(CreatureUnit o, ICardCatalog cat)
         {
             return "Overcharge. Banks a charge each of your turns (up to " + Cap
                  + "); when it attacks it discharges them as bonus attack.";
@@ -441,11 +467,12 @@ namespace SpawnRowDuel.Rules
             return i > 0 && i < _byKeyword.Length ? _byKeyword[i] : null;
         }
 
-        /// <summary>Rules text for the inspect panel, "" when the creature has no keyword.</summary>
-        public static string TextOf(CreatureUnit c)
+        /// <summary>Rules text for the inspect panel, "" when the creature has no keyword. The
+        /// catalog is needed because Chrysalis names the form it hatches into.</summary>
+        public static string TextOf(CreatureUnit c, ICardCatalog cat)
         {
             var h = Of(c);
-            return h == null ? "" : h.Text(c);
+            return h == null ? "" : h.Text(c, cat);
         }
 
         /// <summary>Short ability-box label, "" when the creature has no keyword.</summary>

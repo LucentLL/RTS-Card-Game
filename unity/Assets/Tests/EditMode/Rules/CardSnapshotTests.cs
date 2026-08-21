@@ -190,6 +190,57 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
+        public void AFaceDownThatDiesUnflipped_IsRecalledVANILLA()
+        {
+            // toGrave's charge branch writes a NARROWER record than its creature branch: no
+            // keyword, no first strike, no entrench, no colour. So the Reliquary hands back a
+            // plain body - it must NOT fall through to the registry card, which would restore
+            // more than the JS ever did (audit finding, four lenses).
+            GameState s;
+            var e = Engine(out s);
+            ToAction(e, s);
+            s.P(Side.You).Mana = 9;
+
+            s.P(Side.You).Hand.Add(new HandCard(new CardId("Emberfly"), Element.Fire));
+            int idx = s.P(Side.You).Hand.Count - 1;
+            var at = new CellRef(RowKey.YouBack, 4);
+            Assert.IsTrue(e.Apply(new PlayCardCommand(Side.You, idx, PlayMode.Set, at)).Applied);
+
+            var registryCard = TestData.Catalog.Creature(new CardId("Emberfly"));
+            Assert.AreEqual(Keyword.Detonate, registryCard.Keyword, "fixture: the card has a keyword");
+
+            var ch = (ChargeUnit)s.At(at);
+            s.Put(at, null);
+            DeathSweep.ToGrave(s, Side.You, ch);              // Bolt / Scour / a starved provoke
+
+            var rec = s.P(Side.You).Grave[s.P(Side.You).Grave.Count - 1];
+            Assert.IsTrue(rec.Snapshot.HasValue,
+                "present-but-stripped: an ABSENT snapshot would send the recall to the catalog");
+            Assert.AreEqual(Keyword.None, rec.Snapshot.Keyword);
+            Assert.IsFalse(rec.Snapshot.FirstStrike);
+            Assert.AreEqual(0, rec.Snapshot.Detonate);
+            Assert.AreEqual(registryCard.Attack, rec.Snapshot.Attack, "stats DO survive");
+            Assert.AreEqual(registryCard.Health, rec.Snapshot.Health);
+            Assert.AreEqual(Element.None, rec.Color, "no colour on the record - revive falls back");
+
+            Assert.IsTrue(StructureUpkeep.ReviveFromGrave(s, Side.You, new EventSink()));
+            var card = s.P(Side.You).Hand[s.P(Side.You).Hand.Count - 1];
+            Assert.AreEqual(Keyword.None, card.Snapshot.Keyword);
+            Assert.AreEqual(s.P(Side.You).PrimaryColor, card.Color);
+
+            int mana = s.P(Side.You).Mana;
+            int back = s.P(Side.You).Hand.Count - 1;
+            var to = new CellRef(RowKey.YouFront, 1);
+            Assert.IsTrue(e.Apply(new PlayCardCommand(Side.You, back, PlayMode.Summon, to)).Applied);
+
+            var cr = (CreatureUnit)s.At(to);
+            Assert.AreEqual(Keyword.None, cr.Keyword, "it comes back with no Detonate at all");
+            Assert.AreEqual(0, cr.Detonate);
+            Assert.AreEqual(registryCard.Attack, cr.Attack);
+            Assert.AreEqual(mana - registryCard.Cost, s.P(Side.You).Mana);
+        }
+
+        [Test]
         public void ACarriedStatline_PerturbsTheStateHash()
         {
             GameState s;

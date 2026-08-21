@@ -240,6 +240,7 @@ namespace SpawnRowDuel.Rules
             WriteIntList("groupDecls", c.GroupDeclIndices, w);
             WriteIntList("resAttackers", c.ResolutionAttackerIds, w);
             WriteIntList("scour", c.ScourHitUnitIds, w);
+            WriteIntList("bouncedScour", c.BouncedScourIds, w);
 
             w.EndObject();
         }

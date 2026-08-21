@@ -103,9 +103,34 @@ namespace SpawnRowDuel.Rules
             var charge = obj as ChargeUnit;
             if (charge != null)
             {
-                s.P(owner).Grave.Add(new GraveRecord(charge.Card.Id, charge.Card.Name, charge.Card.Color,
-                    charge.IsStructure ? UnitKind.Building : UnitKind.Creature, false, false,
-                    s.TurnNumber));
+                if (charge.IsStructure)
+                {
+                    s.P(owner).Grave.Add(new GraveRecord(charge.Card.Id, charge.Card.Name,
+                        charge.Card.Color, UnitKind.Building, false, false, s.TurnNumber));
+                    return;
+                }
+
+                // toGrave's charge branch (07_structures.js:72) writes a deliberately NARROWER
+                // record than its creature branch: `{type, nm, a, h, c, up, ...}` and nothing
+                // else. No keyword, no first strike, no entrench, no colour. reviveFromGrave
+                // then reads r.fs / r.kw / r.det / ... as undefined and mkCre collapses them to
+                // their defaults, so a face-down creature that dies unflipped and is later
+                // recalled by the Reliquary comes back VANILLA.
+                //
+                // That is why this snapshot must be present-but-stripped rather than absent: an
+                // absent snapshot sends the recall back to the catalog, which would restore MORE
+                // than the JS ever did - and now that keywords are implemented, that difference
+                // is a live rules divergence, not a cosmetic one.
+                var stripped = new CreatureSnapshot(charge.Card.Name, charge.Card.Attack,
+                    charge.Card.Health, charge.Card.Cost, charge.Card.Upkeep,
+                    false, false, Keyword.None,
+                    0, 0, 2, 0, 0,            // wardHp 2 is mkCre's `t.wardhp||2` fallback
+                    CardId.None, Tribe.None, Subtype.None);
+
+                s.P(owner).Grave.Add(new GraveRecord(charge.Card.Id, charge.Card.Name,
+                    Element.None,             // no colour on the record: revive falls back to the
+                    UnitKind.Creature,        //   owner's primary, as `r.color||G.P[o].color` does
+                    false, false, s.TurnNumber, stripped));
                 return;
             }
 

@@ -391,5 +391,114 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.IsTrue(mistlingGraved);
             Assert.AreEqual(500, a.Hp, "it fought back at full strength on the way down");
         }
+
+        [Test]
+        public void RazedTargetSpringSite_StillSweeps_SoADeathKeywordFiresInsideTheCombat()
+        {
+            // Two declarations on one structure: the first razes it, the second lands on the
+            // corpse and springs a second trap that kills its attacker. The JS sweeps at that
+            // site (15_combat.js:352), so the dying attacker graves and its Reap fires DURING
+            // the resolution instead of leaving a 0-hp body squatting on its cell.
+            GameState s;
+            var e = Engine(out s);
+
+            var a = Place(s, Side.You, "Cinderling", RowKey.FoeBack, 2);      // 1000/1000
+            var b = Place(s, Side.You, "Grimfang", RowKey.FoeBack, 3);        // 1500/500, reap 500
+
+            var forge = UnitFactory.MakeStructure(s, Side.Foe,
+                TestData.Catalog.Structure(new StructId("foundry"), Element.None));
+            forge.Hp = 500;                                    // frail enough for one blow
+            s.Put(new CellRef(RowKey.FoeBack, 6), forge);
+
+            foreach (var col in new[] { 0, 1 })                // TWO armed Backlashes
+            {
+                var t = new TrapUnit();
+                t.Id = s.NewUid();
+                t.Owner = Side.Foe;
+                t.Color = Element.Water;
+                t.SetIn = SlotName.Front;
+                t.Card = new CardId("Backlash");
+                t.Effect = SpellEffect.Burn;
+                t.Trigger = TrapTrigger.Attack;
+                t.Value = 1500;
+                t.SetTurn = 0;
+                s.Put(new CellRef(RowKey.FoeFront, col), t);
+            }
+
+            // same row as the target: uninterposable, so no blocker windows
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.FoeBack, 2),
+                a.Id, new UnitTarget(new CellRef(RowKey.FoeBack, 6), forge.Id))).Applied);
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.FoeBack, 3),
+                b.Id, new UnitTarget(new CellRef(RowKey.FoeBack, 6), forge.Id))).Applied);
+
+            Assert.AreEqual(CommandStatus.AwaitingChoice,
+                e.Apply(new ResolveCombatCommand(Side.You)).Status);
+            var w1 = (ResponseWindowRequest)s.Pending;
+            Assert.AreEqual(CommandStatus.AwaitingChoice,
+                e.Apply(new RespondCommand(Side.Foe, new TrapChosen(w1.ArmedTraps[0]))).Status,
+                "the razed-corpse site offers the second trap");
+
+            var w2 = (ResponseWindowRequest)s.Pending;
+            Assert.IsTrue(e.Apply(new RespondCommand(Side.Foe,
+                new TrapChosen(w2.ArmedTraps[0]))).Applied);
+
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeBack, 6)), "the structure was razed");
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeBack, 3)),
+                "Backlash killed the second attacker and the site swept it");
+
+            foreach (var kv in s.Objects())
+            {
+                var c = kv.Value as CreatureUnit;
+                Assert.IsFalse(c != null && c.Hp <= 0,
+                    "no 0-hp corpse is left holding a cell for the rest of the turn");
+            }
+
+            CreatureUnit shade = null;
+            foreach (var kv in s.ObjectsOf(Side.You))
+            {
+                var c = kv.Value as CreatureUnit;
+                if (c != null && c.IsToken) shade = c;
+            }
+            Assert.IsNotNull(shade, "its Reap fired inside the combat, as the JS sweep makes it");
+            Assert.AreEqual("Shade", shade.Name);
+        }
+
+        [Test]
+        public void AnUndertowBouncedFlier_StillShattersTheBackRow()
+        {
+            // The JS walks CAPTURED attacker objects, so a Scour flier hurled back to hand during
+            // the fight still passes `x.A.h>0`, still collects its credit, and still shatters a
+            // card at step 9 - a strike delivered from hand. Its own bug; parity is the contract.
+            GameState s;
+            var e = Engine(out s);
+
+            var flier = Place(s, Side.You, "Zephyr", RowKey.FoeFront, 2);     // 1500/500, Scour
+            var warden = Place(s, Side.Foe, "Undertow", RowKey.FoeFront, 4);  // bounces the mark
+
+            var charge = new ChargeUnit();                                    // the shatter victim
+            charge.Id = s.NewUid();
+            charge.Owner = Side.Foe;
+            charge.Color = Element.Water;
+            charge.SetIn = SlotName.Back;
+            charge.Card = new CardSnapshot(new CardId("Mistling"), "Mistling", Element.Water,
+                1, 500, 1000, 1, Keyword.None, false, false, StructId.None);
+            charge.Invested = 1;
+            charge.SetTurn = 0;
+            var chargeAt = new CellRef(RowKey.FoeBack, 3);
+            s.Put(chargeAt, charge);
+
+            // Scour is never offered to blockers, so this declaration needs no answer
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.FoeFront, 2),
+                flier.Id, new UnitTarget(new CellRef(RowKey.FoeFront, 4), warden.Id))).Applied);
+            Assert.IsTrue(e.Apply(new ResolveCombatCommand(Side.You)).Applied);
+
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeFront, 2)), "Undertow hurled the flier back");
+            var card = s.P(Side.You).Hand[s.P(Side.You).Hand.Count - 1];
+            Assert.AreEqual(new CardId("Zephyr"), card.Id);
+            Assert.AreEqual(1500, warden.Hp, "the bounced attacker dealt no damage");
+
+            Assert.IsNull(s.At(chargeAt),
+                "and it shattered the back row anyway - from its owner's hand");
+        }
     }
 }

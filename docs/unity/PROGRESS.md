@@ -18,7 +18,7 @@ this file is status only.
 | M7 — placement, movement, set/flip, structures | ✅ done | 2026-08-20 (`091becd`) — PlayCard summon/set/settrap + play-on-top, BuildStructure off the commander list w/ lineage prereqs, in-place upgrades w/ damage carry, flip w/ both JS quirks behind flags. Cast waits for M10 |
 | M8 — combat v3 + legacy engine + pending requests | ✅ done | 2026-08-21 (`9276223`+fixes) — declarations, row-interval blocking, the resolver step machine (resumable mid-combat), pair/target fights w/ two FS tiers, legacy focusFire, traps/provoke/scour, checkWin, the s12 deferred-block cadence. Worked examples A+B reproduce (A: the spec narrative has an arithmetic slip — Rippler retaliates 1000, Ashfang dies) |
 | M9 — minimal Unity battle scene | ✅ playable duel | 2026-08-21 — full combat in the sandbox: aim-and-tap attacks, wall strikes, blocker/absorber/retaliation choice panels, the foe storms the wall with the mirrored cadence and defends with the ported heuristic. A duel can be won or lost on the Pages build |
-| M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 202 tests |
+| M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ▶ **next** | the verbatim 11-step `foeTurn` as a command/pending-request state machine, `aiFixDeficit`/`aiBuild`/`aiUpgrade`/`aiPickTarget`/`aiChooseInterceptors`/`aiPickDeploySlot`/`aiMoveCreature`, the `AiTuning` record, deterministic 200-turn self-play |
 | M12 — differential harness vs the JS | ⬜ | build as soon as M8 lands, while the JS is still the living oracle |
 | M13 — presentation pass | ⬜ | |
@@ -155,11 +155,63 @@ spec 03 s15 reproduced exactly. Then wire DeclareAttack + the choice prompts int
   asset behind it now opens Battle; playModeStartScene re-pinned post-import). NOTE: the user's
   open editor session predates the script — needs one focus/refresh or reopen to compile it.
 
-### Next session — M10 (keywords, spells, response window)
+### 2026-08-21 (third pass) — M10 complete: cards stop being stat blocks (206 tests)
 
-Fold chrysalis/overcharge into the keyword registry; wire detonate/reap into the DeathSweep
-seam and ward into RulesHooks.OnCreatureEnter; spell casting (burn/raze/chain/bounce/thornmail
-+ targeting legality in one place); summon traps (pitfall) through RulesHooks.OnSummonTrap; the
-response-window CHOICE (ResponseWindowRequest) for the defender's attack traps; and the
-HandCard stat-snapshot so bounce/revive keep in-play stats. Then M11 (the scripted AI) makes
-the foe real, and M12's differential harness runs while the JS is still alive.
+* **Keyword registry** (`1c200fe`): `IKeywordHandler` with the six real hook points and all eight
+  handlers, 1:1 with the JS functions. **Ward, Detonate and Reap had no implementation at all**
+  before this — Light conjures its Lumen on ENTER, Fire blasts the deadliest enemy creature on
+  DEATH, Dark raises its Shade into the cell the sweep just freed. Chrysalis/Overcharge/Undertow/
+  Scour folded in from the two ad-hoc static classes, which are deleted. The upkeep sweep runs
+  ONE FULL PASS PER KEYWORD in enum order, which is what `startTurn`'s chrysalisUpkeep-then-
+  overchargeUpkeep pair actually did; interleaving would have reordered the events.
+* **Spells**: burn / raze / chain / bounce dispatched on EFFECT, never on card name, behind ONE
+  `SpellTargeting.CanTarget` predicate that the command validator runs *before* any mana moves.
+  The JS split that legality across the input layer, the AI and the MP host, and `resolveSpell`
+  checked ownership nowhere — a mis-wired caller could burn its own creature.
+* **The response window is real** (D6/D7): the JS sprang the AI's trap automatically and gave the
+  human a modal, an asymmetry the core cannot express because it does not know which side is a
+  person. Both summon-trap halves AND every attack-trap spring site now park a
+  `ResponseWindowRequest`; answering "the first armed trap" is bit-for-bit the old auto-spring,
+  and that is what the stand-in opponent does. The resolver parks and resumes from its cursor, so
+  a snapshot taken mid-window still round-trips.
+* **The M8 debt is closed** (D10): `CreatureSnapshot` rides on `HandCard`, `GraveRecord` and
+  `ChargeUnit`, mirroring `handcardFromCreature` / `toGrave` field for field — including what they
+  deliberately DROP (`cnt`, `oc`, `bank`, `token`). A bounced hatched creature comes back hatched;
+  a Thornmail-hardened defender keeps its +500/+1000.
+* **`RulesHooks`' assignable delegates are gone** (D9). Direct calls now — a mutable static hook is
+  a live hazard the moment two matches share a process, and AI search clones state constantly.
+
+* **Adversarial audit** (29 agents, 7 lenses × 2 skeptics per finding): **11 raised, 7 confirmed,
+  0 contested, 4 dismissed.** All four fixed, each with a regression test:
+  1. **The charge grave record** — found independently by four lenses, the real one. `toGrave`'s
+     charge branch writes a deliberately NARROWER record than its creature branch (no keyword, no
+     first strike, no colour), so a face-down that dies unflipped is recalled by the Reliquary
+     **vanilla**. Our snapshot-less record sent the recall to the catalog and handed back the full
+     card — keyword intact. Invisible before M10 because no keyword had an implementation. Fixed
+     with a present-but-STRIPPED snapshot: absent is not the same as empty here.
+  2. **The razed-target spring site dropped `cleanup()`** (15_combat.js:352). A Backlash that kills
+     the attacker there left a 0-hp corpse holding its cell for the rest of the turn and deferred
+     its death keyword. Pre-existing M8 code; the window made it reachable.
+  3. **An Undertow-bounced Scour flier lost its credit** (D12) — the JS strikes from hand because
+     it walks captured objects. Reproduced via a serialized `BouncedScourIds`, not a live
+     reference, so resumability survives.
+  4. `kwText`'s chrysalis string dropped the clause naming what the cocoon becomes — the only
+     place in the game a player can learn it.
+* **Sandbox** (`34edfeb`): CAST joins SUMMON/SET, gated by `HasAnyTarget` and placed through the
+  same probe-every-cell flow; a RESPOND? panel with each trap's own rules text under it; cocoon
+  progress and banked discharge on the board overlays; Lumen/Shade get a conjured orb rather than
+  a card back. The foe casts, lays traps, and springs its own.
+* `tools/deploy-webgl.sh`: build headlessly, stage into `play/`, one command.
+
+### Next session — M11 (the scripted AI)
+
+The vertical slice. `ScriptedAiPolicy` as the verbatim 11-step `foeTurn` — a command/pending-request
+state machine, NOT a coroutine — plus `aiFixDeficit` (3 passes), `aiBuild` (buildList order, per-bid
+caps via lineage), `aiUpgrade` (≤1/turn), `aiPickTarget` (the 0.6 / 0.3 rolls on the SEEDED rng),
+`aiChooseInterceptors` (already ported as `AiPolicy`), `aiPickDeploySlot`, the absorber pick, and
+`aiMoveCreature`. Add the `AiTuning` record defaulted to JS behaviour. Gate: deterministic self-play,
+200 turns, zero illegal commands, reproducible hash. Then M12's differential harness — build it while
+the JS is still alive to be the oracle.
+
+> Do not gold-plate the AI. The JS AI has no difficulty scaling at all; reproduce it faithfully and
+> tune later behind `AiTuning`.

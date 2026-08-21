@@ -385,13 +385,31 @@ namespace SpawnRowDuel.Rules.Tests
                 var c = UnitFactory.MakeCreature(s, Side.You,
                     TestData.Catalog.Creature(new CardId(kv.Value)), Element.None);
                 Assert.AreEqual(kv.Key, c.Keyword, kv.Value + " should carry " + kv.Key);
-                Assert.IsNotEmpty(KeywordEngine.TextOf(c), kv.Key + " has inspect text");
+                Assert.IsNotEmpty(KeywordEngine.TextOf(c, TestData.Catalog),
+                    kv.Key + " has inspect text");
                 Assert.IsNotEmpty(KeywordEngine.LabelOf(c), kv.Key + " has a short label");
                 Assert.IsNotNull(KeywordEngine.Of(kv.Key), kv.Key + " is registered");
             }
 
             Assert.IsNull(KeywordEngine.Of(Keyword.None));
             Assert.AreEqual(9, KeywordEngine.All.Count, "eight handlers, index 0 reserved for None");
+        }
+
+        [Test]
+        public void ChrysalisText_NamesTheFormItHatchesInto()
+        {
+            // kwText is the ONLY in-game documentation of what a cocoon is worth (spec 06 s6.3),
+            // so the hatch clause is part of the port, not decoration.
+            GameState s;
+            var e = Engine(out s);
+            var pod = Place(s, Side.You, "Sap Pod", RowKey.YouFront, 2);
+
+            var text = KeywordEngine.TextOf(pod, TestData.Catalog);
+            StringAssert.Contains("Chrysalis 0/3", text);
+            StringAssert.Contains("swells +1", text);
+            StringAssert.Contains("Canopy Beast", text);
+            StringAssert.Contains("2500", text);
+            StringAssert.Contains("2000", text);
         }
     }
 }

@@ -253,6 +253,20 @@ namespace SpawnRowDuel.Rules
                             {
                                 var d = c.Declarations[c.OpenDeclIndices[c.Cursor]];
                                 var a = s.FindById(d.AttackerUnitId, out _, out _) as CreatureUnit;
+
+                                // The JS walks CAPTURED attacker objects, so one that Undertow
+                                // hurled back to hand during an earlier fight still passes its
+                                // `x.A.h>0` test and still collects its Scour credit - a strike
+                                // delivered by a flier that is no longer on the board. Resolving
+                                // by id cannot see a hand card, so the bounce is recorded at the
+                                // moment it happens and re-read here (spec 06 s6.2; the JS's own
+                                // quirk, reproduced deliberately).
+                                if (a == null && c.BouncedScourIds.Contains(d.AttackerUnitId))
+                                {
+                                    c.ScourHitUnitIds.Add(d.AttackerUnitId);
+                                    NextMisc(c);
+                                    continue;
+                                }
                                 if (a == null || a.Hp <= 0) { NextMisc(c); continue; }
                                 bool scour = KeywordEngine.HasOnHit(a);
 
@@ -294,6 +308,11 @@ namespace SpawnRowDuel.Rules
                                         if (!TrapDecisionReady(s, c, defender, UnitRef.None))
                                             return;
                                         ConsumeTrapDecision(s, c, defender, single, null, ev);
+                                        // the JS sweeps here too (15_combat.js:352) - so a
+                                        // Backlash that kills the attacker at THIS site graves
+                                        // it and fires its death keyword inside the combat,
+                                        // instead of leaving a 0-hp corpse holding its cell
+                                        DeathSweep.Cleanup(s, cat, ev);
                                     }
                                     if (scour && a.Hp > 0) c.ScourHitUnitIds.Add(a.Id);
                                     NextMisc(c);
@@ -353,8 +372,10 @@ namespace SpawnRowDuel.Rules
                             for (int i = 0; i < c.ScourHitUnitIds.Count; i++)
                             {
                                 var a = s.FindById(c.ScourHitUnitIds[i], out _, out _) as CreatureUnit;
-                                if (a == null || a.Hp <= 0) continue;
-                                KeywordEngine.OnHit(s, a, defender, cat, ev);
+                                if (a != null && a.Hp <= 0) continue;
+                                if (a != null) KeywordEngine.OnHit(s, a, defender, cat, ev);
+                                else                       // bounced to hand, but still striking
+                                    ScourHandler.Shatter(s, c.ScourHitUnitIds[i], defender, ev);
                                 any = true;
                             }
                             if (any) DeathSweep.Cleanup(s, cat, ev);

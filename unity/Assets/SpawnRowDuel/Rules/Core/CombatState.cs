@@ -103,6 +103,11 @@ namespace SpawnRowDuel.Rules
 
         public readonly List<int> ScourHitUnitIds = new List<int>();
 
+        /// <summary>Attackers Undertow hurled back to hand DURING this resolution that carry an
+        /// on-hit keyword. The JS kept striking with the captured object; resolving by id needs
+        /// this to find them again (spec 06 s6.2).</summary>
+        public readonly List<int> BouncedScourIds = new List<int>();
+
         /// <summary>The answer slot a RespondCommand fills for the resolver to consume.</summary>
         public bool HasAnswer;
         public int AnsweredIndex;
@@ -130,6 +135,7 @@ namespace SpawnRowDuel.Rules
             GroupDeclIndices.Clear();
             ResolutionAttackerIds.Clear();
             ScourHitUnitIds.Clear();
+            BouncedScourIds.Clear();
             HasAnswer = false;
             AnsweredIndex = 0;
             TrapAnswered = false;
@@ -157,6 +163,7 @@ namespace SpawnRowDuel.Rules
             c.GroupDeclIndices.AddRange(GroupDeclIndices);
             c.ResolutionAttackerIds.AddRange(ResolutionAttackerIds);
             c.ScourHitUnitIds.AddRange(ScourHitUnitIds);
+            c.BouncedScourIds.AddRange(BouncedScourIds);
             return c;
         }
     }
