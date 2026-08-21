@@ -174,6 +174,48 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
+        public void Pour_AcceptsLessThanIsOwed_SoAFaceDownCanBeDripFed()
+        {
+            // The whole point of setting a card face-down is funding it a little at a time when
+            // you cannot afford it outright. A UI that only ever offers "fill to cost" makes this
+            // unreachable, because the engine rejects a pour bigger than your pool - so the rule
+            // that matters here is that a SMALL pour is legal and accumulates.
+            GameState s;
+            var e = Engine(out s);
+            ToAction(e, s);
+            s.P(Side.You).Mana = 1;
+            int idx = GiveCard(s, "Magmaw", Element.Fire);            // cost 6
+
+            var at = new CellRef(RowKey.YouBack, 3);
+            Assert.IsTrue(e.Apply(new PlayCardCommand(Side.You, idx, PlayMode.Set, at)).Applied);
+            var ch = (ChargeUnit)s.At(at);
+            Assert.AreEqual(1, ch.Invested, "the set's own ◆1 banks toward the cost");
+            Assert.AreEqual(0, s.P(Side.You).Mana);
+
+            Assert.AreEqual(Rejection.NotEnoughMana,
+                e.CanApply(new PourIntoChargeCommand(Side.You, at, ch.Id, 5)),
+                "filling to cost is refused outright when the pool cannot cover it");
+
+            for (int drip = 0; drip < 5; drip++)                      // a turn's worth at a time
+            {
+                s.P(Side.You).Mana = 1;
+                Assert.IsTrue(e.Apply(new PourIntoChargeCommand(Side.You, at, ch.Id, 1)).Applied,
+                    "a partial pour is legal - this is the mechanic");
+                Assert.AreEqual(0, s.P(Side.You).Mana);
+                if (ch.Invested < 6)
+                    Assert.AreEqual(Rejection.ChargeUnderfunded,
+                        e.CanApply(new FlipChargeCommand(Side.You, at, ch.Id)));
+            }
+
+            Assert.AreEqual(6, ch.Invested, "five drips on top of the set's own ◆1");
+            Assert.IsTrue(e.Apply(new FlipChargeCommand(Side.You, at, ch.Id)).Applied);
+
+            var cr = (CreatureUnit)s.At(at);
+            Assert.AreEqual("Magmaw", cr.Name, "a ◆6 creature paid for one mana at a time");
+            Assert.AreEqual(0, cr.Bank, "exactly funded - nothing left over to bank");
+        }
+
+        [Test]
         public void Flip_OnALaterTurn_IsBattleReady()
         {
             GameState s;

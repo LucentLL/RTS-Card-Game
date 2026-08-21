@@ -122,6 +122,41 @@ namespace SpawnRowDuel.View
         {
             Pending = Intent.None;
             PendingBuild = null;
+            SendFrom = null;
+            LegalCells.Clear();
+            Touch();
+        }
+
+        // ---- moving banked mana between cards ---------------------------------------------
+
+        /// <summary>The card whose banked ◆ is being moved, while the player picks a destination.</summary>
+        public CellRef? SendFrom { get; private set; }
+
+        /// <summary>
+        /// startSendMana: arm the transfer. Banked mana is not decoration - it is what makes a
+        /// face-down affordable next turn and what a play-on-top spends - so being able to move
+        /// it off a card that is about to die is a real decision.
+        /// </summary>
+        public void BeginSendMana(CellRef from)
+        {
+            CancelPending();
+            SendFrom = from;
+            LegalCells.Clear();
+            for (int i = 0; i < Rules.Board.Cells; i++)
+            {
+                var cell = CellRef.FromIndex(i);
+                if (Engine.CanApply(new SendBankedManaCommand(Side.You, from, cell)) == Rejection.None)
+                    LegalCells.Add(cell);
+            }
+            Touch();
+        }
+
+        public void TrySendBankedMana(CellRef to)
+        {
+            if (!SendFrom.HasValue) return;
+            var why = TryHuman(new SendBankedManaCommand(Side.You, SendFrom.Value, to));
+            if (why != Rejection.None) Push("· " + Hint(why));
+            SendFrom = null;
             LegalCells.Clear();
             Touch();
         }

@@ -40,6 +40,10 @@ namespace SpawnRowDuel.View
         private float _logShownUntil;
         private readonly HashSet<int> _chosenBlockers = new HashSet<int>();
         private PendingRequest _seenPending;
+        private bool _upgradeMenuOpen;
+        private int _chargeAmount;
+        private int _chargeCellId = -1;
+        private int _upkeepPromptedTurn = -1;
 
         private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center;
         private GUIStyle _ovYou, _ovFoe, _ovNeutral;
@@ -121,10 +125,14 @@ namespace SpawnRowDuel.View
                 return;
             }
 
+            PromptUpkeepOffender(s);
+
             DrawHand(s, w, h);
             DrawModeRow(s, w, h);
             DrawActionRow(s, w, h);
             if (_buildMenuOpen) DrawBuildMenu(s, w, h);
+            else if (_upgradeMenuOpen) DrawUpgradeMenu(s, w, h);
+            else DrawChargePanel(s, w, h);
             DrawChoicePanel(s, w, h);
 
             if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
@@ -293,35 +301,97 @@ namespace SpawnRowDuel.View
             {
                 var cell = _input.Selected.Value;
 
-                var ch = s.At(cell) as ChargeUnit;
-                if (ch != null && ch.Owner == Side.You && s.Phase == TurnPhase.Action)
+                // moving banked ◆: the next board tap names the destination
+                if (_match.SendFrom.HasValue)
                 {
-                    int remaining = Mathf.Max(0, ch.Card.Cost - ch.Invested);
-                    // portrait leaves ~100 px here - the invested/cost fraction is the part
-                    // that matters; the name fits only when there is room
-                    string caption = w >= 620
-                        ? ch.Card.Name + " ◆" + ch.Invested + "/" + ch.Card.Cost
-                        : "◆" + ch.Invested + "/" + ch.Card.Cost;
-                    GUI.Label(new Rect(6, by, w / 2f - 135, 24), caption, _small);
-                    if (remaining > 0 &&
-                        GUI.Button(new Rect(w / 2f - 125, by, 120, 24), "FILL ◆" + remaining, _button))
-                        Try(new PourIntoChargeCommand(Side.You, cell, ch.Id, remaining));
-                    GUI.enabled = ch.Invested >= ch.Card.Cost;
-                    if (GUI.Button(new Rect(w / 2f + 5, by, 120, 24), "FLIP", _button))
-                        Try(new FlipChargeCommand(Side.You, cell, ch.Id));
-                    GUI.enabled = true;
+                    GUI.Label(new Rect(0, by, w, 24),
+                        "tap one of your cards to store the ◆ there — or tap this one to cancel",
+                        _center);
                     return;
                 }
 
-                // an aimed attacker: enemy targets are lit; the wall is a button
+                var owned = s.At(cell);
+                bool canSend = owned != null && owned.Owner == Side.You && owned.Bank > 0
+                    && s.Phase == TurnPhase.Action;
+
+                var ch = s.At(cell) as ChargeUnit;
+                if (ch != null && ch.Owner == Side.You && s.Phase == TurnPhase.Action)
+                {
+                    // the FULL stepper lives in the charge panel; this row just says where it is
+                    GUI.Label(new Rect(0, by, w, 24),
+                        ch.Card.Name + " — ◆" + ch.Invested + "/" + ch.Card.Cost
+                        + (ch.Invested >= ch.Card.Cost ? " · ready to flip" : " · pour below"),
+                        _center);
+                    return;
+                }
+
+                // an aimed attacker: enemy cells are lit; the wall and the worker stacks are buttons
                 var atk = s.At(cell) as CreatureUnit;
                 if (atk != null && atk.Owner == Side.You && s.Phase == TurnPhase.Action
-                    && _match.Engine.CanApply(new DeclareAttackCommand(Side.You, cell, atk.Id,
-                        new WallTarget(Side.Foe))) == Rejection.None)
+                    && !atk.IsWorker && !atk.Sick && !atk.Tapped)
                 {
-                    GUI.Label(new Rect(6, by, w / 2f - 135, 24), "tap a target, or:", _small);
-                    if (GUI.Button(new Rect(w / 2f - 125, by, 250, 24), "⚔ STRIKE THE WALL", _button))
-                        Try(new DeclareAttackCommand(Side.You, cell, atk.Id, new WallTarget(Side.Foe)));
+                    var wall = new DeclareAttackCommand(Side.You, cell, atk.Id, new WallTarget(Side.Foe));
+                    bool wallOk = _match.Engine.CanApply(wall) == Rejection.None;
+
+                    // Worker stacks are attackable by the rules and were unreachable from the
+                    // board, because a pool is not a cell - it needs its own button.
+                    var zones = new[] { WorkerZone.Back, WorkerZone.Front, WorkerZone.Center };
+                    var legalZones = new List<WorkerZone>();
+                    for (int i = 0; i < zones.Length; i++)
+                    {
+                        var st = new DeclareAttackCommand(Side.You, cell, atk.Id,
+                            new WorkerStackTarget(Side.Foe, zones[i]));
+                        if (_match.Engine.CanApply(st) == Rejection.None) legalZones.Add(zones[i]);
+                    }
+
+                    if (wallOk || legalZones.Count > 0)
+                    {
+                        float x = w / 2f - 125;
+                        if (wallOk)
+                        {
+                            float ww = legalZones.Count > 0 ? 130 : 250;
+                            if (GUI.Button(new Rect(x, by, ww, 24), "⚔ WALL", _button)) Try(wall);
+                            x += ww + 5;
+                        }
+                        float zw = legalZones.Count > 0
+                            ? Mathf.Min(60f, (w / 2f + 125 - x) / legalZones.Count - 4) : 0;
+                        for (int i = 0; i < legalZones.Count; i++)
+                        {
+                            var z = legalZones[i];
+                            int n = s.P(Side.Foe).Workers[(int)z].Count;
+                            if (GUI.Button(new Rect(x, by, zw, 24), "⚒" + ZoneTag(z) + n, _button))
+                                Try(new DeclareAttackCommand(Side.You, cell, atk.Id,
+                                    new WorkerStackTarget(Side.Foe, z)));
+                            x += zw + 4;
+                        }
+                        return;
+                    }
+                }
+
+                // your structure: the in-place upgrade chain, and moving its banked ◆ off it.
+                // Both fit, because a structure about to be upgraded is exactly when you want to
+                // decide where its stored mana goes.
+                var bld = s.At(cell) as StructureUnit;
+                bool canUpgrade = bld != null && bld.Owner == Side.You
+                    && s.Phase == TurnPhase.Action && UpgradeTargetsFor(s, cell, bld).Count > 0;
+
+                if (canUpgrade || canSend)
+                {
+                    float bw = (canUpgrade && canSend) ? 122f : 250f;
+                    float x = w / 2f - 125;
+                    if (canUpgrade)
+                    {
+                        if (GUI.Button(new Rect(x, by, bw, 24),
+                                _upgradeMenuOpen ? "CLOSE" : "⬆ UPGRADE", _button))
+                            _upgradeMenuOpen = !_upgradeMenuOpen;
+                        x += bw + 6;
+                    }
+                    if (canSend && GUI.Button(new Rect(x, by, bw, 24),
+                            "◆ SEND " + owned.Bank, _button))
+                    {
+                        _upgradeMenuOpen = false;
+                        _match.BeginSendMana(cell);
+                    }
                     return;
                 }
 
@@ -348,7 +418,9 @@ namespace SpawnRowDuel.View
             if (myTurn && s.Phase == TurnPhase.Upkeep
                 && !Upkeep.HarvestUnlocked(s, Side.You, _match.Engine.Catalog))
                 GUI.Label(new Rect(0, by, w, 24),
-                    "shortfall — tap the over-extended creature: move it, PAY, or SACRIFICE", _center);
+                    "shortfall ⚒" + Upkeep.TotalDeficit(s, Side.You, _match.Engine.Catalog)
+                    + " — move the flagged creature to a lit cell, PAY its keep, or SACRIFICE it",
+                    _center);
         }
 
         void DrawActionRow(GameState s, float w, float h)
@@ -432,6 +504,163 @@ namespace SpawnRowDuel.View
             }
 
             GUI.EndScrollView();
+        }
+
+        /// <summary>
+        /// The charge panel (the JS `drawPanel`, 14_spells_traps.js:135-160). This is the whole
+        /// point of setting a card face-down: you drip ◆ into it across turns and flip it when it
+        /// is paid off - so an all-or-nothing "fill to cost" button, which the engine simply
+        /// REJECTS when you cannot afford the whole remainder, made the mechanic unreachable.
+        ///
+        /// Pouring past the cost is deliberate too: the surplus banks onto the unit when it
+        /// flips, which is how a creature arrives already carrying mana.
+        /// </summary>
+        void DrawChargePanel(GameState s, float w, float h)
+        {
+            if (_input == null || !_input.Selected.HasValue) { _chargeAmount = 0; return; }
+            if (s.Turn != Side.You || s.Phase != TurnPhase.Action) { _chargeAmount = 0; return; }
+            if (_match.SendFrom.HasValue) return;
+
+            var cell = _input.Selected.Value;
+            var ch = s.At(cell) as ChargeUnit;
+            if (ch == null || ch.Owner != Side.You) { _chargeAmount = 0; return; }
+
+            if (_chargeCellId != ch.Id) { _chargeCellId = ch.Id; _chargeAmount = 0; }
+
+            int mana = s.P(Side.You).Mana;
+            int remaining = Mathf.Max(0, ch.Card.Cost - ch.Invested);
+            _chargeAmount = Mathf.Clamp(_chargeAmount, 0, mana);
+
+            const float pw = 300f, rowH = 28f;
+            float ph = 152f;
+            float regionTop = TopH + 6;
+            float regionBottom = h - BottomH - 6;
+            ph = Mathf.Min(ph, regionBottom - regionTop);
+            var panel = new Rect(w / 2f - pw / 2f, regionBottom - ph, pw, ph);
+
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            float y = panel.y + 6;
+            GUI.Label(new Rect(panel.x + 8, y, pw - 16, 18),
+                ch.Card.Name + "  ⚔" + ch.Card.Attack / 500 + "/♥" + ch.Card.Health / 500, _small);
+            y += 18;
+
+            int surplus = Mathf.Max(0, ch.Invested + _chargeAmount - ch.Card.Cost);
+            GUI.Label(new Rect(panel.x + 8, y, pw - 16, 18),
+                "invested ◆" + ch.Invested + " / ◆" + ch.Card.Cost + "   ·   your ◆" + mana
+                + (surplus > 0 ? "   ·   ◆" + surplus + " would bank" : ""), _small);
+            y += 22;
+
+            // stepper
+            if (GUI.Button(new Rect(panel.x + 8, y, 40, rowH - 2), "−", _button))
+                _chargeAmount = Mathf.Max(0, _chargeAmount - 1);
+            GUI.Label(new Rect(panel.x + 52, y + 4, 60, 20), "◆" + _chargeAmount, _center);
+            if (GUI.Button(new Rect(panel.x + 116, y, 40, rowH - 2), "+", _button))
+                _chargeAmount = Mathf.Min(mana, _chargeAmount + 1);
+
+            GUI.enabled = remaining > 0 && mana > 0;
+            if (GUI.Button(new Rect(panel.x + 162, y, 60, rowH - 2), "FILL", _button))
+                _chargeAmount = Mathf.Min(mana, remaining);
+            GUI.enabled = mana > 0;
+            if (GUI.Button(new Rect(panel.x + 228, y, 64, rowH - 2), "ALL ◆" + mana, _button))
+                _chargeAmount = mana;
+            GUI.enabled = true;
+            y += rowH + 4;
+
+            GUI.enabled = _chargeAmount > 0 && _chargeAmount <= mana;
+            if (GUI.Button(new Rect(panel.x + 8, y, (pw - 24) / 2f, rowH), "POUR ◆" + _chargeAmount, _button))
+            {
+                Try(new PourIntoChargeCommand(Side.You, cell, ch.Id, _chargeAmount));
+                _chargeAmount = 0;
+            }
+            GUI.enabled = ch.Invested >= ch.Card.Cost;
+            int bankOnFlip = Mathf.Max(0, ch.Invested - ch.Card.Cost);
+            if (GUI.Button(new Rect(panel.x + 16 + (pw - 24) / 2f, y, (pw - 24) / 2f, rowH),
+                    bankOnFlip > 0 ? "FLIP (bank ◆" + bankOnFlip + ")" : "FLIP UP", _button))
+            {
+                Try(new FlipChargeCommand(Side.You, cell, ch.Id));
+                _chargeAmount = 0;
+            }
+            GUI.enabled = true;
+        }
+
+        /// <summary>
+        /// The in-place upgrade chain (foundry → keep → citadel, outpost → tower | bastion, and
+        /// the rest). A whole M7 subsystem that had no way into it from the board.
+        /// </summary>
+        void DrawUpgradeMenu(GameState s, float w, float h)
+        {
+            if (!_upgradeMenuOpen) return;
+            if (_input == null || !_input.Selected.HasValue) { _upgradeMenuOpen = false; return; }
+
+            var cell = _input.Selected.Value;
+            var bld = s.At(cell) as StructureUnit;
+            if (bld == null || bld.Owner != Side.You || s.Phase != TurnPhase.Action)
+            {
+                _upgradeMenuOpen = false;
+                return;
+            }
+
+            var targets = UpgradeTargetsFor(s, cell, bld);
+            if (targets.Count == 0) { _upgradeMenuOpen = false; return; }
+
+            const float rowH = 28f, pw = 300f;
+            float ph = targets.Count * rowH + 34;
+            float regionTop = TopH + 6;
+            float regionBottom = h - BottomH - 6;
+            ph = Mathf.Min(ph, regionBottom - regionTop);
+            var panel = new Rect(w / 2f - pw / 2f, regionBottom - ph, pw, ph);
+
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            GUI.Label(new Rect(panel.x + 8, panel.y + 5, pw - 16, 20),
+                "UPGRADE " + bld.DefId.Value + "  (♥" + (bld.Hp + 499) / 500 + ")", _small);
+
+            float y = panel.y + 28;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var def = targets[i];
+                var cmd = new UpgradeStructureCommand(Side.You, cell, bld.Id, def.Bid);
+                var why = _match.Engine.CanApply(cmd);
+                GUI.enabled = why == Rejection.None;
+                string label = def.Name + "   ◆" + def.Cost + "   ♥" + def.MaxHp / 500
+                             + "   ⚒" + (def.Support >= 0 ? "+" : "") + def.Support;
+                if (GUI.Button(new Rect(panel.x + 8, y, pw - 16, rowH - 3), label, _button))
+                {
+                    Try(cmd);
+                    _upgradeMenuOpen = false;
+                }
+                GUI.enabled = true;
+                if (why != Rejection.None)
+                    GUI.Label(new Rect(panel.x + 12, y + 5, pw - 24, 18),
+                        "                              " + MatchController.Hint(why), _tiny);
+                y += rowH;
+            }
+        }
+
+        /// <summary>Every tier this structure could become - the menu, before legality.</summary>
+        List<StructureDef> UpgradeTargetsFor(GameState s, CellRef cell, StructureUnit b)
+        {
+            var outp = new List<StructureDef>();
+            if (b.DefId.IsNone) return outp;
+            var cat = _match.Engine.Catalog;
+            var def = cat.Structure(b.DefId, b.Color);
+            if (def == null) return outp;
+            for (int i = 0; i < def.UpgradeTargets.Length; i++)
+            {
+                var t = cat.Structure(new StructId(def.UpgradeTargets[i]), b.Color);
+                if (t != null) outp.Add(t);
+            }
+            return outp;
+        }
+
+        static string ZoneTag(WorkerZone z)
+        {
+            return z == WorkerZone.Back ? "B" : z == WorkerZone.Front ? "F" : "C";
         }
 
         // ---- board overlays -------------------------------------------------------------------
@@ -675,6 +904,26 @@ namespace SpawnRowDuel.View
         }
 
         // ---- helpers --------------------------------------------------------------------------
+
+        /// <summary>
+        /// The JS opened the settle menu on the first over-extended creature the moment upkeep
+        /// began (`upkeepPick(off.key, off.i)`), so the shortfall could not be missed. Ours puts
+        /// the offender under the cursor once per turn and then leaves the player alone.
+        /// </summary>
+        void PromptUpkeepOffender(GameState s)
+        {
+            if (_input == null || s.Turn != Side.You || s.Phase != TurnPhase.Upkeep) return;
+            if (s.TurnNumber == _upkeepPromptedTurn) return;
+
+            CellRef cell;
+            int unitId;
+            if (!Upkeep.TryFindOffender(s, Side.You, _match.Engine.Catalog, out cell, out unitId))
+                return;
+
+            _upkeepPromptedTurn = s.TurnNumber;
+            _input.SelectFromUi(cell);
+            Hint("Upkeep shortfall — this creature needs a worker, a payment, or its life");
+        }
 
         void Arm(Rules.PlayMode mode)
         {

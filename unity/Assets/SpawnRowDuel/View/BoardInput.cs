@@ -28,6 +28,21 @@ namespace SpawnRowDuel.View
         public CellRef? Hover { get { return _hover; } }
         public CellRef? Selected { get { return _selected; } }
 
+        /// <summary>
+        /// Select a cell from outside the input layer - the upkeep prompt uses it to put the
+        /// first over-extended creature under the player's nose, the way the JS popped its
+        /// settle menu automatically instead of waiting to be found.
+        /// </summary>
+        public void SelectFromUi(CellRef cell)
+        {
+            ClearSelection();
+            _selected = cell;
+            _board.Paint(cell, _board.SelectMaterial);
+            LightLegal(cell);
+        }
+
+        public void ClearSelectionFromUi() { ClearSelection(); }
+
         private const float TiltedPitch = 42f;
         private const float TopDownPitch = 84f;
 
@@ -73,6 +88,14 @@ namespace SpawnRowDuel.View
 
             // 1. an armed play/build consumes the tap (an illegal drop keeps the card armed)
             if (_match != null && _match.TryCellTap(cell.Value)) return;
+
+            // 1b. moving banked ◆ from one card to another: the next tap names the destination
+            if (_match != null && _match.SendFrom.HasValue)
+            {
+                _match.TrySendBankedMana(cell.Value);
+                ClearSelection();
+                return;
+            }
 
             // 2. a lit legal move for the selected creature executes it
             if (_selected.HasValue && _legalMoves.Contains(cell.Value))
@@ -132,7 +155,7 @@ namespace SpawnRowDuel.View
             foreach (var c in _highlighted) _board.Restore(c);
             _highlighted.Clear();
 
-            if (_match.Pending != MatchController.Intent.None)
+            if (_match.Pending != MatchController.Intent.None || _match.SendFrom.HasValue)
             {
                 if (_selected.HasValue) { _board.Restore(_selected.Value); _selected = null; }
                 _legalMoves.Clear();
