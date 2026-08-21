@@ -49,6 +49,9 @@ namespace SpawnRowDuel.Rules
         /// </summary>
         public PendingRequest Pending;
 
+        /// <summary>Declarations and the resolver's cursor - authoritative game state.</summary>
+        public CombatState Combat = new CombatState();
+
         // ---- board ----------------------------------------------------------------------------
 
         private readonly BoardObject[] _cells = new BoardObject[Board.Cells];
@@ -84,6 +87,63 @@ namespace SpawnRowDuel.Rules
         }
 
         public int NewUid() { return NextUid++; }
+
+        /// <summary>
+        /// Locate a unit BY IDENTITY - board cells in canonical order, then worker pools. This
+        /// is how declarations resolve: the unit with this id, wherever it now stands, never
+        /// "whatever moved into the recorded cell" (spec 03 s17 risk 2).
+        /// </summary>
+        public BoardObject FindById(int unitId, out CellRef at, out bool onBoard)
+        {
+            for (int i = 0; i < _cells.Length; i++)
+            {
+                if (_cells[i] != null && _cells[i].Id == unitId)
+                {
+                    at = CellRef.FromIndex(i);
+                    onBoard = true;
+                    return _cells[i];
+                }
+            }
+            for (int p = 0; p < Players.Length; p++)
+                for (int z = 0; z < Players[p].Workers.Length; z++)
+                {
+                    var pool = Players[p].Workers[z].Members;
+                    for (int i = 0; i < pool.Count; i++)
+                        if (pool[i].Id == unitId)
+                        {
+                            at = default(CellRef);
+                            onBoard = false;
+                            return pool[i];
+                        }
+                }
+            at = default(CellRef);
+            onBoard = false;
+            return null;
+        }
+
+        /// <summary>Remove a unit by identity from its cell or pool. Returns its owner, or null.</summary>
+        public Side? RemoveById(int unitId)
+        {
+            for (int i = 0; i < _cells.Length; i++)
+                if (_cells[i] != null && _cells[i].Id == unitId)
+                {
+                    var owner = _cells[i].Owner;
+                    _cells[i] = null;
+                    return owner;
+                }
+            for (int p = 0; p < Players.Length; p++)
+                for (int z = 0; z < Players[p].Workers.Length; z++)
+                {
+                    var pool = Players[p].Workers[z].Members;
+                    for (int i = 0; i < pool.Count; i++)
+                        if (pool[i].Id == unitId)
+                        {
+                            pool.RemoveAt(i);
+                            return (Side)p;
+                        }
+                }
+            return null;
+        }
 
         // ---- derived --------------------------------------------------------------------------
 
@@ -122,6 +182,7 @@ namespace SpawnRowDuel.Rules
                 IsOver = IsOver,
                 Outcome = Outcome,
                 Pending = Pending,   // immutable by contract - safe to share
+                Combat = Combat.Clone(),
             };
 
             for (int i = 0; i < _cells.Length; i++)

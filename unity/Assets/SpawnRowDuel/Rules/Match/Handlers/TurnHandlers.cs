@@ -70,6 +70,7 @@ namespace SpawnRowDuel.Rules
         {
             if (s.Turn != cmd.Actor) return Rejection.NotYourTurn;
             if (s.Phase != TurnPhase.Action) return Rejection.WrongPhase;
+            if (s.Combat.HasDeclarations) return Rejection.DeclarationsPending;   // resolve first
             return Rejection.None;
         }
 

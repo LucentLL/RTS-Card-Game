@@ -14,9 +14,8 @@ namespace SpawnRowDuel.Rules
             s.TurnNumber++;                                    // 1. the PLY counter
             s.Turn = owner;                                    // 2.
 
-            // 3. declarations do not survive a turn boundary. CombatState lands at M8; the
-            //    parked-choice slot is the piece of it that already exists.
-            s.Pending = null;
+            s.Combat.Clear();                                  // 3. declarations do not survive
+            s.Pending = null;                                  //    a turn boundary
 
             Array.Clear(s.P(owner).UpkeepPaid, 0,              // 4. last turn's keep payments EXPIRE
                         s.P(owner).UpkeepPaid.Length);

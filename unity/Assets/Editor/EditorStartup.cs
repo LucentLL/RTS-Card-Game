@@ -55,11 +55,20 @@ public static class EditorStartup
         if (SessionState.GetBool(SessionFlag, false)) return;
         SessionState.SetBool(SessionFlag, true);
 
+        // Open Battle when the active scene is untitled OR a phantom - the editor restores the
+        // last session's scene BY NAME even when its asset no longer exists (the template's
+        // SampleScene lingered this way: a "SampleScene" in the Hierarchy with no file behind
+        // it and nothing but sky in Play).
         var active = EditorSceneManager.GetActiveScene();
-        if (!string.IsNullOrEmpty(active.path)) return;      // a real scene is open - leave it
+        bool phantom = string.IsNullOrEmpty(active.path)
+            || !File.Exists(Path.Combine(Application.dataPath, "..", active.path));
+        if (!phantom) return;                                // a real saved scene is open
         if (active.isDirty && active.rootCount > 0) return;  // never discard deliberate work
 
         if (File.Exists(Path.Combine(Application.dataPath, "Scenes/Battle.unity")))
+        {
             EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            Debug.Log("[startup] opened Battle.unity; Play is pinned to it (EditorStartup.cs)");
+        }
     }
 }

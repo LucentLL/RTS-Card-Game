@@ -55,38 +55,7 @@ namespace SpawnRowDuel.Rules
         public void Execute(GameState s, ICommand cmd, ICardCatalog cat, EventSink ev)
         {
             var m = (FlipChargeCommand)cmd;
-            var ch = (ChargeUnit)s.At(m.At);
-            int bank = Math.Max(0, ch.Invested - ch.Card.Cost);
-
-            if (ch.IsStructure)
-            {
-                var def = cat.Structure(ch.Card.StructDef,
-                    s.Options.FaceDownKeepsColor ? ch.Card.Color : Element.None);
-                var b = UnitFactory.MakeStructure(s, m.Actor, def);
-                b.Bank = bank;
-                s.Put(m.At, b);
-                ev.Add(new CardFlipped(b.Id, m.At, false));
-
-                if (s.Options.FlipStructureResyncsWorkers)
-                    WorkerMath.Resync(s, m.Actor, cat);   // the JS forgets this (spec 02 Bug 1)
-                return;
-            }
-
-            var t = cat.Creature(ch.Card.Id);
-            var color = s.Options.FaceDownKeepsColor
-                ? ch.Card.Color
-                : s.P(m.Actor).PrimaryColor;              // mkCre's fallback - the colour-drop bug
-            var cr = UnitFactory.MakeCreature(s, m.Actor, t, color);
-            cr.Bank = bank;
-            cr.Sick = s.TurnNumber <= ch.SetTurn;
-            s.Put(m.At, cr);
-            ev.Add(new CardFlipped(cr.Id, m.At, cr.Sick));
-
-            if (RulesHooks.OnCreatureEnter != null)
-                RulesHooks.OnCreatureEnter(s, cr, m.Actor, cat, ev);
-            // deliberately NO summon-trap hook - flip immunity is the point of setting
-
-            WorkerMath.Resync(s, m.Actor, cat);
+            ChargeOps.Flip(s, m.Actor, m.At, cat, ev);    // shared with the provoked path
         }
     }
 

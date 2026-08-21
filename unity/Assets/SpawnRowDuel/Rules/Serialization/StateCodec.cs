@@ -124,6 +124,7 @@ namespace SpawnRowDuel.Rules
             w.Write("outcome", (int)s.Outcome);
 
             WritePending(s.Pending, w);
+            WriteCombat(s.Combat, w);
 
             // Board: fixed length, index-ordered. Empty cells are written explicitly so a shifted
             // board can never hash equal to an unshifted one.
@@ -194,6 +195,55 @@ namespace SpawnRowDuel.Rules
             }
 
             w.EndObject();
+        }
+
+        /// <summary>Declarations and the resolver's cursor - authoritative, resumable state.</summary>
+        static void WriteCombat(CombatState c, IStateWriter w)
+        {
+            w.BeginObject("combat");
+            w.Write("stage", (int)c.Stage);
+            w.Write("cursor", c.Cursor);
+            w.Write("subCursor", c.SubCursor);
+            w.Write("wallDmg", c.AccumulatedWallDamage);
+            w.Write("hasAnswer", c.HasAnswer);
+            w.Write("answered", c.AnsweredIndex);
+
+            w.BeginArray("decls", c.Declarations.Count);
+            for (int i = 0; i < c.Declarations.Count; i++)
+            {
+                var d = c.Declarations[i];
+                w.BeginObject(null);
+                w.Write("aRow", (int)d.Attacker.Row);
+                w.Write("aCol", d.Attacker.Col);
+                w.Write("aId", d.AttackerUnitId);
+                w.Write("kind", (int)d.Kind);
+                w.Write("tRow", (int)d.TargetCell.Row);
+                w.Write("tCol", d.TargetCell.Col);
+                w.Write("tId", d.TargetUnitId);
+                w.Write("tSide", (int)d.TargetSide);
+                w.Write("tZone", (int)d.TargetZone);
+                WriteUnitRefs("blockers", d.Blockers.ToArray(), w);
+                w.EndObject();
+            }
+            w.EndArray();
+
+            WriteIntList("blocked", c.BlockedDeclIndices, w);
+            WriteIntList("open", c.OpenDeclIndices, w);
+            WriteIntList("groupTargets", c.GroupTargetIds, w);
+            WriteIntList("groupOffsets", c.GroupOffsets, w);
+            WriteIntList("groupDecls", c.GroupDeclIndices, w);
+            WriteIntList("resAttackers", c.ResolutionAttackerIds, w);
+            WriteIntList("scour", c.ScourHitUnitIds, w);
+
+            w.EndObject();
+        }
+
+        static void WriteIntList(string name, System.Collections.Generic.List<int> list,
+                                 IStateWriter w)
+        {
+            w.BeginArray(name, list.Count);
+            for (int i = 0; i < list.Count; i++) w.Write(null, list[i]);
+            w.EndArray();
         }
 
         static void WriteUnitRefs(string name, UnitRef[] refs, IStateWriter w)

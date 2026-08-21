@@ -97,7 +97,11 @@ namespace SpawnRowDuel.Rules
             p.Register(typeof(FlipChargeCommand), new FlipChargeHandler());
             p.Register(typeof(SendBankedManaCommand), new SendBankedManaHandler());
 
-            // M8: DeclareAttack / ResolveCombat / Respond
+            // M8 - combat v3
+            p.Register(typeof(DeclareAttackCommand), new DeclareAttackHandler());
+            p.Register(typeof(ResolveCombatCommand), new ResolveCombatHandler());
+            p.Register(typeof(RespondCommand), new RespondHandler());
+
             return p;
         }
     }
