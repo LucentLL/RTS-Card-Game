@@ -30,7 +30,19 @@ namespace SpawnRowDuel.Rules.Tests
         public static Trace RecordSelfPlay(ICardCatalog cat, string you, string foe,
                                            ulong seed, int maxTurns)
         {
+            // Build the decks OUTSIDE the match and inject them, so the trace can record the full
+            // 40 as dealt rather than the 36 that survive the opening hand. Injecting is also
+            // exactly what the JS replay does (startGame takes both decks), which keeps the two
+            // sides symmetric - and it is what lets the harness sidestep the unreconcilable
+            // shuffles entirely (DECISIONS D16).
+            var youCc = cat.Commander(new CommanderId(you));
+            var foeCc = cat.Commander(new CommanderId(foe));
+            var deckRng = new Pcg32(seed);
+            var youDeck = DeckFactory.DeckOf(cat, youCc.Colors, deckRng);
+            var foeDeck = DeckFactory.DeckOf(cat, foeCc.Colors, deckRng);
+
             var s = MatchSetup.NewMatch(cat, new CommanderId(you), new CommanderId(foe),
+                                        new List<HandCard>(youDeck), new List<HandCard>(foeDeck),
                                         seed, RulesOptions.JsParity);
             var engine = new DuelEngine(s, cat);
 
@@ -39,9 +51,12 @@ namespace SpawnRowDuel.Rules.Tests
             sb.Append("\"seed\":").Append(seed).Append(",\n");
             sb.Append("\"you\":\"").Append(you).Append("\",\"foe\":\"").Append(foe).Append("\",\n");
             sb.Append("\"flags\":").Append(s.Options.FlagBits).Append(",\n");
-            WriteDeck(sb, "youDeck", s.P(Side.You).Deck);
-            WriteDeck(sb, "foeDeck", s.P(Side.Foe).Deck);
+            WriteDeck(sb, "youDeck", youDeck);      // the FULL 40, before the opening hand
+            WriteDeck(sb, "foeDeck", foeDeck);
             sb.Append("\"open\":\"").Append(Hash(s)).Append("\",\n");
+            // the opening board as the differential harness compares it - the JS replay rebuilds
+            // these same decks, calls startGame, and must land on this exact projection
+            sb.Append("\"openProjection\":").Append(StateProjection.Of(s, cat)).Append(",\n");
             sb.Append("\"plies\":[\n");
 
             var policies = new[] { new ScriptedAiPolicy(Side.You), new ScriptedAiPolicy(Side.Foe) };
@@ -94,15 +109,28 @@ namespace SpawnRowDuel.Rules.Tests
             return StateCodec.Hash(s).ToString("x16");
         }
 
+        /// <summary>
+        /// Deck entries use the JS registry's own key shape - "fire|Ashfang", "neutral|Riptide" -
+        /// so the replay can rebuild an identical deck through CARD_BY_KEY without guessing. The
+        /// name alone is ambiguous: colour is what separates two pools' cards.
+        /// </summary>
         static void WriteDeck(StringBuilder sb, string name, List<HandCard> deck)
         {
             sb.Append('"').Append(name).Append("\":[");
             for (int i = 0; i < deck.Count; i++)
             {
                 if (i > 0) sb.Append(',');
-                sb.Append('"').Append(Esc(deck[i].Id.Value)).Append('"');
+                sb.Append('"').Append(Esc(DeckKeyOf(deck[i]))).Append('"');
             }
             sb.Append("],\n");
+        }
+
+        public static string DeckKeyOf(HandCard c)
+        {
+            string color = c.Color == Element.None
+                ? "neutral"
+                : c.Color.ToString().ToLowerInvariant();
+            return color + "|" + c.Id.Value;
         }
 
         /// <summary>
