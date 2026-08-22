@@ -17,10 +17,17 @@ namespace SpawnRowDuel.View.Cards
     /// Workers never get a figure and face-down cards never get one - a set card is a card back,
     /// and that secret is a rule, not a style choice.
     ///
-    /// The figure HOVERS over the card: <see cref="CardPlateLayer"/> lays the unit's own card flat
-    /// on the tile first, and the standee stands on it. A unit whose `_fieldart` cut-out has not
-    /// been drawn yet gets no figure at all rather than the card illustration standing up as a
-    /// second copy of the picture already lying under it.
+    /// The figure stands ON the card: <see cref="CardPlateLayer"/> lays the unit's own card flat on
+    /// the tile first. A unit whose `_fieldart` cut-out has not been drawn yet gets no figure at
+    /// all rather than the card illustration standing up as a second copy of the picture already
+    /// lying under it.
+    ///
+    /// TILTED ONLY (spec 09 §3.8 rule 1, read the other way round). A standing cut-out is a
+    /// diorama piece and a diorama needs an angle to be seen from: viewed from directly above, an
+    /// upright billboard projects off the top of its own tile and onto the row behind, so the foe's
+    /// structures stop looking like they are on the board at all. The figures therefore FADE OUT
+    /// with the swing to top-down and the cards on the tiles carry that view by themselves - which
+    /// is the Master Duel read, and the reason the top-down angle exists.
     /// </summary>
     public sealed class StandeeLayer : MonoBehaviour
     {
@@ -32,16 +39,17 @@ namespace SpawnRowDuel.View.Cards
         const float FigureHeight = 1.30f;      // cells - min(150cqh, 120cqw) at a 1×1 cell
         const float StructureHeight = 1.05f;
         const float MaxWidth = 1.60f;          // the 165cqw cap: standees must not inflate with depth
-        const float Lift = 0.10f;              // clear of the card plate lying on the tile (0.075)
 
         /// <summary>
-        /// How far above its card the figure floats.
+        /// How high the figure stands: just clear of the card plate lying on the tile (0.075) and
+        /// no higher.
         ///
-        /// Not decoration either: the card now lies on the tile, and a figure standing ON it hides
-        /// the half of it the camera can see. Floating the cut-out lets the card read while the
-        /// blob shadow - which stays down on the card - keeps the figure tied to its slot.
+        /// It "hovers over the card" by the BOB and nothing else. A static lift was tried at 0.30
+        /// and was wrong by a factor of six: an upright billboard's height turns into vertical
+        /// screen distance under the tilt, so lifting it walks the figure off its own tile and up
+        /// over the row behind it, and the player loses track of which slot the unit is in.
         /// </summary>
-        const float Hover = 0.30f;
+        const float Lift = 0.09f;
 
         MatchController _match;
         BoardInput _input;
@@ -76,7 +84,10 @@ namespace SpawnRowDuel.View.Cards
             var s = _match.Engine.State;
             _seen.Clear();
 
-            if (Enabled)
+            // 1 tilted, 0 top-down, and every value between while the camera swings
+            float show = _input != null ? _input.TiltBlend : 1f;
+
+            if (Enabled && show > 0.01f)
             {
                 foreach (var kv in s.Objects())
                 {
@@ -87,7 +98,7 @@ namespace SpawnRowDuel.View.Cards
 
                     _seen.Add(o.Id);
                     var st = Ensure(o);
-                    Place(st, o, kv.Key, s, cam);
+                    Place(st, o, kv.Key, s, cam, show);
                 }
             }
 
@@ -132,7 +143,7 @@ namespace SpawnRowDuel.View.Cards
             return st;
         }
 
-        void Place(Standee st, BoardObject o, CellRef cell, GameState s, Camera cam)
+        void Place(Standee st, BoardObject o, CellRef cell, GameState s, Camera cam, float show)
         {
             var def = _match.DefOfObject(o);
             var sprite = def != null ? def.FieldArt : null;
@@ -177,7 +188,7 @@ namespace SpawnRowDuel.View.Cards
             }
             else
             {
-                st.Pivot.localPosition = new Vector3(0f, Hover + bob, 0f);
+                st.Pivot.localPosition = new Vector3(0f, bob, 0f);
                 st.Pivot.rotation = Quaternion.LookRotation(cam.transform.forward, Vector3.up);
                 st.Figure.transform.localPosition = new Vector3(0f, targetH * 0.5f, 0f);
             }
@@ -186,12 +197,14 @@ namespace SpawnRowDuel.View.Cards
             // sits at y=0.06, and a shadow quad under that z-fought with it into a bright ellipse.
             // It now lands on the CARD instead of the tile, which is where a hovering figure's
             // shadow belongs anyway.
-            st.Shadow.transform.position = world + new Vector3(0f, 0.095f, 0f);
+            st.Shadow.transform.position = world + new Vector3(0f, 0.085f, 0f);
             st.Shadow.transform.localScale = new Vector3(0.62f, 0.30f, 1f);
-            st.Shadow.color = new Color(0f, 0f, 0f, laid ? 0.30f : 0.50f);
+            st.Shadow.color = new Color(0f, 0f, 0f, (laid ? 0.30f : 0.50f) * show);
 
             // the owner reads at a glance even before the stat overlay: a cold rim for the foe
-            st.Figure.color = o.Owner == Side.You ? Color.white : new Color(0.86f, 0.88f, 1f);
+            var tint = o.Owner == Side.You ? Color.white : new Color(0.86f, 0.88f, 1f);
+            tint.a = show;                                 // fades away as the view goes top-down
+            st.Figure.color = tint;
         }
 
 

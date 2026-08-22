@@ -63,13 +63,14 @@ namespace SpawnRowDuel.PlayTests
         }
 
         /// <summary>
-        /// The same board from above with the FIGURES OFF, so the cards lying on the tiles are
-        /// the only thing in the shot.
+        /// The same board from the top-down angle, where the cards lying on the tiles are the only
+        /// thing left: the figures fade out with the swing, because an upright cut-out seen from
+        /// above projects off its own tile and onto the row behind it.
         ///
-        /// This is the plate layer's mirror. The tilted shot shows the game as it is played and
-        /// therefore shows the plates half-covered by the standees hovering over them, which is
-        /// correct and useless for judging them: "is the card the right way up, the right size,
-        /// cropped to the right part of its art" is a question only this angle answers.
+        /// Nothing is forced here - StandeeLayer is left alone on purpose, so the shot is evidence
+        /// of the top-down rule rather than a staged picture of it. It doubles as the plate layer's
+        /// mirror: "is the card the right way up, the right size, cropped to the right part of its
+        /// art" is a question the tilted shot cannot answer, because the standees stand on them.
         /// </summary>
         [UnityTest]
         public IEnumerator CaptureTopDownPlates()
@@ -79,11 +80,15 @@ namespace SpawnRowDuel.PlayTests
             var input = Object.FindFirstObjectByType<BoardInput>();
             Assert.IsNotNull(input, "the Battle scene has no BoardInput");
             input.Tilted = false;
-            StandeeLayer.Enabled = false;
-            yield return Frames(90);            // the angle EASES; a few frames lands mid-swing
+
+            // Wait for the SWING, not for a frame count. Batchmode runs uncapped, so a frame is
+            // worth a fraction of the deltaTime it is worth in a player - 90 of them moved the
+            // ease about a fifth of the way and the first version of this shot was a tilted board
+            // wearing a top-down label.
+            for (int i = 0; i < 2000 && input.TiltBlend > 0.005f; i++) yield return null;
+            Assert.Less(input.TiltBlend, 0.01f, "the camera never reached the top-down angle");
 
             yield return Shoot("battle-plates.png");
-            StandeeLayer.Enabled = true;  // static: it would leak into the next test
         }
 
         static IEnumerator PlayToMidGame()

@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 1 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out hovering over it, owner-tinted rows. Remaining: walls + tower windows, FX, audio |
+| M13 — presentation pass | 🟡 slice 1 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it (tilted view only — top-down is cards alone), owner-tinted rows. Remaining: walls + tower windows, FX, audio |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -440,3 +440,31 @@ Three more from the live build, and one the screenshots found on the way.
   the frame's proportions against CardFace's flex weights.
 
 235 tests.
+
+### 2026-08-22 (fourth pass) — M13 slice 1d: figures belong to the tilted view
+
+Two corrections to slice 1c, both from the live build.
+
+* **"Top view should not show floating _fieldart. The opponent's structure isn't even on the
+  field."** Correct, and it is geometry rather than a bug: an upright billboard seen from directly
+  above projects off the top of its own tile and onto the row behind it, so the foe's back-row
+  structures floated past the far wall with nothing under them. Figures are a TILTED-view thing —
+  spec 09 §3.8 rule 1 says tilted forces them on, and this is that rule read the other way round.
+  They now fade out with the swing (`BoardInput.TiltBlend`, so it tracks the ease instead of
+  popping on the toggle) and the cards on the tiles carry the top-down view by themselves.
+
+* **"These _fieldart are hovering much too high for their tiles."** Slice 1c's 0.30-cell static
+  hover was wrong by about six times. Height turns into vertical SCREEN distance under the tilt, so
+  a lift that reads as a modest float in world space walks the figure off its slot and over the row
+  behind. The static lift is gone: the figure stands at 0.09, just clear of its card, and hovers by
+  the BOB, which is what the reference build ever meant by hovering.
+
+* **Probe bug found on the way, worth remembering.** `CaptureTopDownPlates` waited 90 frames for
+  the camera ease and shot a tilted board wearing a top-down label. Batchmode runs UNCAPPED, so a
+  frame is worth a fraction of the `deltaTime` it is worth in a player, and 90 of them moved a
+  0.4-second ease about a fifth of the way. It waits on `TiltBlend` now and asserts it arrived. Any
+  future probe that waits on an animation has the same trap. The shot also stopped forcing
+  `StandeeLayer.Enabled = false`, so it is now evidence of the top-down rule rather than a staged
+  picture of it.
+
+233 passing.

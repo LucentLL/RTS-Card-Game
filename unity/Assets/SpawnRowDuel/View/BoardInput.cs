@@ -55,6 +55,13 @@ namespace SpawnRowDuel.View
         /// </summary>
         public bool Tilted { get { return _tilted; } set { _tilted = value; } }
 
+        /// <summary>
+        /// Where the camera actually IS between the two angles: 1 tilted, 0 top-down. Read it
+        /// rather than <see cref="Tilted"/> for anything that has to change WITH the swing - the
+        /// standees fade out on the way to top-down, and a boolean would pop them.
+        /// </summary>
+        public float TiltBlend { get { return Mathf.SmoothStep(0f, 1f, _blend); } }
+
         void Awake()
         {
             _board = GetComponent<BoardView>();
