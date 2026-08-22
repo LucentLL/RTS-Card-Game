@@ -88,3 +88,7 @@ tools/diffjs/golden/*.proj.jsonl
 
 # fuzz traces: generated on demand by tools/diffjs/fuzz.mjs, never committed
 tools/diffjs/fuzz/
+
+# the PlayMode test runner drops a temp bootstrap scene in Assets/
+unity/Assets/InitTestScene*.unity
+unity/Assets/InitTestScene*.unity.meta
