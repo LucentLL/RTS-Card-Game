@@ -102,6 +102,26 @@ export function canonical(v) {
   return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonical(v[k])).join(',') + '}';
 }
 
+/**
+ * FNV-1a over the canonical projection - the twin of StateProjection.Hash on the C# side. This is
+ * what makes a per-ply comparison affordable: 16 characters in the trace instead of the whole
+ * board, and an exact answer either way.
+ */
+export function fnv1a64(str) {
+  const bytes = new TextEncoder().encode(str);
+  const MASK = (1n << 64n) - 1n;
+  let h = 0xcbf29ce484222325n;
+  for (const b of bytes) {
+    h = (h ^ BigInt(b)) & MASK;
+    h = (h * 0x100000001b3n) & MASK;
+  }
+  return h.toString(16).padStart(16, '0');
+}
+
+export function projectionHash(win) {
+  return fnv1a64(canonical(projectJs(win)));
+}
+
 /** First differing path between two projections, or null. */
 export function firstDiff(a, b, path = '') {
   if (canonical(a) === canonical(b)) return null;

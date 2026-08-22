@@ -18,6 +18,24 @@ namespace SpawnRowDuel.Rules.Tests
     /// </summary>
     public static class StateProjection
     {
+        /// <summary>
+        /// FNV-1a over the canonical projection. Small enough to record for every ply, exact
+        /// enough that a differing ply is a real difference - and the JS twin computes the same
+        /// number from the same string, so a per-ply comparison costs 16 characters instead of a
+        /// megabyte of embedded state.
+        /// </summary>
+        public static string Hash(GameState s, ICardCatalog cat)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(Of(s, cat));
+            ulong h = 14695981039346656037UL;
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                h ^= bytes[i];
+                h *= 1099511628211UL;
+            }
+            return h.ToString("x16");
+        }
+
         public static string Of(GameState s, ICardCatalog cat)
         {
             var sb = new StringBuilder(4096);

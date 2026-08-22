@@ -88,7 +88,8 @@ namespace SpawnRowDuel.Rules.Tests
                 first = false;
                 sb.Append("  {\"i\":").Append(++plies)
                   .Append(",\"cmd\":").Append(Describe(cmd))
-                  .Append(",\"h\":\"").Append(Hash(s)).Append("\"}");
+                  .Append(",\"h\":\"").Append(Hash(s))
+                  .Append("\",\"p\":\"").Append(StateProjection.Hash(s, cat)).Append("\"}");
             }
 
             sb.Append("\n],\n");
