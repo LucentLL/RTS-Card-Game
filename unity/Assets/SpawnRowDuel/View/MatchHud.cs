@@ -208,12 +208,14 @@ namespace SpawnRowDuel.View
 
             const float rowH = 24f;
             float listTop = 66f;
-            float listH = h - listTop - 92f;
+            float listH = h - listTop - 140f;      // 92 for the footer, 48 more for the arena row
             float colW = Mathf.Min(300f, w / 2f - 12f);
 
             // yours on the left, the opponent's on the right - same list, two picks
             DrawCommanderColumn(new Rect(8, listTop, colW, listH), all, rowH, true);
             DrawCommanderColumn(new Rect(w - colW - 8, listTop, colW, listH), all, rowH, false);
+
+            DrawArenaRow(w, h);
 
             var youDef = cat.Commander(_pickYou);
             var foeDef = cat.Commander(_pickFoe);
@@ -236,6 +238,31 @@ namespace SpawnRowDuel.View
             }
 
             GUI.Label(new Rect(0, h - 24, w, 18), youDef.Description, _center);
+        }
+
+        /// <summary>
+        /// Where the duel is fought. Scenery and nothing else - the engine has never heard of a
+        /// biome - but it is the first thing anybody sees, so it gets picked with the commanders
+        /// rather than buried in an options screen. The campaign will set it from the map tile.
+        /// </summary>
+        void DrawArenaRow(float w, float h)
+        {
+            GUI.Label(new Rect(0, h - 132, w, 16), "ARENA", _center);
+
+            var all = World.Biomes.All;
+            const float bw = 84f, gap = 6f;
+            float x = w / 2f - (all.Length * bw + (all.Length - 1) * gap) / 2f;
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                bool on = World.TerrainField.Requested == all[i];
+                var old = GUI.color;
+                if (on) GUI.color = Gold;
+                if (GUI.Button(new Rect(x, h - 114, bw, 24), World.Biomes.NameOf(all[i]), _button))
+                    World.TerrainField.Requested = all[i];
+                GUI.color = old;
+                x += bw + gap;
+            }
         }
 
         void DrawCommanderColumn(Rect area, IReadOnlyList<CommanderDef> all, float rowH, bool mine)

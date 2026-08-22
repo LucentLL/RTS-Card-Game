@@ -92,3 +92,8 @@ tools/diffjs/fuzz/
 # the PlayMode test runner drops a temp bootstrap scene in Assets/
 unity/Assets/InitTestScene*.unity
 unity/Assets/InitTestScene*.unity.meta
+
+# Vendored reference material, kept locally for porting and not part of the build.
+# Dynamic 2D Grass (MIT code / CC BY 4.0 art, Jomoho Games) - the wind + cloud technique in
+# unity/Assets/Game/Shaders/SRD_*.shader is ported from it.
+/dynamic-2d-grass-main*/

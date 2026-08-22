@@ -4,6 +4,7 @@ using NUnit.Framework;
 using SpawnRowDuel.Rules;
 using SpawnRowDuel.View;
 using SpawnRowDuel.View.Cards;
+using SpawnRowDuel.View.World;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -89,6 +90,27 @@ namespace SpawnRowDuel.PlayTests
             Assert.Less(input.TiltBlend, 0.01f, "the camera never reached the top-down angle");
 
             yield return Shoot("battle-plates.png");
+        }
+
+        /// <summary>
+        /// One shot per biome, from the same board. Terrain is the one part of the view with no
+        /// test that can fail: waves, ripples and embers are shader terms, and "does scorched
+        /// ground look scorched" is not a thing an assertion knows. Four pictures is the gate.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureBiomes()
+        {
+            yield return PlayToMidGame();
+
+            var all = Biomes.All;
+            for (int i = 0; i < all.Length; i++)
+            {
+                TerrainField.Requested = all[i];
+                yield return Frames(4);                  // the field rebuilds in LateUpdate
+                yield return Shoot("biome-" + Biomes.NameOf(all[i]) + ".png");
+            }
+
+            TerrainField.Requested = BiomeId.Grass;   // static: do not leak a biome
         }
 
         static IEnumerator PlayToMidGame()

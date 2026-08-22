@@ -30,6 +30,35 @@ public static class SceneBootstrap
         return m;
     }
 
+    /// <summary>
+    /// A material ASSET on one of the project's own shaders.
+    ///
+    /// It has to be an asset, and the scene has to reference it: the terrain shaders are only ever
+    /// reached through a material built at runtime, and the WebGL stripper deletes shaders nothing
+    /// serialized points at. This is the same rule that already governs the sprite anchor and the
+    /// physics collider in this scene - anything created at runtime needs a baked witness.
+    /// </summary>
+    static Material ShaderMat(string name, string shader)
+    {
+        var path = MatDir + "/" + name + ".mat";
+        var s = Shader.Find(shader);
+        if (s == null)
+        {
+            Debug.LogError("[scene] shader not found: " + shader);
+            return null;
+        }
+
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null)
+        {
+            m = new Material(s);
+            AssetDatabase.CreateAsset(m, path);
+        }
+        m.shader = s;
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
     public static void Build()
     {
         Directory.CreateDirectory(SceneDir);
@@ -47,6 +76,10 @@ public static class SceneBootstrap
         var mFoeFront = Mat("M_FoeFront", new Color(0.13f, 0.24f, 0.36f));
         var mYouFront = Mat("M_YouFront", new Color(0.30f, 0.13f, 0.10f));
         var mYouBack = Mat("M_YouBack", new Color(0.25f, 0.10f, 0.08f));
+
+        var mTerrain = ShaderMat("M_Terrain", "SpawnRowDuel/Terrain");
+        var mGrass = ShaderMat("M_Grass", "SpawnRowDuel/Grass");
+        var mClouds = ShaderMat("M_CloudShadow", "SpawnRowDuel/CloudShadow");
         AssetDatabase.SaveAssets();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -81,6 +114,15 @@ public static class SceneBootstrap
             AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Game/Art/Cards/Creatures/Fire/sparkimp_cardart.png");
         if (anchorSprite.sprite == null)
             Debug.LogWarning("[scene] no anchor sprite - run the card importer / junction setup first");
+
+        // The ground the board stands on. Its own object, not the board's: the board is generated
+        // from the rules geometry and rebuilt whenever that changes, and the scenery must not be
+        // something that can take the board down with it.
+        var terrainGo = new GameObject("Terrain");
+        var terrain = terrainGo.AddComponent<SpawnRowDuel.View.World.TerrainField>();
+        terrain.TerrainMaterial = mTerrain;
+        terrain.GrassMaterial = mGrass;
+        terrain.CloudMaterial = mClouds;
 
         var boardGo = new GameObject("Board");
         var view = boardGo.AddComponent<BoardView>();

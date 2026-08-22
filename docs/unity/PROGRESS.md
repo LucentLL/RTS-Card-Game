@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 1 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it (tilted view only — top-down is cards alone), owner-tinted rows. Remaining: walls + tower windows, FX, audio |
+| M13 — presentation pass | 🟡 slice 2 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it (tilted view only — top-down is cards alone), owner-tinted rows, and a living terrain island under it all (4 biomes, wind-blown grass, cloud shadows). Remaining: horizon + sky, walls + tower windows, FX, audio |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -466,5 +466,51 @@ Two corrections to slice 1c, both from the live build.
   future probe that waits on an animation has the same trap. The shot also stopped forcing
   `StandeeLayer.Enabled = false`, so it is now evidence of the top-down rule rather than a staged
   picture of it.
+
+233 passing.
+
+### 2026-08-22 (fifth pass) — M13 slice 2a: the board stands somewhere
+
+The board floated in a black void. It now stands on ground, and the ground is alive.
+
+**What landed** — `View/World/`, three generated meshes and three shaders, all new:
+
+* `SRD_Terrain.shader` — the island. One quad; colour, patches and motion are all fragment work.
+  Biome is NOT a shader swap: the shader has three motion terms (waves, ripples, embers) and a
+  biome is a set of amounts for them, so `water` is waves at 1 and embers at 0. The next biome
+  anybody wants is a row in `Biomes` and no new shader.
+* `SRD_Grass.shader` — wind-blown blades, one camera-facing quad each, ~5,000 of them in a single
+  mesh and a single draw call. All the animation is vertex work, so the CPU does nothing per frame.
+* `SRD_CloudShadow.shader` — cloud shadows over the whole scene as one multiply pass.
+* Four biomes at commander select: **meadow, dunes, shallows, scorched.**
+
+**Ported, with attribution** (see `THIRD_PARTY.md`): the wind and cloud method comes from Dynamic
+2D Grass (MIT, Jomoho Games / Dylearn). Three ideas came across and each earns its place — dual
+scrolling noise rotated a few degrees apart (one noise reads as a texture sliding past; two
+multiply into weather), a clock quantised to ~7 steps a second with a per-blade phase (quantised
+so it reads as drawn, phased so the field does not all step on the same frame and look like lag),
+and shear from a pinned base so a field bends instead of sliding. The chunk streaming, terrain data
+texture and effector system did NOT come across: all three serve a scrolling tilemap world, and
+this board is a fixed 7×5 under a fixed camera.
+
+**Three things the screenshots caught, all worth writing down:**
+
+* **Vertex colour is bytes.** Per-blade height and width scales were written as 0.72–1.28 and
+  silently clamped at 1, so every blade came out the same size. They are 0..1 now and the shader
+  remaps. Anything packed into `mesh.colors` has this constraint.
+* **A linearly tapered quad is a spike, and a field of spikes is scratches on the lens.** The first
+  pass drew 2px hairs. Blades are wider (0.17), taper quadratically so they keep their body, and
+  each carries its own arc.
+* **The cloud field was being evaluated three times a pixel** — ground, blades and overlay — which
+  also darkened the ground twice as hard as the pieces standing on it. The overlay does it alone
+  now, at two octaves rather than four, with a trigonometric domain warp instead of another noise
+  lookup. That is roughly a 6× cut in the per-pixel cost of the most expensive thing on screen.
+
+`tools/regen-scene.sh` is new: the Battle scene is generated, and the terrain needed wiring into
+it. `tools/screenshot.sh` grew `biome-*.png`, one shot per biome — terrain is the one part of the
+view with no test that can fail, so four pictures are the gate.
+
+**Next (slice 2b):** the horizon. The island fades to black at its rim; a sky and a distant
+treeline would put the board in a place rather than on a table.
 
 233 passing.
