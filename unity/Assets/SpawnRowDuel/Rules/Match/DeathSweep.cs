@@ -95,7 +95,10 @@ namespace SpawnRowDuel.Rules
             var bld = obj as StructureUnit;
             if (bld != null)
             {
-                s.P(owner).Grave.Add(new GraveRecord(new CardId(bld.DefId.Value), bld.DefId.Value,
+                // the record's name is the CARD's, not the bid: toGrave writes obj.nm, which is
+                // what the graveyard shows ("Mana Vault", never "vault")
+                s.P(owner).Grave.Add(new GraveRecord(new CardId(bld.DefId.Value),
+                    string.IsNullOrEmpty(bld.Name) ? bld.DefId.Value : bld.Name,
                     bld.Color, UnitKind.Building, false, false, s.TurnNumber));
                 return;
             }

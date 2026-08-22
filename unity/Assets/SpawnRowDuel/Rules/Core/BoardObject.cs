@@ -78,6 +78,13 @@ namespace SpawnRowDuel.Rules
         /// <summary>None means a legacy hand-built structure, which is NEVER upgradeable.</summary>
         public StructId DefId;
 
+        /// <summary>
+        /// Denormalised for logs and the graveyard, exactly as CreatureUnit.Name is - the catalog
+        /// stays authoritative. mkBld carries `nm` on the object, and toGrave writes THAT, so a
+        /// razed Mana Vault must be recorded under its card name rather than its bid.
+        /// </summary>
+        public string Name = "";
+
         public int Hp, MaxHp, Cost, Value;
 
         /// <summary>May be NEGATIVE - Cannon Tower is -2. Worker capacity math depends on that.</summary>
@@ -94,7 +101,7 @@ namespace SpawnRowDuel.Rules
         {
             var b = new StructureUnit();
             CopyBaseTo(b);
-            b.DefId = DefId;
+            b.DefId = DefId; b.Name = Name;
             b.Hp = Hp; b.MaxHp = MaxHp; b.Cost = Cost; b.Value = Value; b.Support = Support;
             b.Effect = Effect; b.IsCommandCenter = IsCommandCenter;
             return b;

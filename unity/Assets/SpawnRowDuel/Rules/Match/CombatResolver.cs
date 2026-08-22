@@ -74,8 +74,8 @@ namespace SpawnRowDuel.Rules
                         && !(tObj is StructureUnit && ((StructureUnit)tObj).Hp <= 0);
                 }
 
-                var a = s.FindById(d.AttackerUnitId, out _, out _) as CreatureUnit;
-                if (a == null || a.Hp <= 0) continue;          // dead declarations drop silently
+                var a = LiveAttacker(s, d);
+                if (a == null) continue;                       // dead or stale: drops silently
                 c.ResolutionAttackerIds.Add(a.Id);
 
                 bool blocked = false;
@@ -93,6 +93,31 @@ namespace SpawnRowDuel.Rules
             c.Stage = CombatStage.BlockedPairFights;
             c.Cursor = 0;
             c.SubCursor = 0;
+        }
+
+        /// <summary>
+        /// The declaring creature, still alive and STILL STANDING WHERE IT DECLARED - or null.
+        ///
+        /// `live` (15_combat.js:312) rebuilds each declaration's attacker by reading its stored
+        /// COORDINATE, so an attacker that walked away after declaring - which both engines
+        /// allow, since declaring taps a creature but does not spend its move - meets an empty
+        /// cell and never strikes. Carrying the unit id is the deliberate half of the port's fix
+        /// (spec 03 s17 risk 2: the JS otherwise strikes with whatever moved in behind it);
+        /// requiring that id to still be AT the declared cell is the other half.
+        ///
+        /// Both the deferred-block collection and the main partition ask through here, because
+        /// the JS drops a stale declaration in BOTH places - assignBlockers skips it too - and a
+        /// blocker committed against an attack that never happens is a real difference: it burns
+        /// the defender's one block for the turn.
+        /// </summary>
+        static CreatureUnit LiveAttacker(GameState s, AttackDeclaration d)
+        {
+            CellRef at;
+            bool onBoard;
+            var a = s.FindById(d.AttackerUnitId, out at, out onBoard) as CreatureUnit;
+            if (a == null || a.Hp <= 0) return null;
+            if (!onBoard || at != d.Attacker) return null;
+            return a;
         }
 
         /// <summary>Advance as far as possible; parks on s.Pending when a choice is needed.</summary>
@@ -125,10 +150,10 @@ namespace SpawnRowDuel.Rules
                                 continue;
                             }
 
-                            var a = s.FindById(d.AttackerUnitId, out _, out _) as CreatureUnit;
-                            if (a == null || a.Hp <= 0)
+                            var a = LiveAttacker(s, d);
+                            if (a == null)
                             {
-                                d.BlockersDeferred = false;    // a dead assault asks nothing
+                                d.BlockersDeferred = false;    // a dead or stale assault asks nothing
                                 c.Cursor++;
                                 continue;
                             }

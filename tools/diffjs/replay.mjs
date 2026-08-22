@@ -17,7 +17,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { bootGame } from './boot.mjs';
 import { projectJs, canonical, firstDiff, diffAll, projectionHash } from './project.mjs';
 
@@ -130,6 +130,9 @@ function play(a, owner, cmd) {
     cr.sick = true; cr.bank = carry; arr[slot] = cr;
     a.onCreatureEnter(cr, owner);
     a.syncWorkers(owner);
+    // play-on-top is a SUMMON too: place() calls foeTrapOnSummon on this branch as well
+    // (13_input.js:200), so the window that follows in the trace is about THIS creature
+    a.lastSummon = { owner, which, slot, cr };
     return;
   }
 
@@ -250,7 +253,11 @@ function declare(win, a, owner, cmd) {
   A.tapped = true;                                   // the attacker taps AT DECLARATION
 
   const t = String(cmd.target);
-  const d = { a: { k: from.key, i: from.col }, blockers: [] };
+  // `_who` is the harness's, not the game's: the JS declaration stores a COORDINATE only, and
+  // remembering which creature actually declared is what lets the replay recognise the one
+  // divergence the port chose deliberately. See DECLARED_IDENTITY below.
+  const d = { a: { k: from.key, i: from.col }, _who: A,
+              deferred: String(cmd.defer) === '1', blockers: [] };
   if (t.startsWith('wall:')) {
     d.kind = 'wall';
   } else if (t.startsWith('workers:')) {
@@ -272,6 +279,26 @@ function declare(win, a, owner, cmd) {
  * throughout; every such site becomes `def` here. Absorber and retaliation answers come from the
  * trace instead of the modals the JS awaits.
  */
+/**
+ * DECLARED_IDENTITY - the one place the harness knowingly makes the oracle behave like the port.
+ *
+ * A JS declaration stores only the attacker's COORDINATE, so if that creature moves away and a
+ * DIFFERENT one steps into the cell before the resolve, the JS strikes with the newcomer. The
+ * port carries the unit id as well and refuses (spec 03 s17 risk 2) - a decided fix, not an
+ * accident, and the only difference of its kind.
+ *
+ * Both engines already agree that a declaration whose cell is EMPTY does nothing; that case needs
+ * nothing here. This filter covers only the substitution. Every drop is counted and printed, so
+ * the exception can never quietly widen into "the harness ignores combat divergences".
+ */
+const DECLARED_IDENTITY = { dropped: 0 };
+
+function keepDeclaredIdentity(x) {
+  if (!x._who || x.A === x._who) return true;
+  DECLARED_IDENTITY.dropped++;
+  return false;
+}
+
 async function resolveCombat(win, a, atk, answers) {
   const def = atk === 'you' ? 'foe' : 'you';
   const G = a.G;
@@ -292,7 +319,8 @@ async function resolveCombat(win, a, atk, answers) {
   const live = decls
     .map((d) => ({ ...d, A: a.rowArr(d.a.k)[d.a.i],
                    tgt: d.kind === 'unit' ? unitAt(d.tk, d.ti) : null }))
-    .filter((x) => x.A && x.A.kind === 'creature' && x.A.h > 0);
+    .filter((x) => x.A && x.A.kind === 'creature' && x.A.h > 0)
+    .filter((x) => keepDeclaredIdentity(x));
   const attackers = live.map((x) => x.A);
   win.eval('dischargeOvercharge')(attackers);
 
@@ -362,45 +390,73 @@ async function resolveCombat(win, a, atk, answers) {
 }
 
 /**
- * Attach the recorded blocker answers to the declarations that were ASKED. C# parks a request
- * only when the declaration has at least one eligible interceptor, so the Nth answer belongs to
- * the Nth declaration that clears the same bar - which is why eligibility is recomputed here out
- * of the JS's own eligibleInterceptors rather than assumed positional.
+ * One declaration's blocker answer, attached at the moment the defender gave it.
+ *
+ * WHEN matters as much as what. A blocking creature is flagged `blocked` and eligibleInterceptors
+ * will not offer it again, so an answer applied late can offer a body that was already spent -
+ * which is why an immediate (non-deferred) declaration's answer is applied AT the declaration and
+ * a deferred one's at the resolve, exactly as each engine asks for it.
  */
-function assignBlockers(win, a, atk, answers) {
-  if (!answers.length) return;
-  const def = atk === 'you' ? 'foe' : 'you';
+function assignBlockersFor(win, a, atk, d, spec) {
   const eligibleInterceptors = win.eval('eligibleInterceptors');
   const rowIdx = win.eval('rowIdx');
   const kwOf = win.eval('kwOf');
   const unitAt = win.eval('unitAt');
 
+  const A = a.rowArr(d.a.k)[d.a.i];
+  if (!A || A.h <= 0) return;
+  if (!keepDeclaredIdentity({ A, _who: d._who })) return;   // see DECLARED_IDENTITY
+
+  const aIdx = rowIdx(d.a.k);
+  // the wall's virtual row index is ASYMMETRIC in the JS: -1 above the foe's back row for a
+  // player attack (CMB.declare), ROWS.length below yours for the foe's (foeTurn:321)
+  const tIdx = d.kind === 'unit' ? rowIdx(d.tk) : (atk === 'you' ? -1 : 5);
+  if (kwOf(A) === 'scour' || aIdx === tIdx) return;   // never offered to blockers
+
+  const tgt = d.kind === 'unit' ? unitAt(d.tk, d.ti) : null;
+  const elig = eligibleInterceptors(atk, aIdx, tIdx).filter((r) => r.c !== tgt);
+  if (!elig.length) return;
+
+  // the answer names blockers by CELL, which is the only identity the two engines share
+  for (const one of String(spec).split('+').filter(Boolean)) {
+    const want = parseCell(one);
+    const r = elig.find((x) => x.key === want.key && x.i === want.col);
+    if (!r || !r.c) throw new Error('blocker at ' + one + ' is not eligible in the JS');
+    r.c.blocked = true;
+    d.blockers.push(r);
+  }
+}
+
+/**
+ * The DEFERRED answers, consumed at the resolve. C# parks a request only for a declaration that
+ * deferred AND has at least one eligible interceptor, so the Nth answer belongs to the Nth
+ * deferred declaration clearing the same bar - which is why eligibility is recomputed here out of
+ * the JS's own eligibleInterceptors rather than assumed positional.
+ */
+function assignBlockers(win, a, atk, answers) {
+  if (!answers.length) return;
   let n = 0;
   for (const d of a.G.decls) {
     if (n >= answers.length) break;
-    const A = a.rowArr(d.a.k)[d.a.i];
-    if (!A || A.h <= 0) continue;
-
-    const aIdx = rowIdx(d.a.k);
-    // the wall's virtual row index is ASYMMETRIC in the JS: -1 above the foe's back row for a
-    // player attack (CMB.declare), ROWS.length below yours for the foe's (foeTurn:321)
-    const tIdx = d.kind === 'unit' ? rowIdx(d.tk) : (atk === 'you' ? -1 : 5);
-    if (kwOf(A) === 'scour' || aIdx === tIdx) continue;   // never offered to blockers
-
-    const tgt = d.kind === 'unit' ? unitAt(d.tk, d.ti) : null;
-    const elig = eligibleInterceptors(atk, aIdx, tIdx).filter((r) => r.c !== tgt);
-    if (!elig.length) continue;
-
-    // the answer names blockers by CELL, which is the only identity the two engines share
-    const cells = answers[n++].split('+').filter(Boolean);
-    for (const spec of cells) {
-      const want = parseCell(spec);
-      const r = elig.find((x) => x.key === want.key && x.i === want.col);
-      if (!r || !r.c) throw new Error('blocker at ' + spec + ' is not eligible in the JS');
-      r.c.blocked = true;
-      d.blockers.push(r);
-    }
+    if (!d.deferred) continue;              // its answer landed back at the declaration
+    if (!wasAsked(win, a, atk, d)) continue;
+    assignBlockersFor(win, a, atk, d, answers[n++]);
   }
+}
+
+/** Would the JS have offered this declaration to blockers at all? */
+function wasAsked(win, a, atk, d) {
+  const A = a.rowArr(d.a.k)[d.a.i];
+  if (!A || A.h <= 0) return false;
+  if (!keepDeclaredIdentity({ A, _who: d._who })) return false;
+  const rowIdx = win.eval('rowIdx');
+  const kwOf = win.eval('kwOf');
+  const unitAt = win.eval('unitAt');
+  const aIdx = rowIdx(d.a.k);
+  const tIdx = d.kind === 'unit' ? rowIdx(d.tk) : (atk === 'you' ? -1 : 5);
+  if (kwOf(A) === 'scour' || aIdx === tIdx) return false;
+  const tgt = d.kind === 'unit' ? unitAt(d.tk, d.ti) : null;
+  return win.eval('eligibleInterceptors')(atk, aIdx, tIdx).filter((r) => r.c !== tgt).length > 0;
 }
 
 /** The commands the adapter can perform today. Anything else stops the replay, loudly. */
@@ -439,6 +495,18 @@ function apply(win, a, cmd) {
     // effect exactly as the JS does, destroying the newcomer whatever the card says.
     case 'respond': {
       const ans = String(cmd.answer || '');
+
+      // A blockers answer OUTSIDE a resolve group belongs to the declaration just made: an
+      // undeferred declaration asks the defender there and then, the way CMB.declare does
+      // inline. Applying it here rather than at the resolve is what keeps the `blocked` cascade
+      // in step - a body that blocks now cannot be offered against the next declaration.
+      if (ans.startsWith('blockers:')) {
+        const d = a.G.decls[a.G.decls.length - 1];
+        if (!d) throw new Error('a blockers answer with nothing declared');
+        assignBlockersFor(win, a, SIDE[cmd.a] === 'you' ? 'foe' : 'you', d, ans.slice(9));
+        return true;
+      }
+
       if (!ans.startsWith('trap:') || ans === 'trap:pass') return true;
       const s = a.lastSummon;
       if (!s) throw new Error('a summon-trap window with nothing summoned');
@@ -473,7 +541,8 @@ function apply(win, a, cmd) {
 }
 
 async function replayTrace(file) {
-  const trace = JSON.parse(readFileSync(file, 'utf8'));
+  const trace = JSON.parse(readFileSync(file, "utf8"));
+  DECLARED_IDENTITY.dropped = 0;
   const label = file.replace(/\\/g, '/').split('/').pop();
   const { win, problems } = await bootGame();
   if (problems.length) console.log('  ! boot: ' + problems.slice(0, 2).join(' | '));
@@ -552,7 +621,8 @@ async function replayTrace(file) {
     if (VERBOSE && matched % 25 === 0) console.log(`    … plies`);
   }
 
-  return { matched, total: trace.plies.length, stopped: null, reason: 'complete' };
+  return { matched, total: trace.plies.length, stopped: null, reason: "complete",
+           substituted: DECLARED_IDENTITY.dropped };
 }
 
 /** After the supported prefix, does the board still agree? */
@@ -560,7 +630,13 @@ async function checkPrefix(file) {
   const r = await replayTrace(file);
   const label = file.replace(/\\/g, '/').split('/').pop();
   const pct = Math.round((100 * r.matched) / r.total);
-  if (r.reason === 'complete') console.log(`✓ ${label}: replayed all ${r.total} plies`);
+  if (r.reason === 'complete') {
+    const note = r.substituted
+      ? ` (${r.substituted} substituted declaration${r.substituted === 1 ? '' : 's'} dropped —`
+        + ' the JS would have struck with the unit that moved in behind)'
+      : '';
+    console.log(`✓ ${label}: replayed all ${r.total} plies${note}`);
+  }
   else if (r.reason === 'DIVERGED') {
     console.log('✗ ' + label + ': DIVERGED at ply ' + r.ply + ' (' + r.stopped
       + ') after ' + r.matched + ' matching plies');
@@ -585,13 +661,22 @@ async function checkPrefix(file) {
   return r;
 }
 
-const args = process.argv.slice(2).filter((x) => !x.startsWith('--'));
-const files = args.length
-  ? args.map((x) => resolve(x))
-  : readdirSync(GOLDEN).filter((f) => f.endsWith('.json')).map((f) => join(GOLDEN, f));
+export { replayTrace, checkPrefix };
 
-const results = [];
-for (const f of files) results.push(await checkPrefix(f));
+// Run the goldens when invoked directly; stay quiet when imported (fuzz.mjs drives the same
+// two functions over generated traces).
+const invokedDirectly = process.argv[1]
+  && pathToFileURL(process.argv[1]).href === import.meta.url;
 
-const need = new Set(results.map((r) => r.stopped).filter(Boolean));
-if (need.size) console.log('\nnext commands the adapter needs: ' + [...need].join(', '));
+if (invokedDirectly) {
+  const args = process.argv.slice(2).filter((x) => !x.startsWith('--'));
+  const files = args.length
+    ? args.map((x) => resolve(x))
+    : readdirSync(GOLDEN).filter((f) => f.endsWith('.json')).map((f) => join(GOLDEN, f));
+
+  const results = [];
+  for (const f of files) results.push(await checkPrefix(f));
+
+  const need = new Set(results.map((r) => r.stopped).filter(Boolean));
+  if (need.size) console.log('\nnext commands the adapter needs: ' + [...need].join(', '));
+}

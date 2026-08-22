@@ -6,6 +6,9 @@ this file is status only.
 
 **Test gate:** `bash tools/run-unity-tests.sh` (EditMode via Unity CLI; exit 0 = green).
 **Card regen:** `bash tools/regen-cards.sh` after any card edit in `src/js/`.
+**Differential harness:** `node tools/diffjs/replay.mjs` (the committed goldens, ~12 s) ·
+`node tools/diffjs/fuzz.mjs --count 25` (fresh fuzz traces vs the living JS, ~50 s) ·
+`node tools/diffjs/fuzz.mjs --selftest` (poisons the engine and proves the shrinker converges).
 
 | Milestone | Status | Landed |
 |---|---|---|
@@ -20,7 +23,7 @@ this file is status only.
 | M9 — minimal Unity battle scene | ✅ playable duel | 2026-08-21 — full combat in the sandbox: aim-and-tap attacks, wall strikes, blocker/absorber/retaliation choice panels, the foe storms the wall with the mirrored cadence and defends with the ported heuristic. A duel can be won or lost on the Pages build |
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
-| M12 — differential harness vs the JS | ✅ core done | 2026-08-21 — ALL THREE traces replay COMPLETELY against the living JS: 477, 492 and 342 plies, every ply's board projection matching, three commander pairings, whole matches to a real win. Tier 0 goldens + tier 1 replay are green. Remaining: tier 3 fuzz + shrink, and tightening the projection toward byte-identical hashing |
+| M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
 | M13 — presentation pass | ⬜ | |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
@@ -235,3 +238,84 @@ sequence and the two canonical-JSON states are diffed field by field. Start with
 AI already generates - self-play is a free source of long, legal, reproducible traces. Every
 divergence is either a port defect or a RulesOptions flag that has to be justified; the ship gate is
 that the flag register is empty.
+
+### 2026-08-21 (fifth pass) — M12 complete: tier 3, and a projection with nothing left to widen
+
+**Tier 1/2 — the comparison surface got tight** (D19). The projection used to compare sorted hand
+names and worker COUNTS; it now carries every field either engine mutates: the per-turn flags
+(`moved`/`moved2`/`paid`/`blocked`), the transient Overcharge discharge, the upkeep-paid ledger,
+per-unit colour/cost/upkeep/keyword numbers, and hand, deck and graveyard as ORDERED lists. A hand
+index in a command only means something against an order, and grave order is the order things
+died in — the observable half of combat sequencing. Three normalisations were needed and each is
+commented where it sits: the registry spells "no structure effect" as the string `'none'`, `into`
+is an inline template rather than a card key, and face-down charges deliberately carry no colour
+(C18). Tightening paid for itself immediately — see finding 1.
+
+**Tier 3 — the fuzzer.** `FuzzPolicy` enumerates every command it can spell, asks the engine's own
+`CanApply` which are legal, and picks one. Two properties make its traces worth anything: it draws
+from its OWN Pcg32 (drawing from the match RNG would change the game it is exploring), and it picks
+a command KIND first and an instance second — uniform choice over instances would drown "end the
+turn" under four hundred legal summon placements and no turn would ever end. A per-turn ply budget
+is the backstop. It reaches all sixteen command kinds and all four play modes; the scripted AI
+reaches thirteen and one, and `pour`, `flip` and `sendMana` had **never been compared between the
+engines at all** before this.
+
+**The gate: 10,000 random legal commands over 25 matches and 6 commander pairings, zero
+divergence** (`node tools/diffjs/fuzz.mjs --count 25`, ~50 s end to end).
+
+**The shrinker.** A failure arrives as four hundred commands of which almost none matter. The loop
+truncates at the divergent ply (free — a prefix of a valid trace is a valid trace), then
+delta-debugs: each round proposes "drop this chunk" candidates, the C# engine RE-RECORDS all of
+them in one Unity run (dropping a command changes everything after it, so this is a replay, not an
+edit — `TraceParser` resolves every reference by CELL because unit ids renumber), and the first
+candidate that still fails becomes the new baseline. Proven, not hoped: `--selftest` poisons the
+engine so the third harvest of the match pays one mana it should not, and the shrinker returns a
+**9-ply reproducer — exactly three harvests and the turn glue that makes them legal.**
+
+**Three findings, all real:**
+
+1. **Structure graves were recorded under their BID, not their card name** — a razed Mana Vault
+   went to the graveyard as `vault`. `toGrave` writes `obj.nm`; structures had no `Name` because
+   nothing had needed one. They carry it now, exactly as creatures do.
+2. **A declaration outlived its attacker's position** (D18). Both engines let a creature move
+   after declaring — declaring taps it, and `moveSpent` only reads `moved` — and the JS then
+   rebuilds each attacker from the stored COORDINATE, meets an empty cell, and never strikes.
+   Ours struck anyway, because it holds the unit id and found it wherever it now stood: 2000
+   phantom damage into a wall. `CombatResolver.LiveAttacker` is now the single predicate for "is
+   this declaration still real", asked by both the deferred-block collection and the main
+   partition — a defender asked to block an attack that will never resolve burns its one block
+   for the turn, which is a difference you can lose a game to.
+3. **The adapter forgot that play-on-top is a summon.** `place()` calls `foeTrapOnSummon` on both
+   branches (13_input.js:200), so a creature played over a banked card can be sprung on; the
+   replay only remembered the plain-summon branch and sprang the trap at a stale creature.
+
+**One declared exception, and only one.** Where the JS resolves a declaration with whatever
+creature moved into the attacker's cell behind it, the port refuses (spec 03 §17 risk 2, decided
+at M5). `DECLARED_IDENTITY` in replay.mjs makes the oracle behave like the port at exactly that
+site, counts every drop, and prints the count on every replay — 9 across the 25-match sweep — so
+the exception can never quietly widen into "the harness ignores combat divergences".
+
+**One suspension point the harness still cannot compare:** the defender's CHOICE inside an
+attack-trigger response window. `_resolveNow` springs the defender's first armed trap itself,
+mid-resolution, with no seam an answer could reach, so the fuzzer is deliberately constrained to
+answer "the first armed trap" there (summon windows have a real seam on both sides and are fuzzed
+freely, declines included). Answering "the second trap" or "pass" against an attack is therefore
+untested against the oracle — it is D6's deliberate widening, and it becomes testable the moment
+the JS is retired and the port is its own reference.
+
+**Known bias in the fuzzer, worth knowing before trusting it further:** kind-first picking means
+`sendMana` (1064 plies) is as likely as `resolve` (213), so combat is explored an order of
+magnitude less than banked-mana movement. The 10k sweep still covers 277 declarations and 213
+resolutions, but a combat-weighted mode is the obvious next widening if a divergence is ever
+suspected there.
+
+229 tests — two of them the pipeline entry points, which skip unless the harness asks for them.
+
+### Next session — M13 (the presentation pass)
+
+M12 is the gate on retiring the JS (PORT_PLAN §4): tag `js-reference-final`, move `src/js/`,
+`index.html` and `src/styles/` to `legacy/`, stop deploying Pages, and invert the card-data flow so
+`CardDefinition` assets become authoritative. Do NOT do that until the parity-flag register in
+`RulesOptions` has been walked through (M16 owns the register; M12 only proves the flags are
+currently faithful). Everything the harness needs stays runnable from `legacy/` if the paths in
+boot.mjs move with it.

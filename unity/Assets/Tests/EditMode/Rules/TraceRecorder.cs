@@ -30,19 +30,100 @@ namespace SpawnRowDuel.Rules.Tests
             public Rejection Rejection;
         }
 
+        /// <summary>Where the next command comes from: two scripted AIs, or the fuzzer.</summary>
+        public delegate ICommand CommandSource(DuelEngine engine);
+
+        /// <summary>
+        /// A deliberate rules mutation applied after a chosen ply. It exists for ONE purpose: to
+        /// give the shrinker a divergence it can be tested against, because a shrinker that has
+        /// never converged on a known-minimal answer is not a tool, it is a hope.
+        ///
+        /// It is a parameter rather than a static hook (DECISIONS D9): an assignable static is a
+        /// live hazard the moment two matches share a process, and this one would silently poison
+        /// the golden traces.
+        /// </summary>
+        public delegate void Poison(GameState s, ICommand cmd, int ply);
+
         public static Trace RecordSelfPlay(ICardCatalog cat, string you, string foe,
                                            ulong seed, int maxTurns)
+        {
+            var policies = new[] { new ScriptedAiPolicy(Side.You), new ScriptedAiPolicy(Side.Foe) };
+            return Record(cat, you, foe, seed, maxTurns * 40, engine =>
+            {
+                for (int i = 0; i < policies.Length; i++)
+                {
+                    var cmd = policies[i].Next(engine);
+                    if (cmd != null) return cmd;
+                }
+                return null;
+            });
+        }
+
+        /// <summary>
+        /// A match played by <see cref="FuzzPolicy"/> - the same trace format, so replay.mjs
+        /// consumes it without knowing which side of the harness produced it. The fuzz seed is
+        /// separate from the match seed on purpose: the match RNG belongs to the RULES, and a
+        /// fuzzer that drew from it would be changing the game it is supposed to be exploring.
+        /// </summary>
+        public static Trace RecordFuzz(ICardCatalog cat, string you, string foe,
+                                       ulong seed, ulong fuzzSeed, int maxPlies, int turnBudget,
+                                       Poison poison = null)
+        {
+            var policy = new FuzzPolicy(fuzzSeed, turnBudget);
+            return Record(cat, you, foe, seed, maxPlies, policy.Next, null, null, true, poison);
+        }
+
+        /// <summary>
+        /// Re-record a trace with some plies REMOVED - the shrink step.
+        ///
+        /// Dropping a command changes everything downstream, so this is a genuine replay rather
+        /// than an edit: each surviving command is re-resolved against the state it now meets
+        /// (TraceParser resolves by cell, never by id) and simply skipped if it has become
+        /// illegal. What comes out is a shorter LEGAL trace, ready to put back through the JS
+        /// oracle. Whether it still diverges is the shrink loop's question, not this one's.
+        /// </summary>
+        public static Trace RecordFromCommands(ICardCatalog cat, TraceParser.Doc doc,
+                                               HashSet<int> drop,
+                                               Poison poison = null)
+        {
+            int cursor = 0;
+            CommandSource source = engine =>
+            {
+                while (cursor < doc.Commands.Count)
+                {
+                    int at = cursor++;
+                    if (drop != null && drop.Contains(at)) continue;
+                    var cmd = TraceParser.ToCommand(engine.State, doc.Commands[at]);
+                    if (cmd == null) continue;
+                    if (engine.CanApply(cmd) != Rejection.None) continue;
+                    return cmd;
+                }
+                return null;
+            };
+
+            return Record(cat, doc.You, doc.Foe, doc.Seed, doc.Commands.Count, source,
+                          doc.YouDeck, doc.FoeDeck, false, poison);
+        }
+
+        static Trace Record(ICardCatalog cat, string you, string foe,
+                            ulong seed, int maxPlies, CommandSource source,
+                            List<HandCard> youDeckIn = null, List<HandCard> foeDeckIn = null,
+                            bool handOffWhenIdle = true, Poison poison = null)
         {
             // Build the decks OUTSIDE the match and inject them, so the trace can record the full
             // 40 as dealt rather than the 36 that survive the opening hand. Injecting is also
             // exactly what the JS replay does (startGame takes both decks), which keeps the two
             // sides symmetric - and it is what lets the harness sidestep the unreconcilable
             // shuffles entirely (DECISIONS D16).
+            //
+            // A shrink pass hands the decks back IN, because re-deriving them from the seed is
+            // only correct while the deck factory is untouched, and a shrunk trace must stand on
+            // its own.
             var youCc = cat.Commander(new CommanderId(you));
             var foeCc = cat.Commander(new CommanderId(foe));
             var deckRng = new Pcg32(seed);
-            var youDeck = DeckFactory.DeckOf(cat, youCc.Colors, deckRng);
-            var foeDeck = DeckFactory.DeckOf(cat, foeCc.Colors, deckRng);
+            var youDeck = youDeckIn ?? DeckFactory.DeckOf(cat, youCc.Colors, deckRng);
+            var foeDeck = foeDeckIn ?? DeckFactory.DeckOf(cat, foeCc.Colors, deckRng);
 
             var s = MatchSetup.NewMatch(cat, new CommanderId(you), new CommanderId(foe),
                                         new List<HandCard>(youDeck), new List<HandCard>(foeDeck),
@@ -63,20 +144,17 @@ namespace SpawnRowDuel.Rules.Tests
             sb.Append("\"openProjection\":").Append(StateProjection.Of(s, cat)).Append(",\n");
             sb.Append("\"plies\":[\n");
 
-            var policies = new[] { new ScriptedAiPolicy(Side.You), new ScriptedAiPolicy(Side.Foe) };
             var trace = new Trace();
             int plies = 0;
             bool first = true;
 
-            while (!s.IsOver && plies < maxTurns * 40)
+            while (!s.IsOver && plies < maxPlies)
             {
-                ICommand cmd = null;
-                for (int i = 0; i < policies.Length && cmd == null; i++)
-                    cmd = policies[i].Next(engine);
+                ICommand cmd = source(engine);
 
                 if (cmd == null)
                 {
-                    if (s.Pending == null && s.Phase == TurnPhase.End)
+                    if (handOffWhenIdle && s.Pending == null && s.Phase == TurnPhase.End)
                         cmd = new BeginTurnCommand(TurnMachine.Other(s.Turn));
                     else break;
                 }
@@ -87,6 +165,8 @@ namespace SpawnRowDuel.Rules.Tests
                     trace.Rejection = r.Rejection;
                     break;
                 }
+
+                if (poison != null) poison(s, cmd, plies + 1);   // before the hash: it must show
 
                 if (!first) sb.Append(",\n");
                 first = false;

@@ -100,6 +100,7 @@ namespace SpawnRowDuel.Rules
             b.Owner = owner;
             b.Color = d.Element != Element.None ? d.Element : s.P(owner).PrimaryColor;
             b.DefId = d.Bid;
+            b.Name = d.Name;
             b.Hp = d.MaxHp;
             b.MaxHp = d.MaxHp;
             b.Cost = d.Cost;

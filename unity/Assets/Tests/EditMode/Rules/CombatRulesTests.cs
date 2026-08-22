@@ -150,6 +150,55 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
+        public void Declaration_DiesWhenItsAttackerWalksAway()
+        {
+            // Declaring TAPS a creature but does not spend its move, so both engines let an
+            // attacker step away afterwards. The JS rebuilds each attacker from the stored
+            // COORDINATE at resolve time (15_combat.js:312), meets an empty cell, and the strike
+            // never lands. Found by the M12 fuzz tier - no scripted trace moves after declaring.
+            GameState s;
+            var e = Engine(out s);
+            TapWorkers(s, Side.Foe);
+            s.P(Side.Foe).Life = 9000;
+
+            var a = Place(s, Side.You, "Ashfang", RowKey.YouFront, 2);
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.YouFront, 2),
+                a.Id, new WallTarget(Side.Foe))).Applied);
+
+            Assert.IsTrue(e.Apply(new MoveUnitCommand(Side.You, new CellRef(RowKey.YouFront, 2),
+                new CellRef(RowKey.YouFront, 3), a.Id)).Applied, "declaring taps, it does not move");
+
+            Assert.IsTrue(e.Apply(new ResolveCombatCommand(Side.You)).Applied);
+            Assert.AreEqual(9000, s.P(Side.Foe).Life, "the wall is struck by nobody");
+        }
+
+        [Test]
+        public void Declaration_IsNotInheritedByWhoeverMovesIntoTheCell()
+        {
+            // The other half of the same rule, and the port's one deliberate difference here
+            // (spec 03 s17 risk 2): the JS would resolve this declaration with the NEWCOMER,
+            // because a declaration remembers only where its attacker stood.
+            GameState s;
+            var e = Engine(out s);
+            TapWorkers(s, Side.Foe);
+            s.P(Side.Foe).Life = 9000;
+
+            var a = Place(s, Side.You, "Ashfang", RowKey.YouFront, 2);
+            var other = Place(s, Side.You, "Cinderling", RowKey.YouFront, 3);
+
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You, new CellRef(RowKey.YouFront, 2),
+                a.Id, new WallTarget(Side.Foe))).Applied);
+            Assert.IsTrue(e.Apply(new MoveUnitCommand(Side.You, new CellRef(RowKey.YouFront, 2),
+                new CellRef(RowKey.YouFront, 1), a.Id)).Applied);
+            Assert.IsTrue(e.Apply(new MoveUnitCommand(Side.You, new CellRef(RowKey.YouFront, 3),
+                new CellRef(RowKey.YouFront, 2), other.Id)).Applied);
+
+            Assert.IsTrue(e.Apply(new ResolveCombatCommand(Side.You)).Applied);
+            Assert.AreEqual(9000, s.P(Side.Foe).Life,
+                "the creature standing in the cell never declared anything");
+        }
+
+        [Test]
         public void Wall_DamageAggregates_AndTheWinCheckFires()
         {
             GameState s;

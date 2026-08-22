@@ -5,8 +5,12 @@
 // the JS to reproduce it, dump.mjs would have to mirror StateCodec exactly, field for field, and
 // every future codec tweak would break the harness for reasons that have nothing to do with the
 // rules. A projection compares what the RULES decide - who stands where, with what stats, holding
-// what - which is the thing under test. Byte-identical hashing stays available later as a
-// tightening, once the projection is green.
+// what - which is the thing under test.
+//
+// So the answer to "how do we get closer to byte-identical" is to WIDEN this rather than mirror
+// the codec (DECISIONS D19). Every field either engine mutates is here: the per-turn flags, the
+// transient discharge bonus, the upkeep-paid ledger, and hand, deck and graveyard as ORDERED
+// lists. Anything deliberately left out says why, next to the field that leaves it out.
 //
 // Ordering is canonical (ascending cell index, then pools) so a diff is positional, never a
 // set-membership puzzle.
@@ -26,10 +30,30 @@ function unitOf(o) {
       hp: o.h | 0,
       maxhp: (o.maxh ?? o.h) | 0,
       own: o.owner,
+      col: o.color || 'none',
+      c: o.c | 0,
+      up: o.up | 0,
       bank: o.bank | 0,
       sick: !!o.sick,
       tap: !!o.tapped,
+      // the per-turn flags: cleared at the OWNER's BeginTurn, so a raider stays tapped through
+      // the enemy's whole turn. They decide what may act, and nothing else compares them.
+      mv: !!o.moved,
+      mv2: !!o.moved2,
+      paid: !!o.paid,
+      blk: !!o.blocked,
+      dis: o._dis | 0,
       kw: o.kw || null,
+      fs: !!o.fs,
+      ent: !!o.entrench,
+      det: o.det | 0,
+      reap: o.reap | 0,
+      whp: o.wardhp | 0,
+      grow: o.grow | 0,
+      hatch: o.hatch | 0,
+      // `into` is an inline TEMPLATE in the registry ({nm,a,h}); the port keys it by card id.
+      // The name is the shared half - and what it hatches into is compared on the board anyway.
+      into: o.into ? (o.into.nm || o.into) : null,
       tok: !!o.token,
       cnt: o.cnt | 0,
       oc: o.oc | 0,
@@ -37,27 +61,44 @@ function unitOf(o) {
   }
   if (o.kind === 'building') {
     return { k: 'building', nm: o.nm, hp: o.h | 0, maxhp: (o.maxh ?? o.h) | 0,
-             own: o.owner, bank: o.bank | 0, bid: o.bid || null, sup: o.sup | 0 };
+             own: o.owner, col: o.color || 'none', c: o.c | 0,
+             // the registry spells "no effect" as the STRING 'none'; the port has a real enum
+             // whose None member is the absence, so the two agree once this is normalised
+             eff: (o.eff && o.eff !== 'none') ? o.eff : null,
+             val: o.val | 0, bank: o.bank | 0, bid: o.bid || null, sup: o.sup | 0 };
   }
   if (o.kind === 'charge') {
+    // NO colour: the JS snapshot drops it, so a flipped off-colour creature inherits the
+    // player's element. That is DECISIONS C18, a parity flag, not something to compare here.
     return { k: 'charge', nm: o.card && o.card.nm, own: o.owner, inv: o.inv | 0,
+             cc: (o.card && o.card.c) | 0,
              ctype: o.ctype || 'creature', setTurn: o.setTurn | 0 };
   }
   if (o.kind === 'trap') {
     return { k: 'trap', nm: o.card && o.card.nm, own: o.owner, setTurn: o.setTurn | 0,
+             eff: (o.card && o.card.effect) || null, val: (o.card && o.card.val) | 0,
              trigger: (o.card && o.card.trigger) || null };
   }
   return { k: o.kind, own: o.owner };
 }
 
 function playerOf(P) {
+  const upaid = P.upaid || {};
   return {
     life: P.life | 0,
     mana: P.mana | 0,
-    hand: (P.hand || []).map((c) => c.nm).sort(),
+    // ORDERED, all three zones: a hand index in a command only means something against the
+    // hand's order, and the grave's order is the order things died in.
+    hand: (P.hand || []).map((c) => c.nm),
     handN: (P.hand || []).length,
+    deck: (P.deck || []).map((c) => c.nm),
     deckN: (P.deck || []).length,
+    grave: (P.grave || []).map((c) => c.nm),
     graveN: (P.grave || []).length,
+    upaid: {
+      back: upaid.back | 0, front: upaid.front | 0,
+      center: upaid.center | 0, raid: upaid.raid | 0,
+    },
     workers: {
       back: (P.min.back || []).length,
       front: (P.min.front || []).length,

@@ -112,6 +112,7 @@ namespace SpawnRowDuel.Rules
 
             int damage = Math.Max(0, b.MaxHp - b.Hp);
             b.DefId = def.Bid;
+            b.Name = def.Name;
             b.Cost = def.Cost;
             b.Value = def.Value;
             b.Support = def.Support;

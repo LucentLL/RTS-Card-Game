@@ -85,3 +85,6 @@ unity/[Dd]ata/
 
 # differential-harness debugging dumps (regenerated on demand)
 tools/diffjs/golden/*.proj.jsonl
+
+# fuzz traces: generated on demand by tools/diffjs/fuzz.mjs, never committed
+tools/diffjs/fuzz/
