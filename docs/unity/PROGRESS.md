@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | ⬜ | |
+| M13 — presentation pass | 🟡 slice 1 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, standees on the board, owner-tinted rows. Remaining: walls + tower windows, board mini-card plates, FX, audio |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -319,3 +319,59 @@ M12 is the gate on retiring the JS (PORT_PLAN §4): tag `js-reference-final`, mo
 `RulesOptions` has been walked through (M16 owns the register; M12 only proves the flags are
 currently faithful). Everything the harness needs stays runnable from `legacy/` if the paths in
 boot.mjs move with it.
+
+### 2026-08-22 — M13 slice 1: card faces, type, figures
+
+**The fonts, which gated everything else.** GAPS carried "the font/glyph plan for the 76 non-ASCII
+glyphs" as an open P0 from M1; it is closed and, more importantly, GATED. `tools/export_glyphs.mjs`
+collects the vocabulary from the reference source and card data into `docs/unity/spec/glyphs.txt`;
+`FontPipeline` routes each glyph to the first font that MEASURABLY has it and
+`FontCoverageTests` fails the build when a character has no home. Cinzel and EB Garamond are the
+reference build's own faces (OFL, vendored with their licences). Two things the gate caught that a
+plan would not have:
+
+* Partitioning by Unicode block silently lost ⚔, ⚒, ⚙ and every arrow — Miscellaneous Symbols is
+  split across three Noto families and block membership says nothing about which one drew what.
+* **Unity 6's advanced text generator will not draw a STATIC font asset at all** — not as a
+  fallback ("cannot use static font asset as fallback", then tofu) and not as a primary font
+  either. The four symbol faces are dynamic now; the kanji face is dynamic too, which drags a
+  5.3 MB TTF into the build for eleven characters. Subsetting it is an M16 build-size task.
+
+**The card frame** is the DM_Template of spec 09 §6.1: ivory name banner with the cost circle and
+the element gem, dominant art window, type lozenge on the seam, white ability box, footer of
+power / ⚒ chip / ♥ health, element accent threaded through all of it. Sizes are fractions of card
+WIDTH, so one frame serves hand, inspector, board plate and deck tile. Rules text is generated —
+`abilityBrief`, `spellText`, `kwName` and `bldEffectText` as one service (spec 09 §6.6 [REQ]).
+Authored in C# rather than UXML/USS (D20).
+
+**The hand** is UI Toolkit, in the band MatchHud already reserved, with selection still owned by
+MatchHud so the placement flow keeps one owner. **Standees** are on the board: field-art cut-outs
+that hover, cast a blob shadow, bob, and lie flat when the unit cannot act (`canActNow`, ported).
+Board rows are tinted by owner.
+
+**Three bugs the screenshots found, none of which a test would have:**
+1. MatchHud painted its opaque bottom band over the whole strip, and IMGUI draws after every UI
+   Toolkit panel — so the hand was rendered and then covered. It paints around the hand now.
+2. The band geometry lived in MatchHud and was published from OnGUI, which runs AFTER the hand's
+   LateUpdate; the first frames used a fallback guess and put the cards under the bottom edge.
+   `HudLayout` owns the numbers now and both surfaces compute from it.
+3. A runtime `SpriteRenderer` defaults to the 2D renderer's Sprite-Unlit shader, which in a 3D URP
+   scene drew every blob shadow as a BRIGHT ellipse. `Sprites/Default`, explicitly.
+
+**Tooling, because a presentation milestone has no assertable oracle:**
+* `tools/view-probe.sh` — renders a UI Toolkit panel to a PNG from batchmode (D22). Needs a
+  graphics device, and drives the panel's repaint by hand: a runtime panel only paints from the
+  player loop, which `-executeMethod` blocks before ever ticking.
+* `tools/screenshot.sh` — the REAL battle screen, play mode, headless. `WaitForEndOfFrame` never
+  resumes in batchmode (it hangs the run) and `ScreenCapture.CaptureScreenshot` writes nothing
+  without a swap chain, so the camera and the UI panel render into two textures and are blended.
+  The IMGUI HUD is absent from those shots by consequence, which is tolerable while IMGUI is the
+  layer being replaced.
+
+232 tests.
+
+### Next — M13 slice 2
+
+Walls and windows (the tower layout, deck and graveyard as real card piles — the reference's right
+window, which the current build has nowhere to put), the board mini-card plate under each standee,
+FX, and audio. Then M15's menus and deck builder, which are whole screens that do not exist yet.

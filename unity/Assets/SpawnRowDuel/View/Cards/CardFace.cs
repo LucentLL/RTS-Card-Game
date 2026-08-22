@@ -79,7 +79,7 @@ namespace SpawnRowDuel.View.Cards
             _gem.style.marginLeft = 2;
             _banner.Add(_gem);
 
-            _gemGlyph = Text("", UiFont.BodyBold);
+            _gemGlyph = Text("", UiFont.Cjk);      // kanji-only: the static face is its PRIMARY font
             _gemGlyph.style.color = Color.white;
             _gemGlyph.style.unityTextOutlineWidth = 0.12f;
             _gemGlyph.style.unityTextOutlineColor = new Color(0f, 0f, 0f, 0.85f);

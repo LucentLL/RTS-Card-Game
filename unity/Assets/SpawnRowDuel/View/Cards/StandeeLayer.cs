@@ -97,6 +97,7 @@ namespace SpawnRowDuel.View.Cards
             figGo.transform.SetParent(pivot, false);
             var fig = figGo.AddComponent<SpriteRenderer>();
             fig.sortingOrder = 20;
+            fig.sharedMaterial = SpriteMaterial();
 
             var shadowGo = new GameObject("shadow");
             shadowGo.transform.SetParent(root.transform, false);
@@ -105,6 +106,7 @@ namespace SpawnRowDuel.View.Cards
             shadow.sprite = ShadowSprite();
             shadow.color = new Color(0f, 0f, 0f, 0.5f);
             shadow.sortingOrder = 10;
+            shadow.sharedMaterial = SpriteMaterial();
 
             st = new Standee
             {
@@ -167,9 +169,11 @@ namespace SpawnRowDuel.View.Cards
                 st.Figure.transform.localPosition = new Vector3(0f, targetH * 0.5f, 0f);
             }
 
-            st.Shadow.transform.position = world + new Vector3(0f, 0.012f, 0f);
+            // ABOVE the cell surface, not inside it: the cell is a 0.12-thick cube whose top face
+            // sits at y=0.06, and a shadow quad under that z-fought with it into a bright ellipse.
+            st.Shadow.transform.position = world + new Vector3(0f, 0.075f, 0f);
             st.Shadow.transform.localScale = new Vector3(0.62f, 0.30f, 1f);
-            st.Shadow.color = new Color(0f, 0f, 0f, laid ? 0.28f : 0.45f);
+            st.Shadow.color = new Color(0f, 0f, 0f, laid ? 0.30f : 0.50f);
 
             // the owner reads at a glance even before the stat overlay: a cold rim for the foe
             st.Figure.color = o.Owner == Side.You ? Color.white : new Color(0.86f, 0.88f, 1f);
@@ -223,6 +227,25 @@ namespace SpawnRowDuel.View.Cards
                 if (st.Root != null) Destroy(st.Root);
                 _live.Remove(dead[i]);
             }
+        }
+
+        /// <summary>
+        /// One shared unlit sprite material.
+        ///
+        /// A runtime SpriteRenderer defaults to the 2D renderer's Sprite-Unlit shader, which in a
+        /// 3D URP scene has no light texture to sample and drew every blob shadow as a bright
+        /// ellipse instead of a dark one. Sprites/Default is the plain multiply-by-vertex-colour
+        /// path, and the scene's sprite anchor keeps it out of the WebGL stripper's way.
+        /// </summary>
+        static Material _spriteMat;
+
+        static Material SpriteMaterial()
+        {
+            if (_spriteMat != null) return _spriteMat;
+            var shader = Shader.Find("Sprites/Default");
+            if (shader == null) return null;                  // stripped: keep the engine default
+            _spriteMat = new Material(shader) { name = "SRD Standee", hideFlags = HideFlags.HideAndDontSave };
+            return _spriteMat;
         }
 
         /// <summary>An elliptical blob, generated - the reference's radial-gradient shadow.</summary>

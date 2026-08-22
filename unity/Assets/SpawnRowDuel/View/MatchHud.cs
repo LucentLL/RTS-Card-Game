@@ -20,12 +20,13 @@ namespace SpawnRowDuel.View
     [RequireComponent(typeof(MatchController))]
     public class MatchHud : MonoBehaviour
     {
-        // band heights, logical units
-        const float TopH = 42f;
-        const float ActionH = 46f;
-        const float HandH = 82f;
-        const float ModeH = 28f;
-        const float BottomH = ActionH + HandH + ModeH;
+        // band heights, logical units - defined by HudLayout, which the UI Toolkit surfaces read
+        // too (they lay out before OnGUI has ever run)
+        const float TopH = HudLayout.TopH;
+        const float ActionH = HudLayout.ActionH;
+        const float HandH = HudLayout.HandH;
+        const float ModeH = HudLayout.ModeH;
+        const float BottomH = HudLayout.BottomH;
 
         private MatchController _match;
         private BoardInput _input;
@@ -63,6 +64,10 @@ namespace SpawnRowDuel.View
         private GUIStyle _ovYou, _ovFoe, _ovNeutral;
 
         private static readonly Color PanelColor = new Color(0.055f, 0.06f, 0.085f, 1f);
+
+        /// <summary>Behind the UI Toolkit hand: dark enough to seat the cards, sheer enough that
+        /// they read as sitting ON something rather than floating in a void.</summary>
+        private static readonly Color HandBackdrop = new Color(0.06f, 0.05f, 0.08f, 0.82f);
         private static readonly Color PanelSoft = new Color(0.055f, 0.06f, 0.085f, 0.72f);
         private static readonly Color CardBack = new Color(0.10f, 0.11f, 0.15f, 1f);
         private static readonly Color Gold = new Color(1f, 0.85f, 0.4f);
@@ -124,8 +129,7 @@ namespace SpawnRowDuel.View
 
             var s = _match.Engine.State;
 
-            // scale by the SHORT side - landscape must not inherit portrait's width math
-            float scale = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height) / 480f);
+            float scale = HudLayout.Recompute();
             _scale = scale;
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
             float w = Screen.width / scale;
@@ -133,11 +137,6 @@ namespace SpawnRowDuel.View
 
             // publish the reserved bands so the camera viewport stays out of them, and reset
             // the in-viewport blocker rects - the draws below re-publish the ones that exist
-            HudLayout.TopPx = TopH * scale;
-            HudLayout.BottomPx = BottomH * scale;
-            HudLayout.Scale = scale;
-            HudLayout.HandBandPx = HandH * scale;
-            HudLayout.HandBandBottomPx = ActionH * scale;
             HudLayout.MenuPx = new Rect();
             HudLayout.LogPx = new Rect();
 
@@ -145,8 +144,13 @@ namespace SpawnRowDuel.View
             DrawTopBar(s, w);
             DrawLog(w);
 
-            // the bottom band is ALWAYS painted opaque - the camera does not render behind it
-            Panel(new Rect(0, h - BottomH, w, BottomH), PanelColor);
+            // The bottom band is opaque - the camera does not render behind it - but the HAND
+            // strip inside it belongs to UI Toolkit now, and IMGUI draws AFTER every UI Toolkit
+            // panel. Painting the whole band here covered the card faces completely, which is
+            // exactly what it looked like: an empty bottom bar with buttons and no hand.
+            Panel(new Rect(0, h - BottomH, w, ModeH), PanelColor);            // mode row
+            Panel(new Rect(0, h - ActionH, w, ActionH), PanelColor);          // action row
+            Panel(new Rect(0, h - ActionH - HandH, w, HandH), HandBackdrop);  // behind the cards
 
             if (s.IsOver)
             {

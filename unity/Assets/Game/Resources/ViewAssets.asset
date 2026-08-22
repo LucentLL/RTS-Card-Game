@@ -18,3 +18,4 @@ MonoBehaviour:
   bodyRegular: {fileID: 11400000, guid: 5ad95e8c743b83d42ad4643d19a6d7e9, type: 2}
   bodyBold: {fileID: 11400000, guid: 729afd0d5f47e734aae648cc65f44916, type: 2}
   bodyItalic: {fileID: 11400000, guid: cb78d930d71bf9a4e860ad1382266aec, type: 2}
+  cjk: {fileID: 11400000, guid: 997da39d7b828ab4aa56d96522cbc5fd, type: 2}

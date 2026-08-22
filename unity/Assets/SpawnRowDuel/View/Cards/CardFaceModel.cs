@@ -99,11 +99,13 @@ namespace SpawnRowDuel.View.Cards
         public static bool TryOfCard(CardId id, ICardCatalog catalog, CardTextService text,
                                      CardArtIndex art, out CardFaceModel model)
         {
-            var creature = catalog.Creature(id);
-            if (creature != null) { model = OfCreature(creature, text, art); return true; }
+            // Try*, not the direct accessors: those THROW for an id of the wrong kind, and every
+            // hand card asks both questions.
+            CreatureCard creature;
+            if (catalog.TryCreature(id, out creature)) { model = OfCreature(creature, text, art); return true; }
 
-            var spell = catalog.Spell(id);
-            if (spell != null) { model = OfSpell(spell, text, art); return true; }
+            SpellCard spell;
+            if (catalog.TrySpell(id, out spell)) { model = OfSpell(spell, text, art); return true; }
 
             model = default(CardFaceModel);
             return false;

@@ -133,8 +133,8 @@ namespace SpawnRowDuel.View.Cards
         /// <summary>The full inspector text for any card the catalog knows.</summary>
         public string Full(CardId id)
         {
-            var creature = _catalog.Creature(id);
-            if (creature != null)
+            CreatureCard creature;
+            if (_catalog.TryCreature(id, out creature))
             {
                 var brief = CreatureBrief(creature);
                 if (creature.Into != null)
@@ -144,8 +144,8 @@ namespace SpawnRowDuel.View.Cards
                 return brief;
             }
 
-            var spell = _catalog.Spell(id);
-            if (spell != null) return SpellText(spell);
+            SpellCard spell;
+            if (_catalog.TrySpell(id, out spell)) return SpellText(spell);
 
             return "";
         }

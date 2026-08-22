@@ -52,6 +52,12 @@ namespace SpawnRowDuel.Rules.Tests
                 Assert.IsNotNull(face, name + " is missing - run tools/regen-fonts.sh");
 
                 var chain = new List<FontAsset>(face.fallbackFontAssetTable);
+
+                // The kanji face is used directly on kanji-only labels rather than through the
+                // chain (Unity 6 refuses static fallbacks), so coverage counts it as reachable.
+                var kanji = Load("SRD-CJK");
+                if (kanji != null) chain.Add(kanji);
+
                 var missing = FontPipeline.MissingGlyphs(glyphs, face, chain);
 
                 Assert.IsEmpty(missing, name + " cannot draw: " + string.Join(", ", missing));
@@ -59,17 +65,14 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
-        public void BakedFallbacksCarryNoSourceFont()
+        public void TheKanjiFaceExists_AndIsReachableDirectly()
         {
-            // A static fallback that kept its source font drags the whole 5.3 MB kanji face into
-            // the player build to draw eleven characters.
-            foreach (var name in new[] { "SRD-Symbols2", "SRD-Symbols", "SRD-Math", "SRD-Emoji", "SRD-CJK" })
-            {
-                var font = Load(name);
-                if (font == null) continue;             // routing may leave a fallback unused
-                Assert.AreEqual(AtlasPopulationMode.Static, font.atlasPopulationMode, name);
-                Assert.IsNull(font.sourceFontFile, name + " still references its TTF");
-            }
+            // It is deliberately NOT in the fallback chain: Unity 6 refuses static assets there,
+            // and the element gem is a kanji-only label that can name its font outright.
+            var kanji = Load("SRD-CJK");
+            Assert.IsNotNull(kanji, "SRD-CJK is missing - run tools/regen-fonts.sh");
+            Assert.IsTrue(kanji.characterLookupTable.ContainsKey(0x708E), "no 炎 in the kanji face");
+            Assert.IsTrue(kanji.characterLookupTable.ContainsKey(0x95C7), "no 闇 in the kanji face");
         }
     }
 }

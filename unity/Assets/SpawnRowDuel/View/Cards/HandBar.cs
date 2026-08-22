@@ -55,8 +55,10 @@ namespace SpawnRowDuel.View.Cards
             var s = _match.Engine.State;
             var hand = s.P(Side.You).Hand;
 
-            float scale = HudLayout.Scale > 0f ? HudLayout.Scale : 1f;
-            float bandH = HudLayout.HandBandPx > 0f ? HudLayout.HandBandPx : 82f * scale;
+            // Compute rather than read: LateUpdate runs before OnGUI, and on the first frames a
+            // stale zero here put the cards under the bottom edge of the screen.
+            HudLayout.Recompute();
+            float bandH = HudLayout.HandBandPx;
             float bottom = HudLayout.HandBandBottomPx;
 
             _row.style.bottom = bottom;
@@ -88,7 +90,10 @@ namespace SpawnRowDuel.View.Cards
 
             // The reference hand overlaps its cards rather than shrinking them to nothing when the
             // hand is large (spec 09 §5.1); a negative margin is that overlap.
-            float available = Screen.width - 24f;
+            // the PANEL's width, not Screen.width: they differ whenever the panel renders into a
+            // texture, and the capture harness does exactly that
+            float panelW = _row.resolvedStyle.width > 1f ? _row.resolvedStyle.width : Screen.width;
+            float available = panelW - 24f;
             float step = cardW + 6f;
             if (hand.Count * step > available)
                 step = Mathf.Max(cardW * 0.42f, available / hand.Count);
@@ -102,7 +107,7 @@ namespace SpawnRowDuel.View.Cards
                 var face = new CardFace();
                 face.Bind(model, _palette, cardW);
                 face.style.position = Position.Absolute;
-                face.style.left = (Screen.width - (step * (hand.Count - 1) + cardW)) * 0.5f + i * step;
+                face.style.left = (panelW - (step * (hand.Count - 1) + cardW)) * 0.5f + i * step;
                 face.style.bottom = 0f;
 
                 bool selected = _hud != null && _hud.SelectedHandIndex == i;

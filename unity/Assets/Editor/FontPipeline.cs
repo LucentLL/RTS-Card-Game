@@ -76,12 +76,24 @@ namespace SpawnRowDuel.EditorPipeline
             "NotoSansSymbols-Regular.ttf",
             "NotoSansMath-Regular.ttf",
             "NotoEmoji-Regular.ttf",
-            "NotoSansJP-Regular.ttf",
         };
+
+        /// <summary>
+        /// The kanji face is NOT in the fallback chain, and that is the whole trick.
+        ///
+        /// Unity 6's advanced text generator refuses a STATIC font asset as a fallback - it warns
+        /// "cannot use static font asset ... as fallback" and silently draws tofu. So the four
+        /// symbol faces became dynamic (their TTFs are small), while the 5.3 MB kanji face stays
+        /// static and is used DIRECTLY as the element gem's font. A static asset is only refused as
+        /// a fallback; as a primary font it is fine, and the gem label holds one kanji and nothing
+        /// else - so the giant TTF never enters the build.
+        /// </summary>
+        const string CjkSource = "NotoSansJP-Regular.ttf";
+        const string CjkName = "SRD-CJK";
 
         static readonly string[] FallbackNames =
         {
-            "SRD-Symbols2", "SRD-Symbols", "SRD-Math", "SRD-Emoji", "SRD-CJK",
+            "SRD-Symbols2", "SRD-Symbols", "SRD-Math", "SRD-Emoji",
         };
 
         /// <summary>
@@ -152,12 +164,31 @@ namespace SpawnRowDuel.EditorPipeline
             var uncovered = new List<string>();
             var routed = RouteGlyphs(glyphs, probes, faces, uncovered);
 
+            // Whatever the symbol faces could not draw is the kanji face's job, and it is baked
+            // static and used directly rather than as a fallback (see CjkSource).
+            var cjkProbe = Probe(CjkSource);
+            var stillMissing = new List<string>();
+            var cjkChars = new StringBuilder();
+            for (int i = 0; i < uncovered.Count; i++)
+            {
+                int cp = char.ConvertToUtf32(uncovered[i], 0);
+                if (HasGlyph(cjkProbe, (uint)cp)) cjkChars.Append(char.ConvertFromUtf32(cp));
+                else stillMissing.Add(uncovered[i]);
+            }
+
             var chain = new List<FontAsset>();
             for (int i = 0; i < FallbackSources.Length; i++)
             {
                 if (routed[i].Length == 0) { AssetDatabase.DeleteAsset(OutDir + "/" + FallbackNames[i] + ".asset"); continue; }
-                chain.Add(Build(FallbackSources[i], FallbackNames[i], false, routed[i]));
+                // DYNAMIC: the advanced text generator ignores a static asset in a fallback chain
+                chain.Add(Build(FallbackSources[i], FallbackNames[i], true, routed[i]));
             }
+
+            // DYNAMIC, reluctantly: Unity 6's advanced text generator will not draw a static font
+            // asset at all - not as a fallback, and not as a primary font either (the gems came
+            // back empty). So the 5.3 MB kanji TTF ships. Subsetting it to these eleven glyphs is
+            // a build-size task for M16, not a correctness one.
+            var cjk = cjkChars.Length > 0 ? Build(CjkSource, CjkName, true, cjkChars.ToString()) : null;
 
             foreach (var face in faces)
             {
@@ -165,7 +196,8 @@ namespace SpawnRowDuel.EditorPipeline
                 EditorUtility.SetDirty(face);
             }
 
-            WriteViewAssets(faces);
+            uncovered = stillMissing;
+            WriteViewAssets(faces, cjk);
             WriteHudPanel();
 
             AssetDatabase.SaveAssets();
@@ -186,7 +218,7 @@ namespace SpawnRowDuel.EditorPipeline
         /// exist and nothing can load them: `Resources.Load` is the only door out of an asset
         /// folder at runtime, and the view must not know an asset path.
         /// </summary>
-        static void WriteViewAssets(FontAsset[] faces)
+        static void WriteViewAssets(FontAsset[] faces, FontAsset cjk)
         {
             const string dir = "Assets/Game/Resources";
             const string path = dir + "/ViewAssets.asset";
@@ -206,6 +238,7 @@ namespace SpawnRowDuel.EditorPipeline
             so.FindProperty("bodyRegular").objectReferenceValue = faces[3];
             so.FindProperty("bodyBold").objectReferenceValue = faces[4];
             so.FindProperty("bodyItalic").objectReferenceValue = faces[5];
+            so.FindProperty("cjk").objectReferenceValue = cjk;
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(assets);
         }

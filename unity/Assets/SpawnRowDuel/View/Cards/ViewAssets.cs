@@ -3,7 +3,7 @@ using UnityEngine.TextCore.Text;
 
 namespace SpawnRowDuel.View.Cards
 {
-    public enum UiFont { DisplayRegular, DisplayBold, DisplayBlack, BodyRegular, BodyBold, BodyItalic }
+    public enum UiFont { DisplayRegular, DisplayBold, DisplayBlack, BodyRegular, BodyBold, BodyItalic, Cjk }
 
     /// <summary>
     /// The view's asset handles, in one Resources-loaded object.
@@ -26,6 +26,11 @@ namespace SpawnRowDuel.View.Cards
         [SerializeField] internal FontAsset bodyRegular;
         [SerializeField] internal FontAsset bodyBold;
         [SerializeField] internal FontAsset bodyItalic;
+
+        /// <summary>The kanji face, used DIRECTLY on kanji-only labels: Unity 6 refuses a static
+        /// font asset as a fallback, and shipping the 5.3 MB dynamic one for eleven characters is
+        /// not a trade worth making.</summary>
+        [SerializeField] internal FontAsset cjk;
 
         static ViewAssets _instance;
         static bool _looked;
@@ -56,6 +61,7 @@ namespace SpawnRowDuel.View.Cards
                 case UiFont.DisplayBlack: return a.displayBlack;
                 case UiFont.BodyBold: return a.bodyBold;
                 case UiFont.BodyItalic: return a.bodyItalic;
+                case UiFont.Cjk: return a.cjk;
                 default: return a.bodyRegular;
             }
         }

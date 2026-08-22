@@ -3,8 +3,9 @@ using UnityEngine;
 namespace SpawnRowDuel.View
 {
     /// <summary>
-    /// The HUD's reserved screen geometry, in REAL pixels, published by MatchHud every OnGUI and
-    /// consumed by BoardInput. Two kinds:
+    /// The HUD's reserved screen geometry, in REAL pixels - and the one place that decides it.
+    ///
+    /// Two kinds:
     ///
     /// - TopPx/BottomPx: the opaque bands. The camera viewport stays out of them, Master-Duel
     ///   style, so board and interface never layer over each other.
@@ -13,26 +14,42 @@ namespace SpawnRowDuel.View
     ///   events - so BoardInput must be told where they are and refuse taps/hover there,
     ///   or a menu tap would also tap the board cell behind it.
     ///
+    /// The band SIZES live here rather than in MatchHud because the hand is a UI Toolkit surface
+    /// now and lays itself out in LateUpdate, before OnGUI has run at all. When MatchHud owned the
+    /// numbers, the first frames of the hand used a fallback guess and the cards sat clipped
+    /// against the bottom of the screen - which is exactly what the first capture showed.
+    ///
     /// Rects are stored top-left-origin (GUI space, scaled to real pixels); Blocks() flips the
     /// bottom-left-origin mouse position to match.
     /// </summary>
     public static class HudLayout
     {
+        // logical units; the scale below turns them into pixels
+        public const float TopH = 42f;
+        public const float ActionH = 46f;
+        public const float HandH = 104f;      // the hand is the primary interface - give it room
+        public const float ModeH = 28f;
+        public const float BottomH = ActionH + HandH + ModeH;
+
         public static float TopPx;
         public static float BottomPx;
-
-        /// <summary>
-        /// The logical→pixel factor and the hand band, published for the UI Toolkit surfaces that
-        /// are replacing IMGUI one at a time (M13). They have to land on exactly the pixels the
-        /// IMGUI bands reserve, or the board camera and the new surface disagree about who owns a
-        /// strip of screen and taps fall through.
-        /// </summary>
         public static float Scale = 1f;
         public static float HandBandPx;
         public static float HandBandBottomPx;
 
         public static Rect MenuPx;    // Rect zero when no menu is open
         public static Rect LogPx;
+
+        /// <summary>Scale by the SHORT side - landscape must not inherit portrait's width math.</summary>
+        public static float Recompute()
+        {
+            Scale = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height) / 480f);
+            TopPx = TopH * Scale;
+            BottomPx = BottomH * Scale;
+            HandBandPx = HandH * Scale;
+            HandBandBottomPx = ActionH * Scale;
+            return Scale;
+        }
 
         public static bool Blocks(Vector2 mousePos)
         {
