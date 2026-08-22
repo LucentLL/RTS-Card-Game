@@ -597,3 +597,50 @@ a frame caught mid-`HandBar.Rebuild`, which clears and recreates the row on any 
 transient, and invisible to a probe that shoots settled frames. Needs another sighting to pin.
 
 233 passing.
+
+### 2026-08-22 (eighth pass) — M13 slice 2d: the rail, the tufts, and a tap that hit twice
+
+Four things from the phone.
+
+* **"When I press the summon button over the card, the card deselects."** A real input bug, and a
+  structural one: SUMMON sat in a reserved band that the picked card rose straight through, so the
+  button and the card occupied the same pixels. IMGUI and UI Toolkit are separate input paths that
+  never learn about each other's handled events, so the tap ran BOTH - the button armed the play,
+  and the card's own `PointerDown` toggled the selection off underneath it. The mode row clears the
+  risen card's full height now. No overlap, no double delivery.
+
+* **"The End Turn and Build are taking up too much space. Refer to HTML position for phasing."**
+  Ported the reference's shape. `.hand` is at `bottom: 0` and `#boardBtns` hugs the right edge at
+  mid-height - its own comment calls it the Master Duel coin position - so the bottom band is the
+  hand PEEK alone (46 units, was 120) and the board keeps the height the buttons used to cost it.
+  The rail carries the reference's `#phaseTrack` too: a compact vertical list lighting the current
+  phase, with Combat indented as the sub-phase of Action that it is. `HudLayout.RailPx` blocks board
+  taps inside it, the same way the build menu and log already do.
+
+* **"The grass stretches, not compresses down."** A missing clamp. The bend direction comes from
+  the gradient of the press field, which can be arbitrarily steep, and it was applied raw: a
+  0.11-tall blade was being dragged up to two world units sideways - eighteen blade-lengths - which
+  draws streaks across a field, not grass lying over. The bend is a direction now, capped at about
+  one blade-length and measured against the blade's NATURAL height so a fully flattened blade still
+  lies over instead of shrinking into its own root.
+
+* **"Do I need to find grass assets, because these look very unprofessional?"** Fair, and the
+  answer was yes-ish: one tapered quad per instance is a spike, and a field of spikes reads as
+  spikes however you tune it. `GrassTextures` generates a four-variant TUFT atlas instead - six to
+  eight blades per tuft, each with its own lean, height and taper, soft-edged, with a root-to-tip
+  luminance ramp for the shader to tint. Same approach as `CardTextures`: the art is drawn in code.
+  Hand-drawn art would still beat it and drops in as a texture swap if you want that.
+
+  Worth writing down, because it bit immediately: **a tuft quad is ~70% transparent**, so the
+  density that filled a field with solid blades leaves about 4% ground cover. Density and quad size
+  had to go up together (9 → 24 per square unit, blade cap 16k → 22k) to get back to a lawn.
+
+**Not verified headlessly:** the rail, the phase track and the mode row are all IMGUI, and OnGUI
+has no target texture, so none of them appear in the probe shots. Layout there is reasoned, not
+seen. That gap is now the biggest hole in the visual gate.
+
+**Still open:** the reference's extending/retracting castle walls (tower windows, `--wallY`), which
+the same feedback asked to refer to. The phase track and rail position came across; the walls are a
+whole surface and stay on the M13 remaining list.
+
+233 passing.

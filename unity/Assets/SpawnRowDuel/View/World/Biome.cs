@@ -58,9 +58,9 @@ namespace SpawnRowDuel.View.World
                 Base = Hex("#3d6b2e"), Tint2 = Hex("#477a33"), Tint3 = Hex("#325c27"),
                 Highlight = Hex("#8fb05a"),
                 Waves = 0f, Ripples = 0f, Embers = 0f, MotionSpeed = 0.3f,
-                BladeDensity = 20f,
+                BladeDensity = 24f,
                 BladeA = Hex("#4f8a34"), BladeB = Hex("#6ba844"), BladeRoot = Hex("#26491d"),
-                BladeHeight = 0.11f, BladeWidth = 0.050f, Sway = 0.045f,
+                BladeHeight = 0.140f, BladeWidth = 0.170f, Sway = 0.048f,
                 ShadowTint = Hex("#7f93c8"), CloudAmount = 1f,
             };
         }
@@ -73,9 +73,9 @@ namespace SpawnRowDuel.View.World
                 Base = Hex("#c2a866"), Tint2 = Hex("#d4b878"), Tint3 = Hex("#a98c52"),
                 Highlight = Hex("#efe0b0"),
                 Waves = 0f, Ripples = 1f, Embers = 0f, MotionSpeed = 0.5f,
-                BladeDensity = 5f,                       // sparse dry tufts, not a lawn
+                BladeDensity = 7f,                       // sparse dry tufts, not a lawn
                 BladeA = Hex("#a89253"), BladeB = Hex("#c4ad6a"), BladeRoot = Hex("#7a6636"),
-                BladeHeight = 0.09f, BladeWidth = 0.042f, Sway = 0.055f,
+                BladeHeight = 0.115f, BladeWidth = 0.140f, Sway = 0.058f,
                 ShadowTint = Hex("#9a93b8"), CloudAmount = 0.85f,
             };
         }
@@ -103,9 +103,9 @@ namespace SpawnRowDuel.View.World
                 Base = Hex("#2e2724"), Tint2 = Hex("#3a312c"), Tint3 = Hex("#241e1c"),
                 Highlight = Hex("#ff7a2e"),
                 Waves = 0f, Ripples = 0f, Embers = 1f, MotionSpeed = 0.4f,
-                BladeDensity = 7f,                       // burnt stalks still standing
+                BladeDensity = 10f,                       // burnt stalks still standing
                 BladeA = Hex("#463a33"), BladeB = Hex("#5c4a3f"), BladeRoot = Hex("#1e1917"),
-                BladeHeight = 0.10f, BladeWidth = 0.038f, Sway = 0.06f,
+                BladeHeight = 0.125f, BladeWidth = 0.130f, Sway = 0.065f,
                 ShadowTint = Hex("#8a7f8f"), CloudAmount = 0.7f,
             };
         }

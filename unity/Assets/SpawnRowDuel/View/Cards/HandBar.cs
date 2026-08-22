@@ -27,7 +27,7 @@ namespace SpawnRowDuel.View.Cards
         public const string PanelResource = "HudPanelSettings";
 
         /// <summary>How much taller a card is than the strip it peeks out of.</summary>
-        const float CardToPeek = 2.9f;
+        public const float CardToPeek = 2.9f;
 
         MatchController _match;
         MatchHud _hud;
@@ -66,9 +66,10 @@ namespace SpawnRowDuel.View.Cards
             _row.style.height = peek;
             _lift.style.bottom = HudLayout.HandBandBottomPx;
             _lift.style.height = peek;
-            // the WHOLE bottom band, mode row included. IMGUI cannot paint that row without
-            // painting over the picked card rising through it, so the opaque backing for it has to
-            // come from here - behind the cards, where it belongs.
+            // The band is the hand PEEK and nothing else now - the turn controls moved to the
+            // right-edge rail, so the board keeps the height they used to cost it. The backdrop
+            // still comes from here rather than IMGUI, because IMGUI paints after every UI Toolkit
+            // panel and would land on top of the cards instead of behind them.
             _backdrop.style.bottom = 0f;
             _backdrop.style.height = HudLayout.BottomPx;
 

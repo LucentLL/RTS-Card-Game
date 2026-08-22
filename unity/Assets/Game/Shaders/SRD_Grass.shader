@@ -13,8 +13,11 @@ Shader "SpawnRowDuel/Grass"
     //  3. SHEAR FROM THE BASE. The blade's foot is pinned and only its tip moves, weighted by
     //     height along the quad - so a field bends, it does not slide.
     //
-    // The blade itself is drawn in the fragment rather than sampled from an atlas: the source's
-    // art is CC BY 4.0 and this project generates its art in code anyway.
+    // The blade sprite is a generated TUFT atlas (GrassTextures), not a single tapered quad cut in
+    // the fragment. That was the first version and it looked like what it was: a field of identical
+    // spikes. Real grass reads as tufts - several blades of different heights leaning different
+    // ways, soft-edged, dark at the root. The reference gets that from hand-drawn art (CC BY 4.0,
+    // not shipped here); the same shape is drawn in code, as every other texture in this project is.
     Properties
     {
         _ColorA     ("Blade A", Color) = (0.30, 0.52, 0.22, 1)
@@ -23,7 +26,6 @@ Shader "SpawnRowDuel/Grass"
 
         _Width      ("Blade width", Float) = 0.16
         _Height     ("Blade height", Float) = 0.34
-        _Taper      ("Tip taper", Range(0,1)) = 0.86
         _Curve      ("Blade curve", Float) = 0.09
 
         _WindDir    ("Wind direction (xz)", Vector) = (1, 0.4, 0, 0)
@@ -38,8 +40,11 @@ Shader "SpawnRowDuel/Grass"
         _DispTex    ("Displacement", 2D) = "black" {}
         _DispOrigin ("Displacement origin (xz)", Vector) = (-18, -14, 0, 0)
         _DispSize   ("Displacement size (xz)", Vector) = (36, 28, 0, 0)
-        _PushDist   ("Push distance", Float) = 0.34
+        _PushDist   ("Push distance (blade heights)", Float) = 1.15
         _Flatten    ("Flatten", Range(0,1)) = 0.85
+
+        _BladeTex   ("Blade tufts", 2D) = "white" {}
+        _Variants   ("Atlas variants", Float) = 4
 
         _CloudScale  ("Cloud scale", Float) = 9.0
         _CloudSpeed  ("Cloud speed", Float) = 0.05
@@ -86,14 +91,16 @@ Shader "SpawnRowDuel/Grass"
 
             TEXTURE2D(_DispTex);
             SAMPLER(sampler_DispTex);
+            TEXTURE2D(_BladeTex);
+            SAMPLER(sampler_BladeTex);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _ColorA, _ColorB, _RootColor;
-                float _Width, _Height, _Taper, _Curve;
+                float _Width, _Height, _Curve;
                 float4 _WindDir;
                 float _WindScale, _WindSpeed, _WindGain, _WindBias, _Sway, _Framerate;
                 float4 _DispOrigin, _DispSize, _DispTex_TexelSize;
-                float _PushDist, _Flatten;
+                float _PushDist, _Flatten, _Variants;
                 float _CloudScale, _CloudSpeed, _CloudContrast, _CloudThreshold, _CloudShadowMin;
                 float4 _CloudDir;
                 float _CloudAmount;
@@ -157,9 +164,19 @@ Shader "SpawnRowDuel/Grass"
                 // Vertex colour is stored as bytes, so every channel is 0..1 and the per-blade
                 // scales are REMAPPED here rather than written out of range - writing 1.28 into a
                 // Color32 silently clamps to 1 and every blade comes out the same size.
-                float h = _Height * (0.70 + v.color.g * 0.60) * (1.0 - press * _Flatten);
+                float h0 = _Height * (0.70 + v.color.g * 0.60);   // its natural height
+                float h = h0 * (1.0 - press * _Flatten);          // ...and its pressed one
                 float wdt = _Width * (0.75 + v.color.b * 0.50);
                 float curveSign = v.color.a * 2.0 - 1.0;
+
+                // The bend is a DIRECTION, capped at about one blade-length of travel. Uncapped it
+                // was the "grass stretches instead of pressing down" bug: the gradient of a press
+                // field can be arbitrarily steep, and taken raw it dragged tips whole tiles from
+                // their own feet, drawing long streaks across the field. A blade can lie flat; it
+                // cannot stretch. Measured against h0, not h, so a fully flattened blade still lies
+                // over rather than shrinking into its own root.
+                float bendLen = length(pushXZ);
+                float2 bend = bendLen > 1.0 ? pushXZ / bendLen : pushXZ;
 
                 float3 pos = foot
                            + camRight * (v.corner.x * wdt)
@@ -167,7 +184,7 @@ Shader "SpawnRowDuel/Grass"
                            + camRight * (curveSign * _Curve * v.corner.y * v.corner.y)  // its own arc
                            + camRight * (lean * _Sway * v.corner.y)    // shear: the foot stays put
                            // pressed grass lies OUT, in world space, away from whatever pressed it
-                           + float3(pushXZ.x, 0, pushXZ.y) * _PushDist * v.corner.y;
+                           + float3(bend.x, 0, bend.y) * (h0 * _PushDist) * v.corner.y;
 
                 o.positionCS = TransformWorldToHClip(pos);
                 o.corner = v.corner;
@@ -178,16 +195,20 @@ Shader "SpawnRowDuel/Grass"
 
             half4 frag(Varyings i) : SV_Target
             {
-                // The blade shape, cut in the fragment: a quadratic taper, so it keeps its body
-                // most of the way up and narrows near the tip. A linear taper drew a spike, and a
-                // field of spikes reads as scratches on the lens rather than as grass.
+                // A TUFT from the generated atlas, not one tapered quad. Four variants, chosen per
+                // blade by its seed: several blades of different heights leaning different ways is
+                // what stops a field reading as rows of identical spikes. RGB is a root-to-tip
+                // luminance ramp; A is coverage.
+                float variant = floor(i.tintLean.x * _Variants);
+                float2 uv = float2((variant + i.corner.x + 0.5) / _Variants, i.corner.y);
+                half4 tuft = SAMPLE_TEXTURE2D(_BladeTex, sampler_BladeTex, uv);
+                clip(tuft.a - 0.05);
+
                 float y = i.corner.y;
-                float halfW = 0.5 * (1.0 - _Taper * y * y);
-                float a = smoothstep(halfW, halfW * 0.55, abs(i.corner.x));
-                clip(a - 0.02);
+                float a = tuft.a;
 
                 float3 col = lerp(_ColorA.rgb, _ColorB.rgb, i.tintLean.x);
-                col = lerp(_RootColor.rgb, col, saturate(y * 1.6 + 0.15));   // dark at the root
+                col = lerp(_RootColor.rgb, col, tuft.r);                     // the atlas's own ramp
 
                 // a bright edge on the side the wind is pushing toward - a blade catches light
                 col *= 1.0 + i.tintLean.y * sign(i.corner.x) * 0.10 * y;

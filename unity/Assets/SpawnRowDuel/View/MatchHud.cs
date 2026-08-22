@@ -6,11 +6,16 @@ using UnityEngine;
 namespace SpawnRowDuel.View
 {
     /// <summary>
-    /// The placeholder HUD, laid out in BANDS so nothing ever overlaps the board: an opaque top
-    /// bar (both players + turn/phase), an opaque bottom band (hand strip, contextual buttons,
-    /// action row), and the 3D board rendering only in between - BoardInput shrinks the camera
-    /// viewport to the gap HudLayout publishes. Menus are solid panels clamped on-screen and
-    /// scroll when tall. Everything is read from GameState each frame; every tap is a command.
+    /// The placeholder HUD: an opaque top bar (both players + turn/phase), the hand peeking at the
+    /// very bottom edge, and the turn controls on a rail hugging the RIGHT edge at mid-height. The
+    /// 3D board renders between the top bar and the hand - BoardInput shrinks the camera viewport
+    /// to the gap HudLayout publishes. Menus are solid panels clamped on-screen and scroll when
+    /// tall. Everything is read from GameState each frame; every tap is a command.
+    ///
+    /// The bands used to be three deep at the bottom - hand, mode row, action row - which cost the
+    /// board a quarter of a 480-unit screen. The reference build does not do that: `.hand` sits at
+    /// `bottom: 0` and `#boardBtns` hugs the right edge (its own comment calls it the Master Duel
+    /// coin position), so the controls overlay a corner the board is not using and cost it nothing.
     ///
     /// Scaling is by the SHORT side of the screen (~480 logical units), so portrait and
     /// landscape both get a sane layout instead of landscape inheriting portrait's width math.
@@ -23,7 +28,6 @@ namespace SpawnRowDuel.View
         // band heights, logical units - defined by HudLayout, which the UI Toolkit surfaces read
         // too (they lay out before OnGUI has ever run)
         const float TopH = HudLayout.TopH;
-        const float ActionH = HudLayout.ActionH;
         const float HandH = HudLayout.HandH;
         const float ModeH = HudLayout.ModeH;
         const float BottomH = HudLayout.BottomH;
@@ -140,21 +144,16 @@ namespace SpawnRowDuel.View
             // the in-viewport blocker rects - the draws below re-publish the ones that exist
             HudLayout.MenuPx = new Rect();
             HudLayout.LogPx = new Rect();
+            HudLayout.RailPx = new Rect();
 
             DrawUnitOverlays(s, scale, w, h);
             DrawTopBar(s, w);
             DrawLog(w);
 
-            // The bottom band is opaque - the camera does not render behind it - but IMGUI draws
-            // AFTER every UI Toolkit panel, so anything painted here lands ON TOP of the hand
-            // rather than behind it. Only the ACTION row is painted here, and only because it is
-            // the one strip of the band no card ever reaches into.
-            //
-            // The mode row is NOT. A picked card rises out of the hand strip and passes straight
-            // through it on its way up, and an opaque rectangle there cut the card in half with a
-            // dark bar. HandBar's own backdrop covers the whole band from behind instead, which is
-            // the only side of the cards IMGUI can safely paint on.
-            Panel(new Rect(0, h - ActionH, w, ActionH), PanelColor);          // action row
+            // NOTHING is painted across the bottom here any more. IMGUI draws AFTER every UI
+            // Toolkit panel, so a band painted here lands ON TOP of the hand rather than behind
+            // it - that was the dark bar through the cards. The hand owns its own backdrop, and
+            // the turn controls moved to the right-edge rail where they overlap nothing.
 
             if (s.IsOver)
             {
@@ -167,7 +166,7 @@ namespace SpawnRowDuel.View
 
             // the hand is UI Toolkit now (HandBar) - real card faces, same band, same selection
             DrawModeRow(s, w, h);
-            DrawActionRow(s, w, h);
+            DrawSideRail(s, w, h);
             if (_buildMenuOpen) DrawBuildMenu(s, w, h);
             else if (_upgradeMenuOpen) DrawUpgradeMenu(s, w, h);
             else DrawChargePanel(s, w, h);
@@ -194,6 +193,7 @@ namespace SpawnRowDuel.View
             HudLayout.BottomPx = 0;
             HudLayout.MenuPx = new Rect(0, 0, Screen.width, Screen.height);
             HudLayout.LogPx = new Rect();
+            HudLayout.RailPx = new Rect();
 
             Panel(new Rect(0, 0, w, h), PanelColor);
 
@@ -349,7 +349,17 @@ namespace SpawnRowDuel.View
         /// <summary>The contextual strip above the hand: play modes, charge menu, upkeep settle.</summary>
         void DrawModeRow(GameState s, float w, float h)
         {
-            float by = h - ActionH - HandH - ModeH + 2;
+            // ABOVE the risen card, not across it.
+            //
+            // This row used to sit in a reserved band that the picked card rose straight through,
+            // so SUMMON and the card occupied the same pixels - and a tap there hit BOTH, because
+            // IMGUI and UI Toolkit are separate input paths that never learn about each other's
+            // handled events. The button ran, and the card's own PointerDown ran too and toggled
+            // the selection off underneath it. Clearing the card's full height is the fix: no
+            // overlap, no double delivery.
+            float lifted = HandH * Cards.HandBar.CardToPeek;
+            float by = _selectedHandIndex >= 0 ? h - lifted - ModeH + 2
+                                               : h - HandH - ModeH + 2;
             var hand = s.P(Side.You).Hand;
             bool myTurn = s.Turn == Side.You;
 
@@ -517,20 +527,52 @@ namespace SpawnRowDuel.View
                     _center);
         }
 
-        void DrawActionRow(GameState s, float w, float h)
+        /// <summary>
+        /// The turn controls, hugging the RIGHT EDGE at mid-height - `#boardBtns` in the reference
+        /// stylesheet, which calls it the Master Duel coin position.
+        ///
+        /// They used to be a full-width band across the bottom, and between that, the mode row and
+        /// the hand the board was giving up a quarter of a 480-unit screen to three strips of
+        /// chrome. A rail costs the board nothing: it overlays a corner the board is not using, and
+        /// BoardInput refuses taps inside it (HudLayout.RailPx) so nothing falls through to a cell.
+        ///
+        /// The phase track above the buttons is the reference's too: a compact vertical list that
+        /// lights the current phase, with Combat indented as the sub-phase of Action that it is.
+        /// A turn machine the player cannot see is a turn machine the player fights.
+        /// </summary>
+        void DrawSideRail(GameState s, float w, float h)
         {
-            float by = h - ActionH + 3;
+            const float railW = 92f;
+            float x = w - railW - 6f;
 
-            if (s.Turn != Side.You || s.Phase == TurnPhase.End) return;
-
+            bool mine = s.Turn == Side.You;
             bool resolving = s.Phase == TurnPhase.Action && s.Combat.HasDeclarations;
+            bool acting = mine && s.Phase != TurnPhase.End;
+
+            // measure first, so the rail can be centred vertically and its blocker rect published
+            float trackH = 5 * 15f + 8f;
+            float btnH = acting ? 34f : 0f;
+            float buildH = (acting && s.Phase == TurnPhase.Action) ? 26f : 0f;
+            float totalH = trackH + (btnH > 0 ? btnH + 5f : 0f) + (buildH > 0 ? buildH + 4f : 0f);
+
+            float y = Mathf.Max(TopH + 8f, h * 0.5f - totalH * 0.5f);
+            var rail = new Rect(x, y, railW, totalH);
+            Panel(rail, PanelSoft);
+            HudLayout.RailPx = new Rect(rail.x * _scale, rail.y * _scale,
+                                        rail.width * _scale, rail.height * _scale);
+
+            DrawPhaseTrack(s, new Rect(x + 4, y + 4, railW - 8, trackH - 8));
+            y += trackH;
+
+            if (!acting) { _buildMenuOpen = false; return; }
+
             string caption = s.Phase == TurnPhase.Upkeep ? "HARVEST"
                 : s.Phase == TurnPhase.Draw ? "DRAW"
-                : resolving ? "⚔ RESOLVE (" + s.Combat.Declarations.Count + ")"
+                : resolving ? "⚔ " + s.Combat.Declarations.Count
                 : "END TURN";
 
             GUI.enabled = s.Pending == null;
-            if (GUI.Button(new Rect(w / 2f - 75, by, 150, 40), caption, _bigButton))
+            if (GUI.Button(new Rect(x + 5, y + 5, railW - 10, btnH), caption, _button))
             {
                 _selectedHandIndex = -1;
                 _buildMenuOpen = false;
@@ -541,17 +583,41 @@ namespace SpawnRowDuel.View
                     : new EndTurnCommand(Side.You));
             }
             GUI.enabled = true;
+            y += btnH + 5f;
 
-            if (s.Phase == TurnPhase.Action)
+            if (buildH > 0f
+                && GUI.Button(new Rect(x + 5, y + 4, railW - 10, buildH),
+                              _buildMenuOpen ? "CLOSE" : "BUILD", _button))
             {
-                if (GUI.Button(new Rect(w / 2f + 85, by, 90, 40), _buildMenuOpen ? "CLOSE" : "BUILD", _button))
-                {
-                    _buildMenuOpen = !_buildMenuOpen;
-                    _selectedHandIndex = -1;
-                    _match.CancelPending();
-                }
+                _buildMenuOpen = !_buildMenuOpen;
+                _selectedHandIndex = -1;
+                _match.CancelPending();
             }
-            else _buildMenuOpen = false;
+        }
+
+        static readonly string[] PhaseNames = { "UPKEEP", "DRAW", "ACTION", "COMBAT", "END" };
+
+        void DrawPhaseTrack(GameState s, Rect area)
+        {
+            int now = s.Phase == TurnPhase.Upkeep ? 0
+                    : s.Phase == TurnPhase.Draw ? 1
+                    : s.Phase == TurnPhase.End ? 4
+                    : (s.Combat.HasDeclarations ? 3 : 2);
+
+            var step = new GUIStyle(_tiny) { alignment = TextAnchor.MiddleCenter };
+            for (int i = 0; i < PhaseNames.Length; i++)
+            {
+                bool sub = i == 3;                       // Combat is indented under Action
+                var r = new Rect(area.x + (sub ? 9f : 0f), area.y + i * 15f,
+                                 area.width - (sub ? 9f : 0f), 14f);
+
+                if (i == now) Panel(r, sub ? new Color(0.72f, 0.42f, 0.22f, 0.95f) : Gold * 0.9f);
+
+                step.normal.textColor = i == now ? new Color(0.10f, 0.08f, 0.04f)
+                                      : i < now ? new Color(0.42f, 0.54f, 0.37f)
+                                      : new Color(0.54f, 0.51f, 0.60f);
+                GUI.Label(r, (sub ? "↳" : "") + PhaseNames[i], step);
+            }
         }
 
         /// <summary>A solid panel clamped inside the board region; scrolls when taller.</summary>

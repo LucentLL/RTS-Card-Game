@@ -23,6 +23,10 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _BladeTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DispTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -42,6 +46,7 @@ Material:
     - _PushDist: 0.34
     - _Sway: 0.22
     - _Taper: 0.86
+    - _Variants: 4
     - _Width: 0.1
     - _WindBias: 0.28
     - _WindGain: 5

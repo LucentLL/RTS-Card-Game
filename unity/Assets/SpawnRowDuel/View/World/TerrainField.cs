@@ -272,7 +272,7 @@ namespace SpawnRowDuel.View.World
             }
 
             float area = IslandExtent.x * IslandExtent.y * 4f;
-            int count = Mathf.Clamp(Mathf.RoundToInt(area * look.BladeDensity), 0, 16000);
+            int count = Mathf.Clamp(Mathf.RoundToInt(area * look.BladeDensity), 0, 22000);
             _blades.enabled = count > 0;
             if (count == 0) return;
 
@@ -408,6 +408,8 @@ namespace SpawnRowDuel.View.World
 
             if (_bladeMat != null)
             {
+                _bladeMat.SetTexture("_BladeTex", GrassTextures.Tufts);
+                _bladeMat.SetFloat("_Variants", GrassTextures.Variants);
                 _bladeMat.SetTexture("_DispTex", _disp);
                 _bladeMat.SetVector("_DispOrigin", new Vector4(_dispOrigin.x, _dispOrigin.y, 0f, 0f));
                 _bladeMat.SetVector("_DispSize", new Vector4(_dispSize.x, _dispSize.y, 0f, 0f));

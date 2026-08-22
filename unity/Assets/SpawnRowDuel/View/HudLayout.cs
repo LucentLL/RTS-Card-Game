@@ -26,7 +26,9 @@ namespace SpawnRowDuel.View
     {
         // logical units; the scale below turns them into pixels
         public const float TopH = 42f;
-        public const float ActionH = 46f;
+        /// <summary>Retired: the action row moved to the right-edge rail (SRD_Tile-era layout).
+        /// Kept only so an external reference does not silently resolve to something else.</summary>
+        public const float ActionH = 0f;
         /// <summary>
         /// The hand PEEK: how much of a resting card shows. The cards themselves are ~2.9x this
         /// and hang below the edge until one is picked (spec 09 §5.1), so the board only has to
@@ -34,7 +36,16 @@ namespace SpawnRowDuel.View
         /// </summary>
         public const float HandH = 46f;
         public const float ModeH = 28f;
-        public const float BottomH = ActionH + HandH + ModeH;
+
+        /// <summary>
+        /// The band the board gives up at the bottom: the hand PEEK and nothing else.
+        ///
+        /// It used to be hand + mode row + action row, 120 units of a 480-unit screen. The
+        /// reference build does not do that - `.hand` sits at `bottom: 0` and the turn controls
+        /// hug the right edge at mid-height (`#boardBtns`, the Master Duel coin position), so the
+        /// board keeps its whole height and the buttons cost it nothing.
+        /// </summary>
+        public const float BottomH = HandH;
 
         public static float TopPx;
         public static float BottomPx;
@@ -44,6 +55,7 @@ namespace SpawnRowDuel.View
 
         public static Rect MenuPx;    // Rect zero when no menu is open
         public static Rect LogPx;
+        public static Rect RailPx;    // the right-edge turn controls, drawn INSIDE the viewport
 
         /// <summary>Scale by the SHORT side - landscape must not inherit portrait's width math.</summary>
         public static float Recompute()
@@ -52,14 +64,14 @@ namespace SpawnRowDuel.View
             TopPx = TopH * Scale;
             BottomPx = BottomH * Scale;
             HandBandPx = HandH * Scale;
-            HandBandBottomPx = ActionH * Scale;
+            HandBandBottomPx = 0f;                // the hand sits ON the bottom edge
             return Scale;
         }
 
         public static bool Blocks(Vector2 mousePos)
         {
             var p = new Vector2(mousePos.x, Screen.height - mousePos.y);
-            return MenuPx.Contains(p) || LogPx.Contains(p);
+            return MenuPx.Contains(p) || LogPx.Contains(p) || RailPx.Contains(p);
         }
     }
 }
