@@ -40,6 +40,12 @@ namespace SpawnRowDuel.Rules.Tests
 
             Directory.CreateDirectory(GoldenDir);
             var path = Path.Combine(GoldenDir, name + ".json");
+
+            // A per-ply projection dump, for pinpointing a divergence the hashes only flag. Big,
+            // gitignored, and written only when asked for.
+            if (System.Environment.GetEnvironmentVariable("SRD_TRACE_PROJ") == "1")
+                File.WriteAllText(Path.Combine(GoldenDir, name + ".proj.jsonl"), trace.Projections);
+
             bool regen = System.Environment.GetEnvironmentVariable("SRD_REGEN_GOLDEN") == "1";
 
             if (regen || !File.Exists(path))

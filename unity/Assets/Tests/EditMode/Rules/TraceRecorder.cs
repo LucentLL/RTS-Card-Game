@@ -21,6 +21,9 @@ namespace SpawnRowDuel.Rules.Tests
         public sealed class Trace
         {
             public string Json;
+            /// <summary>One full projection per ply, for pinpointing a divergence the hashes
+            /// only flag. Written beside the golden on demand; never committed.</summary>
+            public string Projections;
             public int Plies;
             public bool Over;
             public MatchOutcome Outcome;
@@ -47,6 +50,7 @@ namespace SpawnRowDuel.Rules.Tests
             var engine = new DuelEngine(s, cat);
 
             var sb = new StringBuilder(1 << 16);
+            var proj = new StringBuilder(1 << 16);
             sb.Append("{\n");
             sb.Append("\"seed\":").Append(seed).Append(",\n");
             sb.Append("\"you\":\"").Append(you).Append("\",\"foe\":\"").Append(foe).Append("\",\n");
@@ -90,6 +94,7 @@ namespace SpawnRowDuel.Rules.Tests
                   .Append(",\"cmd\":").Append(Describe(cmd))
                   .Append(",\"h\":\"").Append(Hash(s))
                   .Append("\",\"p\":\"").Append(StateProjection.Hash(s, cat)).Append("\"}");
+                proj.Append(StateProjection.Of(s, cat)).Append('\n');
             }
 
             sb.Append("\n],\n");
@@ -99,6 +104,7 @@ namespace SpawnRowDuel.Rules.Tests
             sb.Append("\"final\":\"").Append(Hash(s)).Append("\"\n}\n");
 
             trace.Json = sb.ToString();
+            trace.Projections = proj.ToString();
             trace.Plies = plies;
             trace.Over = s.IsOver;
             trace.Outcome = s.Outcome;
@@ -208,6 +214,12 @@ namespace SpawnRowDuel.Rules.Tests
             return "none";
         }
 
+        /// <summary>
+        /// Answers name units by POSITION, not by unit id. The two engines run independent id
+        /// counters, so an id is meaningless across the harness boundary - but the boards are in
+        /// lockstep, so a cell identifies the same unit on both sides. (An id-based answer let the
+        /// replay index-match and silently attach the wrong blocker.)
+        /// </summary>
         static string AnswerOf(ChoiceResponse r)
         {
             var b = r as BlockersChosen;
@@ -217,15 +229,22 @@ namespace SpawnRowDuel.Rules.Tests
                 for (int i = 0; i < b.Blockers.Length; i++)
                 {
                     if (i > 0) sb.Append('+');
-                    sb.Append(b.Blockers[i].UnitId);
+                    sb.Append(RefCell(b.Blockers[i]));
                 }
                 return sb.ToString();
             }
             var idx = r as IndexChosen;
             if (idx != null) return "index:" + idx.Index;
             var trap = r as TrapChosen;
-            if (trap != null) return trap.Pass ? "trap:pass" : "trap:" + trap.Trap.UnitId;
+            if (trap != null) return trap.Pass ? "trap:pass" : "trap:" + RefCell(trap.Trap);
             return "none";
+        }
+
+        static string RefCell(UnitRef r)
+        {
+            if (r.Kind != UnitRefKind.Cell) return "pool";
+            var c = r.AsCell;
+            return c.Row + ":" + c.Col;
         }
 
         static string Obj(string type, int actor, params string[] fields)

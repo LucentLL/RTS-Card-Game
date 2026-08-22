@@ -122,6 +122,26 @@ export function projectionHash(win) {
   return fnv1a64(canonical(projectJs(win)));
 }
 
+/** Every differing leaf, so a divergence can be read as a whole rather than one field at a time. */
+export function diffAll(a, b, path = '', out = []) {
+  if (canonical(a) === canonical(b)) return out;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') {
+    out.push({ path, a, b });
+    return out;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) { out.push({ path, a, b }); return out; }
+  if (Array.isArray(a)) {
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      diffAll(a[i] ?? null, b[i] ?? null, `${path}[${i}]`, out);
+    }
+    return out;
+  }
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    diffAll(a[k] ?? null, b[k] ?? null, path ? `${path}.${k}` : k, out);
+  }
+  return out;
+}
+
 /** First differing path between two projections, or null. */
 export function firstDiff(a, b, path = '') {
   if (canonical(a) === canonical(b)) return null;

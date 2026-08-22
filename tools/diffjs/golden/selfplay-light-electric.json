@@ -40,7 +40,7 @@
   {"i":31,"cmd":{"t":"upgrade","a":0,"at":"YouBack:2","id":7,"to":"keep"},"h":"24499f278cd968e4","p":"79bda4f0c7393eda"},
   {"i":32,"cmd":{"t":"declare","a":0,"from":"YouFront:3","id":20,"target":"unit#27@FoeFront:3","defer":"1"},"h":"4b354fe31bc6d001","p":"22acccc8cf4cff6b"},
   {"i":33,"cmd":{"t":"resolve","a":0},"h":"f0cb8dffbc134460","p":"22acccc8cf4cff6b"},
-  {"i":34,"cmd":{"t":"respond","a":1,"answer":"trap:13"},"h":"1eff08dd1867eea4","p":"6c83870357bc4662"},
+  {"i":34,"cmd":{"t":"respond","a":1,"answer":"trap:FoeBack:0"},"h":"1eff08dd1867eea4","p":"6c83870357bc4662"},
   {"i":35,"cmd":{"t":"endTurn","a":0},"h":"6c39baa9325d692a","p":"32da8b44ea8e9559"},
   {"i":36,"cmd":{"t":"beginTurn","a":1},"h":"5ecacd156c33fae2","p":"3489b36d3b6d0afb"},
   {"i":37,"cmd":{"t":"upkeepPay","a":1,"at":"FoeFront:3","id":27},"h":"4a38a9713520113f","p":"970c4ded9b2f84a6"},

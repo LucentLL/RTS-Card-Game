@@ -82,3 +82,6 @@ unity/*.app
 
 # Burst / IL2CPP build residue emitted next to the project during player builds
 unity/[Dd]ata/
+
+# differential-harness debugging dumps (regenerated on demand)
+tools/diffjs/golden/*.proj.jsonl
