@@ -27,7 +27,7 @@ namespace SpawnRowDuel.View.Cards
         public static bool Enabled = true;
 
         const float PlateH = 0.98f;      // cells, along the card's LONG axis - it nearly fills its tile
-        const float Lift = 0.075f;       // above the cell cube's 0.06 top face
+        const float Lift = 0.030f;       // just over the 0.02-thick tile marking (top face 0.01)
 
         /// <summary>
         /// The basis a plate lies in: local +X to world +X, local +Y to world +Z. That is the only

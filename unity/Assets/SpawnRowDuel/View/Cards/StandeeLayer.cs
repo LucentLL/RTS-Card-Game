@@ -41,7 +41,7 @@ namespace SpawnRowDuel.View.Cards
         const float MaxWidth = 1.60f;          // the 165cqw cap: standees must not inflate with depth
 
         /// <summary>
-        /// How high the figure stands: just clear of the card plate lying on the tile (0.075) and
+        /// How high the figure stands: just clear of the card plate lying on the tile (0.03) and
         /// no higher.
         ///
         /// It "hovers over the card" by the BOB and nothing else. A static lift was tried at 0.30
@@ -49,7 +49,7 @@ namespace SpawnRowDuel.View.Cards
         /// screen distance under the tilt, so lifting it walks the figure off its own tile and up
         /// over the row behind it, and the player loses track of which slot the unit is in.
         /// </summary>
-        const float Lift = 0.09f;
+        const float Lift = 0.05f;
 
         MatchController _match;
         BoardInput _input;
@@ -197,7 +197,7 @@ namespace SpawnRowDuel.View.Cards
             // sits at y=0.06, and a shadow quad under that z-fought with it into a bright ellipse.
             // It now lands on the CARD instead of the tile, which is where a hovering figure's
             // shadow belongs anyway.
-            st.Shadow.transform.position = world + new Vector3(0f, 0.085f, 0f);
+            st.Shadow.transform.position = world + new Vector3(0f, 0.042f, 0f);
             st.Shadow.transform.localScale = new Vector3(0.62f, 0.30f, 1f);
             st.Shadow.color = new Color(0f, 0f, 0f, (laid ? 0.30f : 0.50f) * show);
 

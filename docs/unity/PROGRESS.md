@@ -558,3 +558,42 @@ over the game. The template catches it now — fullscreen is a nicety and failin
 cost the player nothing but a browser bar.
 
 233 passing.
+
+### 2026-08-22 (seventh pass) — M13 slice 2c: the board is a marking, not a slab
+
+Feedback: "the scale seems off. this is supposed to be a battlefield with buildings and creatures,
+yet they are the size of individual blades of grass. I wanted the cards to be set on the grass. the
+tiles can be a translucent overlay, not raised solid pieces."
+
+Both halves of that are the same problem, and the raised tile is the root of it.
+
+* **Cells were 0.12-thick opaque cubes.** A creature standing on a raised plinth beside knee-high
+  grass is a figurine on a table, whatever size you make the grass. Cells are 0.02 thick and drawn
+  by `SRD_Tile` now — a translucent wash with a brighter rim, terrain showing through. The box is
+  still a box only because its collider is how `BoardInput` picks cells. Queue sits at
+  `Transparent-70`, ahead of the grass, so the grass grows OVER the markings, which is the right
+  way round for a field somebody has drawn a board onto. The walls stay solid: they are life
+  targets, the one part of the board that is a physical thing in the fiction.
+* **Blades were a quarter of a creature's height.** 0.30 tall and 0.17 wide read as shrubs. 0.11
+  and 0.05 now, with density up from 7.5 to 20 per square unit to keep the field full.
+* **Grass grows EVERYWHERE, the board included.** The keep-out is gone. That was the thing making
+  "cards press down on the grass" impossible to see — a card on a centre cell had no grass near it
+  to press. The board's own press dropped to 0.30 (it settles the surface, it does not mow it) and
+  the unit halo tightened from 2.6 to 1.15 at 0.95 strength, because the grass it presses is now
+  directly under the card.
+* Everything anchored to the old 0.06 tile top moved with it: plates 0.075 → 0.03, standees
+  0.09 → 0.05, ground shadow 0.085 → 0.042, terrain −0.062 → −0.020.
+
+**Tile tint, second attempt.** The first pass used the old opaque colours at 26% alpha and the
+board went grey: a pale tint over green grass desaturates toward nothing from every angle, and the
+board lost the one thing its colour is FOR — whose ground this is. Saturated hue at a low alpha
+now, with the rim dropped to 20%. Strong colour, weak coverage.
+
+**The reported card-face glitch is NOT reproduced.** Source art is a valid 544×544 PNG and renders
+correctly — it is the same file drawing fine in the inspect card in the reporter's own screenshot.
+A new probe (`CaptureEveryHandCard`, `hand-*.png`) picks every card in hand in turn, because the
+old shots only ever picked index 0; all eight render clean. The likeliest remaining explanation is
+a frame caught mid-`HandBar.Rebuild`, which clears and recreates the row on any signature change —
+transient, and invisible to a probe that shoots settled frames. Needs another sighting to pin.
+
+233 passing.

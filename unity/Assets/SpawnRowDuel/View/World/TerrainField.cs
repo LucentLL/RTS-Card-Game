@@ -14,18 +14,13 @@ namespace SpawnRowDuel.View.World
     ///           shader, so a field of two thousand blades costs one draw call and no CPU per frame.
     ///   CLOUDS  a screen-covering quad on the camera, multiplying the finished frame.
     ///
-    /// Blades are laid OUTSIDE the board footprint on purpose. Grass growing between the tiles was
-    /// the first thing tried and it is charming for about ten seconds, until you cannot tell which
-    /// slot a unit is standing in - the board is where the game is read, and scenery does not get
-    /// to compete with it.
+    /// Blades grow EVERYWHERE, the board included. They used to be kept off it, on the reasoning
+    /// that scenery must not compete with the game state - but that also meant a card landing on a
+    /// centre cell could only bend grass at the rim, which is most of what "the cards should press
+    /// down on the grass" was missing. The board is a translucent marking rather than a slab now,
+    /// so the cards lie ON the field and the press field is what keeps the surface readable.
     ///
-    /// That is also the honest limit of the press field: the board covers the middle, so a card
-    /// landing on a centre cell can only bend grass at the RIM. Two things carry it instead - the
-    /// unit halo reaches 2.6 units, further than a tile needs, so an interior unit still reaches
-    /// the fringe; and every card that lands sends a GUST ringing out across the whole field,
-    /// which is the part you actually see.
-    ///
-    /// Nothing here has a collider. The board owns picking (BoardInput raycasts the cell cubes) and
+    /// Nothing here has a collider. The board owns picking (BoardInput raycasts the cell boxes) and
     /// a ground plane with a collider under it would swallow every tap that missed a tile.
     /// </summary>
     public sealed class TerrainField : MonoBehaviour
@@ -41,13 +36,13 @@ namespace SpawnRowDuel.View.World
         [Header("Layout")]
         public Vector2 IslandExtent = new Vector2(15f, 11f);  // half-size, world units
         public float EdgeFade = 3.0f;
-        public float GroundY = -0.062f;                       // the underside of a 0.12 cell cube
+        public float GroundY = -0.020f;                       // just under the 0.02-thick tile markings
         public int BladeSeed = 20260822;
 
         [Header("Displacement")]
         public int DispWidth = 192, DispHeight = 144;
-        public float UnitPressRadius = 2.6f;    // reaches PAST the board, or an interior unit
-        public float UnitPressStrength = 0.55f; // presses grass nobody can see
+        public float UnitPressRadius = 1.15f;   // a card presses the grass it is lying on
+        public float UnitPressStrength = 0.95f;
         public float GustSpeed = 5f;             // world units per second the ring travels
         public float GustLife = 1.8f;
 
@@ -150,11 +145,12 @@ namespace SpawnRowDuel.View.World
         }
 
         /// <summary>
-        /// Redraw the press field: the board's slab, and a halo under everything standing on it.
+        /// Redraw the press field: a light flattening over the playing surface, and a hard halo
+        /// under everything standing on it.
         ///
-        /// The halo radius is deliberately larger than a tile. A unit in the middle of the board
-        /// has nothing but board around it, so a tile-sized press would be invisible - the reach
-        /// is what lets a card landing on the centre column still bend the grass at the rim.
+        /// The board's own press is deliberately WEAK. It is not a slab any more, so it should not
+        /// mow the field - it just settles the grass enough that the markings and the cards read
+        /// over it. The halo under a unit is what says something heavy is there.
         /// </summary>
         void RepaintDisplacement()
         {
@@ -166,7 +162,7 @@ namespace SpawnRowDuel.View.World
             float boardX = Board.Columns * pitch * 0.5f;
             float boardZ = (Board.Rows + 2) * pitch * 0.5f;      // +2 for the wall rows
 
-            StampRect(boardX, boardZ, 1.1f);
+            StampRect(boardX, boardZ, 1.1f, 0.30f);
 
             if (_match != null && _match.Engine != null && _match.Board != null)
             {
@@ -182,15 +178,14 @@ namespace SpawnRowDuel.View.World
             _disp.Apply(false);
         }
 
-        void StampRect(float halfX, float halfZ, float falloff)
+        void StampRect(float halfX, float halfZ, float falloff, float strength)
         {
             for (int y = 0; y < DispHeight; y++)
                 for (int x = 0; x < DispWidth; x++)
                 {
                     Vector2 w = TexelToWorld(x, y);
                     float d = Mathf.Max(Mathf.Abs(w.x) - halfX, Mathf.Abs(w.y) - halfZ);
-                    float v = 1f - Mathf.Clamp01(d / falloff);
-                    Write(x, y, v);
+                    Write(x, y, strength * (1f - Mathf.Clamp01(d / falloff)));
                 }
         }
 
@@ -291,8 +286,6 @@ namespace SpawnRowDuel.View.World
             var colors = new Color[count * 4];
             var tris = new int[count * 6];
 
-            float keepOutX, keepOutZ;
-            BoardKeepOut(out keepOutX, out keepOutZ);
 
             int n = 0;
             for (int guard = 0; guard < count * 8 && n < count; guard++)
@@ -300,8 +293,11 @@ namespace SpawnRowDuel.View.World
                 float x = (float)(rng.NextDouble() * 2.0 - 1.0) * IslandExtent.x;
                 float z = (float)(rng.NextDouble() * 2.0 - 1.0) * IslandExtent.y;
 
-                // off the board, and thinning out toward the rim so the island has a soft edge
-                if (Mathf.Abs(x) < keepOutX && Mathf.Abs(z) < keepOutZ) continue;
+                // Grass grows EVERYWHERE, the board included. It used to be kept off the board so
+                // it could not compete with the game state; the board is a translucent marking
+                // rather than a slab now, so the cards sit ON the field and the press field is
+                // what keeps the playing surface readable. Thin out toward the rim regardless, so
+                // the island has a soft edge rather than a mown line.
                 float rim = Mathf.Max(Mathf.Abs(x) / IslandExtent.x, Mathf.Abs(z) / IslandExtent.y);
                 if (rng.NextDouble() < rim * rim * 0.9) continue;
 
@@ -354,16 +350,6 @@ namespace SpawnRowDuel.View.World
                 new Vector3(IslandExtent.x * 2f + 4f, 6f, IslandExtent.y * 2f + 4f));
 
             _blades.GetComponent<MeshFilter>().sharedMesh = _bladeMesh;
-        }
-
-        /// <summary>The rectangle the board occupies, plus a tile of margin. Read from the RULES
-        /// geometry, so a board that grows a column does not have to be remembered about here.</summary>
-        void BoardKeepOut(out float x, out float z)
-        {
-            const float cell = 1f, gap = 0.08f;             // BoardView's defaults
-            float pitch = cell + gap;
-            x = Board.Columns * pitch * 0.5f;
-            z = (Board.Rows + 2) * pitch * 0.5f;            // +2 for the two wall rows
         }
 
         // ── clouds ────────────────────────────────────────────────────────────────────────

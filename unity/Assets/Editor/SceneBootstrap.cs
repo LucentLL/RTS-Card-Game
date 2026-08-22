@@ -30,6 +30,18 @@ public static class SceneBootstrap
         return m;
     }
 
+    /// <summary>A board cell: a translucent fill with a brighter rim, on SRD_Tile.</summary>
+    static Material TileMat(string name, Color fill, Color edge)
+    {
+        var m = ShaderMat(name, "SpawnRowDuel/Tile");
+        if (m == null) return null;
+        m.SetColor("_BaseColor", fill);
+        m.SetColor("_EdgeColor", edge);
+        m.SetFloat("_EdgeWidth", 0.055f);
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
     /// <summary>
     /// A material ASSET on one of the project's own shaders.
     ///
@@ -64,18 +76,31 @@ public static class SceneBootstrap
         Directory.CreateDirectory(SceneDir);
         Directory.CreateDirectory(MatDir);
 
-        var mCell = Mat("M_Cell", new Color(0.16f, 0.17f, 0.22f));
-        var mLane = Mat("M_Lane", new Color(0.30f, 0.26f, 0.14f));
-        var mStruct = Mat("M_Struct", new Color(0.20f, 0.16f, 0.12f));
-        var mWall = Mat("M_Wall", new Color(0.30f, 0.13f, 0.13f));
-        var mHover = Mat("M_Hover", new Color(0.35f, 0.55f, 0.42f), 0.35f);
-        var mSelect = Mat("M_Select", new Color(0.85f, 0.70f, 0.25f), 0.5f);
+        // Cells are TRANSLUCENT MARKINGS on the terrain now, not opaque slabs. The wash is faint
+        // and the rim carries the grid, because an edge reads as a boundary at any opacity where a
+        // flat 30% tint just reads as a stain.
+        // Fills are SATURATED and the rim is faint, which is the opposite of the first attempt.
+        // A pale tint at 26% over green grass desaturates toward grey from every angle, and the
+        // board lost the one thing its colour is for: whose ground this is. Strong hue at a low
+        // alpha keeps the grass looking like grass and still says red half / blue half.
+        var rim = new Color(1f, 1f, 1f, 0.20f);
+        var mCell = TileMat("M_Cell", new Color(0.45f, 0.48f, 0.62f, 0.28f), rim);
+        var mLane = TileMat("M_Lane", new Color(0.88f, 0.74f, 0.26f, 0.32f), rim);
+        var mStruct = TileMat("M_Struct", new Color(0.55f, 0.42f, 0.26f, 0.32f), rim);
+        var mHover = TileMat("M_Hover", new Color(0.40f, 0.95f, 0.60f, 0.48f),
+                             new Color(0.75f, 1f, 0.88f, 0.90f));
+        var mSelect = TileMat("M_Select", new Color(1f, 0.82f, 0.28f, 0.52f),
+                              new Color(1f, 0.95f, 0.60f, 0.95f));
 
         // the two halves of the board, tinted by owner - the reference reads cold-over-warm
-        var mFoeBack = Mat("M_FoeBack", new Color(0.10f, 0.20f, 0.32f));
-        var mFoeFront = Mat("M_FoeFront", new Color(0.13f, 0.24f, 0.36f));
-        var mYouFront = Mat("M_YouFront", new Color(0.30f, 0.13f, 0.10f));
-        var mYouBack = Mat("M_YouBack", new Color(0.25f, 0.10f, 0.08f));
+        var mFoeBack = TileMat("M_FoeBack", new Color(0.16f, 0.44f, 0.90f, 0.40f), rim);
+        var mFoeFront = TileMat("M_FoeFront", new Color(0.24f, 0.54f, 0.94f, 0.32f), rim);
+        var mYouFront = TileMat("M_YouFront", new Color(0.90f, 0.30f, 0.18f, 0.32f), rim);
+        var mYouBack = TileMat("M_YouBack", new Color(0.82f, 0.20f, 0.13f, 0.40f), rim);
+
+        // the walls stay SOLID: they are the life targets, the one part of the board that is a
+        // physical thing in the fiction rather than a line drawn on the ground
+        var mWall = Mat("M_Wall", new Color(0.30f, 0.13f, 0.13f));
 
         var mTerrain = ShaderMat("M_Terrain", "SpawnRowDuel/Terrain");
         var mGrass = ShaderMat("M_Grass", "SpawnRowDuel/Grass");

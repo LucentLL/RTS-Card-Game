@@ -145,6 +145,34 @@ namespace SpawnRowDuel.PlayTests
             yield return Shoot("motion-c.png");
         }
 
+        /// <summary>
+        /// Every card in hand picked in turn, one shot each.
+        ///
+        /// A card face reported as garbled on the phone rendered correctly in every probe shot -
+        /// because the probe only ever picked hand index 0. If the fault belongs to one card, or
+        /// to the act of switching between them, it lives in the shots this test takes and nowhere
+        /// in the ones that existed.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureEveryHandCard()
+        {
+            yield return PlayToMidGame();
+
+            var hud = Object.FindFirstObjectByType<MatchHud>();
+            var match = Object.FindFirstObjectByType<MatchController>();
+            Assert.IsNotNull(hud);
+
+            int hand = match.Engine.State.P(Side.You).Hand.Count;
+            for (int i = 0; i < hand && i < 8; i++)
+            {
+                hud.SelectHand(i);
+                yield return Frames(6);
+                yield return Shoot("hand-" + i + ".png");
+                hud.SelectHand(i);                       // toggles it back off
+                yield return Frames(2);
+            }
+        }
+
         /// <summary>Wait on the CLOCK. Batchmode frames are worth a fraction of a player's.</summary>
         static IEnumerator GameSeconds(float seconds)
         {

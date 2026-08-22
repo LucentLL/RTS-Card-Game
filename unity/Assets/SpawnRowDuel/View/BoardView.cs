@@ -29,6 +29,17 @@ namespace SpawnRowDuel.View
         public float CellSize = 1f;
         public float CellGap = 0.08f;
 
+        /// <summary>
+        /// How thick a cell is. Almost nothing: a cell is a MARKING on the terrain, not a slab.
+        ///
+        /// It was 0.12 and solid, and that is what made the whole scene read at the wrong scale -
+        /// a creature on a raised plinth beside knee-high grass is a figurine on a table, not an
+        /// army in a field. The box is still a box only because its collider is how BoardInput
+        /// picks cells; the visible part is a translucent wash (SRD_Tile) that the terrain shows
+        /// through and the grass grows up past.
+        /// </summary>
+        public const float CellThickness = 0.02f;
+
         Material RowMaterial(RowKey row)
         {
             switch (row)
@@ -90,7 +101,7 @@ namespace SpawnRowDuel.View
                     go.name = cell.ToString();
                     go.transform.SetParent(rowGo.transform, false);
                     go.transform.localPosition = WorldOf(cell);
-                    go.transform.localScale = new Vector3(CellSize, 0.12f, CellSize);
+                    go.transform.localScale = new Vector3(CellSize, CellThickness, CellSize);
 
                     // Rows are TINTED BY OWNER, as the reference board is: the foe's half reads
                     // cold, yours warm, the contested centre amber. Colour is doing real work
