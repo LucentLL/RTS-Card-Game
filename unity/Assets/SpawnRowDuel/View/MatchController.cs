@@ -72,14 +72,27 @@ namespace SpawnRowDuel.View
             foreach (var d in Database.All)
                 if (d != null && !_defByName.ContainsKey(d.DisplayName)) _defByName[d.DisplayName] = d;
 
-            var catalog = Database.ToCatalog();
-            ulong seed = (ulong)System.DateTime.Now.Ticks;
-            var state = MatchSetup.NewMatch(catalog,
-                new CommanderId("fire"), new CommanderId("water"), seed, RulesOptions.JsParity);
-            Engine = new DuelEngine(state, catalog);
+            Catalog = Database.ToCatalog();
+            // No match yet: the HUD shows the commander select first. Which commander you pick
+            // decides your element pools and therefore your whole deck, so hard-coding it made
+            // 35 of the 36 unreachable.
+        }
+
+        /// <summary>The catalog is available before a match exists - the select screen reads it.</summary>
+        public ICardCatalog Catalog { get; private set; }
+
+        public bool MatchStarted { get { return Engine != null; } }
+
+        public void StartMatch(CommanderId you, CommanderId foe, ulong seed)
+        {
+            var state = MatchSetup.NewMatch(Catalog, you, foe, seed, RulesOptions.JsParity);
+            Engine = new DuelEngine(state, Catalog);
             _ai = new AiDriver(Engine, new ScriptedAiPolicy(Side.Foe));
 
+            _log.Clear();
+            Push("— " + Catalog.Commander(you).Name + " vs " + Catalog.Commander(foe).Name + " —");
             Push("— Your turn · Upkeep — ⛏ Harvest to begin —");
+            Touch();
         }
 
         void Update()
@@ -259,7 +272,7 @@ namespace SpawnRowDuel.View
 
         public CardDefinition DefOfStructure(StructId bid, Element color)
         {
-            var def = Engine.Catalog.Structure(bid, color);
+            var def = Catalog.Structure(bid, color);
             if (def == null) return null;
             CardDefinition d;
             return Database.TryByExportKey(def.ExportKey, out d) ? d : null;

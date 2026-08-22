@@ -65,6 +65,8 @@ namespace SpawnRowDuel.View
             // (or the log) would ALSO tap the board cell behind it, and a tap on the opaque
             // bands would raycast through an extrapolated ray. Taps and hover exist only inside
             // the camera viewport and outside the published HUD panels.
+            if (_match != null && !_match.MatchStarted) { UpdateHover(true); return; }
+
             bool overUi = Cam == null
                 || !Cam.pixelRect.Contains((Vector2)Input.mousePosition)
                 || HudLayout.Blocks(Input.mousePosition);
@@ -84,6 +86,7 @@ namespace SpawnRowDuel.View
 
         void Tap(CellRef? cell)
         {
+            if (_match == null || !_match.MatchStarted) return;
             if (!cell.HasValue) { ClearSelection(); return; }
 
             // 1. an armed play/build consumes the tap (an illegal drop keeps the card armed)

@@ -44,6 +44,9 @@ namespace SpawnRowDuel.View
         private int _chargeAmount;
         private int _chargeCellId = -1;
         private int _upkeepPromptedTurn = -1;
+        private CommanderId _pickYou = new CommanderId("fire");
+        private CommanderId _pickFoe = new CommanderId("water");
+        private Vector2 _selectScrollYou, _selectScrollFoe;
 
         private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center;
         private GUIStyle _ovYou, _ovFoe, _ovNeutral;
@@ -93,8 +96,15 @@ namespace SpawnRowDuel.View
 
         void OnGUI()
         {
-            if (_match == null || _match.Engine == null) return;
+            if (_match == null) return;
             EnsureStyles();
+
+            if (!_match.MatchStarted)
+            {
+                DrawCommanderSelect();
+                return;
+            }
+
             var s = _match.Engine.State;
 
             // scale by the SHORT side - landscape must not inherit portrait's width math
@@ -137,6 +147,94 @@ namespace SpawnRowDuel.View
 
             if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
                 GUI.Label(new Rect(0, h - BottomH - 22, w, 20), _hint, _center);
+        }
+
+        /// <summary>
+        /// Pick who you are before the duel starts. This is not decoration: `deckOf` builds your
+        /// 40 cards from your commander's element pools, so the commander IS the deck until the
+        /// deck builder lands at M15. Hard-coding fire-vs-water made 35 of the 36 unreachable.
+        /// </summary>
+        void DrawCommanderSelect()
+        {
+            float scale = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height) / 480f);
+            _scale = scale;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+            float w = Screen.width / scale;
+            float h = Screen.height / scale;
+
+            HudLayout.TopPx = Screen.height;          // the whole screen is ours; no board yet
+            HudLayout.BottomPx = 0;
+            HudLayout.MenuPx = new Rect(0, 0, Screen.width, Screen.height);
+            HudLayout.LogPx = new Rect();
+
+            Panel(new Rect(0, 0, w, h), PanelColor);
+
+            var title = new GUIStyle(_label) { fontSize = 20, alignment = TextAnchor.MiddleCenter };
+            title.normal.textColor = Gold;
+            GUI.Label(new Rect(0, 14, w, 26), "CHOOSE YOUR COMMANDER", title);
+            GUI.Label(new Rect(0, 40, w, 18),
+                "your commander decides your elements, your build menu and your deck", _center);
+
+            var cat = _match.Catalog;
+            var all = cat.Commanders;
+
+            const float rowH = 24f;
+            float listTop = 66f;
+            float listH = h - listTop - 92f;
+            float colW = Mathf.Min(300f, w / 2f - 12f);
+
+            // yours on the left, the opponent's on the right - same list, two picks
+            DrawCommanderColumn(new Rect(8, listTop, colW, listH), all, rowH, true);
+            DrawCommanderColumn(new Rect(w - colW - 8, listTop, colW, listH), all, rowH, false);
+
+            var youDef = cat.Commander(_pickYou);
+            var foeDef = cat.Commander(_pickFoe);
+            GUI.Label(new Rect(0, h - 84, w, 18),
+                "YOU: " + youDef.Name + " (♥" + youDef.Hp / 500 + " ⚒" + youDef.Workers + ")"
+                + "     vs     " + foeDef.Name
+                + " (♥" + foeDef.Hp / 500 + " ⚒" + foeDef.Workers + ")", _center);
+
+            if (GUI.Button(new Rect(w / 2f - 150, h - 62, 145, 34), "🎲 RANDOM FOE", _button))
+                _pickFoe = all[Mathf.Abs((int)(Time.realtimeSinceStartup * 1000f)) % all.Count].Id;
+
+            if (GUI.Button(new Rect(w / 2f + 5, h - 62, 145, 34), "▶ START DUEL", _bigButton))
+            {
+                ulong seed = (ulong)System.DateTime.Now.Ticks;
+                _match.StartMatch(_pickYou, _pickFoe, seed);
+                _selectedHandIndex = -1;
+                _buildMenuOpen = false;
+                _upgradeMenuOpen = false;
+                _upkeepPromptedTurn = -1;
+            }
+
+            GUI.Label(new Rect(0, h - 24, w, 18), youDef.Description, _center);
+        }
+
+        void DrawCommanderColumn(Rect area, IReadOnlyList<CommanderDef> all, float rowH, bool mine)
+        {
+            GUI.Label(new Rect(area.x, area.y - 18, area.width, 16),
+                mine ? "YOUR COMMANDER" : "OPPONENT", _small);
+            Panel(area, CardBack);
+
+            float contentH = all.Count * rowH;
+            var scroll = mine ? _selectScrollYou : _selectScrollFoe;
+            scroll = GUI.BeginScrollView(area, scroll,
+                new Rect(0, 0, area.width - 20, contentH), false, true);
+
+            for (int i = 0; i < all.Count; i++)
+            {
+                var c = all[i];
+                bool on = (mine ? _pickYou : _pickFoe).Value == c.Id.Value;
+                var r = new Rect(2, i * rowH, area.width - 24, rowH - 2);
+                if (on) Panel(r, new Color(0.55f, 0.45f, 0.12f, 1f));
+                if (GUI.Button(r, "  " + c.Name + (c.Dual ? "  ✦" : ""), _button))
+                {
+                    if (mine) _pickYou = c.Id; else _pickFoe = c.Id;
+                }
+            }
+
+            GUI.EndScrollView();
+            if (mine) _selectScrollYou = scroll; else _selectScrollFoe = scroll;
         }
 
         // ---- top band -------------------------------------------------------------------------
