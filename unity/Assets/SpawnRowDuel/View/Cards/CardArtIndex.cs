@@ -42,12 +42,9 @@ namespace SpawnRowDuel.View.Cards
             return def != null ? def.CardArt : null;
         }
 
-        /// <summary>The standee cut-out; falls back to the card illustration (art tier 2 of 3).</summary>
-        public Sprite FieldArt(string displayName)
-        {
-            var def = Find(displayName);
-            if (def == null) return null;
-            return def.FieldArt != null ? def.FieldArt : def.CardArt;
-        }
+        // No FieldArt() here. Name is the wrong key for the board: a structure's identity there is
+        // a StructId plus a resolved forge colour, which only the catalog can turn into a database
+        // key, so both board layers go through MatchController.DefOfObject instead. This index
+        // serves the HAND, where a card really is known by its name.
     }
 }

@@ -63,6 +63,9 @@ namespace SpawnRowDuel.View
         private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center;
         private GUIStyle _ovYou, _ovFoe, _ovNeutral;
 
+        /// <summary>Where a unit's stat label floats, in cells above its slot.</summary>
+        private const float LabelHeight = 1.45f;
+
         private static readonly Color PanelColor = new Color(0.055f, 0.06f, 0.085f, 1f);
 
         private static readonly Color PanelSoft = new Color(0.055f, 0.06f, 0.085f, 0.72f);
@@ -78,6 +81,7 @@ namespace SpawnRowDuel.View
             // the battle scene is generated (SceneBootstrap) and a component added by hand there
             // would be lost on the next rebuild.
             if (GetComponent<Cards.HandBar>() == null) gameObject.AddComponent<Cards.HandBar>();
+            if (GetComponent<Cards.CardPlateLayer>() == null) gameObject.AddComponent<Cards.CardPlateLayer>();
             if (GetComponent<Cards.StandeeLayer>() == null) gameObject.AddComponent<Cards.StandeeLayer>();
         }
 
@@ -141,15 +145,16 @@ namespace SpawnRowDuel.View
             DrawTopBar(s, w);
             DrawLog(w);
 
-            // The bottom band is opaque - the camera does not render behind it - but the HAND
-            // strip inside it belongs to UI Toolkit now, and IMGUI draws AFTER every UI Toolkit
-            // panel. Painting the whole band here covered the card faces completely, which is
-            // exactly what it looked like: an empty bottom bar with buttons and no hand.
-            Panel(new Rect(0, h - BottomH, w, ModeH), PanelColor);            // mode row
+            // The bottom band is opaque - the camera does not render behind it - but IMGUI draws
+            // AFTER every UI Toolkit panel, so anything painted here lands ON TOP of the hand
+            // rather than behind it. Only the ACTION row is painted here, and only because it is
+            // the one strip of the band no card ever reaches into.
+            //
+            // The mode row is NOT. A picked card rises out of the hand strip and passes straight
+            // through it on its way up, and an opaque rectangle there cut the card in half with a
+            // dark bar. HandBar's own backdrop covers the whole band from behind instead, which is
+            // the only side of the cards IMGUI can safely paint on.
             Panel(new Rect(0, h - ActionH, w, ActionH), PanelColor);          // action row
-            // NOTHING is painted over the hand strip: IMGUI draws after every UI Toolkit panel, so
-            // even a translucent backdrop here dims the card faces - which is what "the cards are
-            // too dark" was. The hand paints its own backdrop, behind its own cards.
 
             if (s.IsOver)
             {
@@ -298,14 +303,16 @@ namespace SpawnRowDuel.View
             }
             if (Time.unscaledTime > _logShownUntil) return;
 
-            var panel = new Rect(0, TopH, w * 0.55f, lines * 14f + 4f);
+            // RIGHT of the top bar: the left corner under it belongs to the inspect card now, the
+            // way Master Duel reserves that corner for whatever you are looking at.
+            var panel = new Rect(w * 0.45f, TopH, w * 0.55f, lines * 14f + 4f);
             Panel(panel, PanelSoft);
             HudLayout.LogPx = new Rect(panel.x * _scale, panel.y * _scale,
                                        panel.width * _scale, panel.height * _scale);
             float y = TopH + 2;
             for (int i = log.Count - lines; i < log.Count; i++)
             {
-                GUI.Label(new Rect(8, y, w * 0.55f - 12, 14), log[i], _small);
+                GUI.Label(new Rect(panel.x + 8, y, panel.width - 12, 14), log[i], _small);
                 y += 14f;
             }
         }
@@ -904,7 +911,9 @@ namespace SpawnRowDuel.View
             foreach (var kv in s.Objects())
             {
                 var world = _match.Board.WorldOf(kv.Key);
-                var pt = cam.WorldToScreenPoint(world + new Vector3(0f, 1.15f, 0f));
+                // above the figure's HEAD, not across its chest: the cut-out hovers 0.30 over its
+                // card now (StandeeLayer.Hover), which lifted its head past the old anchor
+                var pt = cam.WorldToScreenPoint(world + new Vector3(0f, LabelHeight, 0f));
                 if (pt.z <= 0f) continue;
                 float x = pt.x / scale;
                 float y = h - pt.y / scale;
@@ -912,7 +921,7 @@ namespace SpawnRowDuel.View
 
                 // the label budget is the unit's ACTUAL on-screen cell pitch - a fixed width
                 // is wider than a cell at every real resolution and neighbours collide
-                var pt2 = cam.WorldToScreenPoint(world + new Vector3(pitchWorld, 1.15f, 0f));
+                var pt2 = cam.WorldToScreenPoint(world + new Vector3(pitchWorld, LabelHeight, 0f));
                 float pitchPx = Mathf.Max(24f, Mathf.Abs(pt2.x - pt.x) / scale);
                 bool roomy = pitchPx >= 44f;
 

@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 1 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, standees on the board, owner-tinted rows. Remaining: walls + tower windows, board mini-card plates, FX, audio |
+| M13 — presentation pass | 🟡 slice 1 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out hovering over it, owner-tinted rows. Remaining: walls + tower windows, FX, audio |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -373,8 +373,8 @@ Board rows are tinted by owner.
 ### Next — M13 slice 2
 
 Walls and windows (the tower layout, deck and graveyard as real card piles — the reference's right
-window, which the current build has nowhere to put), the board mini-card plate under each standee,
-FX, and audio. Then M15's menus and deck builder, which are whole screens that do not exist yet.
+window, which the current build has nowhere to put), FX, and audio. Then M15's menus and deck
+builder, which are whole screens that do not exist yet. (The board plate landed early, in slice 1c.)
 
 ### 2026-08-22 (later) — M13 slice 1b: the four things wrong with it on a phone
 
@@ -396,3 +396,47 @@ Feedback from the live build, all four real:
   card at the right edge carrying the FULL generated ability text, not the hand card's three-line
   brief. A hand-sized ability box is unreadable on a phone, which is the whole reason the
   reference has a big card.
+
+### 2026-08-22 (third pass) — M13 slice 1c: the card lies on the tile
+
+Three more from the live build, and one the screenshots found on the way.
+
+* **"The cards should be placed over the occupied board tile, not a second _fieldart."** Two board
+  systems had been running side by side without anyone noticing: `StandeeLayer` (the M13 cut-out,
+  bobbing, laid-flat pose, ground shadow) AND `MatchController.ReconcileStandees`, the M7 sandbox
+  original — an owner-tinted plinth cylinder with a camera-billboarded `FieldArt ?? CardArt` quad
+  standing on it. Every unit was drawn twice, and the plinth is the bright yellow/blue ellipse
+  under every figure in the phone shot. The old system is gone.
+
+  In its place, `CardPlateLayer`: the unit's own card, lying FLAT on its tile, Master-Duel style.
+  Face-up units get the DM frame at board scale — banner, cost circle, element ring, art window
+  with the illustration centre-cropped into it, ruled ability box, stat bar — rastered per element
+  (nine textures cover the registry, the art is a separate quad). Face-down charges and traps get
+  the reference build's procedural sleeve, tinted by their OWNER's element and never by the card
+  underneath, because that is a secret. The cut-out then HOVERS 0.30 cells over its card, with its
+  blob shadow left down on the card to tie it to the slot.
+
+  Two consequences worth naming. `CardArtIndex.FieldArt` is gone: the name is the wrong key for the
+  board (a structure is a StructId plus a resolved forge colour, which only the catalog can turn
+  into a database key), so both layers go through the new `MatchController.DefOfObject`. And the
+  cut-out no longer falls back to the card illustration — the fallback would now draw the same
+  picture twice, once flat and once standing.
+
+* **"There is a dark bar going through the cards in hand."** The mode row. A picked card rises out
+  of the hand strip and passes straight through that band on its way up, and MatchHud painted the
+  band opaque there — after every UI Toolkit panel, so on top of the card. IMGUI now paints only
+  the action row, which no card reaches; HandBar's backdrop covers the whole band from behind.
+
+* **"The selected card should be on the left like Master Duel."** It is: top-left, under the status
+  bar. It hung off the right edge to stay clear of the picked card rising out of the hand; up there
+  it is clear of it by the whole board. The event log moved to the right half of its row to make
+  room, which is the corner Master Duel reserves for it anyway.
+
+* **Probe**: `tools/screenshot.sh` grew a third shot, `battle-plates.png` — top-down with the
+  figures off, because the tilted shot shows the plates half-covered by the standees hovering over
+  them, which is correct and useless for judging them. `BoardInput.Tilted` is public now so the
+  probe can ask for the angle. Three EditMode tests pin the plate: the flat-on-tile basis (a
+  mirrored card and a correct one differ by one cross product, and that is invisible in review) and
+  the frame's proportions against CardFace's flex weights.
+
+235 tests.

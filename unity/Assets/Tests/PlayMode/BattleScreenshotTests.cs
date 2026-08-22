@@ -3,6 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using SpawnRowDuel.Rules;
 using SpawnRowDuel.View;
+using SpawnRowDuel.View.Cards;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -50,6 +51,43 @@ namespace SpawnRowDuel.PlayTests
         [UnityTest]
         public IEnumerator CaptureMidGameBoard()
         {
+            yield return PlayToMidGame();
+
+            // Pick a card, so the shot shows the two states the hand actually has: resting cards
+            // peeking, the picked one risen, and the big inspect card beside it.
+            var hud = Object.FindFirstObjectByType<MatchHud>();
+            if (hud != null) hud.SelectHand(0);
+
+            yield return Frames(6);
+            yield return Shoot("battle-mid.png");
+        }
+
+        /// <summary>
+        /// The same board from above with the FIGURES OFF, so the cards lying on the tiles are
+        /// the only thing in the shot.
+        ///
+        /// This is the plate layer's mirror. The tilted shot shows the game as it is played and
+        /// therefore shows the plates half-covered by the standees hovering over them, which is
+        /// correct and useless for judging them: "is the card the right way up, the right size,
+        /// cropped to the right part of its art" is a question only this angle answers.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureTopDownPlates()
+        {
+            yield return PlayToMidGame();
+
+            var input = Object.FindFirstObjectByType<BoardInput>();
+            Assert.IsNotNull(input, "the Battle scene has no BoardInput");
+            input.Tilted = false;
+            StandeeLayer.Enabled = false;
+            yield return Frames(90);            // the angle EASES; a few frames lands mid-swing
+
+            yield return Shoot("battle-plates.png");
+            StandeeLayer.Enabled = true;  // static: it would leak into the next test
+        }
+
+        static IEnumerator PlayToMidGame()
+        {
             yield return LoadBattle();
 
             var match = Object.FindFirstObjectByType<MatchController>();
@@ -77,14 +115,6 @@ namespace SpawnRowDuel.PlayTests
                 if (engine.State.TurnNumber >= 6 && engine.State.Turn == Side.You
                     && engine.State.Phase == TurnPhase.Action) break;
             }
-
-            // Pick a card, so the shot shows the two states the hand actually has: resting cards
-            // peeking, the picked one risen, and the big inspect card beside it.
-            var hud = Object.FindFirstObjectByType<MatchHud>();
-            if (hud != null) hud.SelectHand(0);
-
-            yield return Frames(6);
-            yield return Shoot("battle-mid.png");
         }
 
         static IEnumerator LoadBattle()

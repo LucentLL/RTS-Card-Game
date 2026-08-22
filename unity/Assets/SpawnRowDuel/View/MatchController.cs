@@ -44,8 +44,6 @@ namespace SpawnRowDuel.View
         private bool _aiFaulted;
 
         private readonly List<Transform>[,] _pawns = new List<Transform>[2, 3];
-        private readonly Dictionary<int, Transform> _standees = new Dictionary<int, Transform>();
-        private readonly List<int> _deadStandees = new List<int>();
         private MaterialPropertyBlock _mpb;
         private Dictionary<string, CardDefinition> _defByName;
 
@@ -101,7 +99,12 @@ namespace SpawnRowDuel.View
             PumpEvents();
             Autopilot();
             ReconcilePawns();
-            ReconcileStandees();
+            // Board objects are NOT reconciled here any more. They were, once - a tinted plinth
+            // disc with a billboarded FieldArt-or-CardArt quad standing on it - and that system
+            // outlived its replacement without anyone noticing, so every unit was being drawn
+            // twice: once by this, once by StandeeLayer. The plinth is the bright ellipse that
+            // sat under every figure. CardPlateLayer (the card, flat on the tile) and
+            // StandeeLayer (the cut-out, hovering over it) own the board now.
         }
 
         // ---- commands from the HUD / input ------------------------------------------------
@@ -276,6 +279,27 @@ namespace SpawnRowDuel.View
             if (def == null) return null;
             CardDefinition d;
             return Database.TryByExportKey(def.ExportKey, out d) ? d : null;
+        }
+
+        /// <summary>
+        /// The art record for anything standing on the board - the one place that knows a
+        /// structure is not found the way a creature is.
+        ///
+        /// A creature answers to its display name. A structure does not: its board identity is a
+        /// StructId plus a resolved forge colour, and only the catalog can turn that pair into the
+        /// export key the database is filed under. Both board layers ask here rather than each
+        /// carrying its own half-right guess, which is how the old standee system ended up being
+        /// the only one that could find a forge.
+        /// </summary>
+        public CardDefinition DefOfObject(BoardObject o)
+        {
+            var cr = o as CreatureUnit;
+            if (cr != null) return DefOf(cr.Name) ?? DefOf(cr.Card.Value);
+
+            var b = o as StructureUnit;
+            if (b != null) return DefOfStructure(b.DefId, b.Color) ?? DefOf(b.Name);
+
+            return null;                                   // charges and traps stay face-down
         }
 
         public static string Hint(Rejection why)
@@ -524,137 +548,6 @@ namespace SpawnRowDuel.View
             if (sick) tint *= 0.55f;
             _mpb.SetColor("_BaseColor", tint);
             r.SetPropertyBlock(_mpb);
-        }
-
-        // ---- standees: every board object, rendered with its art ---------------------------
-
-        void ReconcileStandees()
-        {
-            var s = Engine.State;
-            var seen = new HashSet<int>();
-
-            // Art quads billboard to the camera - a fixed lean goes edge-on (invisible) the
-            // moment the player toggles to the top-down angle.
-            var cam = Camera.main;
-            var camRot = cam != null ? cam.transform.rotation : Quaternion.identity;
-
-            foreach (var kv in s.Objects())
-            {
-                var cell = kv.Key;
-                var o = kv.Value;
-                seen.Add(o.Id);
-
-                Transform t;
-                if (!_standees.TryGetValue(o.Id, out t))
-                {
-                    t = MakeStandee(o);
-                    _standees[o.Id] = t;
-                }
-
-                var target = Board.WorldOf(cell);
-                t.localPosition = new Vector3(target.x, t.localPosition.y, target.z);
-
-                var art = t.Find("art");
-                if (art != null) art.rotation = camRot;
-
-                var cr = o as CreatureUnit;
-                if (cr != null)
-                {
-                    if (t.childCount > 0) Tint(t.GetChild(0), o.Owner, cr.Tapped, cr.Sick);
-                    var sr = t.GetComponentInChildren<SpriteRenderer>();
-                    if (sr != null)
-                        sr.color = cr.Tapped ? new Color(0.5f, 0.5f, 0.55f)
-                                 : cr.Sick ? new Color(0.75f, 0.75f, 0.8f) : Color.white;
-                }
-            }
-
-            _deadStandees.Clear();
-            foreach (var kv in _standees)
-                if (!seen.Contains(kv.Key)) _deadStandees.Add(kv.Key);
-            foreach (var id in _deadStandees)
-            {
-                Destroy(_standees[id].gameObject);
-                _standees.Remove(id);
-            }
-        }
-
-        Transform MakeStandee(BoardObject o)
-        {
-            var root = new GameObject("unit_" + o.Id);
-            root.transform.SetParent(transform, false);
-            root.transform.localPosition = Vector3.zero;
-
-            // plinth - a low disc the overlay label anchors to; owner-tinted
-            var plinth = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Destroy(plinth.GetComponent<Collider>());     // the CELL owns picking
-            plinth.transform.SetParent(root.transform, false);
-            plinth.transform.localPosition = new Vector3(0f, 0.09f, 0f);
-            plinth.transform.localScale = new Vector3(0.62f, 0.03f, 0.62f);
-            plinth.GetComponent<MeshRenderer>().sharedMaterial = Board.CellMaterial;
-
-            var tintTarget = root.transform;
-            Tint(plinth.transform, o.Owner, false, false);
-
-            Sprite art = ArtFor(o);
-            if (art != null)
-            {
-                var spriteGo = new GameObject("art");
-                spriteGo.transform.SetParent(root.transform, false);
-                var sr = spriteGo.AddComponent<SpriteRenderer>();
-                sr.sprite = art;
-                float h = art.bounds.size.y;
-                float scale = h > 0.01f ? 0.95f / h : 1f;
-                spriteGo.transform.localScale = new Vector3(scale, scale, scale);
-                spriteGo.transform.localPosition = new Vector3(0f, 0.12f + 0.95f * 0.5f, 0f);
-                // rotation is set every frame in ReconcileStandees - full camera billboard
-            }
-            else if (o is CreatureUnit && ((CreatureUnit)o).IsToken)
-            {
-                // Lumen and Shade have no registry card and so no art at all - give them a
-                // small conjured orb rather than a card back, which reads as a face-down
-                var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                Destroy(orb.GetComponent<Collider>());
-                orb.transform.SetParent(root.transform, false);
-                orb.transform.localPosition = new Vector3(0f, 0.28f, 0f);
-                orb.transform.localScale = new Vector3(0.34f, 0.34f, 0.34f);
-                orb.GetComponent<MeshRenderer>().sharedMaterial = Board.CellMaterial;
-                Tint(orb.transform, o.Owner, false, false);
-            }
-            else
-            {
-                // face-downs and art-less cards: a card-back block (placeholders ship - G1)
-                var block = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Destroy(block.GetComponent<Collider>());
-                block.transform.SetParent(root.transform, false);
-                block.transform.localPosition = new Vector3(0f, 0.3f, 0f);
-                block.transform.localScale = new Vector3(0.55f, 0.42f, 0.14f);
-                block.transform.localRotation = Quaternion.Euler(18f, 0f, 0f);
-                block.GetComponent<MeshRenderer>().sharedMaterial = Board.StructureSlotMaterial;
-                Tint(block.transform, o.Owner, o is ChargeUnit || o is TrapUnit, false);
-            }
-
-            return tintTarget;
-        }
-
-        Sprite ArtFor(BoardObject o)
-        {
-            var cr = o as CreatureUnit;
-            if (cr != null)
-            {
-                var def = DefOf(cr.Name) ?? DefOf(cr.Card.Value);
-                if (def == null) return null;
-                return def.FieldArt != null ? def.FieldArt : def.CardArt;
-            }
-
-            var b = o as StructureUnit;
-            if (b != null)
-            {
-                var def = DefOfStructure(b.DefId, b.Color);
-                if (def == null) return null;
-                return def.FieldArt != null ? def.FieldArt : def.CardArt;
-            }
-
-            return null;                                   // charges and traps stay face-down
         }
     }
 }

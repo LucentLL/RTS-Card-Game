@@ -16,6 +16,11 @@ namespace SpawnRowDuel.View.Cards
     ///
     /// Workers never get a figure and face-down cards never get one - a set card is a card back,
     /// and that secret is a rule, not a style choice.
+    ///
+    /// The figure HOVERS over the card: <see cref="CardPlateLayer"/> lays the unit's own card flat
+    /// on the tile first, and the standee stands on it. A unit whose `_fieldart` cut-out has not
+    /// been drawn yet gets no figure at all rather than the card illustration standing up as a
+    /// second copy of the picture already lying under it.
     /// </summary>
     public sealed class StandeeLayer : MonoBehaviour
     {
@@ -27,11 +32,19 @@ namespace SpawnRowDuel.View.Cards
         const float FigureHeight = 1.30f;      // cells - min(150cqh, 120cqw) at a 1×1 cell
         const float StructureHeight = 1.05f;
         const float MaxWidth = 1.60f;          // the 165cqw cap: standees must not inflate with depth
-        const float Lift = 0.02f;
+        const float Lift = 0.10f;              // clear of the card plate lying on the tile (0.075)
+
+        /// <summary>
+        /// How far above its card the figure floats.
+        ///
+        /// Not decoration either: the card now lies on the tile, and a figure standing ON it hides
+        /// the half of it the camera can see. Floating the cut-out lets the card read while the
+        /// blob shadow - which stays down on the card - keeps the figure tied to its slot.
+        /// </summary>
+        const float Hover = 0.30f;
 
         MatchController _match;
         BoardInput _input;
-        CardArtIndex _art;
 
         readonly Dictionary<int, Standee> _live = new Dictionary<int, Standee>();
         readonly List<int> _seen = new List<int>();
@@ -56,7 +69,6 @@ namespace SpawnRowDuel.View.Cards
         void LateUpdate()
         {
             if (_match == null || _match.Engine == null || _match.Board == null) return;
-            if (_art == null) _art = new CardArtIndex(_match.Database);
 
             var cam = _input != null && _input.Cam != null ? _input.Cam : Camera.main;
             if (cam == null) return;
@@ -97,7 +109,7 @@ namespace SpawnRowDuel.View.Cards
             figGo.transform.SetParent(pivot, false);
             var fig = figGo.AddComponent<SpriteRenderer>();
             fig.sortingOrder = 20;
-            fig.sharedMaterial = SpriteMaterial();
+            fig.sharedMaterial = SpriteMat.Unlit;
 
             var shadowGo = new GameObject("shadow");
             shadowGo.transform.SetParent(root.transform, false);
@@ -106,7 +118,7 @@ namespace SpawnRowDuel.View.Cards
             shadow.sprite = ShadowSprite();
             shadow.color = new Color(0f, 0f, 0f, 0.5f);
             shadow.sortingOrder = 10;
-            shadow.sharedMaterial = SpriteMaterial();
+            shadow.sharedMaterial = SpriteMat.Unlit;
 
             st = new Standee
             {
@@ -122,11 +134,11 @@ namespace SpawnRowDuel.View.Cards
 
         void Place(Standee st, BoardObject o, CellRef cell, GameState s, Camera cam)
         {
-            var name = NameOf(o);
-            var sprite = _art.FieldArt(name);
+            var def = _match.DefOfObject(o);
+            var sprite = def != null ? def.FieldArt : null;
             st.Figure.sprite = sprite;
             st.Root.SetActive(sprite != null);
-            if (sprite == null) return;                    // no art yet (G1) - the cell plate carries it
+            if (sprite == null) return;                    // no cut-out yet (G1) - the plate carries it
 
             var world = _match.Board.WorldOf(cell);
             st.Root.transform.position = world + new Vector3(0f, Lift, 0f);
@@ -157,21 +169,24 @@ namespace SpawnRowDuel.View.Cards
             // height above it, so the FEET stay on the slot and the sprite grows upward.
             if (laid)
             {
-                // lying flat on its own slot, facing the camera's yaw - the "cannot act" pose
+                // lying flat on its own slot, facing the camera's yaw - the "cannot act" pose.
+                // It lies ON its card rather than hovering: down is the whole point of the pose.
                 st.Pivot.localPosition = new Vector3(0f, 0.02f, 0f);
                 st.Pivot.rotation = Quaternion.Euler(90f, cam.transform.eulerAngles.y, 0f);
                 st.Figure.transform.localPosition = Vector3.zero;
             }
             else
             {
-                st.Pivot.localPosition = new Vector3(0f, bob, 0f);
+                st.Pivot.localPosition = new Vector3(0f, Hover + bob, 0f);
                 st.Pivot.rotation = Quaternion.LookRotation(cam.transform.forward, Vector3.up);
                 st.Figure.transform.localPosition = new Vector3(0f, targetH * 0.5f, 0f);
             }
 
             // ABOVE the cell surface, not inside it: the cell is a 0.12-thick cube whose top face
             // sits at y=0.06, and a shadow quad under that z-fought with it into a bright ellipse.
-            st.Shadow.transform.position = world + new Vector3(0f, 0.075f, 0f);
+            // It now lands on the CARD instead of the tile, which is where a hovering figure's
+            // shadow belongs anyway.
+            st.Shadow.transform.position = world + new Vector3(0f, 0.095f, 0f);
             st.Shadow.transform.localScale = new Vector3(0.62f, 0.30f, 1f);
             st.Shadow.color = new Color(0f, 0f, 0f, laid ? 0.30f : 0.50f);
 
@@ -179,13 +194,6 @@ namespace SpawnRowDuel.View.Cards
             st.Figure.color = o.Owner == Side.You ? Color.white : new Color(0.86f, 0.88f, 1f);
         }
 
-        string NameOf(BoardObject o)
-        {
-            var cre = o as CreatureUnit;
-            if (cre != null) return cre.Name;
-            var b = o as StructureUnit;
-            return b != null ? b.Name : "";
-        }
 
         /// <summary>
         /// canActNow (16_movement.js:30-38), the pose rule verbatim: on its controller's turn a
@@ -227,25 +235,6 @@ namespace SpawnRowDuel.View.Cards
                 if (st.Root != null) Destroy(st.Root);
                 _live.Remove(dead[i]);
             }
-        }
-
-        /// <summary>
-        /// One shared unlit sprite material.
-        ///
-        /// A runtime SpriteRenderer defaults to the 2D renderer's Sprite-Unlit shader, which in a
-        /// 3D URP scene has no light texture to sample and drew every blob shadow as a bright
-        /// ellipse instead of a dark one. Sprites/Default is the plain multiply-by-vertex-colour
-        /// path, and the scene's sprite anchor keeps it out of the WebGL stripper's way.
-        /// </summary>
-        static Material _spriteMat;
-
-        static Material SpriteMaterial()
-        {
-            if (_spriteMat != null) return _spriteMat;
-            var shader = Shader.Find("Sprites/Default");
-            if (shader == null) return null;                  // stripped: keep the engine default
-            _spriteMat = new Material(shader) { name = "SRD Standee", hideFlags = HideFlags.HideAndDontSave };
-            return _spriteMat;
         }
 
         /// <summary>An elliptical blob, generated - the reference's radial-gradient shadow.</summary>

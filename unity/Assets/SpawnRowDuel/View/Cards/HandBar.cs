@@ -66,8 +66,11 @@ namespace SpawnRowDuel.View.Cards
             _row.style.height = peek;
             _lift.style.bottom = HudLayout.HandBandBottomPx;
             _lift.style.height = peek;
+            // the WHOLE bottom band, mode row included. IMGUI cannot paint that row without
+            // painting over the picked card rising through it, so the opaque backing for it has to
+            // come from here - behind the cards, where it belongs.
             _backdrop.style.bottom = 0f;
-            _backdrop.style.height = HudLayout.HandBandBottomPx + peek;
+            _backdrop.style.height = HudLayout.BottomPx;
 
             var hand = _match.Engine.State.P(Side.You).Hand;
             var sig = Signature(hand, peek);
@@ -153,16 +156,21 @@ namespace SpawnRowDuel.View.Cards
             var full = _text.Full(id);
             if (!string.IsNullOrEmpty(full)) model.Rules = full;
 
-            float h = Mathf.Clamp(Screen.height * 0.52f, handCardH, 460f);
+            // as tall as the board band allows, never taller than the band itself
+            float room = Screen.height - HudLayout.TopPx - HudLayout.BottomPx - 24f;
+            float h = Mathf.Min(Mathf.Clamp(Screen.height * 0.52f, handCardH, 460f),
+                                Mathf.Max(160f, room));
             float w = h / CardFace.Aspect;
 
             _inspect.Bind(model, _palette, w);
             _inspect.style.display = DisplayStyle.Flex;
-            // RIGHT edge: the picked card rises at its own place in the hand, and a left-anchored
-            // inspector sat on top of it whenever the leftmost card was the one chosen.
-            _inspect.style.left = StyleKeyword.Auto;
-            _inspect.style.right = 12f;
-            _inspect.style.bottom = HudLayout.HandBandBottomPx + HudLayout.HandBandPx + 10f;
+            // TOP-LEFT, under the status bar - Master Duel's corner for "what am I looking at".
+            // It used to hang off the right edge just above the hand, to keep clear of the picked
+            // card rising out of the strip; up here it is clear of that card by the whole board.
+            _inspect.style.right = StyleKeyword.Auto;
+            _inspect.style.bottom = StyleKeyword.Auto;
+            _inspect.style.left = 12f;
+            _inspect.style.top = HudLayout.TopPx + 12f;
         }
 
         void EnsurePanel()

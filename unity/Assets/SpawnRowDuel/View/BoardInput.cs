@@ -49,6 +49,12 @@ namespace SpawnRowDuel.View
         private bool _tilted = true;
         private float _blend = 1f;
 
+        /// <summary>
+        /// Which of the two angles is showing (spec 09: Tilted, the diorama, or Top-Down). The
+        /// camera eases toward it, so setting this is a request rather than a jump.
+        /// </summary>
+        public bool Tilted { get { return _tilted; } set { _tilted = value; } }
+
         void Awake()
         {
             _board = GetComponent<BoardView>();
