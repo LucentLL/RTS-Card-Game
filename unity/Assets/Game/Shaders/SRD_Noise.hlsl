@@ -56,8 +56,15 @@ float2 SrdRotate(float2 v, float degrees)
     return float2(v.x * c - v.y * s, v.x * s + v.y * c);
 }
 
-/// The dual-scroll field, in -1..1. `divergence` is the angle the two samples pull apart by.
-float SrdDualScroll(float2 pos, float2 dir, float time, float speed, float divergence, float bias)
+/// The dual-scroll wind field, in -1..1. `divergence` is the angle the two samples pull apart by.
+///
+/// The PRODUCT of the two samples is the anti-periodicity trick and it is worth keeping, but it
+/// cannot be used raw. Two noises in 0..1 multiply to a field with mean 0.25 and small variance,
+/// so `(n1*n2 + bias - 0.5) * 2` sits pinned near zero: measured mean 0.053 out of a possible ±1,
+/// which is a field that looks painted on rather than blown. Re-centre on the product's OWN mean
+/// and give it gain, and the same field swings properly.
+float SrdDualScroll(float2 pos, float2 dir, float time, float speed, float divergence,
+                    float gain, float bias)
 {
     float2 d1 = normalize(SrdRotate(dir, divergence));
     float2 d2 = normalize(SrdRotate(dir, -divergence));
@@ -66,8 +73,7 @@ float SrdDualScroll(float2 pos, float2 dir, float time, float speed, float diver
     float n1 = SrdValueNoise(pos + time * speed * d1);
     float n2 = SrdValueNoise(pos * 0.8 + time * speed * d2 * 0.89 * PI / 3.0);
 
-    float n = saturate(n1 * n2 + bias);
-    return (n - 0.5) * 2.0;
+    return clamp((n1 * n2 - 0.25) * gain + bias, -1.0, 1.0);
 }
 
 /// Two octaves, not four. This is the cloud field's budget: it is evaluated once per SCREEN pixel

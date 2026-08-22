@@ -380,8 +380,43 @@ namespace SpawnRowDuel.View
             {
                 var line = Describe(ev);
                 if (line != null) Push(line);
+                Blow(ev);
                 Touch();
             }
+        }
+
+        /// <summary>
+        /// The events the FIELD should feel. A card landing, a spell going off, a wall taking a
+        /// hit - each rolls a ring of wind out through the grass from where it happened.
+        ///
+        /// Deliberately a small list, and deliberately not "every event": grass that twitches at
+        /// every mana tick is noise, and noise is what a reactive effect has to avoid to keep
+        /// meaning "something just happened there".
+        /// </summary>
+        void Blow(GameEvent ev)
+        {
+            if (Board == null) return;
+
+            var summoned = ev as UnitSummoned;
+            if (summoned != null) { World.TerrainField.Gust(Board.WorldOf(summoned.At), 0.9f); return; }
+
+            var raised = ev as StructureRaised;
+            if (raised != null) { World.TerrainField.Gust(Board.WorldOf(raised.At), 1f); return; }
+
+            var flipped = ev as CardFlipped;
+            if (flipped != null) { World.TerrainField.Gust(Board.WorldOf(flipped.At), 0.8f); return; }
+
+            var sprung = ev as TrapSprung;
+            if (sprung != null) { World.TerrainField.Gust(Board.WorldOf(sprung.At), 1f); return; }
+
+            var cast = ev as SpellResolved;
+            if (cast != null && cast.HasTarget)
+            { World.TerrainField.Gust(Board.WorldOf(cast.Target), 1f); return; }
+
+            // OnBoard, because a pool worker's `At` is its ZONE ROW, not a cell it ever stood in
+            var killed = ev as UnitDestroyed;
+            if (killed != null && killed.OnBoard)
+            { World.TerrainField.Gust(Board.WorldOf(killed.At), 0.75f); return; }
         }
 
         void Push(string line)

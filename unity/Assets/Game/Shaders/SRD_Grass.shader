@@ -29,9 +29,17 @@ Shader "SpawnRowDuel/Grass"
         _WindDir    ("Wind direction (xz)", Vector) = (1, 0.4, 0, 0)
         _WindScale  ("Wind scale", Float) = 0.12
         _WindSpeed  ("Wind speed", Float) = 0.55
-        _WindBias   ("Wind bias", Range(-1,1)) = 0.28
+        _WindGain   ("Wind gain", Float) = 5.0
+        _WindBias   ("Wind bias", Range(-1,1)) = 0.0
         _Sway       ("Sway", Float) = 0.22
         _Framerate  ("Stepped framerate", Float) = 7.0
+
+        // the press field: R is how flattened the grass is, and its GRADIENT is which way it lies
+        _DispTex    ("Displacement", 2D) = "black" {}
+        _DispOrigin ("Displacement origin (xz)", Vector) = (-18, -14, 0, 0)
+        _DispSize   ("Displacement size (xz)", Vector) = (36, 28, 0, 0)
+        _PushDist   ("Push distance", Float) = 0.34
+        _Flatten    ("Flatten", Range(0,1)) = 0.85
 
         _CloudScale  ("Cloud scale", Float) = 9.0
         _CloudSpeed  ("Cloud speed", Float) = 0.05
@@ -76,15 +84,32 @@ Shader "SpawnRowDuel/Grass"
                 float2 tintLean   : TEXCOORD2;  // x colour mix, y signed lean for the tip highlight
             };
 
+            TEXTURE2D(_DispTex);
+            SAMPLER(sampler_DispTex);
+
             CBUFFER_START(UnityPerMaterial)
                 float4 _ColorA, _ColorB, _RootColor;
                 float _Width, _Height, _Taper, _Curve;
                 float4 _WindDir;
-                float _WindScale, _WindSpeed, _WindBias, _Sway, _Framerate;
+                float _WindScale, _WindSpeed, _WindGain, _WindBias, _Sway, _Framerate;
+                float4 _DispOrigin, _DispSize, _DispTex_TexelSize;
+                float _PushDist, _Flatten;
                 float _CloudScale, _CloudSpeed, _CloudContrast, _CloudThreshold, _CloudShadowMin;
                 float4 _CloudDir;
                 float _CloudAmount;
             CBUFFER_END
+
+            // Transient gusts: xy centre, z ring radius, w strength. Four is the budget - a gust
+            // lasts under a second and nothing in this game plays five cards at once.
+            #define SRD_GUSTS 4
+            float4 _Gusts[SRD_GUSTS];
+
+            float SampleDisp(float2 world)
+            {
+                float2 uv = (world - _DispOrigin.xy) / _DispSize.xy;
+                if (any(uv < 0.0) || any(uv > 1.0)) return 0.0;
+                return SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, uv, 0).r;
+            }
 
             Varyings vert(Attributes v)
             {
@@ -98,7 +123,30 @@ Shader "SpawnRowDuel/Grass"
                 float t = round((_Time.y + phase / max(_Framerate, 0.001)) * _Framerate) / max(_Framerate, 0.001);
 
                 float lean = SrdDualScroll(foot.xz * _WindScale, normalize(_WindDir.xy),
-                                           t, _WindSpeed, 10.0, _WindBias);
+                                           t, _WindSpeed, 10.0, _WindGain, _WindBias);
+
+                // ── what is standing on this blade ──────────────────────────────────────────
+                // The press field's VALUE says how flat the grass is here; its GRADIENT says
+                // which way it lies, because grass falls away from whatever is pressing it. That
+                // pair is the whole displacement idea, and it is the reference's, not ours.
+                float press = SampleDisp(foot.xz);
+                float2 ts = _DispSize.xy * _DispTex_TexelSize.xy;
+                float2 grad = float2(SampleDisp(foot.xz + float2(ts.x, 0)) - SampleDisp(foot.xz - float2(ts.x, 0)),
+                                     SampleDisp(foot.xz + float2(0, ts.y)) - SampleDisp(foot.xz - float2(0, ts.y)));
+                float2 pushXZ = -grad * 6.0;
+
+                // gusts: a ring travelling outward from wherever the card landed
+                [unroll] for (int gi = 0; gi < SRD_GUSTS; gi++)
+                {
+                    float4 g = _Gusts[gi];
+                    float2 rel = foot.xz - g.xy;
+                    float dist = length(rel) + 1e-4;
+                    float ring = exp(-pow((dist - g.z) * 1.1, 2.0)) * g.w;   // a broad band, not a hairline
+                    press = max(press, ring * 0.55);
+                    pushXZ += (rel / dist) * ring;
+                }
+
+                press = saturate(press);
 
                 // Camera-facing, exactly as the 2D original is by construction. It also solves the
                 // top-down problem for free: as the camera pitches over, camUp lies down into the
@@ -109,7 +157,7 @@ Shader "SpawnRowDuel/Grass"
                 // Vertex colour is stored as bytes, so every channel is 0..1 and the per-blade
                 // scales are REMAPPED here rather than written out of range - writing 1.28 into a
                 // Color32 silently clamps to 1 and every blade comes out the same size.
-                float h = _Height * (0.70 + v.color.g * 0.60);
+                float h = _Height * (0.70 + v.color.g * 0.60) * (1.0 - press * _Flatten);
                 float wdt = _Width * (0.75 + v.color.b * 0.50);
                 float curveSign = v.color.a * 2.0 - 1.0;
 
@@ -117,7 +165,9 @@ Shader "SpawnRowDuel/Grass"
                            + camRight * (v.corner.x * wdt)
                            + camUp * (v.corner.y * h)
                            + camRight * (curveSign * _Curve * v.corner.y * v.corner.y)  // its own arc
-                           + camRight * (lean * _Sway * v.corner.y);   // shear: the foot stays put
+                           + camRight * (lean * _Sway * v.corner.y)    // shear: the foot stays put
+                           // pressed grass lies OUT, in world space, away from whatever pressed it
+                           + float3(pushXZ.x, 0, pushXZ.y) * _PushDist * v.corner.y;
 
                 o.positionCS = TransformWorldToHClip(pos);
                 o.corner = v.corner;

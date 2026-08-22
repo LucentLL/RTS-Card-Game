@@ -514,3 +514,47 @@ view with no test that can fail, so four pictures are the gate.
 treeline would put the board in a place rather than on a table.
 
 233 passing.
+
+### 2026-08-22 (sixth pass) — M13 slice 2b: the field reacts, and the wind was broken
+
+Feedback: "this does not look like the grass from the files I shared. the grass is not pressed down
+or moves. I do not see the clouds moving overhead."
+
+Two of those were BUGS I shipped, not missing features, and both are the same arithmetic mistake.
+
+* **The wind field was pinned near zero.** The dual-scroll trick takes two 0..1 noises and
+  multiplies them — and the product of two 0..1 fields has mean 0.25 and small variance, so
+  `(n1*n2 + 0.28 - 0.5) * 2` sits at a measured mean of **0.053 out of a possible ±1**. Every blade
+  held almost the same lean forever. The field is re-centred on the product's OWN mean now, with
+  gain: `(n1*n2 - 0.25) * gain + bias`. The trick was right; the normalisation was not.
+* **The clouds were a gradient, not weather.** At scale 9 and speed 0.05 a cloud was wider than
+  the board and took ~17 seconds to cross it. 5.5 and 0.28 now — about six seconds.
+* **The press field was missing** because slice 2a dropped the effector system as "plumbing for a
+  scrolling tilemap world". That was wrong about which part was the feature. It is in now, as the
+  reference has it: an R channel that says how flat the grass is, whose GRADIENT says which way it
+  lies, because grass falls away from whatever presses it. The board's slab and a halo under every
+  unit stamp into a 192×144 texture, repainted off `MatchController.Version` rather than per frame.
+* **Gusts**, which the feedback asked for directly: a ring of wind rolls out from wherever a card
+  lands, a spell resolves, a trap springs or a unit dies. Four slots, passed as a shader uniform
+  array and evaluated per vertex — no texture writes, no CPU cost.
+
+**The honest limit**, stated because it will come up: the board covers the middle of the field, so
+a card landing on a centre cell can only bend grass at the RIM. The unit halo reaches 2.6 world
+units (further than a tile needs) so an interior unit still touches the fringe, and the gust is
+what actually reads. Grass growing between the tiles would fix it properly and would also make the
+board harder to read; that trade is open.
+
+**New probe: `motion-{a,b,c}.png`.** A still cannot fail the only question terrain has — does it
+move. The first wind field shipped looking painted on and four good-looking screenshots could not
+tell me. Three frames now: a→b is wind and cloud only, b→c adds a gust, and diffing them turns
+"does it move" into a number (7.9% and 8.6% of pixels, against a field that was visibly static
+before). Firing the gust into the first pair would have hidden a dead wind field behind a working
+gust, which is exactly the mistake the pairing exists to prevent.
+
+**Also fixed, unrelated to the terrain:** the phone showed a modal `TypeError: Permissions check
+failed` on first tap. Android Chrome throws that out of the orientation lock inside Unity's
+`SetFullscreen`, and an uncaught throw reaches Unity's global error handler, which puts an alert
+over the game. The template catches it now — fullscreen is a nicety and failing to get it should
+cost the player nothing but a browser bar.
+
+233 passing.

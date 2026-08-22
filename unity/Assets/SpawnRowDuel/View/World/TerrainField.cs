@@ -19,6 +19,12 @@ namespace SpawnRowDuel.View.World
     /// slot a unit is standing in - the board is where the game is read, and scenery does not get
     /// to compete with it.
     ///
+    /// That is also the honest limit of the press field: the board covers the middle, so a card
+    /// landing on a centre cell can only bend grass at the RIM. Two things carry it instead - the
+    /// unit halo reaches 2.6 units, further than a tile needs, so an interior unit still reaches
+    /// the fringe; and every card that lands sends a GUST ringing out across the whole field,
+    /// which is the part you actually see.
+    ///
     /// Nothing here has a collider. The board owns picking (BoardInput raycasts the cell cubes) and
     /// a ground plane with a collider under it would swallow every tap that missed a tile.
     /// </summary>
@@ -38,24 +44,186 @@ namespace SpawnRowDuel.View.World
         public float GroundY = -0.062f;                       // the underside of a 0.12 cell cube
         public int BladeSeed = 20260822;
 
+        [Header("Displacement")]
+        public int DispWidth = 192, DispHeight = 144;
+        public float UnitPressRadius = 2.6f;    // reaches PAST the board, or an interior unit
+        public float UnitPressStrength = 0.55f; // presses grass nobody can see
+        public float GustSpeed = 5f;             // world units per second the ring travels
+        public float GustLife = 1.8f;
+
         MeshRenderer _ground, _blades;
         Material _groundMat, _bladeMat, _cloudMat;
         Mesh _bladeMesh;
         BiomeId? _built;
         Camera _cam;
+        MatchController _match;
+
+        Texture2D _disp;
+        Color32[] _dispPixels;
+        Vector2 _dispOrigin, _dispSize;
+        int _seenVersion = -1;
+
+        struct GustPulse { public Vector2 At; public float Born, Strength; }
+        static readonly GustPulse[] _gusts = new GustPulse[4];
+        static int _nextGust;
+        readonly Vector4[] _gustUniform = new Vector4[4];
 
         void Start()
         {
             _cam = Camera.main;
+            _match = FindFirstObjectByType<MatchController>();
+            BuildDisplacement();
             BuildGround();
             BuildCloudQuad();
         }
 
         void LateUpdate()
         {
-            if (_built.HasValue && _built.Value == Requested) return;
-            Apply(Requested);
+            if (!_built.HasValue || _built.Value != Requested) Apply(Requested);
+
+            // The press field only changes when the BOARD does - a few times a turn - so it is
+            // repainted off the controller's version stamp rather than every frame.
+            if (_match != null && _match.Engine != null && _match.Version != _seenVersion)
+            {
+                _seenVersion = _match.Version;
+                RepaintDisplacement();
+            }
+
+            PushGusts();
         }
+
+        // ── gusts ─────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A ring of wind rolling out from a point - what a card landing, a spell going off or a
+        /// unit dying does to the grass around it.
+        ///
+        /// Static because the callers are event handlers that have no reason to know the scenery
+        /// exists, and a gust with no terrain in the scene should be a no-op rather than a null.
+        /// </summary>
+        public static void Gust(Vector3 world, float strength)
+        {
+            _gusts[_nextGust] = new GustPulse
+            {
+                At = new Vector2(world.x, world.z),
+                Born = Time.time,
+                Strength = Mathf.Clamp01(strength),
+            };
+            _nextGust = (_nextGust + 1) % _gusts.Length;
+        }
+
+        void PushGusts()
+        {
+            if (_bladeMat == null) return;
+
+            for (int i = 0; i < _gusts.Length; i++)
+            {
+                float age = Time.time - _gusts[i].Born;
+                float life = Mathf.Clamp01(1f - age / GustLife);
+                // LINEAR decay, not squared. Squared felt right and was wrong: the nearest grass
+                // is ~3.8 units from a centre cell, the ring reaches it around 0.76 s, and a
+                // squared falloff had already spent three quarters of the gust by then - the ring
+                // arrived at 5% and nothing visibly moved.
+                _gustUniform[i] = new Vector4(_gusts[i].At.x, _gusts[i].At.y,
+                                              age * GustSpeed,
+                                              _gusts[i].Strength * life);
+            }
+            _bladeMat.SetVectorArray("_Gusts", _gustUniform);
+        }
+
+        // ── the press field ───────────────────────────────────────────────────────────────
+
+        void BuildDisplacement()
+        {
+            _dispSize = (IslandExtent + Vector2.one * EdgeFade) * 2f;
+            _dispOrigin = -_dispSize * 0.5f;
+
+            _disp = new Texture2D(DispWidth, DispHeight, TextureFormat.RGBA32, false)
+            {
+                name = "SRD Displacement",
+                hideFlags = HideFlags.DontSave,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            _dispPixels = new Color32[DispWidth * DispHeight];
+            RepaintDisplacement();
+        }
+
+        /// <summary>
+        /// Redraw the press field: the board's slab, and a halo under everything standing on it.
+        ///
+        /// The halo radius is deliberately larger than a tile. A unit in the middle of the board
+        /// has nothing but board around it, so a tile-sized press would be invisible - the reach
+        /// is what lets a card landing on the centre column still bend the grass at the rim.
+        /// </summary>
+        void RepaintDisplacement()
+        {
+            if (_disp == null) return;
+            System.Array.Clear(_dispPixels, 0, _dispPixels.Length);
+
+            const float cell = 1f, gap = 0.08f;
+            float pitch = cell + gap;
+            float boardX = Board.Columns * pitch * 0.5f;
+            float boardZ = (Board.Rows + 2) * pitch * 0.5f;      // +2 for the wall rows
+
+            StampRect(boardX, boardZ, 1.1f);
+
+            if (_match != null && _match.Engine != null && _match.Board != null)
+            {
+                foreach (var kv in _match.Engine.State.Objects())
+                {
+                    var cre = kv.Value as CreatureUnit;
+                    if (cre != null && cre.IsWorker) continue;
+                    StampDisc(_match.Board.WorldOf(kv.Key), UnitPressRadius, UnitPressStrength);
+                }
+            }
+
+            _disp.SetPixels32(_dispPixels);
+            _disp.Apply(false);
+        }
+
+        void StampRect(float halfX, float halfZ, float falloff)
+        {
+            for (int y = 0; y < DispHeight; y++)
+                for (int x = 0; x < DispWidth; x++)
+                {
+                    Vector2 w = TexelToWorld(x, y);
+                    float d = Mathf.Max(Mathf.Abs(w.x) - halfX, Mathf.Abs(w.y) - halfZ);
+                    float v = 1f - Mathf.Clamp01(d / falloff);
+                    Write(x, y, v);
+                }
+        }
+
+        void StampDisc(Vector3 world, float radius, float strength)
+        {
+            var c = new Vector2(world.x, world.z);
+            int x0 = WorldToTexelX(c.x - radius), x1 = WorldToTexelX(c.x + radius);
+            int y0 = WorldToTexelY(c.y - radius), y1 = WorldToTexelY(c.y + radius);
+
+            for (int y = Mathf.Max(0, y0); y <= Mathf.Min(DispHeight - 1, y1); y++)
+                for (int x = Mathf.Max(0, x0); x <= Mathf.Min(DispWidth - 1, x1); x++)
+                {
+                    float d = Vector2.Distance(TexelToWorld(x, y), c);
+                    float v = strength * (1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(d / radius)));
+                    Write(x, y, v);
+                }
+        }
+
+        void Write(int x, int y, float v)
+        {
+            int i = y * DispWidth + x;
+            byte b = (byte)(Mathf.Clamp01(v) * 255f);
+            if (b > _dispPixels[i].r) _dispPixels[i].r = b;     // max, so stamps never cancel
+        }
+
+        Vector2 TexelToWorld(int x, int y)
+        {
+            return new Vector2(_dispOrigin.x + (x + 0.5f) / DispWidth * _dispSize.x,
+                               _dispOrigin.y + (y + 0.5f) / DispHeight * _dispSize.y);
+        }
+
+        int WorldToTexelX(float wx) { return Mathf.FloorToInt((wx - _dispOrigin.x) / _dispSize.x * DispWidth); }
+        int WorldToTexelY(float wz) { return Mathf.FloorToInt((wz - _dispOrigin.y) / _dispSize.y * DispHeight); }
 
         // ── ground ────────────────────────────────────────────────────────────────────────
 
@@ -194,8 +362,8 @@ namespace SpawnRowDuel.View.World
         {
             const float cell = 1f, gap = 0.08f;             // BoardView's defaults
             float pitch = cell + gap;
-            x = Board.Columns * pitch * 0.5f + 0.55f;
-            z = (Board.Rows + 2) * pitch * 0.5f + 0.35f;    // +2 for the two wall rows
+            x = Board.Columns * pitch * 0.5f;
+            z = (Board.Rows + 2) * pitch * 0.5f;            // +2 for the two wall rows
         }
 
         // ── clouds ────────────────────────────────────────────────────────────────────────
@@ -254,6 +422,9 @@ namespace SpawnRowDuel.View.World
 
             if (_bladeMat != null)
             {
+                _bladeMat.SetTexture("_DispTex", _disp);
+                _bladeMat.SetVector("_DispOrigin", new Vector4(_dispOrigin.x, _dispOrigin.y, 0f, 0f));
+                _bladeMat.SetVector("_DispSize", new Vector4(_dispSize.x, _dispSize.y, 0f, 0f));
                 _bladeMat.SetColor("_ColorA", look.BladeA);
                 _bladeMat.SetColor("_ColorB", look.BladeB);
                 _bladeMat.SetColor("_RootColor", look.BladeRoot);
@@ -268,6 +439,12 @@ namespace SpawnRowDuel.View.World
                 _cloudMat.SetColor("_ShadowTint", look.ShadowTint);
                 _cloudMat.SetFloat("_CloudAmount", look.CloudAmount);
                 _cloudMat.SetFloat("_GroundY", GroundY);
+
+                // SMALLER and FASTER than the first pass, where a cloud was wider than the board
+                // and took seventeen seconds to cross it - which is a slowly shifting gradient,
+                // not weather. These cross in about six.
+                _cloudMat.SetFloat("_CloudScale", 5.5f);
+                _cloudMat.SetFloat("_CloudSpeed", 0.28f);
             }
         }
 

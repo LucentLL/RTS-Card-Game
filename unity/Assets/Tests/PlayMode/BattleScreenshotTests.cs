@@ -113,6 +113,45 @@ namespace SpawnRowDuel.PlayTests
             TerrainField.Requested = BiomeId.Grass;   // static: do not leak a biome
         }
 
+        /// <summary>
+        /// The same frame twice, a fixed slice of GAME TIME apart, plus a gust in between.
+        ///
+        /// This exists because a still cannot fail the only question the terrain has: does it
+        /// move. The first wind field shipped looking painted on - its sway term averaged 0.053
+        /// out of a possible ±1 - and four screenshots could not tell me, because each one was
+        /// individually fine. Diff the pair and the answer is a number.
+        ///
+        /// Wait on Time.time, not on a frame count: batchmode runs uncapped and a frame here is
+        /// worth a fraction of the deltaTime it is worth in a player.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureMotionPair()
+        {
+            yield return PlayToMidGame();
+            yield return Frames(4);
+
+            var terrain = Object.FindFirstObjectByType<TerrainField>();
+            Assert.IsNotNull(terrain, "the Battle scene has no TerrainField");
+
+            // a → b is WIND AND CLOUD ONLY, which is the pair that answers the complaint. Firing
+            // the gust into this half would hide a dead wind field behind a working gust.
+            yield return Shoot("motion-a.png");
+            yield return GameSeconds(0.45f);
+            yield return Shoot("motion-b.png");
+
+            // b → c adds the gust, so the ring can be told apart from the weather
+            TerrainField.Gust(Vector3.zero, 1f);
+            yield return GameSeconds(0.78f);   // long enough for the ring to be IN the grass
+            yield return Shoot("motion-c.png");
+        }
+
+        /// <summary>Wait on the CLOCK. Batchmode frames are worth a fraction of a player's.</summary>
+        static IEnumerator GameSeconds(float seconds)
+        {
+            float until = Time.time + seconds;
+            for (int i = 0; i < 40000 && Time.time < until; i++) yield return null;
+        }
+
         static IEnumerator PlayToMidGame()
         {
             yield return LoadBattle();

@@ -111,7 +111,18 @@
           // player backs out of fullscreen, that choice is respected.
           if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) {
             canvas.addEventListener("pointerdown", function goFs() {
-              if (!document.fullscreenElement) unityInstance.SetFullscreen(1);
+              if (document.fullscreenElement) return;
+              // A browser is allowed to REFUSE this. Android Chrome throws
+              // "TypeError: Permissions check failed" out of the orientation lock Unity does
+              // inside SetFullscreen, and an uncaught throw here reaches Unity's global error
+              // handler, which puts a modal alert over the game. Fullscreen is a nicety; failing
+              // to get it must cost the player nothing but a browser bar.
+              try {
+                const p = unityInstance.SetFullscreen(1);
+                if (p && typeof p.catch === "function") p.catch(function () {});
+              } catch (e) {
+                console.warn("fullscreen declined by the browser:", e && e.message);
+              }
             }, { once: true });
           }
           canvas.focus();
