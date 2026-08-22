@@ -32,6 +32,17 @@ namespace SpawnRowDuel.View
         private string _hint = "";
         private float _hintUntil;
         private int _selectedHandIndex = -1;
+
+        /// <summary>The picked hand card. HandBar draws the lift; MatchHud owns the state, so the
+        /// placement flow, the mode row and every cancel path still have one owner.</summary>
+        public int SelectedHandIndex { get { return _selectedHandIndex; } }
+
+        public void SelectHand(int index)
+        {
+            _selectedHandIndex = (_selectedHandIndex == index) ? -1 : index;
+            _buildMenuOpen = false;
+            _match.CancelPending();
+        }
         private bool _buildMenuOpen;
         private Vector2 _buildScroll;
         private Vector2 _handScroll;
@@ -60,6 +71,12 @@ namespace SpawnRowDuel.View
         {
             _match = GetComponent<MatchController>();
             _input = GetComponent<BoardInput>();
+
+            // The card-face surfaces attach themselves rather than being baked into the scene:
+            // the battle scene is generated (SceneBootstrap) and a component added by hand there
+            // would be lost on the next rebuild.
+            if (GetComponent<Cards.HandBar>() == null) gameObject.AddComponent<Cards.HandBar>();
+            if (GetComponent<Cards.StandeeLayer>() == null) gameObject.AddComponent<Cards.StandeeLayer>();
         }
 
         void EnsureStyles()
@@ -118,6 +135,9 @@ namespace SpawnRowDuel.View
             // the in-viewport blocker rects - the draws below re-publish the ones that exist
             HudLayout.TopPx = TopH * scale;
             HudLayout.BottomPx = BottomH * scale;
+            HudLayout.Scale = scale;
+            HudLayout.HandBandPx = HandH * scale;
+            HudLayout.HandBandBottomPx = ActionH * scale;
             HudLayout.MenuPx = new Rect();
             HudLayout.LogPx = new Rect();
 
@@ -137,7 +157,7 @@ namespace SpawnRowDuel.View
 
             PromptUpkeepOffender(s);
 
-            DrawHand(s, w, h);
+            // the hand is UI Toolkit now (HandBar) - real card faces, same band, same selection
             DrawModeRow(s, w, h);
             DrawActionRow(s, w, h);
             if (_buildMenuOpen) DrawBuildMenu(s, w, h);
@@ -288,67 +308,6 @@ namespace SpawnRowDuel.View
         }
 
         // ---- bottom band ----------------------------------------------------------------------
-
-        void DrawHand(GameState s, float w, float h)
-        {
-            var hand = s.P(Side.You).Hand;
-            float y0 = h - ActionH - HandH;
-            if (hand.Count == 0) return;
-
-            const float gap = 4f;
-            float cw = 56f;
-            float maxW = w - 12;
-            if (hand.Count * (cw + gap) - gap > maxW)                 // shrink to fit, floor 38
-                cw = Mathf.Max(38f, (maxW + gap) / hand.Count - gap);
-            float chh = HandH - 6;
-            float total = hand.Count * (cw + gap) - gap;
-
-            // a hand too wide even at the floor scrolls horizontally - there is no hand cap
-            bool scrolling = total > maxW;
-            float x0;
-            if (scrolling)
-            {
-                _handScroll = GUI.BeginScrollView(new Rect(6, y0, maxW, HandH), _handScroll,
-                    new Rect(0, 0, total, HandH - 16), false, false);
-                x0 = 0;
-                y0 = -2;
-            }
-            else x0 = (w - total) / 2f;
-
-            for (int i = 0; i < hand.Count; i++)
-            {
-                float x = x0 + i * (cw + gap);
-                var rect = new Rect(x, y0 + 2, cw, chh);
-                bool selected = i == _selectedHandIndex;
-
-                Panel(rect, selected ? new Color(0.55f, 0.45f, 0.12f, 1f) : CardBack);
-
-                var def = _match.DefOf(hand[i].Id.Value);
-                if (def != null && def.CardArt != null)
-                    GUI.DrawTexture(new Rect(x + 2, y0 + 4, cw - 4, chh - 26),
-                        def.CardArt.texture, ScaleMode.ScaleAndCrop);
-
-                CreatureCard c;
-                SpellCard sp;
-                string statLine = "";
-                if (_match.Engine.Catalog.TryCreature(hand[i].Id, out c))
-                    statLine = "◆" + c.Cost + "  " + c.Attack / 500 + "/" + c.Health / 500;
-                else if (_match.Engine.Catalog.TrySpell(hand[i].Id, out sp))
-                    statLine = "◆" + sp.Cost + (sp.IsTrap ? " trap" : " spell");
-
-                GUI.Label(new Rect(x + 1, y0 + chh - 22, cw - 2, 12), hand[i].Id.Value, _cardName);
-                GUI.Label(new Rect(x + 1, y0 + chh - 10, cw - 2, 11), statLine, _tiny);
-
-                if (GUI.Button(rect, GUIContent.none, GUIStyle.none))
-                {
-                    _selectedHandIndex = selected ? -1 : i;
-                    _buildMenuOpen = false;
-                    _match.CancelPending();
-                }
-            }
-
-            if (scrolling) GUI.EndScrollView();
-        }
 
         /// <summary>The contextual strip above the hand: play modes, charge menu, upkeep settle.</summary>
         void DrawModeRow(GameState s, float w, float h)

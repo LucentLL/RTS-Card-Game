@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5e86f0e5ae09604589fa1bdb5284fc1, type: 3}
+  m_Name: ViewAssets
+  m_EditorClassIdentifier: SpawnRowDuel.View::SpawnRowDuel.View.Cards.ViewAssets
+  displayRegular: {fileID: 11400000, guid: be79b0ab4543fa2448835fde763959fd, type: 2}
+  displayBold: {fileID: 11400000, guid: 19f04a00bc528bf4a80737ff643fee83, type: 2}
+  displayBlack: {fileID: 11400000, guid: 9b73a79ef1b579a459269c82fdbad201, type: 2}
+  bodyRegular: {fileID: 11400000, guid: 5ad95e8c743b83d42ad4643d19a6d7e9, type: 2}
+  bodyBold: {fileID: 11400000, guid: 729afd0d5f47e734aae648cc65f44916, type: 2}
+  bodyItalic: {fileID: 11400000, guid: cb78d930d71bf9a4e860ad1382266aec, type: 2}

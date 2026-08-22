@@ -41,6 +41,12 @@ public static class SceneBootstrap
         var mWall = Mat("M_Wall", new Color(0.30f, 0.13f, 0.13f));
         var mHover = Mat("M_Hover", new Color(0.35f, 0.55f, 0.42f), 0.35f);
         var mSelect = Mat("M_Select", new Color(0.85f, 0.70f, 0.25f), 0.5f);
+
+        // the two halves of the board, tinted by owner - the reference reads cold-over-warm
+        var mFoeBack = Mat("M_FoeBack", new Color(0.10f, 0.20f, 0.32f));
+        var mFoeFront = Mat("M_FoeFront", new Color(0.13f, 0.24f, 0.36f));
+        var mYouFront = Mat("M_YouFront", new Color(0.30f, 0.13f, 0.10f));
+        var mYouBack = Mat("M_YouBack", new Color(0.25f, 0.10f, 0.08f));
         AssetDatabase.SaveAssets();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -84,6 +90,10 @@ public static class SceneBootstrap
         view.WallMaterial = mWall;
         view.HoverMaterial = mHover;
         view.SelectMaterial = mSelect;
+        view.FoeBackMaterial = mFoeBack;
+        view.FoeFrontMaterial = mFoeFront;
+        view.YouFrontMaterial = mYouFront;
+        view.YouBackMaterial = mYouBack;
 
         var input = boardGo.AddComponent<BoardInput>();
         input.Cam = cam;

@@ -19,9 +19,27 @@ namespace SpawnRowDuel.View
         public Material HoverMaterial;
         public Material SelectMaterial;
 
+        [Header("Row tints (assigned by SceneBootstrap; null falls back to CellMaterial)")]
+        public Material FoeBackMaterial;
+        public Material FoeFrontMaterial;
+        public Material YouFrontMaterial;
+        public Material YouBackMaterial;
+
         [Header("Layout")]
         public float CellSize = 1f;
         public float CellGap = 0.08f;
+
+        Material RowMaterial(RowKey row)
+        {
+            switch (row)
+            {
+                case RowKey.FoeBack: return FoeBackMaterial;
+                case RowKey.FoeFront: return FoeFrontMaterial;
+                case RowKey.YouFront: return YouFrontMaterial;
+                case RowKey.YouBack: return YouBackMaterial;
+                default: return null;
+            }
+        }
 
         private readonly Dictionary<CellRef, Transform> _cells = new Dictionary<CellRef, Transform>();
         private readonly Dictionary<CellRef, Material> _restMaterials = new Dictionary<CellRef, Material>();
@@ -74,8 +92,13 @@ namespace SpawnRowDuel.View
                     go.transform.localPosition = WorldOf(cell);
                     go.transform.localScale = new Vector3(CellSize, 0.12f, CellSize);
 
+                    // Rows are TINTED BY OWNER, as the reference board is: the foe's half reads
+                    // cold, yours warm, the contested centre amber. Colour is doing real work
+                    // here - "whose ground is this" decides where you may deploy and what a raid
+                    // means, and a uniform grey board makes a player count rows to find out.
                     Material m = structureSlot ? StructureSlotMaterial
-                               : (row == RowKey.Center ? LaneMaterial : CellMaterial);
+                               : (row == RowKey.Center ? LaneMaterial
+                               : (RowMaterial(row) != null ? RowMaterial(row) : CellMaterial));
 
                     go.GetComponent<MeshRenderer>().sharedMaterial = m;
 
