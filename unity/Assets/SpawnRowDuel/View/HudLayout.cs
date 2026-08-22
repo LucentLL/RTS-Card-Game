@@ -27,7 +27,12 @@ namespace SpawnRowDuel.View
         // logical units; the scale below turns them into pixels
         public const float TopH = 42f;
         public const float ActionH = 46f;
-        public const float HandH = 104f;      // the hand is the primary interface - give it room
+        /// <summary>
+        /// The hand PEEK: how much of a resting card shows. The cards themselves are ~2.9x this
+        /// and hang below the edge until one is picked (spec 09 §5.1), so the board only has to
+        /// give up a banner's worth of screen rather than a whole card's.
+        /// </summary>
+        public const float HandH = 46f;
         public const float ModeH = 28f;
         public const float BottomH = ActionH + HandH + ModeH;
 

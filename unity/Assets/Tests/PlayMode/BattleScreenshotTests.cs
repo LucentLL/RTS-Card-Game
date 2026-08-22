@@ -78,6 +78,11 @@ namespace SpawnRowDuel.PlayTests
                     && engine.State.Phase == TurnPhase.Action) break;
             }
 
+            // Pick a card, so the shot shows the two states the hand actually has: resting cards
+            // peeking, the picked one risen, and the big inspect card beside it.
+            var hud = Object.FindFirstObjectByType<MatchHud>();
+            if (hud != null) hud.SelectHand(0);
+
             yield return Frames(6);
             yield return Shoot("battle-mid.png");
         }

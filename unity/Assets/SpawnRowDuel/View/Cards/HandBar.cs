@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using SpawnRowDuel.Data;
 using SpawnRowDuel.Rules;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,20 +6,28 @@ using UnityEngine.UIElements;
 namespace SpawnRowDuel.View.Cards
 {
     /// <summary>
-    /// The player's hand, drawn with real card faces.
+    /// The player's hand, drawn with real card faces, in the reference build's two states
+    /// (spec 09 §5.1).
     ///
-    /// This is the first surface to leave IMGUI behind. It occupies exactly the band MatchHud
-    /// already reserves for the hand - the same pixels, published through HudLayout - so the board
-    /// camera, the tap-blocking rules and the action row all keep working while the surfaces move
-    /// across one at a time. A big-bang UI rewrite in the middle of a milestone is how a playable
-    /// build stops being playable.
+    /// AT REST the cards hang below the screen edge and only their name banners peek - which is
+    /// what makes the hand affordable: the band the board gives up is one banner tall, not one card
+    /// tall. The PICKED card rises to full height and brings a large inspect card with it, because
+    /// a hand-sized ability box is unreadable on a phone and "what does this card do" is the
+    /// question the interface exists to answer.
     ///
     /// Selection stays MatchHud's: tapping a card calls back into it, so the placement flow, the
     /// mode row and the cancel paths have exactly one owner.
+    ///
+    /// Nothing else may paint over this band. IMGUI draws after every UI Toolkit panel, so an
+    /// opaque HUD rectangle there does not sit behind the cards - it sits on top of them, which is
+    /// what "the cards are too dark" turned out to be.
     /// </summary>
     public sealed class HandBar : MonoBehaviour
     {
         public const string PanelResource = "HudPanelSettings";
+
+        /// <summary>How much taller a card is than the strip it peeks out of.</summary>
+        const float CardToPeek = 2.9f;
 
         MatchController _match;
         MatchHud _hud;
@@ -28,8 +35,10 @@ namespace SpawnRowDuel.View.Cards
         PanelSettings _panel;
         UIDocument _doc;
         VisualElement _row;
+        VisualElement _lift;
+        VisualElement _backdrop;
+        CardFace _inspect;
 
-        readonly List<CardFace> _faces = new List<CardFace>();
         ElementPalette _palette;
         CardTextService _text;
         CardArtIndex _art;
@@ -42,61 +51,63 @@ namespace SpawnRowDuel.View.Cards
             _hud = GetComponent<MatchHud>();
         }
 
-        void OnDestroy()
-        {
-            // _panel is a shared asset - never destroy it
-        }
-
         void LateUpdate()
         {
             if (_match == null || _match.Engine == null) return;
             EnsurePanel();
-
-            var s = _match.Engine.State;
-            var hand = s.P(Side.You).Hand;
+            if (_doc == null) return;
 
             // Compute rather than read: LateUpdate runs before OnGUI, and on the first frames a
             // stale zero here put the cards under the bottom edge of the screen.
             HudLayout.Recompute();
-            float bandH = HudLayout.HandBandPx;
-            float bottom = HudLayout.HandBandBottomPx;
+            float peek = HudLayout.HandBandPx;
 
-            _row.style.bottom = bottom;
-            _row.style.height = bandH;
+            _row.style.bottom = HudLayout.HandBandBottomPx;
+            _row.style.height = peek;
+            _lift.style.bottom = HudLayout.HandBandBottomPx;
+            _lift.style.height = peek;
+            _backdrop.style.bottom = 0f;
+            _backdrop.style.height = HudLayout.HandBandBottomPx + peek;
 
-            var sig = Signature(hand, bandH);
+            var hand = _match.Engine.State.P(Side.You).Hand;
+            var sig = Signature(hand, peek);
             if (sig == _signature) return;
             _signature = sig;
 
-            Rebuild(hand, bandH);
+            Rebuild(hand, peek);
         }
 
-        string Signature(IReadOnlyList<HandCard> hand, float bandH)
+        string Signature(IReadOnlyList<HandCard> hand, float peek)
         {
             var sb = new System.Text.StringBuilder();
-            sb.Append(Mathf.RoundToInt(bandH)).Append('|').Append(_hud != null ? _hud.SelectedHandIndex : -1);
+            sb.Append(Mathf.RoundToInt(peek)).Append('/').Append(Screen.width)
+              .Append('|').Append(_hud != null ? _hud.SelectedHandIndex : -1);
             for (int i = 0; i < hand.Count; i++) sb.Append('|').Append(hand[i].Id.Value);
             return sb.ToString();
         }
 
-        void Rebuild(IReadOnlyList<HandCard> hand, float bandH)
+        void Rebuild(IReadOnlyList<HandCard> hand, float peek)
         {
             _row.Clear();
-            _faces.Clear();
+            _lift.Clear();
+            _inspect.style.display = DisplayStyle.None;
             if (hand.Count == 0) return;
 
-            float cardH = Mathf.Max(40f, bandH - 6f);
+            float cardH = peek * CardToPeek;
             float cardW = cardH / CardFace.Aspect;
 
-            // The reference hand overlaps its cards rather than shrinking them to nothing when the
-            // hand is large (spec 09 §5.1); a negative margin is that overlap.
             // the PANEL's width, not Screen.width: they differ whenever the panel renders into a
             // texture, and the capture harness does exactly that
             float panelW = _row.resolvedStyle.width > 1f ? _row.resolvedStyle.width : Screen.width;
-            float available = panelW - 24f;
+
+            // The reference hand OVERLAPS its cards rather than shrinking them to nothing when the
+            // hand is large; there is no hand-size cap in the rules, so the layout must cope.
             float step = cardW + 6f;
-            if (hand.Count * step > available)
-                step = Mathf.Max(cardW * 0.42f, available / hand.Count);
+            if (hand.Count * step > panelW - 16f)
+                step = Mathf.Max(cardW * 0.34f, (panelW - 16f) / hand.Count);
+
+            float x0 = (panelW - (step * (hand.Count - 1) + cardW)) * 0.5f;
+            int selected = _hud != null ? _hud.SelectedHandIndex : -1;
 
             for (int i = 0; i < hand.Count; i++)
             {
@@ -107,27 +118,51 @@ namespace SpawnRowDuel.View.Cards
                 var face = new CardFace();
                 face.Bind(model, _palette, cardW);
                 face.style.position = Position.Absolute;
-                face.style.left = (panelW - (step * (hand.Count - 1) + cardW)) * 0.5f + i * step;
-                face.style.bottom = 0f;
+                face.style.left = x0 + i * step;
 
-                bool selected = _hud != null && _hud.SelectedHandIndex == i;
-                if (selected)
-                {
-                    face.style.bottom = cardH * 0.14f;               // the picked card lifts
-                    face.style.scale = new Scale(new Vector3(1.06f, 1.06f, 1f));
-                }
+                bool picked = i == selected;
+                // at rest the card hangs below the strip, showing its banner only
+                face.style.bottom = picked ? 0f : -(cardH - peek);
 
                 int index = i;
                 face.RegisterCallback<PointerDownEvent>(evt =>
                 {
                     if (_hud != null) _hud.SelectHand(index);
-                    _signature = "";                                 // force a redraw of the lift
+                    _signature = "";
                     evt.StopPropagation();
                 });
 
-                _row.Add(face);
-                _faces.Add(face);
+                // A resting card is CLIPPED to the strip, so it cannot spill over the action row
+                // below it; the picked one goes in an unclipped overlay so it can rise clear.
+                if (picked) _lift.Add(face); else _row.Add(face);
             }
+
+            if (selected >= 0 && selected < hand.Count) ShowInspect(hand[selected].Id, cardH);
+        }
+
+        /// <summary>
+        /// The big card - `.hc.big` in the reference (spec 09 §6.2): the same frame at a size where
+        /// its rules text can be read, carrying the FULL ability text rather than the hand card's
+        /// three-line brief.
+        /// </summary>
+        void ShowInspect(CardId id, float handCardH)
+        {
+            CardFaceModel model;
+            if (!CardFaceModel.TryOfCard(id, _match.Engine.Catalog, _text, _art, out model)) return;
+
+            var full = _text.Full(id);
+            if (!string.IsNullOrEmpty(full)) model.Rules = full;
+
+            float h = Mathf.Clamp(Screen.height * 0.52f, handCardH, 460f);
+            float w = h / CardFace.Aspect;
+
+            _inspect.Bind(model, _palette, w);
+            _inspect.style.display = DisplayStyle.Flex;
+            // RIGHT edge: the picked card rises at its own place in the hand, and a left-anchored
+            // inspector sat on top of it whenever the leftmost card was the one chosen.
+            _inspect.style.left = StyleKeyword.Auto;
+            _inspect.style.right = 12f;
+            _inspect.style.bottom = HudLayout.HandBandBottomPx + HudLayout.HandBandPx + 10f;
         }
 
         void EnsurePanel()
@@ -156,11 +191,30 @@ namespace SpawnRowDuel.View.Cards
             root.style.left = 0; root.style.right = 0; root.style.top = 0; root.style.bottom = 0;
             root.pickingMode = PickingMode.Ignore;
 
+            _backdrop = new VisualElement { pickingMode = PickingMode.Ignore };
+            _backdrop.style.position = Position.Absolute;
+            _backdrop.style.left = 0; _backdrop.style.right = 0;
+            _backdrop.style.backgroundColor = new Color(0.055f, 0.06f, 0.085f, 1f);
+            root.Add(_backdrop);
+
+            _inspect = new CardFace { pickingMode = PickingMode.Ignore };
+            _inspect.style.position = Position.Absolute;
+            _inspect.style.display = DisplayStyle.None;
+            root.Add(_inspect);
+
             _row = new VisualElement();
             _row.style.position = Position.Absolute;
             _row.style.left = 0; _row.style.right = 0;
+            _row.style.overflow = Overflow.Hidden;       // resting cards show a banner and no more
             _row.pickingMode = PickingMode.Ignore;
             root.Add(_row);
+
+            _lift = new VisualElement();
+            _lift.style.position = Position.Absolute;
+            _lift.style.left = 0; _lift.style.right = 0;
+            _lift.style.overflow = Overflow.Visible;     // the picked card rises OUT of the strip
+            _lift.pickingMode = PickingMode.Ignore;
+            root.Add(_lift);
         }
     }
 }

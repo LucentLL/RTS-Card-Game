@@ -65,9 +65,6 @@ namespace SpawnRowDuel.View
 
         private static readonly Color PanelColor = new Color(0.055f, 0.06f, 0.085f, 1f);
 
-        /// <summary>Behind the UI Toolkit hand: dark enough to seat the cards, sheer enough that
-        /// they read as sitting ON something rather than floating in a void.</summary>
-        private static readonly Color HandBackdrop = new Color(0.06f, 0.05f, 0.08f, 0.82f);
         private static readonly Color PanelSoft = new Color(0.055f, 0.06f, 0.085f, 0.72f);
         private static readonly Color CardBack = new Color(0.10f, 0.11f, 0.15f, 1f);
         private static readonly Color Gold = new Color(1f, 0.85f, 0.4f);
@@ -150,7 +147,9 @@ namespace SpawnRowDuel.View
             // exactly what it looked like: an empty bottom bar with buttons and no hand.
             Panel(new Rect(0, h - BottomH, w, ModeH), PanelColor);            // mode row
             Panel(new Rect(0, h - ActionH, w, ActionH), PanelColor);          // action row
-            Panel(new Rect(0, h - ActionH - HandH, w, HandH), HandBackdrop);  // behind the cards
+            // NOTHING is painted over the hand strip: IMGUI draws after every UI Toolkit panel, so
+            // even a translucent backdrop here dims the card faces - which is what "the cards are
+            // too dark" was. The hand paints its own backdrop, behind its own cards.
 
             if (s.IsOver)
             {

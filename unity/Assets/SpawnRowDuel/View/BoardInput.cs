@@ -204,7 +204,7 @@ namespace SpawnRowDuel.View
         {
             float cellPitch = _board.CellSize + _board.CellGap;
             // +1.2 budgets the worker-pawn strips hugging each edge (MatchController.MakePawn)
-            float halfW = Rules.Board.Columns * cellPitch * 0.5f + 1.2f;
+            float halfW = Rules.Board.Columns * cellPitch * 0.5f + 0.85f;
             float halfD = 3f * cellPitch + 0.45f;
 
             var extremes = new[]
@@ -217,8 +217,10 @@ namespace SpawnRowDuel.View
             // The viewport already excludes the HUD bands, so only modest margins remain.
             float tanV = Mathf.Tan(Cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
             float tanH = tanV * Cam.aspect;
-            float fitH = tanH * 0.95f;
-            float fitV = tanV * 0.90f;
+            // Margins were costing a fifth of the board on a phone. The viewport already excludes
+            // the HUD bands, so what is left here is genuine breathing room, not safety.
+            float fitH = tanH * 0.99f;
+            float fitV = tanV * 0.97f;
 
             var inv = Quaternion.Inverse(rot);
             float need = 2f;
@@ -228,7 +230,7 @@ namespace SpawnRowDuel.View
                 need = Mathf.Max(need, Mathf.Abs(p.x) / fitH - p.z);
                 need = Mathf.Max(need, Mathf.Abs(p.y) / fitV - p.z);
             }
-            return need * 1.02f;
+            return need * 1.005f;
         }
 
         void UpdateHover(bool overUi)

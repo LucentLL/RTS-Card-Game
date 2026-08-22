@@ -379,3 +379,17 @@ remainder (`spec/02` §8 table, `42_mp_apply.js:10-27`). One residual: G12.
 
 **Not covered anywhere:** `index.html`, `sw.js`, `manifest.webmanifest`, `icon.svg`, `tools/*`,
 `dist/`, `assets/sprites/`, the two 38 MB portable-build artifacts. See G10.
+
+## G2 — `wasm-opt` crashes intermittently on this machine (2026-08-22)
+
+`tools/deploy-webgl.sh` fails roughly one run in two with:
+
+```
+emcc: error: '...binaryen/bin/wasm-opt ... build.wasm' failed (returned 3221226356)
+```
+
+3221226356 is 0xC0000374, STATUS_HEAP_CORRUPTION - a crash inside wasm-opt itself, not a build
+error in our code. **A plain retry has succeeded every time so far.** Not investigated further
+because it costs one retry and blocks nothing; if it starts failing twice in a row, the first
+suspects are build size (the font TTFs added ~5 MB) and machine memory pressure, and the escape
+hatch is turning off the wasm-opt pass in PlayerSettings.

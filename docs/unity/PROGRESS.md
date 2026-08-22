@@ -375,3 +375,24 @@ Board rows are tinted by owner.
 Walls and windows (the tower layout, deck and graveyard as real card piles — the reference's right
 window, which the current build has nowhere to put), the board mini-card plate under each standee,
 FX, and audio. Then M15's menus and deck builder, which are whole screens that do not exist yet.
+
+### 2026-08-22 (later) — M13 slice 1b: the four things wrong with it on a phone
+
+Feedback from the live build, all four real:
+
+* **"The cards are too dark."** The same bug as the invisible hand, half-fixed: MatchHud still
+  painted a translucent backdrop across the hand strip, and IMGUI draws after every UI Toolkit
+  panel, so it dimmed the card faces by 82%. Nothing is painted over that band now - the hand
+  owns its own backdrop, behind its own cards.
+* **"The board is too small."** It was giving up 178 logical units of screen to the bottom bands,
+  most of it hand. The hand is a PEEK strip now (46) with the cards hanging below it, and the
+  camera fit margins - which were costing a fifth of the board width - went from 0.95/0.90 to
+  0.99/0.97 with a smaller worker-pawn budget.
+* **"The cards don't retract when not selected."** They had no rest state at all. Spec 09 §5.1's
+  two states are in: resting cards are CLIPPED to the strip and show only their name banner, and
+  the picked card moves to an unclipped overlay so it can rise clear without spilling over the
+  action row beneath it.
+* **"There is no display of what cards do."** There is now: picking a card raises a large inspect
+  card at the right edge carrying the FULL generated ability text, not the hand card's three-line
+  brief. A hand-sized ability box is unreadable on a phone, which is the whole reason the
+  reference has a big card.
