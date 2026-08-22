@@ -1,0 +1,225 @@
+using System.Collections.Generic;
+using System.Text;
+using SpawnRowDuel.Ai;
+
+namespace SpawnRowDuel.Rules.Tests
+{
+    /// <summary>
+    /// A match, written down: both decks, every command in order, and the state hash after each
+    /// one. This is the input contract of the M12 differential harness and, on its own, a golden
+    /// fixture that pins the C# engine's behaviour ply by ply.
+    ///
+    /// The decks are recorded EXPLICITLY rather than re-derived from the seed, because the two
+    /// engines cannot be made to shuffle alike (D16) - and they do not need to be. The AI's random
+    /// choices are already frozen into the trace as concrete DeclareAttack commands, so a replay
+    /// consults no RNG at all and the harness ends up testing the rules rather than the generator.
+    ///
+    /// One line per ply on purpose: when a diff fails, the line number IS the ply.
+    /// </summary>
+    public static class TraceRecorder
+    {
+        public sealed class Trace
+        {
+            public string Json;
+            public int Plies;
+            public bool Over;
+            public MatchOutcome Outcome;
+            public Rejection Rejection;
+        }
+
+        public static Trace RecordSelfPlay(ICardCatalog cat, string you, string foe,
+                                           ulong seed, int maxTurns)
+        {
+            var s = MatchSetup.NewMatch(cat, new CommanderId(you), new CommanderId(foe),
+                                        seed, RulesOptions.JsParity);
+            var engine = new DuelEngine(s, cat);
+
+            var sb = new StringBuilder(1 << 16);
+            sb.Append("{\n");
+            sb.Append("\"seed\":").Append(seed).Append(",\n");
+            sb.Append("\"you\":\"").Append(you).Append("\",\"foe\":\"").Append(foe).Append("\",\n");
+            sb.Append("\"flags\":").Append(s.Options.FlagBits).Append(",\n");
+            WriteDeck(sb, "youDeck", s.P(Side.You).Deck);
+            WriteDeck(sb, "foeDeck", s.P(Side.Foe).Deck);
+            sb.Append("\"open\":\"").Append(Hash(s)).Append("\",\n");
+            sb.Append("\"plies\":[\n");
+
+            var policies = new[] { new ScriptedAiPolicy(Side.You), new ScriptedAiPolicy(Side.Foe) };
+            var trace = new Trace();
+            int plies = 0;
+            bool first = true;
+
+            while (!s.IsOver && plies < maxTurns * 40)
+            {
+                ICommand cmd = null;
+                for (int i = 0; i < policies.Length && cmd == null; i++)
+                    cmd = policies[i].Next(engine);
+
+                if (cmd == null)
+                {
+                    if (s.Pending == null && s.Phase == TurnPhase.End)
+                        cmd = new BeginTurnCommand(TurnMachine.Other(s.Turn));
+                    else break;
+                }
+
+                var r = engine.Apply(cmd);
+                if (r.Status == CommandStatus.Rejected)
+                {
+                    trace.Rejection = r.Rejection;
+                    break;
+                }
+
+                if (!first) sb.Append(",\n");
+                first = false;
+                sb.Append("  {\"i\":").Append(++plies)
+                  .Append(",\"cmd\":").Append(Describe(cmd))
+                  .Append(",\"h\":\"").Append(Hash(s)).Append("\"}");
+            }
+
+            sb.Append("\n],\n");
+            sb.Append("\"plies_total\":").Append(plies).Append(",\n");
+            sb.Append("\"over\":").Append(s.IsOver ? "true" : "false").Append(",\n");
+            sb.Append("\"outcome\":\"").Append(s.Outcome).Append("\",\n");
+            sb.Append("\"final\":\"").Append(Hash(s)).Append("\"\n}\n");
+
+            trace.Json = sb.ToString();
+            trace.Plies = plies;
+            trace.Over = s.IsOver;
+            trace.Outcome = s.Outcome;
+            return trace;
+        }
+
+        static string Hash(GameState s)
+        {
+            return StateCodec.Hash(s).ToString("x16");
+        }
+
+        static void WriteDeck(StringBuilder sb, string name, List<HandCard> deck)
+        {
+            sb.Append('"').Append(name).Append("\":[");
+            for (int i = 0; i < deck.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append('"').Append(Esc(deck[i].Id.Value)).Append('"');
+            }
+            sb.Append("],\n");
+        }
+
+        /// <summary>
+        /// The wire form of a command. Deliberately terse and total - a command the harness
+        /// cannot spell is a command the JS side cannot replay, so an unknown type is loud.
+        /// </summary>
+        public static string Describe(ICommand cmd)
+        {
+            var a = (int)cmd.Actor;
+
+            var begin = cmd as BeginTurnCommand;
+            if (begin != null) return Obj("beginTurn", a);
+            if (cmd is HarvestCommand) return Obj("harvest", a);
+            if (cmd is DrawForTurnCommand) return Obj("draw", a);
+            if (cmd is EndTurnCommand) return Obj("endTurn", a);
+            if (cmd is ResolveCombatCommand) return Obj("resolve", a);
+
+            var pay = cmd as UpkeepPayCommand;
+            if (pay != null) return Obj("upkeepPay", a, Cell("at", pay.Target), Num("id", pay.UnitId));
+
+            var sac = cmd as UpkeepSacrificeCommand;
+            if (sac != null) return Obj("upkeepSacrifice", a, Cell("at", sac.Target), Num("id", sac.UnitId));
+
+            var move = cmd as MoveUnitCommand;
+            if (move != null)
+                return Obj("move", a, Cell("from", move.From), Cell("to", move.To), Num("id", move.UnitId));
+
+            var play = cmd as PlayCardCommand;
+            if (play != null)
+                return Obj("play", a, Num("hand", play.HandIndex),
+                           Str("mode", play.Mode.ToString()), Cell("to", play.To));
+
+            var build = cmd as BuildStructureCommand;
+            if (build != null)
+                return Obj("build", a, Str("def", build.Def.Value),
+                           Str("color", build.Color.ToString()), Cell("to", build.To));
+
+            var up = cmd as UpgradeStructureCommand;
+            if (up != null)
+                return Obj("upgrade", a, Cell("at", up.At), Num("id", up.UnitId),
+                           Str("to", up.Target.Value));
+
+            var pour = cmd as PourIntoChargeCommand;
+            if (pour != null)
+                return Obj("pour", a, Cell("at", pour.At), Num("id", pour.UnitId),
+                           Num("amount", pour.Amount));
+
+            var flip = cmd as FlipChargeCommand;
+            if (flip != null) return Obj("flip", a, Cell("at", flip.At), Num("id", flip.UnitId));
+
+            var send = cmd as SendBankedManaCommand;
+            if (send != null) return Obj("sendMana", a, Cell("from", send.From), Cell("to", send.To));
+
+            var declare = cmd as DeclareAttackCommand;
+            if (declare != null)
+                return Obj("declare", a, Cell("from", declare.Attacker), Num("id", declare.UnitId),
+                           Str("target", TargetOf(declare.Target)),
+                           Str("defer", declare.DeferBlockers ? "1" : "0"));
+
+            var respond = cmd as RespondCommand;
+            if (respond != null) return Obj("respond", a, Str("answer", AnswerOf(respond.Response)));
+
+            return Obj("UNKNOWN:" + cmd.GetType().Name, a);
+        }
+
+        static string TargetOf(AttackTarget t)
+        {
+            var u = t as UnitTarget;
+            if (u != null) return "unit#" + u.UnitId + "@" + u.Cell.Row + ":" + u.Cell.Col;
+            var w = t as WallTarget;
+            if (w != null) return "wall:" + w.Defender;
+            var s = t as WorkerStackTarget;
+            if (s != null) return "workers:" + s.Owner + ":" + s.Zone;
+            return "none";
+        }
+
+        static string AnswerOf(ChoiceResponse r)
+        {
+            var b = r as BlockersChosen;
+            if (b != null)
+            {
+                var sb = new StringBuilder("blockers:");
+                for (int i = 0; i < b.Blockers.Length; i++)
+                {
+                    if (i > 0) sb.Append('+');
+                    sb.Append(b.Blockers[i].UnitId);
+                }
+                return sb.ToString();
+            }
+            var idx = r as IndexChosen;
+            if (idx != null) return "index:" + idx.Index;
+            var trap = r as TrapChosen;
+            if (trap != null) return trap.Pass ? "trap:pass" : "trap:" + trap.Trap.UnitId;
+            return "none";
+        }
+
+        static string Obj(string type, int actor, params string[] fields)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{\"t\":\"").Append(type).Append("\",\"a\":").Append(actor);
+            for (int i = 0; i < fields.Length; i++) sb.Append(',').Append(fields[i]);
+            sb.Append('}');
+            return sb.ToString();
+        }
+
+        static string Cell(string name, CellRef c)
+        {
+            return "\"" + name + "\":\"" + c.Row + ":" + c.Col + "\"";
+        }
+
+        static string Num(string name, int v) { return "\"" + name + "\":" + v; }
+        static string Str(string name, string v) { return "\"" + name + "\":\"" + Esc(v) + "\""; }
+
+        static string Esc(string v)
+        {
+            if (v == null) return "";
+            return v.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        }
+    }
+}
