@@ -65,9 +65,12 @@ namespace SpawnRowDuel.View.Cards
             HudLayout.Recompute();
             float peek = HudLayout.HandBandPx;
 
-            _row.style.bottom = HudLayout.HandBandBottomPx;
+            // ON the screen edge. A card stopped short of it with a lip of stone underneath looks
+            // stuck to the wall; a held hand stands proud of the wall it is held at, which is what
+            // the peek being taller than the rail is for.
+            _row.style.bottom = 0f;
             _row.style.height = peek;
-            _lift.style.bottom = HudLayout.HandBandBottomPx;
+            _lift.style.bottom = 0f;
             _lift.style.height = peek;
 
             // The walls are drawn HERE rather than in IMGUI: IMGUI paints after every UI Toolkit

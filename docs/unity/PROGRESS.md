@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 3 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it (tilted view only — top-down is cards alone), owner-tinted rows, a living terrain island under it all (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges — vitals split foe-above/you-below, their hand on theirs, the field filling the gap between. Remaining: wall raise/retract + tower piles, horizon + sky, FX, audio |
+| M13 — presentation pass | 🟡 slice 3 | 2026-08-23 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Remaining: tower deck/GY piles, horizon + sky, FX, audio |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -728,3 +728,68 @@ keeps the real viewport and forces 1600×900 now.
 graveyard piles in the right towers (counts only). Worker pawns remain M9 placeholder capsules.
 
 233 passing.
+
+### 2026-08-23 — M13 slice 3b: the walls slide, and a set card carries its own number
+
+Five more from the phone.
+
+* **"The castle walls should extend when viewed, and retract when not."** Spec 09 §4.4, ported.
+  A wall rises while it is being looked at — hovered on a mouse, tapped on a phone, with a 1.6 s
+  linger there because a finger that has lifted is still looking — and sinks when it is not. The
+  trigger is the TOWER spans only, never the middle: the middle is where the hands are, and a wall
+  that opened every time you reached for a card would spend the match sitting on the board.
+
+  The furniture lives INSIDE the stone and stacks away from the crest, so what shows when the wall
+  is down is decided by the same slide that draws it. There is no second layout that can disagree
+  about the retracted state. The stone is rastered at FULL height and translated, the way the
+  reference wall does it — resizing it would stretch the courses and betray the animation.
+
+* **"The opponent's castle wall extends too far — should show just enough to display their life
+  points."** Both rails are 30 units now (was a fixed 58-unit band). Life and mana share the rail
+  line; piles and workers arrive when the wall rises. Mana is on the rail rather than behind the
+  hover because "what can I afford" is asked every turn, and a number you have to open a wall to
+  read is a number you will misremember.
+
+* **"Cards don't touch the bottom of the screen, and should extend a little past the castle
+  wall."** They do both now. The hand sat at `bottom: HandBandBottomPx`, a stone lip under it,
+  which is what "stuck to the wall" looks like; it is at `bottom: 0` and its peek (48) is taller
+  than the rail (30), so the cards stand proud of the battlements the way a held hand does. Their
+  hand is the mirror: hung from above the screen edge, showing its lower band, standing the same
+  amount proud of their rail.
+
+  This is also why **the camera renders the whole screen now**. It used to be inset to the gap
+  between the bands, which is tidy and wrong: the field stops at a bar instead of running behind
+  the battlements, and every gap between two merlons shows a strip of nothing. `Frame()` fits the
+  board into a WINDOW between the two hand peeks instead — off-centre whenever they differ, which
+  is why the fit carries a `mid` term and `NeedV` asks how far back a point needs to be to land
+  inside a window that is not centred on the screen.
+
+* **"When placing a building, it gives me the option to place it on the opponent's side (even
+  though it doesn't allow me)."** Not a rules bug: `Build_LightsOwnRowsAndCentreFlanksOnly` pins
+  the legal set at your two rows plus the four centre flanks, and their ground answers
+  `DestinationNotDeployable`. It was the HOVER: `UpdateHover` painted any hovered cell with
+  `HoverMaterial` — the same green the armed-play highlight uses — so a finger resting on their
+  ground lit it up exactly like a legal drop. Hover no longer paints anything the engine would
+  refuse while a play is armed.
+
+* **"Set cards should not have a floating SET # — just display the stored mana on the card."** The
+  label is gone and the sleeve carries a badge: an element-tinted gem and the number, drawn on the
+  card. Two problems in four characters, as it turned out — the card's own number was being
+  printed on the BOARD, and the ◆ in "SET ◆1" was never drawn at all, because that overlay is
+  IMGUI and IMGUI's built-in font has no diamond. Every other ♥ and ◆ in those overlays was
+  dropping the same way; they are ASCII now, and banked mana moved onto the card for creatures and
+  structures too. The badge's digits are a 3×5 bitmap font: nothing in world space can reach the
+  SDF chain, and eleven glyphs of bitmap is cheaper than the machinery that would let it.
+
+  Sized at 0.34 of the card's length rather than 0.20, because a flat card is foreshortened by
+  sin(42°) and a badge that reads on the texture reads at two thirds of that on the board.
+
+**Also:** the worker pawns were wearing the TILE material — a translucent marking wash — which is
+why a worker read as a grey smear. They have an opaque URP Lit material of their own, are smaller,
+and file five abreast along their row without wandering onto the board's outer column.
+
+**Probes added:** `walls-open.png` (the extended state, via `WallBands.ForceOpen` — a wall that
+only rises when looked at cannot be looked at by a batchmode still) and `set-card.png` (a creature
+set face-down with 12 poured into it, which is the only witness the badge has).
+
+234 passing.

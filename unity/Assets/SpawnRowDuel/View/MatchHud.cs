@@ -27,10 +27,12 @@ namespace SpawnRowDuel.View
     {
         // band heights, logical units - defined by HudLayout, which the UI Toolkit surfaces read
         // too (they lay out before OnGUI has ever run)
-        const float TopH = HudLayout.TopH;
+        // What each edge keeps clear: the hand peeks, which are the deepest thing there. The
+        // walls behind them slide and are NOT a fixed band any more (WallBands).
+        const float TopH = HudLayout.FoeHandH;
         const float HandH = HudLayout.HandH;
         const float ModeH = HudLayout.ModeH;
-        const float BottomH = HudLayout.BottomH;
+        const float BottomH = HudLayout.HandH;
 
         private MatchController _match;
         private BoardInput _input;
@@ -342,7 +344,7 @@ namespace SpawnRowDuel.View
             // handled events. The button ran, and the card's own PointerDown ran too and toggled
             // the selection off underneath it. Clearing the card's full height is the fix: no
             // overlap, no double delivery.
-            float lifted = HandH * Cards.HandBar.CardToPeek + (BottomH - HandH);
+            float lifted = HandH * Cards.HandBar.CardToPeek;
             float by = _selectedHandIndex >= 0 ? h - lifted - ModeH + 2
                                                : h - BottomH - ModeH + 2;
             var hand = s.P(Side.You).Hand;
@@ -1030,20 +1032,17 @@ namespace SpawnRowDuel.View
                 }
                 else if (b != null)
                 {
-                    string stats = "♥" + (b.Hp + 499) / 500 + (b.Bank > 0 ? " ◆" + b.Bank : "");
+                    string stats = (b.Hp + 499) / 500 + " hp";
                     text = roomy ? b.DefId.Value + "\n" + stats : stats;
                     st = b.Owner == Side.You ? _ovYou : _ovFoe;
                 }
-                else if (o is ChargeUnit)
-                {
-                    var chu = (ChargeUnit)o;
-                    text = o.Owner == Side.You ? "SET ◆" + chu.Invested : "SET ?";
-                    st = _ovNeutral;
-                }
                 else
                 {
-                    text = o.Owner == Side.You ? "TRAP" : "SET ?";
-                    st = _ovNeutral;
+                    // A face-down card says nothing here. It used to float "SET ◆1" over its tile:
+                    // the card's own number, printed on the board, with the diamond dropped by a
+                    // font that has none. The sleeve carries its banked mana itself now
+                    // (CardPlateLayer.PlaceBank), and a trap has nothing to carry.
+                    continue;
                 }
 
                 GUI.Label(new Rect(x - pitchPx / 2f, y, pitchPx, lineH), text, st);

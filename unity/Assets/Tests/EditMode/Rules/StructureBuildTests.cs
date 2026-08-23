@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace SpawnRowDuel.Rules.Tests
@@ -62,6 +63,46 @@ namespace SpawnRowDuel.Rules.Tests
             var r = e.Apply(new BuildStructureCommand(Side.You, new StructId("forge"),
                 Element.Fire, new CellRef(RowKey.YouBack, 1)));
             Assert.IsTrue(r.Applied, "a Keep still counts as a Foundry: " + r.Rejection);
+        }
+
+        /// <summary>
+        /// EXACTLY which cells a build may land on - the set the view lights by probing CanApply
+        /// over all 35 cells, which is how the board decides what to paint (MatchController
+        /// .ProbeLegalCells). Reported from the phone as "it gives me the option to place it on
+        /// the opponent's side", so this pins the answer: your two rows and the centre FLANKS,
+        /// and nothing across the middle line.
+        /// </summary>
+        [Test]
+        public void Build_LightsOwnRowsAndCentreFlanksOnly()
+        {
+            GameState s;
+            var e = Engine(out s);
+            s.P(Side.You).Mana = 30;
+
+            var legal = new List<CellRef>();
+            for (int i = 0; i < Board.Cells; i++)
+            {
+                var cell = CellRef.FromIndex(i);
+                if (e.CanApply(new BuildStructureCommand(Side.You, new StructId("foundry"),
+                        Element.None, cell)) == Rejection.None)
+                    legal.Add(cell);
+            }
+
+            foreach (var cell in legal)
+            {
+                bool ownRow = cell.Row == RowKey.YouBack || cell.Row == RowKey.YouFront;
+                bool centreFlank = cell.Row == RowKey.Center && !Board.IsLane(cell.Col);
+                Assert.IsTrue(ownRow || centreFlank,
+                    "a build lit " + cell + ", which is neither your ground nor a centre flank");
+            }
+
+            Assert.AreEqual(Board.Columns * 2 + 4, legal.Count,
+                "both of your rows, plus the four centre flanks");
+            foreach (var row in new[] { RowKey.FoeBack, RowKey.FoeFront })
+                Assert.AreEqual(Rejection.DestinationNotDeployable,
+                    e.CanApply(new BuildStructureCommand(Side.You, new StructId("foundry"),
+                        Element.None, new CellRef(row, 3))),
+                    "their ground is never a build site");
         }
 
         [Test]

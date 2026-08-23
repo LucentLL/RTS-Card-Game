@@ -15,6 +15,23 @@ public static class SceneBootstrap
     const string ScenePath = SceneDir + "/Battle.unity";
     const string MatDir = "Assets/Settings";
 
+    /// <summary>An opaque URP Lit material asset - the scene has to reference it or the WebGL
+    /// stripper takes the shader with it.</summary>
+    static Material LitMat(string name, Color c)
+    {
+        var path = MatDir + "/" + name + ".mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null)
+        {
+            m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            AssetDatabase.CreateAsset(m, path);
+        }
+        m.color = c;
+        if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.12f);
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
     /// <summary>A board cell: a translucent fill with a brighter rim, on SRD_Tile.</summary>
     static Material TileMat(string name, Color fill, Color edge)
     {
@@ -86,6 +103,10 @@ public static class SceneBootstrap
         // No wall material: the two castle walls are the screen's top and bottom bands now
         // (WallBands), not slabs lying on the grass past each back row.
 
+        // the worker pawns: opaque URP Lit, so a figure reads as a figure. They used to borrow
+        // the tile material, which is a translucent marking wash.
+        var mPawn = LitMat("M_Pawn", new Color(0.86f, 0.84f, 0.80f));
+
         var mTerrain = ShaderMat("M_Terrain", "SpawnRowDuel/Terrain");
         var mGrass = ShaderMat("M_Grass", "SpawnRowDuel/Grass");
         var mClouds = ShaderMat("M_CloudShadow", "SpawnRowDuel/CloudShadow");
@@ -139,6 +160,7 @@ public static class SceneBootstrap
         view.LaneMaterial = mLane;
         view.StructureSlotMaterial = mStruct;
         view.HoverMaterial = mHover;
+        view.PawnMaterial = mPawn;
         view.SelectMaterial = mSelect;
         view.FoeBackMaterial = mFoeBack;
         view.FoeFrontMaterial = mFoeFront;

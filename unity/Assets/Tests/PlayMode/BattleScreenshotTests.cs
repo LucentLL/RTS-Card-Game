@@ -93,6 +93,70 @@ namespace SpawnRowDuel.PlayTests
         }
 
         /// <summary>
+        /// A card SET face-down, with mana poured into it.
+        ///
+        /// The state that used to float "SET 1" over its tile - the card's own number, printed on
+        /// the board, with the ◆ dropped by IMGUI's font. The sleeve carries it now, so this shot
+        /// is the only witness that the badge lands on the card, reads at board size, and counts
+        /// past one digit.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureSetCard()
+        {
+            yield return PlayToMidGame();
+
+            var match = Object.FindFirstObjectByType<MatchController>();
+            var engine = match.Engine;
+            var s = engine.State;
+            s.P(Side.You).Mana += 20;
+
+            // A CREATURE face-down, not a trap: only a charge banks mana, and the badge being
+            // tested is the bank. At mid-game hand[0] can easily be a spell and the near rows can
+            // easily be full, so try every card against every cell.
+            CellRef set = default(CellRef);
+            bool placed = false;
+            for (int h = 0; h < s.P(Side.You).Hand.Count && !placed; h++)
+                for (int i = 0; i < Board.Cells && !placed; i++)
+                {
+                    var cell = CellRef.FromIndex(i);
+                    if (!engine.Apply(new PlayCardCommand(Side.You, h, Rules.PlayMode.Set, cell)).Applied)
+                        continue;
+                    set = cell;
+                    placed = true;
+                }
+            Assert.IsTrue(placed, "no legal cell to set a creature on");
+
+            var charge = s.At(set);
+            Assert.IsInstanceOf<ChargeUnit>(charge, "a set creature is a charge");
+            for (int i = 0; i < 11; i++)
+                Assert.IsTrue(engine.Apply(new PourIntoChargeCommand(Side.You, set, charge.Id, 1)).Applied,
+                    "pouring into your own charge on your own action phase");
+
+            yield return Frames(6);
+            yield return Shoot("set-card.png");
+        }
+
+        /// <summary>
+        /// Both walls RAISED - the state a still cannot catch on its own, because a wall only
+        /// rises while it is being looked at and a batchmode camera never looks at anything.
+        ///
+        /// This is the half of the surface that has no other witness: the tower windows, what the
+        /// vitals look like once they are all on screen, and how much board a wall borrows while
+        /// it is up.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureWallsOpen()
+        {
+            yield return PlayToMidGame();
+
+            WallBands.ForceOpen = true;
+            yield return Frames(40);              // let the slide finish
+            yield return Shoot("walls-open.png");
+            WallBands.ForceOpen = false;          // static: do not leak it into the next shot
+            yield return Frames(4);
+        }
+
+        /// <summary>
         /// One shot per biome, from the same board. Terrain is the one part of the view with no
         /// test that can fail: waves, ripples and embers are shader terms, and "does scorched
         /// ground look scorched" is not a thing an assertion knows. Four pictures is the gate.

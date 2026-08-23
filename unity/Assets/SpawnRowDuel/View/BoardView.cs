@@ -16,6 +16,10 @@ namespace SpawnRowDuel.View
         public Material LaneMaterial;
         public Material StructureSlotMaterial;
         public Material HoverMaterial;
+
+        /// <summary>Worker pawns. Opaque, unlike the tiles - a worker is a figure standing on the
+        /// ground, and it was borrowing the tile's translucent wash and reading as a smear.</summary>
+        public Material PawnMaterial;
         public Material SelectMaterial;
 
         [Header("Row tints (assigned by SceneBootstrap; null falls back to CellMaterial)")]

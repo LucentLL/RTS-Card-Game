@@ -235,6 +235,122 @@ namespace SpawnRowDuel.View.Cards
                 }
         }
 
+        // -- the banked-mana badge ---------------------------------------------------------
+
+        static readonly Dictionary<string, Texture2D> _banks = new Dictionary<string, Texture2D>();
+
+        /// <summary>
+        /// The mana riding on a card, drawn ON the card.
+        ///
+        /// A set card used to say "SET 1" on a label floating over its tile, which is two problems
+        /// in four characters: the label belongs to the board rather than to the card, and the
+        /// diamond in "SET ◆1" was never drawn at all, because that overlay is IMGUI and IMGUI's
+        /// built-in font has no ◆. A badge on the card has neither problem - and a face-down card
+        /// with a number on it is exactly what a charge IS.
+        ///
+        /// The digits are a 3x5 bitmap font, scaled. Nothing here can reach the SDF font chain -
+        /// this is a world-space sprite, not a label - and eleven glyphs' worth of bitmap is
+        /// cheaper than the machinery that would let it.
+        /// </summary>
+        public static Sprite Bank(int n, Color tint)
+        {
+            string key = n + "/" + ((Color32)tint).GetHashCode();
+            Texture2D tex;
+            if (!_banks.TryGetValue(key, out tex))
+            {
+                tex = BuildBank(n, tint);
+                _banks[key] = tex;
+            }
+            return SpriteOf(tex);
+        }
+
+        // 3x5, top row first, one bit per column
+        static readonly byte[] Digits =
+        {
+            0x7, 0x5, 0x5, 0x5, 0x7,   // 0
+            0x2, 0x6, 0x2, 0x2, 0x7,   // 1
+            0x7, 0x1, 0x7, 0x4, 0x7,   // 2
+            0x7, 0x1, 0x7, 0x1, 0x7,   // 3
+            0x5, 0x5, 0x7, 0x1, 0x1,   // 4
+            0x7, 0x4, 0x7, 0x1, 0x7,   // 5
+            0x7, 0x4, 0x7, 0x5, 0x7,   // 6
+            0x7, 0x1, 0x1, 0x1, 0x1,   // 7
+            0x7, 0x5, 0x7, 0x5, 0x7,   // 8
+            0x7, 0x5, 0x7, 0x1, 0x7,   // 9
+        };
+
+        const int BankPx = 3;          // one bitmap pixel, in texels
+        const int BankH = 22;
+
+        static Texture2D BuildBank(int n, Color tint)
+        {
+            string text = Mathf.Clamp(n, 0, 99).ToString();
+            int gemW = 13, pad = 4, gap = 3, glyphW = 3 * BankPx + 2;
+            int w = pad + gemW + gap + text.Length * glyphW + pad;
+
+            var tex = new Texture2D(w, BankH, TextureFormat.RGBA32, false)
+            {
+                name = "SRD Bank " + n,
+                hideFlags = HideFlags.HideAndDontSave,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+
+            var px = new Color[w * BankH];
+            var body = new Color(0.043f, 0.047f, 0.066f, 0.92f);
+            var edge = ElementPalette.Mix(tint, new Color(0.05f, 0.05f, 0.07f), 0.55f);
+
+            for (int i = 0; i < px.Length; i++) px[i] = body;
+
+            // border, and the corners bitten off so it reads as a chip rather than a sticker
+            for (int y = 0; y < BankH; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    bool corner = (x < 2 && y < 2) || (x < 2 && y >= BankH - 2)
+                               || (x >= w - 2 && y < 2) || (x >= w - 2 && y >= BankH - 2);
+                    if (corner) px[y * w + x] = new Color(0f, 0f, 0f, 0f);
+                    else if (x == 0 || y == 0 || x == w - 1 || y == BankH - 1)
+                        px[y * w + x] = edge;
+                }
+
+            // the gem: a filled diamond in the owner's element
+            float cx = pad + gemW * 0.5f - 0.5f, cy = BankH * 0.5f - 0.5f;
+            for (int y = 0; y < BankH; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float d = Mathf.Abs(x - cx) / (gemW * 0.5f) + Mathf.Abs(y - cy) / (BankH * 0.38f);
+                    if (d <= 1f) px[y * w + x] = Color.Lerp(tint, Color.white, 0.25f * (1f - d));
+                }
+
+            // the number
+            int gx = pad + gemW + gap;
+            int gy = (BankH - 5 * BankPx) / 2;
+            for (int c = 0; c < text.Length; c++)
+            {
+                int digit = text[c] - '0';
+                for (int row = 0; row < 5; row++)
+                {
+                    byte bits = Digits[digit * 5 + row];
+                    for (int col = 0; col < 3; col++)
+                    {
+                        if ((bits & (1 << (2 - col))) == 0) continue;
+                        for (int yy = 0; yy < BankPx; yy++)
+                            for (int xx = 0; xx < BankPx; xx++)
+                            {
+                                int x = gx + c * glyphW + col * BankPx + xx;
+                                // rows count DOWN from the glyph's top; texture space is bottom-up
+                                int y = BankH - 1 - (gy + row * BankPx + yy);
+                                if (x >= 0 && x < w && y >= 0 && y < BankH) px[y * w + x] = Color.white;
+                            }
+                    }
+                }
+            }
+
+            tex.SetPixels(px);
+            tex.Apply(false, false);
+            return tex;
+        }
+
         static Texture2D New(string name)
         {
             return new Texture2D(W, H, TextureFormat.RGBA32, false)

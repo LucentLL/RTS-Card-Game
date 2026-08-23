@@ -43,6 +43,8 @@ namespace SpawnRowDuel.View
 
         public void ClearSelectionFromUi() { ClearSelection(); }
 
+        static readonly Rect FullScreen = new Rect(0f, 0f, 1f, 1f);
+
         private const float TiltedPitch = 42f;
         private const float TopDownPitch = 84f;
 
@@ -188,18 +190,33 @@ namespace SpawnRowDuel.View
             }
         }
 
+        /// <summary>
+        /// May the bare hover paint this cell?
+        ///
+        /// Only when nothing is armed. While a card or a build is waiting for a cell, the lit
+        /// cells ARE the engine's answer to "where may this go" - and the hover paints with the
+        /// same material, so a finger resting on the foe's ground lit it up like a legal drop.
+        /// That is what "it gives me the option to place it on the opponent's side, even though it
+        /// doesn't allow me" was: not a rules bug, a hover that outranked the rules.
+        /// </summary>
+        bool HoverMayLight(CellRef cell)
+        {
+            if (_match == null) return true;
+            if (_match.Pending == MatchController.Intent.None && !_match.SendFrom.HasValue) return true;
+            return _match.LegalCells.Contains(cell);
+        }
+
         void UpdateCamera()
         {
             if (Cam == null) return;
 
-            // The 3D scene renders only BETWEEN the HUD bands (Master-Duel style): the HUD
-            // publishes its reserved top/bottom pixels and the camera viewport stays out of
-            // them, so board and interface can never layer over each other. The HUD paints
-            // both bands fully opaque, so nothing undefined ever shows outside the viewport.
-            float topFrac = Mathf.Clamp01(HudLayout.TopPx / Mathf.Max(1, Screen.height));
-            float botFrac = Mathf.Clamp01(HudLayout.BottomPx / Mathf.Max(1, Screen.height));
-            var viewport = new Rect(0f, botFrac, 1f, Mathf.Max(0.15f, 1f - topFrac - botFrac));
-            if (Cam.rect != viewport) Cam.rect = viewport;
+            // The camera renders the WHOLE SCREEN. It used to be inset to the gap between the
+            // HUD bands, which is tidy and wrong: it makes the field stop at a bar instead of
+            // running behind the battlements, and it leaves a strip of nothing wherever the wall
+            // above it is transparent - which is every gap between two merlons. The walls are
+            // drawn over the field now, and the board is framed into the WINDOW between their
+            // rails rather than into a viewport (see Frame).
+            if (Cam.rect != FullScreen) Cam.rect = FullScreen;
 
             float target = _tilted ? 1f : 0f;
             _blend = Mathf.MoveTowards(_blend, target, Time.deltaTime * 2.6f);
@@ -278,23 +295,32 @@ namespace SpawnRowDuel.View
 
             float tanV = Mathf.Tan(Cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
             float tanH = tanV * Cam.aspect;
-            // The viewport already excludes the HUD bands, so what is left is breathing room, not
-            // safety. The board is meant to run wall to wall.
             float fitH = tanH * 0.995f;
-            float fitV = tanV * 0.995f;
+
+            // The WINDOW the board is framed into: the screen minus what the hands hang over at
+            // each edge. It is off-centre whenever those two differ, so the fit works in a
+            // normalised height `win` and an offset `mid`, both in NDC - and the camera is aimed
+            // so the board's projection lands on `mid`, not on the middle of the screen.
+            float h = Mathf.Max(1f, Screen.height);
+            float topFrac = Mathf.Clamp(HudLayout.TopPx / h, 0f, 0.4f);
+            float botFrac = Mathf.Clamp(HudLayout.BottomPx / h, 0f, 0.4f);
+            float win = 1f - topFrac - botFrac;
+            float mid = botFrac - topFrac;
+            float fitV = tanV * win * 0.995f;
 
             rise = 0f;
             dist = 2f;
             for (int pass = 0; pass < 12; pass++)
             {
+                float c = mid / Mathf.Max(0.0001f, win);
                 dist = 2f;
                 for (int i = 0; i < pts.Length; i++)
                 {
                     dist = Mathf.Max(dist, Mathf.Abs(pts[i].x) / fitH - pts[i].z);
-                    dist = Mathf.Max(dist, Mathf.Abs(pts[i].y - rise) / fitV - pts[i].z);
+                    dist = Mathf.Max(dist, NeedV(pts[i].y - rise, pts[i].z, fitV, c));
                 }
                 for (int i = 0; i < head.Length; i++)
-                    dist = Mathf.Max(dist, Mathf.Abs(head[i].y - rise) / fitV - head[i].z);
+                    dist = Mathf.Max(dist, NeedV(head[i].y - rise, head[i].z, fitV, c));
 
                 float lo = float.MaxValue, hi = float.MinValue;
                 for (int i = 0; i < pts.Length; i++)
@@ -304,10 +330,24 @@ namespace SpawnRowDuel.View
                     hi = Mathf.Max(hi, ndc);
                 }
 
-                float off = 0.5f * (lo + hi);
+                // `mid` is in SCREEN ndc and the window is `win` of it, so the same offset is
+                // mid/win in window units - which is what lo and hi are measured in
+                float off = 0.5f * (lo + hi) - mid / Mathf.Max(0.0001f, win);
                 if (Mathf.Abs(off) < 0.001f) break;
                 rise += off * fitV * dist;          // NDC error back into world units, at pivot depth
             }
+        }
+
+        /// <summary>
+        /// How far back this point needs the camera, to land inside a window whose centre sits at
+        /// <paramref name="c"/> window-heights off the screen's own centre. Symmetric `|y|/fit - z`
+        /// is the c = 0 case, and quietly over-pays by |c| when the two bands differ.
+        /// </summary>
+        static float NeedV(float y, float z, float fitV, float c)
+        {
+            float u = y / fitV;
+            float edge = u >= 0f ? 1f + c : 1f - c;
+            return Mathf.Abs(u) / Mathf.Max(0.0001f, edge) - z;
         }
 
         void UpdateHover(bool overUi)
@@ -333,7 +373,7 @@ namespace SpawnRowDuel.View
             _hover = found;
 
             if (_hover.HasValue && !(_selected.HasValue && _selected.Value == _hover.Value)
-                && !_highlighted.Contains(_hover.Value))
+                && !_highlighted.Contains(_hover.Value) && HoverMayLight(_hover.Value))
                 _board.Paint(_hover.Value, _board.HoverMaterial);
         }
     }

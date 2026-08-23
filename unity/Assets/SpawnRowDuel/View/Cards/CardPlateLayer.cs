@@ -56,6 +56,7 @@ namespace SpawnRowDuel.View.Cards
             public GameObject Root;
             public SpriteRenderer Frame;
             public SpriteRenderer Art;
+            public SpriteRenderer Bank;
         }
 
         void Awake()
@@ -101,6 +102,7 @@ namespace SpawnRowDuel.View.Cards
                 Root = root,
                 Frame = NewRenderer(root.transform, "frame", 4),
                 Art = NewRenderer(root.transform, "art", 6),
+                Bank = NewRenderer(root.transform, "bank", 8),
             };
             _live[o.Id] = p;
             return p;
@@ -153,6 +155,48 @@ namespace SpawnRowDuel.View.Cards
             var tint = o.Owner == Side.You ? Color.white : new Color(0.86f, 0.88f, 1f);
             p.Frame.color = tint;
             p.Art.color = tint;
+
+            PlaceBank(p, o, s, plateW, plateH, faceDown);
+        }
+
+        /// <summary>
+        /// The mana riding on this card, ON the card.
+        ///
+        /// A set card carried a floating "SET 1" over its tile instead, which put the card's own
+        /// number on the board rather than on the card - and dropped the ◆ while it was at it,
+        /// because that overlay is IMGUI and IMGUI's font has no diamond. A face-down card with a
+        /// number on it needs no caption: that is what a charge is.
+        ///
+        /// Face-down it sits under the sleeve's emblem, where the eye already is. Face-up it takes
+        /// the stat bar's right corner, out of the illustration's way.
+        /// </summary>
+        void PlaceBank(Plate p, BoardObject o, GameState s, float plateW, float plateH, bool faceDown)
+        {
+            var charge = o as ChargeUnit;
+            int bank = charge != null ? charge.Invested : o.Bank;
+            if (bank <= 0 || (o.Owner != Side.You && faceDown))
+            {
+                // their face-down cards keep their secret; a bank they can see is a bank you can
+                p.Bank.enabled = false;
+                return;
+            }
+
+            var sleeve = faceDown ? Sleeve(s, o.Owner) : _palette.Of(o.Color).Color;
+            var badge = CardPlateTextures.Bank(bank, sleeve);
+            p.Bank.sprite = badge;
+            p.Bank.enabled = true;
+
+            // A flat card is foreshortened by sin(42°) at the tilted angle, so a badge sized to
+            // look right on the texture reads at two thirds of that on screen. Face-down it is
+            // the ONLY thing the card says, so it is a stamp rather than a corner mark.
+            float h = plateH * (faceDown ? 0.34f : 0.15f);
+            float k = h / Mathf.Max(0.0001f, badge.bounds.size.y);
+            p.Bank.transform.localScale = new Vector3(k, k, k);
+
+            float bw = badge.bounds.size.x * k;
+            float x = faceDown ? 0f : (plateW * 0.5f - bw * 0.5f - plateW * 0.04f);
+            float y = faceDown ? -plateH * 0.12f : -plateH * 0.42f;
+            p.Bank.transform.localPosition = new Vector3(x, y, -0.002f);   // local -Z is up
         }
 
         /// <summary>
