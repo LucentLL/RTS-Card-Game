@@ -213,9 +213,25 @@ namespace SpawnRowDuel.PlayTests
 
         static IEnumerator LoadBattle()
         {
+            Reshape();
             var op = SceneManager.LoadSceneAsync("Battle", LoadSceneMode.Single);
             while (!op.isDone) yield return null;
             yield return Frames(3);
+        }
+
+        /// <summary>
+        /// Force the game view to a LANDSCAPE PHONE shape.
+        ///
+        /// Batchmode's game view is 640x480, and the aspect is not a detail here: the two wall
+        /// bands take a fixed share of the height whatever the screen is, so a 4:3 probe judges
+        /// the board's framing against a gap far narrower than the deployed build ever has. The
+        /// first shots of the filled framing looked half-empty for that reason alone.
+        /// </summary>
+        static void Reshape()
+        {
+#if UNITY_EDITOR
+            UnityEditor.PlayModeWindow.SetCustomRenderingResolution(1600, 900, "SRD probe");
+#endif
         }
 
         static IEnumerator Frames(int n)
@@ -254,12 +270,16 @@ namespace SpawnRowDuel.PlayTests
             Assert.IsNotNull(panel, "HudPanelSettings is missing - run tools/regen-fonts.sh");
 
             var prevCamTarget = cam.targetTexture;
-            var prevRect = cam.rect;
             var prevPanelTarget = panel.targetTexture;
             var prevClear = panel.clearColor;
             var prevClearValue = panel.colorClearValue;
 
-            cam.rect = new Rect(0f, 0f, 1f, 1f);        // the HUD shrinks the viewport; we want it all
+            // The camera's own VIEWPORT is kept. It used to be forced to the whole screen here,
+            // on the reasoning that a shot should show everything - but the viewport is exactly
+            // what the wall bands take away, so the shot was of a layout the game never renders:
+            // the board ran under the HUD instead of between the two walls. Clearing the target
+            // first is what the discarded pixels need, since nothing draws there any more.
+            ClearTo(board, cam.backgroundColor);
             cam.targetTexture = board;
             panel.targetTexture = ui;
             panel.clearColor = true;
@@ -271,7 +291,6 @@ namespace SpawnRowDuel.PlayTests
             var shot = Blend(board, ui);
 
             cam.targetTexture = prevCamTarget;
-            cam.rect = prevRect;
             panel.targetTexture = prevPanelTarget;
             panel.clearColor = prevClear;
             panel.colorClearValue = prevClearValue;
@@ -285,6 +304,14 @@ namespace SpawnRowDuel.PlayTests
             ui.Release();
 
             Debug.Log("shot wrote " + path);
+        }
+
+        static void ClearTo(RenderTexture rt, Color c)
+        {
+            var prev = RenderTexture.active;
+            RenderTexture.active = rt;
+            GL.Clear(true, true, c);
+            RenderTexture.active = prev;
         }
 
         static Texture2D Blend(RenderTexture under, RenderTexture over)

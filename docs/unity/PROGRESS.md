@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 2 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it (tilted view only — top-down is cards alone), owner-tinted rows, and a living terrain island under it all (4 biomes, wind-blown grass, cloud shadows). Remaining: horizon + sky, walls + tower windows, FX, audio |
+| M13 — presentation pass | 🟡 slice 3 | 2026-08-22 — real DM card frames (one C# frame, four scales, generated rules text), the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it (tilted view only — top-down is cards alone), owner-tinted rows, a living terrain island under it all (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges — vitals split foe-above/you-below, their hand on theirs, the field filling the gap between. Remaining: wall raise/retract + tower piles, horizon + sky, FX, audio |
 | M14 — campaign | ⬜ | |
 | M15 — menus, deck builder, save/load | ⬜ | |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -642,5 +642,89 @@ seen. That gap is now the biggest hole in the visual gate.
 **Still open:** the reference's extending/retracting castle walls (tower windows, `--wallY`), which
 the same feedback asked to refer to. The phase track and rail position came across; the walls are a
 whole surface and stay on the M13 remaining list.
+
+233 passing.
+
+### 2026-08-22 (ninth pass) — M13 slice 3: the walls are the screen edges
+
+Five things from the phone, and four of them turned out to be one thing.
+
+* **"I don't see the opponent's hand."** It was never drawn — only a count, buried in a corner
+  block. Their hand is a fan of face-down sleeves across the middle span of their wall now, tinted
+  by their element, full backs rather than the peek yours uses: a peek works for your hand because
+  the banner it shows names the card, and the back of a card has nothing to read. What has to carry
+  from across the board is how many.
+
+* **"You/Foe information should be split. Foe info top, player info bottom."** Done, and the old
+  bar is gone rather than moved. One block listing both sides' numbers reads as a scoreboard; a
+  wall each reads as two keeps facing each other. Life, mana, piles and workers sit in each wall's
+  left tower, the turn read-out in the foe wall's right tower (spec 09 §4.2).
+
+  It also fixed a defect nobody had reported: that bar was IMGUI, **and IMGUI's built-in font has
+  no ♥, ◆ or ⚒**. The gated 76-glyph chain covers UI Toolkit, not OnGUI, so the deployed build has
+  been rendering "FOE 10000 0 hand 4" with the symbols silently dropped for as long as the bar has
+  existed. The vitals are UI Toolkit labels now and the glyphs are simply there.
+
+* **"The red bars should not be on the field. They should be the top/bottom bars of the screen
+  where fully retracted castle walls are."** `BoardView.BuildWall` is deleted. The bands are the
+  walls: procedural crenellated stone (`WallTextures`), tall towers at 0–21% and 79–100%, eight
+  merlons across the middle span, an element-tinted rail along the crest, and a 14-unit overhang
+  drawn with alpha so the field shows between the merlons. Drawn in UI Toolkit under the hand,
+  because IMGUI paints after every UI Toolkit panel and a band painted there lands ON the cards.
+
+* **"The battlefield should fill the gap from top to bottom"**, with a reference image. Three
+  changes, because the first two were not enough:
+
+  1. **The fit fills instead of fitting.** Solving for distance alone with the camera aimed at the
+     board's centre is not the same as filling the screen: under perspective the near edge projects
+     far larger than the far edge, so pulling back until the near edge fits strands the far edge
+     near mid-screen — that gap was the empty grass above the board. `Frame()` solves two unknowns,
+     distance and a slide along the camera's own up-axis, and centres on the board's ground
+     corners with standee headroom as a distance constraint only. Including headroom in the
+     CENTRING was holding a hundred pixels of empty air over the foe's back row.
+  2. **Width is the expensive axis.** The picture is width-limited at the near corners, where
+     perspective magnifies most, so the 0.85-unit allowance for the worker files was costing a
+     fifth of the board's screen depth. The files still stand off each row — they just are not
+     budgeted for any more, because sitting back along their own rows they clear the constraint
+     for free.
+  3. **Rows are 1.45× deeper than columns are wide** (`BoardView.RowStretch`). Square cells are the
+     obvious choice and the wrong one: at the tilted angle depth foreshortens by sin(42°) ≈ 0.67,
+     so square ground cells project as tiles twice as wide as they are tall, and a 7×5 board of
+     them is a letterbox that can only ever fill a fraction of the height. Stretching the rows
+     spends the slack the width limit leaves, and a cell now reads as a square because on screen
+     it is one.
+
+  Vertical fill went 65% → 81% of the gap and the board runs about 92% of the width. The reference
+  image was a vertically stretched crop of the reporter's own screenshot, which is exactly this.
+  **Top-down pays for it**: that angle sees the board near-square and is height-limited, so it now
+  has wider side margins. An acceptable trade — top-down is the secondary angle — but it is the one
+  thing this slice made worse.
+
+* **"The clouds come across the screen with sharp lines on one side, like a sheet of paper with
+  clouds drawn on it."** Exactly right, and the cause was two deep.
+
+  The field was `saturate(fbm × fbm + threshold)` pushed through a contrast term and clamped to a
+  shadow floor — and with those constants most of the field sat PINNED at the floor. The flat grey
+  was the paper, the moving shapes were the LIT gaps, and the clamp gave them a step for an edge.
+  Under that, `SrdHash` was `frac(p * 123.34)`, which is only well behaved on a fractional domain;
+  value noise feeds it integer lattice points, and `frac(i × 123.34)` is `frac(i × 0.34)` — a ramp
+  with a period of fifty. The "noise" carried a repeating diagonal structure.
+
+  The hash is Dave Hoskins' now (which also fixes the wind field), and a cloud is built as a cloud:
+  `SrdCloudCover` is a jittered grid where some cells carry one round lump, the falloff is smooth
+  all the way out, and neighbours ADD — a lone cell is a puff, a run of them merges into a lobed
+  cumulus. Every edge is a gradient, and a gradient cannot draw a straight line. The outline is
+  WARPED rather than overprinted: a second additive layer of smaller lumps is the obvious way to
+  get raggedness, and it sprays free-floating specks wherever the base is mid-valued. The field is
+  LIT by default at ~17% mean cover, which is the way round a sunlit battlefield works.
+
+**The probe was lying, twice.** `Shoot()` forced the camera to the whole screen "so the shot shows
+everything" — but the viewport is exactly what the wall bands take away, so every shot was of a
+layout the game never renders. And batchmode's game view is 640×480: the bands take a fixed share
+of the height, so a 4:3 probe judges the framing against a gap far narrower than a phone's. It
+keeps the real viewport and forces 1600×900 now.
+
+**Still open:** the walls only RETRACT — no raise/hover, no `--wallY` board shift, no deck and
+graveyard piles in the right towers (counts only). Worker pawns remain M9 placeholder capsules.
 
 233 passing.

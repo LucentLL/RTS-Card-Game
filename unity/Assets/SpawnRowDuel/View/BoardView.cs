@@ -15,7 +15,6 @@ namespace SpawnRowDuel.View
         public Material CellMaterial;
         public Material LaneMaterial;
         public Material StructureSlotMaterial;
-        public Material WallMaterial;
         public Material HoverMaterial;
         public Material SelectMaterial;
 
@@ -28,6 +27,22 @@ namespace SpawnRowDuel.View
         [Header("Layout")]
         public float CellSize = 1f;
         public float CellGap = 0.08f;
+
+        /// <summary>
+        /// How much DEEPER a row is than a column is wide.
+        ///
+        /// Square cells are the obvious choice and they are the wrong one, because the board is
+        /// not seen square-on: at the tilted angle depth is foreshortened by sin(42°) ≈ 0.67, so
+        /// square ground cells project as tiles twice as wide as they are tall, and a 7x5 board of
+        /// them is a letterbox that can only ever fill a fraction of the screen's height. The
+        /// picture is width-limited - the fit is decided at the near corners - so the slack was
+        /// always vertical, and stretching the rows is what spends it: the board reaches from one
+        /// wall to the other, and a cell reads as a square because on screen it now is one.
+        /// </summary>
+        public float RowStretch = 1.45f;
+
+        public float ColPitch { get { return CellSize + CellGap; } }
+        public float RowPitch { get { return (CellSize + CellGap) * RowStretch; } }
 
         /// <summary>
         /// How thick a cell is. Almost nothing: a cell is a MARKING on the terrain, not a slab.
@@ -76,9 +91,8 @@ namespace SpawnRowDuel.View
 
         public Vector3 WorldOf(CellRef cell)
         {
-            float pitch = CellSize + CellGap;
-            float x = (cell.Col - (Board.Columns - 1) / 2f) * pitch;
-            float z = ((Board.Rows - 1) / 2f - (int)cell.Row) * pitch;
+            float x = (cell.Col - (Board.Columns - 1) / 2f) * ColPitch;
+            float z = ((Board.Rows - 1) / 2f - (int)cell.Row) * RowPitch;
             return new Vector3(x, 0f, z);
         }
 
@@ -101,7 +115,7 @@ namespace SpawnRowDuel.View
                     go.name = cell.ToString();
                     go.transform.SetParent(rowGo.transform, false);
                     go.transform.localPosition = WorldOf(cell);
-                    go.transform.localScale = new Vector3(CellSize, CellThickness, CellSize);
+                    go.transform.localScale = new Vector3(CellSize, CellThickness, CellSize * RowStretch);
 
                     // Rows are TINTED BY OWNER, as the reference board is: the foe's half reads
                     // cold, yours warm, the contested centre amber. Colour is doing real work
@@ -118,21 +132,15 @@ namespace SpawnRowDuel.View
                 }
             }
 
-            BuildWall(Board.FoeWallRow, "Wall_Foe");
-            BuildWall(Board.YouWallRow, "Wall_You");
-        }
-
-        void BuildWall(int virtualRow, string name)
-        {
-            float pitch = CellSize + CellGap;
-            float z = ((Board.Rows - 1) / 2f - virtualRow) * pitch;
-
-            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            wall.name = name;
-            wall.transform.SetParent(transform, false);
-            wall.transform.localPosition = new Vector3(0f, 0.2f, z);
-            wall.transform.localScale = new Vector3(Board.Columns * pitch * 0.98f, 0.4f, 0.3f);
-            wall.GetComponent<MeshRenderer>().sharedMaterial = WallMaterial;
+            // NO WALL SLABS. The two life targets used to be red boxes lying on the grass past
+            // each back row, and a wall on the FIELD is a wall the field has to make room for -
+            // it cost the board a row's depth at each end and left the play area floating in the
+            // middle of the screen with weather on either side of it.
+            //
+            // A castle wall is not a thing on the ground you fight over; it is the edge of the
+            // world you are fighting in front of. So it moved to the screen edge: the retracted
+            // battlements are the HUD bands themselves (WallBands), and the field now runs from
+            // one of them to the other.
         }
 
         public bool TryCellOf(Transform t, out CellRef cell)

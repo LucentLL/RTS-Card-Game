@@ -14,11 +14,26 @@
 // churn and the WebGL stripping risk of four more texture assets.
 
 // Hash-based value noise. Deterministic, no texture, no sampler state.
+//
+// The multipliers are Dave Hoskins' hash family (MIT), not the frac(p * 123.34) form this file
+// shipped with. That one is only well behaved on a FRACTIONAL domain, and value noise feeds it
+// INTEGER lattice points: frac(i * 123.34) is frac(i * 0.34), a ramp with a period of fifty, so
+// the "noise" carried a repeating diagonal structure. Scrolled across the board it read as a
+// printed sheet sliding past - which is what the cloud shadows looked like.
 float SrdHash(float2 p)
 {
-    p = frac(p * float2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return frac(p.x * p.y);
+    float3 p3 = frac(p.xyx * float3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return frac((p3.x + p3.y) * p3.z);
+}
+
+/// Three decorrelated randoms from one lattice point: two to jitter a cell's centre, one for
+/// everything else the cell has to decide - whether it carries a cloud at all, and how big.
+float3 SrdHash23(float2 p)
+{
+    float3 p3 = frac(p.xyx * float3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yxz + 33.33);
+    return frac((p3.xxy + p3.yzz) * p3.zyx);
 }
 
 float SrdValueNoise(float2 p)
@@ -76,33 +91,61 @@ float SrdDualScroll(float2 pos, float2 dir, float time, float speed, float diver
     return clamp((n1 * n2 - 0.25) * gain + bias, -1.0, 1.0);
 }
 
-/// Two octaves, not four. This is the cloud field's budget: it is evaluated once per SCREEN pixel
-/// in the overlay pass, and at four octaves that is ~50 hashes a pixel on a phone for detail the
-/// blur of a cloud shadow throws away anyway.
-float SrdFbm2(float2 p)
+/// How much CLOUD is over this patch of ground, 0..1.
+///
+/// Not a threshold of fbm. That is what was here, and a thresholded noise field is a flat plane
+/// with hard-edged holes punched through it: on screen it read as a sheet of paper with clouds
+/// drawn on it, sliding past. The clamp did the damage - most of the field sat pinned at the
+/// shadow floor, so the moving thing was the LIT gap, with a step for an edge.
+///
+/// A cloud is built as a cloud instead: a jittered grid where some cells carry one round lump,
+/// the lump's falloff is smooth all the way out, and neighbouring lumps ADD - so a lone cell is a
+/// single puff and a run of them merges into one lobed cumulus. Every edge is a gradient, and a
+/// gradient cannot draw a straight line.
+///
+/// The outline is then WARPED rather than overprinted. A second additive layer of smaller lumps
+/// is the obvious way to get raggedness, and it sprays free-floating specks across the field
+/// wherever the base is mid-valued; a displacement can only push the outline about.
+///
+/// 9 cells, one hash each - about what the two-octave fbm it replaces cost.
+float SrdCloudCover(float2 p, float time, float gate, float radMin, float radVar, float squash,
+                    float warpLow, float warpHigh)
 {
-    return SrdValueNoise(p) * 0.62 + SrdValueNoise(p * 2.03 + 17.7) * 0.38;
+    float2 w = p + warpLow  * float2(sin(p.y * 2.1 + time * 0.11), cos(p.x * 1.9 - time * 0.09))
+                 + warpHigh * float2(sin(p.y * 5.3 - time * 0.19 + 1.7),
+                                     cos(p.x * 4.7 + time * 0.23 + 0.6));
+
+    float2 cell = floor(w);
+    float2 f = w - cell;
+
+    float cover = 0.0;
+    [unroll] for (int y = -1; y <= 1; y++)
+    {
+        [unroll] for (int x = -1; x <= 1; x++)
+        {
+            float2 g = float2(x, y);
+            float3 h = SrdHash23(cell + g);
+            if (h.z < gate) continue;            // an empty sky is most of the sky
+
+            // A surviving cell carries a FULL lump. Fading a cell in with its own hash was the
+            // first version and it is what put a fleet of half-strength specks between the
+            // clouds: density belongs in how many cells qualify, not in how solid each one is.
+            float2 d = g + 0.15 + h.xy * 0.7 - f;
+            float rad = radMin + radVar * frac(h.z * 11.3);
+            cover += smoothstep(rad, rad * 0.15, length(d * float2(squash, 1.0)));
+        }
+    }
+    return saturate(cover);
 }
 
 /// Cloud LIGHT, in `shadowMin`..1 - multiply it into a colour to cast the shadow.
-/// Domain-warped so the shadow edges are ragged rather than blobby.
-float SrdCloudLight(float2 world, float time, float2 dir, float scale, float speed,
-                    float contrast, float threshold, float shadowMin, float divergence,
-                    float warpScale, float warpFreq)
+/// The field is LIT by default and clouds pass over it, which is the way round a sunlit
+/// battlefield works.
+float SrdCloudLight(float2 world, float time, float2 dir, float scale, float speed, float shadowMin)
 {
-    // the warp is trigonometric rather than another noise lookup - same raggedness, a tenth the cost
-    float2 warp = warpScale * float2(sin(world.y * warpFreq), cos(world.x * warpFreq));
-    float2 p = (world + warp) / max(scale, 0.0001);
-
-    float2 d1 = normalize(SrdRotate(dir, divergence));
-    float2 d2 = normalize(SrdRotate(dir, -divergence));
-
-    float s1 = SrdFbm2(p + time * speed * d1);
-    float s2 = SrdFbm2(p * 0.8 + time * speed * d2 * 0.89 * PI / 3.0);
-
-    float light = saturate(s1 * s2 + threshold);
-    light = (light - 0.5) * contrast + 0.5;
-    return clamp(light + threshold, shadowMin, 1.0);
+    float2 p = world / max(scale, 0.0001) - normalize(dir) * time * speed;
+    float cover = SrdCloudCover(p, time, 0.62, 0.36, 0.42, 0.78, 0.22, 0.09);
+    return 1.0 - cover * (1.0 - shadowMin);
 }
 
 #endif

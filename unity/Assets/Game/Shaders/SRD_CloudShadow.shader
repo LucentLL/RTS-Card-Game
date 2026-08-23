@@ -13,11 +13,9 @@ Shader "SpawnRowDuel/CloudShadow"
     // and at this camera pitch the difference is under half a tile.
     Properties
     {
-        _CloudScale     ("Cloud scale", Float) = 9.0
-        _CloudSpeed     ("Cloud speed", Float) = 0.05
-        _CloudContrast  ("Cloud contrast", Float) = 3.2
-        _CloudThreshold ("Cloud threshold", Float) = 0.16
-        _CloudShadowMin ("Cloud shadow floor", Range(0,1)) = 0.62
+        _CloudScale     ("Cloud size", Float) = 6.5
+        _CloudSpeed     ("Cloud speed", Float) = 0.55
+        _CloudShadowMin ("Cloud shadow floor", Range(0,1)) = 0.66
         _CloudDir       ("Cloud direction", Vector) = (1, 0.35, 0, 0)
         _CloudAmount    ("Cloud amount", Range(0,1)) = 1
         _GroundY        ("Ground height", Float) = 0
@@ -48,7 +46,7 @@ Shader "SpawnRowDuel/CloudShadow"
             struct Varyings   { float4 positionCS : SV_POSITION; float3 farWS : TEXCOORD0; };
 
             CBUFFER_START(UnityPerMaterial)
-                float _CloudScale, _CloudSpeed, _CloudContrast, _CloudThreshold, _CloudShadowMin;
+                float _CloudScale, _CloudSpeed, _CloudShadowMin;
                 float4 _CloudDir;
                 float _CloudAmount, _GroundY;
                 float4 _ShadowTint;
@@ -78,8 +76,7 @@ Shader "SpawnRowDuel/CloudShadow"
                 float3 hit = cam + ray * ((_GroundY - cam.y) / ray.y);
 
                 float light = SrdCloudLight(hit.xz, _Time.y, normalize(_CloudDir.xy),
-                                            _CloudScale, _CloudSpeed, _CloudContrast,
-                                            _CloudThreshold, _CloudShadowMin, 10.0, 0.9, 0.12);
+                                            _CloudScale, _CloudSpeed, _CloudShadowMin);
 
                 // a shadow on a sunlit field is BLUER than the field, not just darker - tinting
                 // toward the sky colour is most of what sells it

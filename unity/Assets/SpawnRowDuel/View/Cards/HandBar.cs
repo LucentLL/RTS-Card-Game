@@ -36,8 +36,11 @@ namespace SpawnRowDuel.View.Cards
         UIDocument _doc;
         VisualElement _row;
         VisualElement _lift;
-        VisualElement _backdrop;
         CardFace _inspect;
+
+        /// <summary>The two castle walls, their vitals, and the foe's hand - built into this
+        /// panel, under the cards, because the cards are held in FRONT of your wall.</summary>
+        readonly WallBands _walls = new WallBands();
 
         ElementPalette _palette;
         CardTextService _text;
@@ -66,12 +69,11 @@ namespace SpawnRowDuel.View.Cards
             _row.style.height = peek;
             _lift.style.bottom = HudLayout.HandBandBottomPx;
             _lift.style.height = peek;
-            // The band is the hand PEEK and nothing else now - the turn controls moved to the
-            // right-edge rail, so the board keeps the height they used to cost it. The backdrop
-            // still comes from here rather than IMGUI, because IMGUI paints after every UI Toolkit
-            // panel and would land on top of the cards instead of behind them.
-            _backdrop.style.bottom = 0f;
-            _backdrop.style.height = HudLayout.BottomPx;
+
+            // The walls are drawn HERE rather than in IMGUI: IMGUI paints after every UI Toolkit
+            // panel, so a band painted there lands on top of the cards instead of behind them -
+            // which is what the dark bar through the hand turned out to be.
+            _walls.Layout(_match.Engine.State, _palette, PanelWidth());
 
             var hand = _match.Engine.State.P(Side.You).Hand;
             var sig = Signature(hand, peek);
@@ -79,6 +81,20 @@ namespace SpawnRowDuel.View.Cards
             _signature = sig;
 
             Rebuild(hand, peek);
+        }
+
+        /// <summary>
+        /// The PANEL's width, not Screen.width: they differ whenever the panel renders into a
+        /// texture, and the capture harness does exactly that.
+        /// </summary>
+        float PanelWidth()
+        {
+            if (_doc != null && _doc.rootVisualElement != null)
+            {
+                float w = _doc.rootVisualElement.resolvedStyle.width;
+                if (w > 1f) return w;
+            }
+            return Screen.width;
         }
 
         string Signature(IReadOnlyList<HandCard> hand, float peek)
@@ -100,17 +116,22 @@ namespace SpawnRowDuel.View.Cards
             float cardH = peek * CardToPeek;
             float cardW = cardH / CardFace.Aspect;
 
-            // the PANEL's width, not Screen.width: they differ whenever the panel renders into a
-            // texture, and the capture harness does exactly that
-            float panelW = _row.resolvedStyle.width > 1f ? _row.resolvedStyle.width : Screen.width;
+            float panelW = PanelWidth();
+
+            // The hand belongs to the wall's MIDDLE SPAN (spec 09 §4.2): the towers at either end
+            // are where the vitals and the piles are set, and a hand laid across the full width
+            // would be holding its outer cards over them.
+            float spanL = panelW * WallBands.TowerSpan;
+            float spanR = panelW * (1f - WallBands.TowerSpan);
+            float span = spanR - spanL;
 
             // The reference hand OVERLAPS its cards rather than shrinking them to nothing when the
             // hand is large; there is no hand-size cap in the rules, so the layout must cope.
             float step = cardW + 6f;
-            if (hand.Count * step > panelW - 16f)
-                step = Mathf.Max(cardW * 0.34f, (panelW - 16f) / hand.Count);
+            if (hand.Count * step > span - 16f)
+                step = Mathf.Max(cardW * 0.34f, (span - 16f) / hand.Count);
 
-            float x0 = (panelW - (step * (hand.Count - 1) + cardW)) * 0.5f;
+            float x0 = spanL + (span - (step * (hand.Count - 1) + cardW)) * 0.5f;
             int selected = _hud != null ? _hud.SelectedHandIndex : -1;
 
             for (int i = 0; i < hand.Count; i++)
@@ -200,11 +221,8 @@ namespace SpawnRowDuel.View.Cards
             root.style.left = 0; root.style.right = 0; root.style.top = 0; root.style.bottom = 0;
             root.pickingMode = PickingMode.Ignore;
 
-            _backdrop = new VisualElement { pickingMode = PickingMode.Ignore };
-            _backdrop.style.position = Position.Absolute;
-            _backdrop.style.left = 0; _backdrop.style.right = 0;
-            _backdrop.style.backgroundColor = new Color(0.055f, 0.06f, 0.085f, 1f);
-            root.Add(_backdrop);
+            HudLayout.Recompute();
+            _walls.Attach(root);              // first, so everything below is drawn on the stone
 
             _inspect = new CardFace { pickingMode = PickingMode.Ignore };
             _inspect.style.position = Position.Absolute;

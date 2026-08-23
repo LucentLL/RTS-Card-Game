@@ -6,6 +6,10 @@
 # Writes battle-open.png and battle-mid.png. No -nographics: capturing a composited frame needs a
 # graphics device, and the usual batchmode flags would produce nothing at all.
 #
+# The shot's ASPECT is what gets judged, not just its size: the wall bands take a fixed share
+# of the height, so a 4:3 game view leaves the board a much narrower gap to fill than the
+# landscape phone the deployed build is played on, so the test forces 1600x900 on the game view.
+#
 # Do NOT run while a WebGL build or the EditMode gate is running - Unity locks the project folder
 # and the second process exits having done nothing.
 set -uo pipefail

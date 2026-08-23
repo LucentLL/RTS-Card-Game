@@ -428,11 +428,12 @@ namespace SpawnRowDuel.View.World
                 _cloudMat.SetFloat("_CloudAmount", look.CloudAmount);
                 _cloudMat.SetFloat("_GroundY", GroundY);
 
-                // SMALLER and FASTER than the first pass, where a cloud was wider than the board
-                // and took seventeen seconds to cross it - which is a slowly shifting gradient,
-                // not weather. These cross in about six.
-                _cloudMat.SetFloat("_CloudScale", 5.5f);
-                _cloudMat.SetFloat("_CloudSpeed", 0.28f);
+                // Size is in CLOUD CELLS now (SrdCloudCover), so it reads directly: a cell is
+                // 6.5 world units and a lump is about half of one, which puts a cloud at roughly
+                // half the board. Speed is cells per second - a cloud crosses the field in about
+                // seven, where the first pass took seventeen and read as a shifting gradient.
+                _cloudMat.SetFloat("_CloudScale", 6.5f);
+                _cloudMat.SetFloat("_CloudSpeed", 0.55f);
             }
         }
 

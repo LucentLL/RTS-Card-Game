@@ -561,14 +561,23 @@ namespace SpawnRowDuel.View
             Destroy(go.GetComponent<Collider>());
             go.transform.SetParent(transform, false);
 
-            float pitch = Board.CellSize + Board.CellGap;
             var row = Board.WorldOf(new CellRef(Rules.Board.RowFor(side, (SlotName)zone), 0));
-            float edgeX = Rules.Board.Columns * pitch * 0.5f + 0.42f + (index / 4) * 0.32f;
-            float x = side == Side.You ? -edgeX : edgeX;
-            float z = row.z + ((index % 4) - 1.5f) * 0.27f;
 
-            go.transform.localPosition = new Vector3(x, 0.36f, z);
-            go.transform.localScale = new Vector3(0.22f, 0.3f, 0.22f);
+            // Each pool stands off the side of the ROW it works, yours to the left and theirs to
+            // the right - which is where they were, and where they read as belonging to a row.
+            //
+            // What changed is that they are no longer BUDGETED for. The camera's width fit is
+            // decided at the board's near corners, where perspective magnifies most, and the files
+            // sit far enough back along their own rows that they clear that constraint for free -
+            // so the board gets its full width and the pools still get their strip. The clamp is
+            // what keeps a thirty-worker economy from marching off the side of the screen.
+            float half = Rules.Board.Columns * Board.ColPitch * 0.5f;
+            float edgeX = Mathf.Min(half + 0.42f + (index / 4) * 0.30f, half + 1.05f);
+            float x = side == Side.You ? -edgeX : edgeX;
+            float z = row.z + ((index % 4) - 1.5f) * Board.RowPitch * 0.22f;
+
+            go.transform.localPosition = new Vector3(x, 0.30f, z);
+            go.transform.localScale = new Vector3(0.19f, 0.26f, 0.19f);
 
             // a baked material so the shader variant survives build stripping (magenta fix)
             go.GetComponent<MeshRenderer>().sharedMaterial = Board.CellMaterial;

@@ -207,43 +207,107 @@ namespace SpawnRowDuel.View
 
             float pitch = Mathf.Lerp(TopDownPitch, TiltedPitch, t);
             var rot = Quaternion.Euler(pitch, 0f, 0f);
-            float dist = FitDistance(rot);
+
+            float dist, rise;
+            Frame(rot, out dist, out rise);
 
             Cam.transform.rotation = rot;
-            Cam.transform.position = -(rot * Vector3.forward) * dist;
+            Cam.transform.position = -(rot * Vector3.forward) * dist + (rot * Vector3.up) * rise;
         }
 
-        float FitDistance(Quaternion rot)
+        /// <summary>
+        /// The board's ground corners, in world space. These are what the camera has to CENTRE on:
+        /// they are the thing a player reads as "the board".
+        /// </summary>
+        Vector3[] Corners()
         {
-            float cellPitch = _board.CellSize + _board.CellGap;
-            // +1.2 budgets the worker-pawn strips hugging each edge (MatchController.MakePawn)
-            float halfW = Rules.Board.Columns * cellPitch * 0.5f + 0.85f;
-            float halfD = 3f * cellPitch + 0.45f;
+            // Half a cell past the outermost column centres is the board's actual edge, and that
+            // is ALL the width budgeted now.
+            //
+            // Width is the expensive axis: the picture is width-limited at the near corners,
+            // where perspective magnifies most, so anything budgeted here comes straight off the
+            // board's size on screen. The worker files used to be budgeted here at 0.85 and they
+            // have moved behind the back rows for exactly that reason (MatchController.MakePawn).
+            float halfW = Rules.Board.Columns * _board.ColPitch * 0.5f + 0.06f;
+            float halfD = (Rules.Board.Rows - 1) * 0.5f * _board.RowPitch + _board.RowPitch * 0.5f;
 
-            var extremes = new[]
+            return new[]
             {
                 new Vector3(-halfW, 0f, halfD), new Vector3(halfW, 0f, halfD),
                 new Vector3(-halfW, 0f, -halfD), new Vector3(halfW, 0f, -halfD),
-                new Vector3(0f, 1.1f, halfD), new Vector3(0f, 1.1f, -halfD),   // standee headroom
             };
+        }
 
-            // The viewport already excludes the HUD bands, so only modest margins remain.
+        /// <summary>
+        /// Room for what STANDS on the back rows, over the row's centre rather than the board's
+        /// edge - a figure stands on a tile, not past it. Only a distance constraint: including
+        /// these in the centring pushed the board a hundred pixels down the screen to hold empty
+        /// air above the foe's back row, and that air was most of the gap being complained about.
+        /// </summary>
+        Vector3[] Headroom()
+        {
+            float backRow = (Rules.Board.Rows - 1) * 0.5f * _board.RowPitch;
+            return new[]
+            {
+                new Vector3(0f, 1.05f, backRow), new Vector3(0f, 1.05f, -backRow),
+            };
+        }
+
+        /// <summary>
+        /// Frame the board so it FILLS the viewport, rather than merely fitting inside it.
+        ///
+        /// The old fit solved for distance alone, with the camera aimed at the board's centre -
+        /// and under perspective that is not the same thing as filling the screen. The near edge
+        /// projects far larger than the far edge, so pulling back until the near edge fits leaves
+        /// the far edge stranded around the middle of the screen with a third of the picture above
+        /// it doing nothing. That gap is what the empty grass at the top of the board was.
+        ///
+        /// So there are two unknowns, not one: how far back (dist) and how far UP the camera's own
+        /// up-axis it slides (rise), which is what re-centres the projected trapezoid. Distance is
+        /// exact for a given rise - a point needs `|x|/fit - z` of it - and the rise is relaxed
+        /// toward whatever centres the projection, a few passes being plenty since each one lands
+        /// most of the remaining error.
+        /// </summary>
+        void Frame(Quaternion rot, out float dist, out float rise)
+        {
+            var pts = Corners();
+            var head = Headroom();
+            var inv = Quaternion.Inverse(rot);
+            for (int i = 0; i < pts.Length; i++) pts[i] = inv * pts[i];      // once, into camera axes
+            for (int i = 0; i < head.Length; i++) head[i] = inv * head[i];
+
             float tanV = Mathf.Tan(Cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
             float tanH = tanV * Cam.aspect;
-            // Margins were costing a fifth of the board on a phone. The viewport already excludes
-            // the HUD bands, so what is left here is genuine breathing room, not safety.
-            float fitH = tanH * 0.99f;
-            float fitV = tanV * 0.97f;
+            // The viewport already excludes the HUD bands, so what is left is breathing room, not
+            // safety. The board is meant to run wall to wall.
+            float fitH = tanH * 0.995f;
+            float fitV = tanV * 0.995f;
 
-            var inv = Quaternion.Inverse(rot);
-            float need = 2f;
-            for (int i = 0; i < extremes.Length; i++)
+            rise = 0f;
+            dist = 2f;
+            for (int pass = 0; pass < 12; pass++)
             {
-                var p = inv * extremes[i];
-                need = Mathf.Max(need, Mathf.Abs(p.x) / fitH - p.z);
-                need = Mathf.Max(need, Mathf.Abs(p.y) / fitV - p.z);
+                dist = 2f;
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    dist = Mathf.Max(dist, Mathf.Abs(pts[i].x) / fitH - pts[i].z);
+                    dist = Mathf.Max(dist, Mathf.Abs(pts[i].y - rise) / fitV - pts[i].z);
+                }
+                for (int i = 0; i < head.Length; i++)
+                    dist = Mathf.Max(dist, Mathf.Abs(head[i].y - rise) / fitV - head[i].z);
+
+                float lo = float.MaxValue, hi = float.MinValue;
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    float ndc = (pts[i].y - rise) / ((pts[i].z + dist) * fitV);
+                    lo = Mathf.Min(lo, ndc);
+                    hi = Mathf.Max(hi, ndc);
+                }
+
+                float off = 0.5f * (lo + hi);
+                if (Mathf.Abs(off) < 0.001f) break;
+                rise += off * fitV * dist;          // NDC error back into world units, at pivot depth
             }
-            return need * 1.005f;
         }
 
         void UpdateHover(bool overUi)

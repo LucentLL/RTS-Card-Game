@@ -147,7 +147,6 @@ namespace SpawnRowDuel.View
             HudLayout.RailPx = new Rect();
 
             DrawUnitOverlays(s, scale, w, h);
-            DrawTopBar(s, w);
             DrawLog(w);
 
             // NOTHING is painted across the bottom here any more. IMGUI draws AFTER every UI
@@ -294,26 +293,12 @@ namespace SpawnRowDuel.View
 
         // ---- top band -------------------------------------------------------------------------
 
-        void DrawTopBar(GameState s, float w)
-        {
-            Panel(new Rect(0, 0, w, TopH), PanelColor);
-            var foe = s.P(Side.Foe);
-            var you = s.P(Side.You);
-
-            GUI.Label(new Rect(10, 3, w - 210, 18),
-                "FOE  ♥" + foe.Life + "  ◆" + foe.Mana + "  hand " + foe.Hand.Count +
-                "  deck " + foe.Deck.Count + "  ⚒ " + Workers(s, Side.Foe), _label);
-            GUI.Label(new Rect(10, 21, w - 210, 18),
-                "YOU  ♥" + you.Life + "  ◆" + you.Mana + "  hand " + you.Hand.Count +
-                "  deck " + you.Deck.Count + "  ⚒ " + Workers(s, Side.You), _label);
-
-            var right = new GUIStyle(_small) { alignment = TextAnchor.MiddleRight };
-            right.normal.textColor = s.Turn == Side.You ? Gold : new Color(0.65f, 0.8f, 1f);
-            GUI.Label(new Rect(w - 190, 3, 180, 18), "TURN " + s.TurnNumber, right);
-            GUI.Label(new Rect(w - 190, 21, 180, 18),
-                (s.Turn == Side.You ? "YOUR TURN · " : "FOE TURN · ") +
-                s.Phase.ToString().ToUpperInvariant(), right);
-        }
+        // The status bar is GONE from IMGUI. Both sides' vitals, the turn read-out and the foe's
+        // hand are set into the two castle walls now (WallBands), drawn in the UI Toolkit panel -
+        // which is the only surface with the gated glyph chain on it. That is not cosmetic: the
+        // ♥, ◆ and ⚒ in this bar were being dropped silently, because OnGUI uses the built-in
+        // font and the built-in font has none of them. The bar has been reading "FOE 10000 0
+        // hand 4" on the deployed build for as long as it has existed.
 
         void DrawLog(float w)
         {
@@ -357,9 +342,9 @@ namespace SpawnRowDuel.View
             // handled events. The button ran, and the card's own PointerDown ran too and toggled
             // the selection off underneath it. Clearing the card's full height is the fix: no
             // overlap, no double delivery.
-            float lifted = HandH * Cards.HandBar.CardToPeek;
+            float lifted = HandH * Cards.HandBar.CardToPeek + (BottomH - HandH);
             float by = _selectedHandIndex >= 0 ? h - lifted - ModeH + 2
-                                               : h - HandH - ModeH + 2;
+                                               : h - BottomH - ModeH + 2;
             var hand = s.P(Side.You).Hand;
             bool myTurn = s.Turn == Side.You;
 
@@ -1101,14 +1086,6 @@ namespace SpawnRowDuel.View
         {
             var why = _match.TryHuman(cmd);
             if (why != Rejection.None) Hint(MatchController.Hint(why));
-        }
-
-        static string Workers(GameState s, Side side)
-        {
-            var p = s.P(side);
-            return p.Workers[0].ReadyCount + "/" + p.Workers[0].Count + "·" +
-                   p.Workers[1].ReadyCount + "/" + p.Workers[1].Count + "·" +
-                   p.Workers[2].ReadyCount + "/" + p.Workers[2].Count;
         }
 
         void Hint(string text)

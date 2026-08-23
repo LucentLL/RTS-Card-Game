@@ -46,11 +46,9 @@ Shader "SpawnRowDuel/Grass"
         _BladeTex   ("Blade tufts", 2D) = "white" {}
         _Variants   ("Atlas variants", Float) = 4
 
-        _CloudScale  ("Cloud scale", Float) = 9.0
-        _CloudSpeed  ("Cloud speed", Float) = 0.05
-        _CloudContrast("Cloud contrast", Float) = 3.2
-        _CloudThreshold("Cloud threshold", Float) = 0.16
-        _CloudShadowMin("Cloud shadow floor", Range(0,1)) = 0.62
+        _CloudScale  ("Cloud size", Float) = 6.5
+        _CloudSpeed  ("Cloud speed", Float) = 0.55
+        _CloudShadowMin("Cloud shadow floor", Range(0,1)) = 0.66
         _CloudDir    ("Cloud direction", Vector) = (1, 0.35, 0, 0)
         _CloudAmount ("Cloud amount", Range(0,1)) = 1
     }
@@ -101,7 +99,7 @@ Shader "SpawnRowDuel/Grass"
                 float _WindScale, _WindSpeed, _WindGain, _WindBias, _Sway, _Framerate;
                 float4 _DispOrigin, _DispSize, _DispTex_TexelSize;
                 float _PushDist, _Flatten, _Variants;
-                float _CloudScale, _CloudSpeed, _CloudContrast, _CloudThreshold, _CloudShadowMin;
+                float _CloudScale, _CloudSpeed, _CloudShadowMin;
                 float4 _CloudDir;
                 float _CloudAmount;
             CBUFFER_END
@@ -217,8 +215,7 @@ Shader "SpawnRowDuel/Grass"
                 if (_CloudAmount > 0.001)
                 {
                     float cloud = SrdCloudLight(i.footWS.xz, _Time.y, normalize(_CloudDir.xy),
-                                                _CloudScale, _CloudSpeed, _CloudContrast,
-                                                _CloudThreshold, _CloudShadowMin, 10.0, 0.9, 0.12);
+                                                _CloudScale, _CloudSpeed, _CloudShadowMin);
                     col *= lerp(1.0, cloud, _CloudAmount);
                 }
                 return half4(col, a);

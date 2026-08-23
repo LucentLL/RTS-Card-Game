@@ -15,21 +15,6 @@ public static class SceneBootstrap
     const string ScenePath = SceneDir + "/Battle.unity";
     const string MatDir = "Assets/Settings";
 
-    static Material Mat(string name, Color c, float smoothness = 0.1f)
-    {
-        var path = MatDir + "/" + name + ".mat";
-        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (m == null)
-        {
-            m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            AssetDatabase.CreateAsset(m, path);
-        }
-        m.color = c;
-        if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
-        EditorUtility.SetDirty(m);
-        return m;
-    }
-
     /// <summary>A board cell: a translucent fill with a brighter rim, on SRD_Tile.</summary>
     static Material TileMat(string name, Color fill, Color edge)
     {
@@ -98,9 +83,8 @@ public static class SceneBootstrap
         var mYouFront = TileMat("M_YouFront", new Color(0.90f, 0.30f, 0.18f, 0.32f), rim);
         var mYouBack = TileMat("M_YouBack", new Color(0.82f, 0.20f, 0.13f, 0.40f), rim);
 
-        // the walls stay SOLID: they are the life targets, the one part of the board that is a
-        // physical thing in the fiction rather than a line drawn on the ground
-        var mWall = Mat("M_Wall", new Color(0.30f, 0.13f, 0.13f));
+        // No wall material: the two castle walls are the screen's top and bottom bands now
+        // (WallBands), not slabs lying on the grass past each back row.
 
         var mTerrain = ShaderMat("M_Terrain", "SpawnRowDuel/Terrain");
         var mGrass = ShaderMat("M_Grass", "SpawnRowDuel/Grass");
@@ -154,7 +138,6 @@ public static class SceneBootstrap
         view.CellMaterial = mCell;
         view.LaneMaterial = mLane;
         view.StructureSlotMaterial = mStruct;
-        view.WallMaterial = mWall;
         view.HoverMaterial = mHover;
         view.SelectMaterial = mSelect;
         view.FoeBackMaterial = mFoeBack;

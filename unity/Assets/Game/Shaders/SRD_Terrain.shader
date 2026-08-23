@@ -26,11 +26,9 @@ Shader "SpawnRowDuel/Terrain"
         _FadeWidth   ("Edge fade", Float) = 2.5
 
         // clouds, shared with SRD_CloudShadow so the ground and the pieces darken together
-        _CloudScale  ("Cloud scale", Float) = 9.0
-        _CloudSpeed  ("Cloud speed", Float) = 0.05
-        _CloudContrast("Cloud contrast", Float) = 3.2
-        _CloudThreshold("Cloud threshold", Float) = 0.16
-        _CloudShadowMin("Cloud shadow floor", Range(0,1)) = 0.62
+        _CloudScale  ("Cloud size", Float) = 6.5
+        _CloudSpeed  ("Cloud speed", Float) = 0.55
+        _CloudShadowMin("Cloud shadow floor", Range(0,1)) = 0.66
         _CloudDir    ("Cloud direction", Vector) = (1, 0.35, 0, 0)
         _CloudAmount ("Cloud amount", Range(0,1)) = 1
     }
@@ -62,7 +60,7 @@ Shader "SpawnRowDuel/Terrain"
                 float _WaveAmount, _RippleAmount, _EmberAmount, _MotionSpeed;
                 float4 _IslandExtent;
                 float _FadeWidth;
-                float _CloudScale, _CloudSpeed, _CloudContrast, _CloudThreshold, _CloudShadowMin;
+                float _CloudScale, _CloudSpeed, _CloudShadowMin;
                 float4 _CloudDir;
                 float _CloudAmount;
             CBUFFER_END
@@ -140,9 +138,8 @@ Shader "SpawnRowDuel/Terrain"
                 // a pixel AND darkens the ground twice as hard as the pieces standing on it.
                 if (_CloudAmount > 0.001)
                 {
-                    float cloud = SrdCloudLight(w, t, normalize(_CloudDir.xy), _CloudScale, _CloudSpeed,
-                                                _CloudContrast, _CloudThreshold, _CloudShadowMin,
-                                                10.0, 0.9, 0.12);
+                    float cloud = SrdCloudLight(w, t, normalize(_CloudDir.xy),
+                                                _CloudScale, _CloudSpeed, _CloudShadowMin);
                     col *= lerp(1.0, cloud, _CloudAmount);
                 }
 
