@@ -83,7 +83,18 @@ namespace SpawnRowDuel.View
 
         public void StartMatch(CommanderId you, CommanderId foe, ulong seed)
         {
-            var state = MatchSetup.NewMatch(Catalog, you, foe, seed, RulesOptions.JsParity);
+            StartMatch(you, foe, seed, null, null);
+        }
+
+        /// <summary>
+        /// The same, with decks supplied. A null deck is rolled from the commander's pools the way
+        /// it always was; a non-null one is a deck the player BUILT, which is the whole point of
+        /// having built it.
+        /// </summary>
+        public void StartMatch(CommanderId you, CommanderId foe, ulong seed,
+                               List<HandCard> youDeck, List<HandCard> foeDeck)
+        {
+            var state = MatchSetup.NewMatch(Catalog, you, foe, youDeck, foeDeck, seed, RulesOptions.JsParity);
             Engine = new DuelEngine(state, Catalog);
             _ai = new AiDriver(Engine, new ScriptedAiPolicy(Side.Foe));
 

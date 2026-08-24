@@ -25,8 +25,8 @@ this file is status only.
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
 | M13 — presentation pass | 🟡 slice 3 | 2026-08-23 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Remaining: tower deck/GY piles, horizon + sky, FX, audio |
-| M14 — campaign | ⬜ | |
-| M15 — menus, deck builder, save/load | ⬜ | |
+| M14 — campaign | 🟡 first pass | 2026-08-24 — the hexsphere globe (162 tiles), map generation, absorb cascade, end-turn AI, the 4-line challenge dialogue and the save, all pure C# and tested; globe view with drag-spin and raycast picking, world-map HUD, attack confirm and battle handoff. Open: garrison affects nothing, AI never absorbs, no custom deck in campaign |
+| M15 — menus, deck builder, save/load | 🟡 first pass | 2026-08-24 — main menu, banner select and a screen router that switches the battle world off; three-column deck builder with search/filter/sort, mana curve, 5 slots and a duel-with-it path. Open: no solo deck-pick screen, no settings |
 | M16 — parity flags resolved, ship prep | ⬜ | |
 
 ## Session log
@@ -793,3 +793,66 @@ only rises when looked at cannot be looked at by a batchmode still) and `set-car
 set face-down with 12 poured into it, which is the only witness the badge has).
 
 234 passing.
+
+### 2026-08-24 — M14 + M15 (first pass): the campaign globe and the deck builder
+
+Both ported from the JS. The game has a FRONT now — menu, banner select, world map, challenge,
+deck builder — where before it booted straight into its own commander select and that was the
+whole product.
+
+**The campaign core is pure C# and tested** (`SpawnRowDuel.Campaign`, engine-free asmdef):
+
+* `HexSphere` — Goldberg GP(4,0), the dual of a frequency-4 subdivided icosahedron: 162 tiles, 12
+  of them pentagons, 320 corners, deterministic from the frequency alone. That determinism is why
+  a save is three kilobytes: it stores the tile-to-territory assignment and rebuilds the geometry.
+  It only holds while tile INDEX ORDER is stable, so the icosahedron face table is frozen and the
+  vertex weld is a quantised lattice key rather than the JS's `toFixed(6)` string — that string
+  makes -1e-9 and +1e-9 different vertices ("-0.000000" vs "0.000000") and would silently produce
+  a sphere with the wrong number of tiles.
+* `CampaignMapGenerator` — Mitchell best-candidate territory seeds, multi-source BFS carve,
+  farthest-point empire seeds, a second flood for the empires, garrisons. Contiguity is a property
+  of the construction (a graph-distance Voronoi on a connected graph cannot island), and the test
+  proves it over 200 seeds × 22 territories × 8 empires rather than trusting it. The JS asserted
+  the same claim with an 800-map Monte-Carlo and no test.
+* `CampaignRules` / `CampaignBattleResolver` / `CampaignTurnResolver` — attackability, the capital
+  prize, the absorb CASCADE (taking one throne can hand you another; without it that element
+  lingers as a landless holdout no attack can reach and the campaign is quietly unwinnable), the
+  victory latch, End Turn growth, the one-attempt-per-rival AI, and defeat at zero territories.
+* `ChallengeDialogue` — the 80 authored barks, 8 rival exchanges and the four-line assembly,
+  verbatim.
+* Everything takes a seeded RNG. The JS used bare `Math.random` in nine places and so could never
+  re-derive or audit a map; the save stores its seed.
+
+**The coupling is inverted.** In the JS the battle's own win check reached into the campaign layer
+and called `campResolve` directly — which is why multiplayer had to remember to defensively clear
+the campaign's pending target before starting. Here the duel knows nothing: `GameShell` launches a
+battle, watches for `IsOver`, and brings the outcome back. "Abandoned" is a real outcome rather
+than the JS trick of nulling the target.
+
+**The globe is a mesh, not a projection.** The JS drew it with an orthographic canvas projection,
+painter-sorted quads, a hand-rolled light and an inverse-ray pick that had to be corrected against
+the extruded radius because dividing by the plain one mis-picked about one tap in seven. A prism
+mesh, a z-buffer and a `Physics.Raycast` do the same job and cannot drift apart. What survives is
+the FEEL: drag-spin with inertia, the ±1.25 rad pitch clamp, the idle spin after 2.6 s. Borders are
+quads over the shared edge of two tiles — adjacent tiles share exactly two corners, which is a
+property of the dual and is what lets an edge be drawn once instead of twice with z-fighting.
+Markers are UI projected from anchors, because the only thing that can draw 炎 is the gated font
+chain.
+
+**The deck builder** is the three-column layout: detail (a real `CardFace`), deck (leader, curve,
+list) and pool (search, filters, sort, tiles). 40 cards, max 3 copies, 5 slots, `element|name`
+keys — the key carries the element because a dual leader can reach one name through two colours.
+Changing leader drops what is now off-colour. A card the registry no longer knows is DROPPED on
+load rather than kept: a deck that silently references a retired card fails to start a match long
+after the edit that broke it.
+
+**The shell** switches the battle world off while a menu is up — board, terrain, duel camera and
+the duel's IMGUI are all one `SetActive`, and `MatchHud.ShellSuppressed` stops the old commander
+select from drawing over the main menu.
+
+**Not done, and worth saying:** garrison still has no effect on the duel (spec 08 §16.3 — flagged
+to design, ported as-is); the AI never absorbs capitals; a campaign battle still rolls a fresh deck
+rather than letting you bring a built one; and there is no save-slot UI beyond load/overwrite.
+
+265 passing. New probes: `shell-menu`, `shell-faction`, `shell-worldmap`, `shell-challenge`,
+`shell-deckbuilder`.

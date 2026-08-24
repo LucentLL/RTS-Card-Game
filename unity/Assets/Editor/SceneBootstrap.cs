@@ -107,6 +107,11 @@ public static class SceneBootstrap
         // the tile material, which is a translucent marking wash.
         var mPawn = LitMat("M_Pawn", new Color(0.86f, 0.84f, 0.80f));
 
+        // the campaign globe: vertex-coloured tiles, and flat-shaded borders over them
+        var mGlobe = ShaderMat("M_Globe", "SpawnRowDuel/Globe");
+        var mGlobeBorder = ShaderMat("M_GlobeBorder", "SpawnRowDuel/Globe");
+        if (mGlobeBorder != null) mGlobeBorder.SetFloat("_Shade", 0f);
+
         var mTerrain = ShaderMat("M_Terrain", "SpawnRowDuel/Terrain");
         var mGrass = ShaderMat("M_Grass", "SpawnRowDuel/Grass");
         var mClouds = ShaderMat("M_CloudShadow", "SpawnRowDuel/CloudShadow");
@@ -181,6 +186,43 @@ public static class SceneBootstrap
             Debug.LogWarning("[scene] CardDatabase.asset missing - run the card importer first");
 
         boardGo.AddComponent<MatchHud>();
+
+        // ── the campaign globe ──────────────────────────────────────────────────────────
+        //
+        // Its own camera and its own root, both switched off until the world map asks for them.
+        // Sharing the duel's camera would mean one component owning two framings that have
+        // nothing to do with each other, and BoardInput reframes its camera every single frame.
+        var globeGo = new GameObject("Globe");
+        globeGo.transform.position = Vector3.zero;
+        var globe = globeGo.AddComponent<SpawnRowDuel.View.Campaign.GlobeView>();
+        globe.TileMaterial = mGlobe;
+        globe.BorderMaterial = mGlobeBorder;
+
+        var globeCamGo = new GameObject("GlobeCamera") { };
+        var globeCam = globeCamGo.AddComponent<Camera>();
+        globeCam.clearFlags = CameraClearFlags.SolidColor;
+        globeCam.backgroundColor = new Color(0.039f, 0.055f, 0.09f);
+        globeCam.fieldOfView = 34f;
+        globeCam.nearClipPlane = 0.05f;
+        globeCam.transform.position = new Vector3(0f, 0f, -3.9f);
+        globeCam.transform.rotation = Quaternion.identity;
+        globeCam.enabled = false;
+
+        var globeLightGo = new GameObject("GlobeRim");
+        var globeLight = globeLightGo.AddComponent<Light>();
+        globeLight.type = LightType.Directional;
+        globeLight.intensity = 0.9f;
+        globeLightGo.transform.rotation = Quaternion.Euler(28f, 34f, 0f);
+
+        // ── the shell: menus, campaign flow, deck builder ───────────────────────────────
+        var shellGo = new GameObject("Shell");
+        var shell = shellGo.AddComponent<SpawnRowDuel.View.Shell.GameShell>();
+        shell.Match = match;
+        shell.Globe = globe;
+        shell.GlobeCamera = globeCam;
+        shell.BattleRoot = boardGo;
+        shell.TerrainRoot = terrainGo;
+        shell.BattleCamera = cam;
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);

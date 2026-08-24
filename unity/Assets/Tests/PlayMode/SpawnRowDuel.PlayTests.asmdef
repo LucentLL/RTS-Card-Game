@@ -5,6 +5,7 @@
         "SpawnRowDuel.Rules",
         "SpawnRowDuel.Ai",
         "SpawnRowDuel.View",
+        "SpawnRowDuel.Campaign",
         "SpawnRowDuel.Data",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

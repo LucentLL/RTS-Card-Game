@@ -4,6 +4,7 @@ using NUnit.Framework;
 using SpawnRowDuel.Rules;
 using SpawnRowDuel.View;
 using SpawnRowDuel.View.Cards;
+using SpawnRowDuel.View.Shell;
 using SpawnRowDuel.View.World;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -237,6 +238,56 @@ namespace SpawnRowDuel.PlayTests
             }
         }
 
+        /// <summary>
+        /// The front of the game: menu, banner select, the world map with its globe, the
+        /// pre-battle challenge, and the deck builder.
+        ///
+        /// These are the screens with no other witness. The duel has an engine and 260 tests
+        /// behind it; a menu has a screenshot or it has nothing.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureShellScreens()
+        {
+            Reshape();
+            var op = SceneManager.LoadSceneAsync("Battle", LoadSceneMode.Single);
+            while (!op.isDone) yield return null;
+            yield return Frames(4);
+
+            var shell = Object.FindFirstObjectByType<GameShell>();
+            Assert.IsNotNull(shell, "the Battle scene has no GameShell - rerun SceneBootstrap");
+
+            yield return Frames(3);
+            yield return Shoot("shell-menu.png");
+
+            shell.Show(ShellScreen.FactionSelect);
+            yield return Frames(3);
+            yield return Shoot("shell-faction.png");
+
+            shell.Campaign.Begin(SpawnRowDuel.Rules.Element.Fire);
+            shell.Show(ShellScreen.WorldMap);
+            yield return Frames(6);
+            yield return Shoot("shell-worldmap.png");
+
+            // the first attackable territory, under the solo banner
+            var s = shell.Campaign.State;
+            int target = -1;
+            foreach (var t in s.Map.Territories)
+                if (shell.Campaign.IsAttackable(t.Id)) { target = t.Id; break; }
+            Assert.GreaterOrEqual(target, 0, "a fresh map always has a front line");
+
+            shell.AttackTerritory(target, SpawnRowDuel.Campaign.CampaignRules.Solo(s.Faction));
+            yield return Frames(8);
+            yield return Shoot("shell-challenge.png");
+
+            shell.Campaign.Resolve(SpawnRowDuel.Campaign.BattleOutcome.Abandoned);
+            shell.Show(ShellScreen.DeckBuilder);
+            yield return Frames(6);
+            yield return Shoot("shell-deckbuilder.png");
+
+            shell.Show(ShellScreen.MainMenu);
+            yield return Frames(2);
+        }
+
         /// <summary>Wait on the CLOCK. Batchmode frames are worth a fraction of a player's.</summary>
         static IEnumerator GameSeconds(float seconds)
         {
@@ -281,6 +332,12 @@ namespace SpawnRowDuel.PlayTests
             var op = SceneManager.LoadSceneAsync("Battle", LoadSceneMode.Single);
             while (!op.isDone) yield return null;
             yield return Frames(3);
+
+            // The shell boots to the main menu and switches the battle world OFF. Every duel shot
+            // has to walk in through the same door a player does.
+            var shell = Object.FindFirstObjectByType<GameShell>();
+            if (shell != null) shell.Show(ShellScreen.Skirmish);
+            yield return Frames(2);
         }
 
         /// <summary>
@@ -322,8 +379,10 @@ namespace SpawnRowDuel.PlayTests
         /// </summary>
         static IEnumerator Shoot(string name)
         {
-            var cam = Camera.main;
-            Assert.IsNotNull(cam, "no camera in the battle scene");
+            // A menu screen has NO live camera at all - the shell switches both of them off,
+            // because there is nothing behind a menu worth the frame. The shot is then the UI
+            // panel over a flat ground rather than a failed assertion.
+            var cam = LiveCamera();
 
             var board = new RenderTexture(ShotW, ShotH, 24, RenderTextureFormat.ARGB32);
             var ui = new RenderTexture(ShotW, ShotH, 24, RenderTextureFormat.ARGB32);
@@ -333,7 +392,7 @@ namespace SpawnRowDuel.PlayTests
             var panel = Resources.Load<UnityEngine.UIElements.PanelSettings>("HudPanelSettings");
             Assert.IsNotNull(panel, "HudPanelSettings is missing - run tools/regen-fonts.sh");
 
-            var prevCamTarget = cam.targetTexture;
+            var prevCamTarget = cam != null ? cam.targetTexture : null;
             var prevPanelTarget = panel.targetTexture;
             var prevClear = panel.clearColor;
             var prevClearValue = panel.colorClearValue;
@@ -343,18 +402,18 @@ namespace SpawnRowDuel.PlayTests
             // what the wall bands take away, so the shot was of a layout the game never renders:
             // the board ran under the HUD instead of between the two walls. Clearing the target
             // first is what the discarded pixels need, since nothing draws there any more.
-            ClearTo(board, cam.backgroundColor);
-            cam.targetTexture = board;
+            ClearTo(board, cam != null ? cam.backgroundColor : new Color(0.035f, 0.04f, 0.06f, 1f));
+            if (cam != null) cam.targetTexture = board;
             panel.targetTexture = ui;
             panel.clearColor = true;
             panel.colorClearValue = new Color(0f, 0f, 0f, 0f);
 
             yield return Frames(3);                     // let the panel repaint into its target
-            cam.Render();
+            if (cam != null) cam.Render();
 
             var shot = Blend(board, ui);
 
-            cam.targetTexture = prevCamTarget;
+            if (cam != null) cam.targetTexture = prevCamTarget;
             panel.targetTexture = prevPanelTarget;
             panel.clearColor = prevClear;
             panel.colorClearValue = prevClearValue;
@@ -368,6 +427,14 @@ namespace SpawnRowDuel.PlayTests
             ui.Release();
 
             Debug.Log("shot wrote " + path);
+        }
+
+        /// <summary>Whichever camera is currently switched on - the duel's, or the globe's.</summary>
+        static Camera LiveCamera()
+        {
+            var all = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            foreach (var c in all) if (c.enabled && c.gameObject.activeInHierarchy) return c;
+            return Camera.main;
         }
 
         static void ClearTo(RenderTexture rt, Color c)

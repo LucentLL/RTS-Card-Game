@@ -25,6 +25,13 @@ namespace SpawnRowDuel.View
     [RequireComponent(typeof(MatchController))]
     public class MatchHud : MonoBehaviour
     {
+        /// <summary>
+        /// Set by <see cref="Shell.GameShell"/>: the duel's own commander select is only allowed
+        /// to speak on its own screen. Before the shell existed this WAS the front of the game -
+        /// no match, so draw the setup - and left to itself it would draw over the main menu.
+        /// </summary>
+        public static bool ShellSuppressed;
+
         // band heights, logical units - defined by HudLayout, which the UI Toolkit surfaces read
         // too (they lay out before OnGUI has ever run)
         // What each edge keeps clear: the hand peeks, which are the deepest thing there. The
@@ -130,7 +137,7 @@ namespace SpawnRowDuel.View
 
             if (!_match.MatchStarted)
             {
-                DrawCommanderSelect();
+                if (!ShellSuppressed) DrawCommanderSelect();
                 return;
             }
 

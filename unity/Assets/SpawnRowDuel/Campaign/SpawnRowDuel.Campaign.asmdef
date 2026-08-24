@@ -1,0 +1,16 @@
+{
+    "name": "SpawnRowDuel.Campaign",
+    "rootNamespace": "SpawnRowDuel.Campaign",
+    "references": [
+        "SpawnRowDuel.Rules"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
