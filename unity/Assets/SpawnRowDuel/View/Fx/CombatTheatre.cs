@@ -510,6 +510,21 @@ namespace SpawnRowDuel.View.Fx
 
         static readonly Color Hurt = new Color(1f, 0.42f, 0.34f);
 
+        struct Popped
+        {
+            public Vector3 World;
+            public string Text;
+            public Color Color;
+        }
+
+        /// <summary>
+        /// Asked for, not yet built. Events are drained the moment a command lands - which for a
+        /// tap on the turn rail is inside OnGUI - and building a VisualElement from there is not
+        /// somewhere this layer should be finding out whether it can. The numbers are recorded
+        /// here and the elements are made in LateUpdate, where every other surface is made.
+        /// </summary>
+        readonly List<Popped> _popped = new List<Popped>();
+
         void Pop(CellRef at, string text, Color color)
         {
             if (_match.Board == null) return;
@@ -518,32 +533,48 @@ namespace SpawnRowDuel.View.Fx
 
         void Pop(Vector3 world, string text, Color color)
         {
-            EnsureSurfaces();
-            if (_floatLayer == null) return;
-
-            Floater f = null;
-            for (int i = 0; i < _floaters.Count; i++)
-                if (!_floaters[i].Live) { f = _floaters[i]; break; }
-
-            if (f == null)
+            if (_popped.Count > 24) return;                 // a runaway resolution is still one frame
+            _popped.Add(new Popped
             {
-                f = new Floater { Label = NewLabel(UiFont.DisplayBlack, 22f) };
-                f.Label.style.position = Position.Absolute;
-                _floatLayer.Add(f.Label);
-                _floaters.Add(f);
-            }
+                World = world + new Vector3(0f, 0.6f, 0f),
+                Text = text,
+                Color = color,
+            });
+        }
 
-            f.Live = true;
-            f.Born = Time.unscaledTime;
-            f.World = world + new Vector3(0f, 0.6f, 0f);
-            f.Label.text = text;
-            f.Label.style.color = color;
-            f.Label.style.fontSize = 22f * HudLayout.Scale;
-            f.Label.style.display = DisplayStyle.Flex;
+        void SpawnPopped()
+        {
+            if (_popped.Count == 0 || _floatLayer == null) return;
+
+            for (int n = 0; n < _popped.Count; n++)
+            {
+                Floater f = null;
+                for (int i = 0; i < _floaters.Count; i++)
+                    if (!_floaters[i].Live) { f = _floaters[i]; break; }
+
+                if (f == null)
+                {
+                    f = new Floater { Label = NewLabel(UiFont.DisplayBlack, 22f) };
+                    f.Label.style.position = Position.Absolute;
+                    _floatLayer.Add(f.Label);
+                    _floaters.Add(f);
+                }
+
+                f.Live = true;
+                f.Born = Time.unscaledTime;
+                f.World = _popped[n].World;
+                f.Label.text = _popped[n].Text;
+                f.Label.style.color = _popped[n].Color;
+                f.Label.style.fontSize = 22f * HudLayout.Scale;
+                f.Label.style.display = DisplayStyle.Flex;
+            }
+            _popped.Clear();
         }
 
         void AnimateFloaters()
         {
+            SpawnPopped();
+
             var cam = _input != null && _input.Cam != null ? _input.Cam : Camera.main;
 
             for (int i = 0; i < _floaters.Count; i++)
