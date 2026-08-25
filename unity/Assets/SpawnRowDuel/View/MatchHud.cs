@@ -74,10 +74,6 @@ namespace SpawnRowDuel.View
         private Vector2 _selectScrollYou, _selectScrollFoe;
 
         private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center;
-        private GUIStyle _ovYou, _ovFoe, _ovNeutral;
-
-        /// <summary>Where a unit's stat label floats, in cells above its slot.</summary>
-        private const float LabelHeight = 1.45f;
 
         private static readonly Color PanelColor = new Color(0.055f, 0.06f, 0.085f, 1f);
 
@@ -96,6 +92,8 @@ namespace SpawnRowDuel.View
             if (GetComponent<Cards.HandBar>() == null) gameObject.AddComponent<Cards.HandBar>();
             if (GetComponent<Cards.CardPlateLayer>() == null) gameObject.AddComponent<Cards.CardPlateLayer>();
             if (GetComponent<Cards.StandeeLayer>() == null) gameObject.AddComponent<Cards.StandeeLayer>();
+            if (GetComponent<Cards.UnitVitals>() == null) gameObject.AddComponent<Cards.UnitVitals>();
+            if (GetComponent<Fx.CombatTheatre>() == null) gameObject.AddComponent<Fx.CombatTheatre>();
         }
 
         void EnsureStyles()
@@ -111,15 +109,6 @@ namespace SpawnRowDuel.View
             _cardName = new GUIStyle(_label) { fontSize = 9, alignment = TextAnchor.MiddleCenter };
             _center = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter };
             _center.normal.textColor = Gold;
-
-            // overlay text must CLIP at its cell-pitch rect - spilled ink is how neighbouring
-            // units' labels turned into unreadable stacked text
-            _ovYou = new GUIStyle(_tiny) { clipping = TextClipping.Clip, wordWrap = false };
-            _ovYou.normal.textColor = new Color(1f, 0.9f, 0.55f);
-            _ovFoe = new GUIStyle(_ovYou);
-            _ovFoe.normal.textColor = new Color(0.65f, 0.8f, 1f);
-            _ovNeutral = new GUIStyle(_ovYou);
-            _ovNeutral.normal.textColor = new Color(0.8f, 0.8f, 0.85f);
         }
 
         static void Panel(Rect r, Color c)
@@ -155,7 +144,11 @@ namespace SpawnRowDuel.View
             HudLayout.LogPx = new Rect();
             HudLayout.RailPx = new Rect();
 
-            DrawUnitOverlays(s, scale, w, h);
+            // The unit overlays are NOT here any more. They floated a cell and a half above each
+            // slot, which put the foe's back row behind the castle wall and made the layer answer
+            // by dropping those labels - the rows you attack into were the rows with no numbers.
+            // UnitVitals hangs them off each tile's near edge instead, in UI Toolkit, where ♥ and
+            // ⚔ have a font that can draw them.
             DrawLog(w);
 
             // NOTHING is painted across the bottom here any more. IMGUI draws AFTER every UI
@@ -228,9 +221,9 @@ namespace SpawnRowDuel.View
             var youDef = cat.Commander(_pickYou);
             var foeDef = cat.Commander(_pickFoe);
             GUI.Label(new Rect(0, h - 84, w, 18),
-                "YOU: " + youDef.Name + " (♥" + youDef.Hp / 500 + " ⚒" + youDef.Workers + ")"
+                "YOU: " + youDef.Name + " (" + Stat.Hp(youDef.Hp) + " ⚒" + youDef.Workers + ")"
                 + "     vs     " + foeDef.Name
-                + " (♥" + foeDef.Hp / 500 + " ⚒" + foeDef.Workers + ")", _center);
+                + " (" + Stat.Hp(foeDef.Hp) + " ⚒" + foeDef.Workers + ")", _center);
 
             if (GUI.Button(new Rect(w / 2f - 150, h - 62, 145, 34), "🎲 RANDOM FOE", _button))
                 _pickFoe = all[Mathf.Abs((int)(Time.realtimeSinceStartup * 1000f)) % all.Count].Id;
@@ -698,7 +691,7 @@ namespace SpawnRowDuel.View
 
             float y = panel.y + 6;
             GUI.Label(new Rect(panel.x + 8, y, pw - 16, 18),
-                ch.Card.Name + "  ⚔" + ch.Card.Attack / 500 + "/♥" + ch.Card.Health / 500, _small);
+                ch.Card.Name + "  " + Stat.Atk(ch.Card.Attack) + "/" + Stat.Hp(ch.Card.Health), _small);
             y += 18;
 
             int surplus = Mathf.Max(0, ch.Invested + _chargeAmount - ch.Card.Cost);
@@ -772,7 +765,7 @@ namespace SpawnRowDuel.View
                                         panel.width * _scale, panel.height * _scale);
 
             GUI.Label(new Rect(panel.x + 8, panel.y + 5, pw - 16, 20),
-                "UPGRADE " + bld.DefId.Value + "  (♥" + (bld.Hp + 499) / 500 + ")", _small);
+                "UPGRADE " + bld.DefId.Value + "  (" + Stat.Hp(bld.Hp) + ")", _small);
 
             float y = panel.y + 28;
             for (int i = 0; i < targets.Count; i++)
@@ -781,7 +774,7 @@ namespace SpawnRowDuel.View
                 var cmd = new UpgradeStructureCommand(Side.You, cell, bld.Id, def.Bid);
                 var why = _match.Engine.CanApply(cmd);
                 GUI.enabled = why == Rejection.None;
-                string label = def.Name + "   ◆" + def.Cost + "   ♥" + def.MaxHp / 500
+                string label = def.Name + "   ◆" + def.Cost + "   " + Stat.Hp(def.MaxHp)
                              + "   ⚒" + (def.Support >= 0 ? "+" : "") + def.Support;
                 if (GUI.Button(new Rect(panel.x + 8, y, pw - 16, rowH - 3), label, _button))
                 {
@@ -981,79 +974,11 @@ namespace SpawnRowDuel.View
             var o = s.FindById(unitId, out at, out onBoard);
             var c = o as CreatureUnit;
             if (c != null)
-                return c.Name + " " + c.EffectiveAttack / 500 + "/" + (c.Hp + 499) / 500 +
+                return c.Name + " " + Stat.Line(c.EffectiveAttack, c.Hp) +
                        (c.IsWorker ? " (worker)" : "");
             var b = o as StructureUnit;
             if (b != null) return b.DefId.Value;
             return "unit " + unitId;
-        }
-
-        void DrawUnitOverlays(GameState s, float scale, float w, float h)
-        {
-            var cam = _input != null ? _input.Cam : Camera.main;
-            if (cam == null || _match.Board == null) return;
-
-            float pitchWorld = _match.Board.CellSize + _match.Board.CellGap;
-
-            foreach (var kv in s.Objects())
-            {
-                var world = _match.Board.WorldOf(kv.Key);
-                // above the figure's HEAD, not across its chest: the cut-out hovers 0.30 over its
-                // card now (StandeeLayer.Hover), which lifted its head past the old anchor
-                var pt = cam.WorldToScreenPoint(world + new Vector3(0f, LabelHeight, 0f));
-                if (pt.z <= 0f) continue;
-                float x = pt.x / scale;
-                float y = h - pt.y / scale;
-                if (y < TopH + 2 || y > h - BottomH - 14) continue;   // stay out of the bands
-
-                // the label budget is the unit's ACTUAL on-screen cell pitch - a fixed width
-                // is wider than a cell at every real resolution and neighbours collide
-                var pt2 = cam.WorldToScreenPoint(world + new Vector3(pitchWorld, LabelHeight, 0f));
-                float pitchPx = Mathf.Max(24f, Mathf.Abs(pt2.x - pt.x) / scale);
-                bool roomy = pitchPx >= 44f;
-
-                var o = kv.Value;
-                string text;
-                GUIStyle st;
-
-                var cr = o as CreatureUnit;
-                var b = o as StructureUnit;
-                int lineH = roomy ? 26 : 13;
-                if (cr != null)
-                {
-                    string stats = cr.EffectiveAttack / 500 + "/" + (cr.Hp + 499) / 500 +
-                                   (cr.Bank > 0 ? " ◆" + cr.Bank : "");
-                    // the two keywords whose state CHANGES have to be readable on the board -
-                    // a cocoon's progress and a banked discharge are decisions, not flavour
-                    string kw = "";
-                    if (cr.Keyword == Keyword.Chrysalis)
-                        kw = "Chrysalis " + cr.ChrysalisCount + "/" + (cr.Hatch > 0 ? cr.Hatch : 3);
-                    else if (cr.Keyword == Keyword.Overcharge && cr.OverchargeBank > 0)
-                        kw = "Overcharge ◆" + cr.OverchargeBank;
-                    else kw = KeywordEngine.LabelOf(cr);
-
-                    text = roomy ? cr.Name + "\n" + stats + (kw.Length > 0 ? "\n" + kw : "")
-                                 : stats;                    // tight cells keep the numbers
-                    if (roomy && kw.Length > 0) lineH = 38;
-                    st = cr.Owner == Side.You ? _ovYou : _ovFoe;
-                }
-                else if (b != null)
-                {
-                    string stats = (b.Hp + 499) / 500 + " hp";
-                    text = roomy ? b.DefId.Value + "\n" + stats : stats;
-                    st = b.Owner == Side.You ? _ovYou : _ovFoe;
-                }
-                else
-                {
-                    // A face-down card says nothing here. It used to float "SET ◆1" over its tile:
-                    // the card's own number, printed on the board, with the diamond dropped by a
-                    // font that has none. The sleeve carries its banked mana itself now
-                    // (CardPlateLayer.PlaceBank), and a trap has nothing to carry.
-                    continue;
-                }
-
-                GUI.Label(new Rect(x - pitchPx / 2f, y, pitchPx, lineH), text, st);
-            }
         }
 
         // ---- helpers --------------------------------------------------------------------------

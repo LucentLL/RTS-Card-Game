@@ -38,6 +38,20 @@ namespace SpawnRowDuel.View.Cards
         VisualElement _lift;
         CardFace _inspect;
 
+        /// <summary>
+        /// Two shared layers on this panel, so the board's own surfaces do not each have to own a
+        /// UIDocument. A second document is a second panel with its own sorting order to keep in
+        /// step, and the walls are already here for that reason.
+        ///
+        /// BOARD is under the hand - unit vitals and damage numbers belong behind a card you are
+        /// holding up. OVERLAY is over everything, which is what a battle cut-in is for.
+        /// </summary>
+        public VisualElement BoardLayer { get; private set; }
+        public VisualElement OverlayLayer { get; private set; }
+
+        /// <summary>The panel is built lazily; nothing may draw into it before this is true.</summary>
+        public bool PanelReady { get { return _doc != null && BoardLayer != null; } }
+
         /// <summary>The two castle walls, their vitals, and the foe's hand - built into this
         /// panel, under the cards, because the cards are held in FRONT of your wall.</summary>
         readonly WallBands _walls = new WallBands();
@@ -227,6 +241,12 @@ namespace SpawnRowDuel.View.Cards
             HudLayout.Recompute();
             _walls.Attach(root);              // first, so everything below is drawn on the stone
 
+            BoardLayer = new VisualElement { pickingMode = PickingMode.Ignore };
+            BoardLayer.style.position = Position.Absolute;
+            BoardLayer.style.left = 0; BoardLayer.style.right = 0;
+            BoardLayer.style.top = 0; BoardLayer.style.bottom = 0;
+            root.Add(BoardLayer);
+
             _inspect = new CardFace { pickingMode = PickingMode.Ignore };
             _inspect.style.position = Position.Absolute;
             _inspect.style.display = DisplayStyle.None;
@@ -245,6 +265,47 @@ namespace SpawnRowDuel.View.Cards
             _lift.style.overflow = Overflow.Visible;     // the picked card rises OUT of the strip
             _lift.pickingMode = PickingMode.Ignore;
             root.Add(_lift);
+
+            OverlayLayer = new VisualElement { pickingMode = PickingMode.Ignore };
+            OverlayLayer.style.position = Position.Absolute;
+            OverlayLayer.style.left = 0; OverlayLayer.style.right = 0;
+            OverlayLayer.style.top = 0; OverlayLayer.style.bottom = 0;
+            root.Add(OverlayLayer);                      // LAST: a cut-in covers the hand too
+        }
+
+        /// <summary>
+        /// World point → this panel's own coordinates, top-left origin.
+        ///
+        /// Screen and panel pixels are the same thing while the panel renders to the screen, and
+        /// are NOT while it renders into a texture - which is exactly what the screenshot harness
+        /// does, so anything that skipped this scaling would be right in the game and wrong in
+        /// every probe shot.
+        /// </summary>
+        public bool TryProject(Camera cam, Vector3 world, out Vector2 panelPos)
+        {
+            panelPos = default(Vector2);
+            if (cam == null || _doc == null || _doc.rootVisualElement == null) return false;
+
+            var sp = cam.WorldToScreenPoint(world);
+            if (sp.z <= 0f) return false;                // behind the camera
+
+            var root = _doc.rootVisualElement;
+            float pw = root.resolvedStyle.width, ph = root.resolvedStyle.height;
+            if (pw <= 1f) pw = Screen.width;
+            if (ph <= 1f) ph = Screen.height;
+
+            panelPos = new Vector2(sp.x / Mathf.Max(1f, Screen.width) * pw,
+                                   (1f - sp.y / Mathf.Max(1f, Screen.height)) * ph);
+            return true;
+        }
+
+        public Vector2 PanelSize()
+        {
+            if (_doc == null || _doc.rootVisualElement == null)
+                return new Vector2(Screen.width, Screen.height);
+            var root = _doc.rootVisualElement;
+            float pw = root.resolvedStyle.width, ph = root.resolvedStyle.height;
+            return new Vector2(pw > 1f ? pw : Screen.width, ph > 1f ? ph : Screen.height);
         }
     }
 }

@@ -408,8 +408,9 @@ namespace SpawnRowDuel.Rules.Tests
             StringAssert.Contains("Chrysalis 0/3", text);
             StringAssert.Contains("swells +1", text);
             StringAssert.Contains("Canopy Beast", text);
-            StringAssert.Contains("2500", text);
-            StringAssert.Contains("2000", text);
+            // the statline is printed on the DISPLAY scale (StatScale): 2500/2000 engine units
+            StringAssert.Contains("250", text);
+            StringAssert.Contains("200", text);
         }
     }
 }

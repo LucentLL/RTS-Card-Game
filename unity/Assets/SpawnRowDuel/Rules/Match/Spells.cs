@@ -199,13 +199,13 @@ namespace SpawnRowDuel.Rules
             {
                 case SpellEffect.Burn:
                     return card.IsTrap
-                        ? "Backlash. When your line is struck, every attacker takes " + v + "."
-                        : "Bolt. Deal " + v + " damage to an enemy creature, structure, or face-down card.";
+                        ? "Backlash. When your line is struck, every attacker takes " + StatScale.Str(v) + "."
+                        : "Bolt. Deal " + StatScale.Str(v) + " damage to an enemy creature, structure, or face-down card.";
                 case SpellEffect.Raze: return "Sunder. Destroy a target enemy structure.";
                 case SpellEffect.Pitfall: return "Snare. When your opponent summons a creature, destroy it.";
-                case SpellEffect.Chain: return "Arc. Deal " + v + " to the two highest-attack enemy creatures.";
+                case SpellEffect.Chain: return "Arc. Deal " + StatScale.Str(v) + " to the two highest-attack enemy creatures.";
                 case SpellEffect.Bounce: return "Riptide. Return target enemy creature to its owner's hand (Entrench resists).";
-                case SpellEffect.Thornmail: return "Overgrowth. When your line is struck, the defending creature gains +500/+1000 permanently.";
+                case SpellEffect.Thornmail: return "Overgrowth. When your line is struck, the defending creature gains +50/+100 permanently.";
                 default: return "A spell.";
             }
         }

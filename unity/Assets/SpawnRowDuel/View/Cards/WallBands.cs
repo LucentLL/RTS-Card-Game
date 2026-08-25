@@ -239,7 +239,7 @@ namespace SpawnRowDuel.View.Cards
         static void Fill(Vitals v, GameState s, Side side, Color element)
         {
             var p = s.P(side);
-            v.Life.text = "♥" + p.Life;
+            v.Life.text = Stat.Hp(p.Life);
             v.Life.style.color = side == Side.You ? new Color(1f, 0.78f, 0.72f)
                                                   : new Color(0.80f, 0.86f, 1f);
             v.Mana.text = "◆" + p.Mana;

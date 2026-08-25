@@ -28,6 +28,11 @@ namespace SpawnRowDuel.View
         public CellRef? Hover { get { return _hover; } }
         public CellRef? Selected { get { return _selected; } }
 
+        /// <summary>What the selected unit may attack right now - the engine's own answer, lit on
+        /// the board and read by the vitals layer so a target says what it has left.</summary>
+        public IReadOnlyList<CellRef> LegalAttacks { get { return _legalAttacks; } }
+        public IReadOnlyList<CellRef> LegalMoves { get { return _legalMoves; } }
+
         /// <summary>
         /// Select a cell from outside the input layer - the upkeep prompt uses it to put the
         /// first over-extended creature under the player's nose, the way the JS popped its

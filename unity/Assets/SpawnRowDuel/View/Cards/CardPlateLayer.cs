@@ -26,7 +26,21 @@ namespace SpawnRowDuel.View.Cards
         /// <summary>Off hides the plates and leaves the tiles bare under the figures.</summary>
         public static bool Enabled = true;
 
-        const float PlateH = 0.98f;      // cells, along the card's LONG axis - it nearly fills its tile
+        /// <summary>
+        /// How much of its tile the card covers. ONE, deliberately: the card IS the tile.
+        ///
+        /// It was 0.98 of a cell along the card's long axis, which sounds like a full tile and is
+        /// not one - the card was then sized DOWN from that by its own aspect, so a 0.72 x 0.98
+        /// card sat on a 1.00 x 1.45 tile and covered under half of it. Every slot on the board
+        /// had a margin of bare ground around its card, and a figure standing on the middle of
+        /// that margin is a figure standing on nothing.
+        ///
+        /// A tile is 1.45x deeper than it is wide (BoardView.RowStretch) and a card is 1.39x
+        /// taller than it is wide, so filling the tile costs the card about 4% of stretch along
+        /// its length - invisible next to the sin(42 deg) foreshortening the whole plate is
+        /// already under, and cheap for a board with no gaps in it.
+        /// </summary>
+        const float Fill = 1f;
         const float Lift = 0.030f;       // just over the 0.02-thick tile marking (top face 0.01)
 
         /// <summary>
@@ -118,10 +132,21 @@ namespace SpawnRowDuel.View.Cards
             return sr;
         }
 
+        /// <summary>
+        /// The plate's footprint on a board: the tile's own face, exactly. BoardView scales a cell
+        /// CellSize wide and CellSize*RowStretch deep, and the card is that rectangle - x is the
+        /// card's width, y its length along the row.
+        /// </summary>
+        public static Vector2 Footprint(BoardView board)
+        {
+            return new Vector2(board.CellSize * Fill, board.CellSize * board.RowStretch * Fill);
+        }
+
         void Place(Plate p, BoardObject o, CellRef cell, GameState s)
         {
-            float plateH = PlateH * _match.Board.CellSize;
-            float plateW = plateH / CardFace.Aspect;
+            var foot = Footprint(_match.Board);
+            float plateW = foot.x;
+            float plateH = foot.y;
 
             p.Root.transform.position = _match.Board.WorldOf(cell) + new Vector3(0f, Lift, 0f);
 
@@ -130,7 +155,7 @@ namespace SpawnRowDuel.View.Cards
                                  : CardPlateTextures.Front(_palette.Of(o.Color));
 
             p.Frame.sprite = frame;
-            p.Frame.transform.localScale = FitScale(frame, plateW, plateH);
+            p.Frame.transform.localScale = FillScale(frame, plateW, plateH);
 
             // the illustration, filling the art window
             float winW = plateW * (1f - 2f * CardPlateTextures.ArtInsetX) - 0.01f;
@@ -232,11 +257,16 @@ namespace SpawnRowDuel.View.Cards
             return got;
         }
 
-        static Vector3 FitScale(Sprite sprite, float w, float h)
+        /// <summary>
+        /// Scale the frame so it COVERS the footprint, per axis. Fitting it uniformly is what left
+        /// the margin: the frame texture is 96x133 and the tile is 1.00 x 1.45, so the uniform fit
+        /// is decided by the narrower axis and the other one keeps the slack. The two aspects are
+        /// within 4.5% of each other, which is the whole distortion this costs.
+        /// </summary>
+        static Vector3 FillScale(Sprite sprite, float w, float h)
         {
             var size = sprite.bounds.size;
-            float k = Mathf.Min(w / Mathf.Max(0.0001f, size.x), h / Mathf.Max(0.0001f, size.y));
-            return new Vector3(k, k, k);
+            return new Vector3(w / Mathf.Max(0.0001f, size.x), h / Mathf.Max(0.0001f, size.y), 1f);
         }
 
         Color Sleeve(GameState s, Side owner)

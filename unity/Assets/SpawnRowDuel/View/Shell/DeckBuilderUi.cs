@@ -522,7 +522,7 @@ namespace SpawnRowDuel.View.Shell
             foot.style.paddingLeft = 4f * UiKit.S; foot.style.paddingRight = 4f * UiKit.S;
             foot.style.paddingBottom = 3f * UiKit.S;
             foot.style.justifyContent = Justify.SpaceBetween;
-            UiKit.Text(foot, m.ShowStats ? m.Attack / 500 + "/" + (m.MaxHp + 499) / 500 : m.Ribbon,
+            UiKit.Text(foot, m.ShowStats ? Stat.Line(m.Attack, m.MaxHp) : m.Ribbon,
                        9.5f, UiFont.BodyRegular, UiKit.Dim);
 
             int have = _deck.CountOf(key);

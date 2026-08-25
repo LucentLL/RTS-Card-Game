@@ -30,6 +30,30 @@ namespace SpawnRowDuel.View
         private readonly List<string> _log = new List<string>();
         public IReadOnlyList<string> Log { get { return _log; } }
 
+        /// <summary>
+        /// Every event, as it is drained, for the surfaces that ANIMATE rather than render. The
+        /// contract from Events.cs holds: render(GameState) is the truth at rest, react(GameEvent)
+        /// is transient flair, and a listener that drops one costs an animation and never a wrong
+        /// board.
+        /// </summary>
+        public event System.Action<GameEvent> Observed;
+
+        /// <summary>
+        /// A presentation hold: the AI stops proposing commands until this passes.
+        ///
+        /// A whole combat resolves inside one Apply, so without it the opponent's next move lands
+        /// while the clash that just happened is still on screen - and the thing a player was
+        /// trying to read gets overwritten by the thing that happened next. Only the combat
+        /// theatre sets it, only for as long as a cut-in runs, and it never blocks YOUR input.
+        /// </summary>
+        public static float HoldUntil;
+
+        public static void Hold(float seconds)
+        {
+            float until = Time.unscaledTime + seconds;
+            if (until > HoldUntil) HoldUntil = until;
+        }
+
         // ---- pending interaction (what the next board tap means) -------------------------
         public enum Intent : byte { None = 0, PlayCard = 1, Build = 2 }
 
@@ -94,6 +118,7 @@ namespace SpawnRowDuel.View
         public void StartMatch(CommanderId you, CommanderId foe, ulong seed,
                                List<HandCard> youDeck, List<HandCard> foeDeck)
         {
+            HoldUntil = 0f;                    // static: a new match must not inherit a stale hold
             var state = MatchSetup.NewMatch(Catalog, you, foe, youDeck, foeDeck, seed, RulesOptions.JsParity);
             Engine = new DuelEngine(state, Catalog);
             _ai = new AiDriver(Engine, new ScriptedAiPolicy(Side.Foe));
@@ -124,6 +149,7 @@ namespace SpawnRowDuel.View
         {
             var r = Engine.Apply(cmd);
             if (r.Status == CommandStatus.Rejected) return r.Rejection;
+            PumpEvents();                      // NOW, not next frame - see PumpEvents
             Touch();
             return Rejection.None;
         }
@@ -348,6 +374,9 @@ namespace SpawnRowDuel.View
             var s = Engine.State;
             if (s.IsOver) return;
 
+            // a cut-in is on screen: let the player watch it before the next move lands
+            if (Time.unscaledTime < HoldUntil) return;
+
             _beat += Time.deltaTime;
             if (_beat < 0.35f) return;
 
@@ -357,6 +386,7 @@ namespace SpawnRowDuel.View
             var report = new AiDriver.Report();
             if (_ai.Step(report))
             {
+                PumpEvents();
                 Touch();
                 return;
             }
@@ -380,11 +410,24 @@ namespace SpawnRowDuel.View
 
         void Apply(ICommand cmd)
         {
-            if (Engine.Apply(cmd).Applied) Touch();
+            if (Engine.Apply(cmd).Applied) { PumpEvents(); Touch(); }
         }
 
         // ---- events -> log ----------------------------------------------------------------
 
+        /// <summary>
+        /// Drain the engine's events to the log, the field and the theatre.
+        ///
+        /// Called IMMEDIATELY after every command, not once per frame at the top of Update. The
+        /// difference is not tidiness: a listener that animates has to see the board as it was
+        /// BEFORE the events it is being told about, and the only copy of that is a snapshot taken
+        /// at the end of the previous frame. Pumping a frame late puts a LateUpdate in between -
+        /// the snapshot is refreshed to the state AFTER the fight, and the cut-in for the blow
+        /// that killed a creature can no longer find the creature it killed.
+        ///
+        /// Update still pumps as well, as a catch-all for anything applied from outside this
+        /// class. Draining twice is free: the sink empties.
+        /// </summary>
         void PumpEvents()
         {
             foreach (var ev in Engine.DrainEvents())
@@ -392,6 +435,7 @@ namespace SpawnRowDuel.View
                 var line = Describe(ev);
                 if (line != null) Push(line);
                 Blow(ev);
+                if (Observed != null) Observed(ev);
                 Touch();
             }
         }
@@ -495,7 +539,7 @@ namespace SpawnRowDuel.View
             var wall = ev as WallStruck;
             if (wall != null)
                 return (wall.Defender == Side.You ? "Your" : "The enemy") + " wall is stormed for ⚔" +
-                       wall.Amount + " — ♥" + wall.LifeRemaining + " remains";
+                       Stat.Show(wall.Amount) + " — ♥" + Stat.Show(wall.LifeRemaining) + " remains";
 
             var bounced = ev as UnitBounced;
             if (bounced != null)
@@ -509,12 +553,12 @@ namespace SpawnRowDuel.View
             var token = ev as TokenSpawned;
             if (token != null)
                 return (token.Owner == Side.You ? "You conjure " : "They conjure ") + token.Name +
-                       " (" + token.Attack / 500 + "/" + (token.Hp + 499) / 500 + ")";
+                       " (" + Stat.Line(token.Attack, token.Hp) + ")";
 
             var hatched = ev as CreatureHatched;
             if (hatched != null)
-                return "It hatches! " + hatched.NewName + " ⚔" + hatched.Attack / 500 +
-                       "/♥" + (hatched.Hp + 499) / 500;
+                return "It hatches! " + hatched.NewName + " " + Stat.Atk(hatched.Attack) +
+                       "/" + Stat.Hp(hatched.Hp);
 
             var grew = ev as ChrysalisGrew;
             if (grew != null) return "A cocoon swells (" + grew.Count + "/" + grew.HatchAt + ")";

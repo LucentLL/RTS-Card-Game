@@ -259,9 +259,9 @@ namespace SpawnRowDuel.View.Cards
             // stats
             _stats.style.display = m.ShowStats ? DisplayStyle.Flex : DisplayStyle.None;
             _stats.style.height = width * 0.215f;
-            _power.text = m.Attack > 0 ? m.Attack.ToString() : "";
+            _power.text = m.Attack > 0 ? Stat.Num(m.Attack) : "";
             _power.style.fontSize = Mathf.Clamp(width * PowerSize, 11f, 26f);
-            _hp.text = "♥" + m.Hp;
+            _hp.text = Stat.Hp(m.Hp);
             _hp.style.fontSize = Mathf.Clamp(width * HpSize, 9f, 18f);
 
             if (m.HasWorkerChip)

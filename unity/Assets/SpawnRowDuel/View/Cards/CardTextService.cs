@@ -36,11 +36,11 @@ namespace SpawnRowDuel.View.Cards
         {
             switch (kw)
             {
-                case Keyword.Detonate: return "Detonate " + (c != null && c.Detonate.HasValue ? c.Detonate.Value.ToString() : "");
+                case Keyword.Detonate: return "Detonate " + (c != null && c.Detonate.HasValue ? Stat.Num(c.Detonate.Value) : "");
                 case Keyword.Undertow: return "Undertow";
                 case Keyword.Entrench: return "Entrench";
                 case Keyword.Ward: return "Ward";
-                case Keyword.Reap: return "Reap " + (c != null && c.Reap.HasValue ? c.Reap.Value.ToString() : "");
+                case Keyword.Reap: return "Reap " + (c != null && c.Reap.HasValue ? Stat.Num(c.Reap.Value) : "");
                 case Keyword.Chrysalis: return "Chrysalis";
                 case Keyword.Scour: return "Scour";
                 case Keyword.Overcharge: return "Overcharge";
@@ -56,17 +56,17 @@ namespace SpawnRowDuel.View.Cards
             switch (s.Effect)
             {
                 case SpellEffect.Burn:
-                    return "<b>Bolt.</b> Deal <b>" + val + "</b> damage to an enemy creature, structure, or face-down card.";
+                    return "<b>Bolt.</b> Deal <b>" + Stat.Num(val) + "</b> damage to an enemy creature, structure, or face-down card.";
                 case SpellEffect.Raze:
                     return "<b>Sunder.</b> Destroy a target enemy <b>structure</b>.";
                 case SpellEffect.Pitfall:
                     return "<b>Snare.</b> When your opponent <b>summons</b> a creature, destroy it.";
                 case SpellEffect.Chain:
-                    return "<b>Arc.</b> Deal <b>" + val + "</b> to the two highest-attack enemy creatures.";
+                    return "<b>Arc.</b> Deal <b>" + Stat.Num(val) + "</b> to the two highest-attack enemy creatures.";
                 case SpellEffect.Bounce:
                     return "<b>Riptide.</b> Return target enemy creature to its owner's hand (Entrench resists).";
                 case SpellEffect.Thornmail:
-                    return "<b>Overgrowth.</b> When your line is struck, the defending creature gains <b>+500/+1000</b> permanently.";
+                    return "<b>Overgrowth.</b> When your line is struck, the defending creature gains <b>+50/+100</b> permanently.";
                 default:
                     return "A spell.";
             }
@@ -93,7 +93,7 @@ namespace SpawnRowDuel.View.Cards
             {
                 case StructEffect.Mana: parts.Add("<b>Forge.</b> ◆" + d.Value + " each turn"); break;
                 case StructEffect.Villager: parts.Add("<b>Longhouse.</b> Trains a worker each turn"); break;
-                case StructEffect.Damage: parts.Add("<b>Tower.</b> ⚔" + d.Value + " each turn"); break;
+                case StructEffect.Damage: parts.Add("<b>Tower.</b> ⚔" + Stat.Num(d.Value) + " each turn"); break;
                 case StructEffect.Wall: parts.Add("<b>Bulwark.</b> Screens the line"); break;
                 case StructEffect.Revive: parts.Add("<b>Reliquary.</b> Recalls the fallen"); break;
                 case StructEffect.Vault: parts.Add("<b>Vault.</b> Banks ◆" + d.Value + " past your turn"); break;
@@ -116,11 +116,11 @@ namespace SpawnRowDuel.View.Cards
                 case StructEffect.Mana:
                     return "<b>Forge.</b> Yields <b>◆" + val + " mana</b> at the start of its owner's turn." + supTxt;
                 case StructEffect.Villager:
-                    return "<b>Longhouse.</b> Trains a free <b>Minion</b> (0/2 ⚒) into its owner's base pool at the start of its owner's turn." + supTxt;
+                    return "<b>Longhouse.</b> Trains a free <b>Minion</b> (0/100 ⚒) into its owner's base pool at the start of its owner's turn." + supTxt;
                 case StructEffect.Wall:
                     return "<b>Bulwark.</b> A heavy body that screens the line — it can intercept and be raided, but never moves or attacks." + supTxt;
                 case StructEffect.Damage:
-                    return "<b>Cannon Tower.</b> Strikes the nearest enemy creature for <b>" + val + "</b> at the start of its owner's turn." + supTxt;
+                    return "<b>Cannon Tower.</b> Strikes the nearest enemy creature for <b>" + Stat.Num(val) + "</b> at the start of its owner's turn." + supTxt;
                 case StructEffect.Vault:
                     return "<b>Mana Vault.</b> Unspent mana <b>drains at the end of your turn</b> — your vaults keep up to <b>◆" + val + "</b> of it banked. Upgrade it to hold more." + supTxt;
                 case StructEffect.Revive:
@@ -140,7 +140,7 @@ namespace SpawnRowDuel.View.Cards
                 if (creature.Into != null)
                     brief += (brief.Length > 0 ? " · " : "")
                         + "<b>Chrysalis</b> — hatches into " + creature.Into.Name
-                        + " (" + creature.Into.Attack + "/" + creature.Into.Health + ")";
+                        + " (" + Stat.Line(creature.Into.Attack, creature.Into.Health) + ")";
                 return brief;
             }
 

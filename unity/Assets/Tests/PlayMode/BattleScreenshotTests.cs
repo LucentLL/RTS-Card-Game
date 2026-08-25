@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using SpawnRowDuel.Rules;
@@ -135,6 +136,98 @@ namespace SpawnRowDuel.PlayTests
 
             yield return Frames(6);
             yield return Shoot("set-card.png");
+        }
+
+        /// <summary>
+        /// The battle cut-in, mid-clash.
+        ///
+        /// The one surface with no other witness at all: a whole combat resolves inside one
+        /// Apply, so the cards it draws no longer exist on the board by the time anything could
+        /// look for them - the cut-in is drawn from CombatTheatre's one-frame-old snapshot, and a
+        /// snapshot that has gone stale looks exactly like a snapshot that is working until you
+        /// see the picture.
+        ///
+        /// The duel is STAGED, and has to be: a mid-game board is all structures, because the
+        /// scripted AI builds its economy before it fights. The attack itself is still the
+        /// engine's - CanApply is asserted before Apply - so the picture is of a legal fight.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureBattleCutIn()
+        {
+            yield return PlayToMidGame();
+
+            var match = Object.FindFirstObjectByType<MatchController>();
+            var engine = match.Engine;
+            var s = engine.State;
+            Side me = s.Turn;
+
+            Assert.AreEqual(TurnPhase.Action, s.Phase, "the mid-game board should stop on an action phase");
+
+            // A mid-game board is all STRUCTURES - the scripted AI builds before it fights - so
+            // the fight is set up rather than found. Both duellists stand in the SAME row on
+            // purpose: a same-row attack is an uninterposable duel (combat v3), so it resolves
+            // inside the one Apply instead of parking on a blocker choice, and the shot catches
+            // the whole trade rather than the declaration.
+            var row = Board.RowFor(me, SlotName.Front);
+            CellRef mineAt = default(CellRef), theirsAt = default(CellRef);
+            int found = 0;
+            for (int c = 0; c < Board.Columns && found < 2; c++)
+            {
+                var cell = new CellRef(row, c);
+                if (!Board.IsRealSlot(row, c) || s.At(cell) != null) continue;
+                if (found == 0) mineAt = cell; else theirsAt = cell;
+                found++;
+            }
+            Assert.AreEqual(2, found, "no two free cells in the attacker's own row");
+
+            var cat = engine.Catalog;
+            var mineCard = cat.PoolOf(s.P(me).PrimaryColor)[7];            // the pool's heaviest
+            var theirsCard = cat.PoolOf(s.P(TurnMachine.Other(me)).PrimaryColor)[5];
+
+            var attacker = UnitFactory.MakeCreature(s, me, mineCard, mineCard.Element);
+            attacker.Sick = false;
+            s.Put(mineAt, attacker);
+
+            var defender = UnitFactory.MakeCreature(s, TurnMachine.Other(me), theirsCard,
+                                                    theirsCard.Element);
+            defender.Sick = false;
+            s.Put(theirsAt, defender);
+
+            // Let them BE on the board for a frame. The cut-in draws from CombatTheatre's
+            // one-frame-old snapshot - which is the only way to draw a card that the blow has
+            // already removed - and a defender conjured and killed inside a single frame was
+            // never snapshotted at all. A real one has stood there since it was summoned.
+            yield return Frames(2);
+
+            var cmd = new DeclareAttackCommand(me, mineAt, attacker.Id,
+                new UnitTarget(theirsAt, defender.Id));
+            Assert.AreEqual(Rejection.None, engine.CanApply(cmd), "the staged duel is not legal");
+
+            // through the CONTROLLER, not the engine: it drains the events as each command lands,
+            // which is what lets an animating listener see the board as it was before the blow.
+            // Applying straight to the engine leaves the events for the next frame - by which
+            // time the theatre's snapshot has been refreshed past the fight it is describing.
+            Assert.AreEqual(Rejection.None, match.TryHuman(cmd));
+
+            // DECLARING is not fighting: combat v3 resolves on its own command, and the cut-in
+            // waits for the damage rather than the declaration. Any choice the resolution parks
+            // is answered by the same scripted policy the opponent defends with.
+            Assert.AreEqual(Rejection.None, match.TryHuman(new ResolveCombatCommand(me)));
+
+            var defence = new Ai.ScriptedAiPolicy(TurnMachine.Other(me));
+            for (int i = 0; i < 16 && engine.State.Pending != null; i++)
+            {
+                var answer = defence.Next(engine);
+                if (answer == null || match.TryHuman(answer) != Rejection.None) break;
+            }
+            Assert.IsNull(engine.State.Pending, "the staged duel is still waiting on a choice");
+
+            // past the fly-in and the clash, inside the hold - where the numbers are showing.
+            // On the CLOCK, not on frames: the cut-in's beats are seconds and a batchmode frame
+            // is worth a fraction of one.
+            yield return Frames(2);
+            yield return GameSeconds(0.5f);
+            yield return Shoot("battle-cutin.png");
         }
 
         /// <summary>

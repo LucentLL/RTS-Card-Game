@@ -26,6 +26,26 @@ namespace SpawnRowDuel.View.Campaign
         public const float Extrude = 1.05f;      // the top face sits slightly proud of the sphere
         public const float Inset = 0.93f;        // corners pulled in, so tiles read as tiles
 
+        /// <summary>
+        /// The CRUST: how dark the ground under the plates is, as a fraction of its tile's colour.
+        ///
+        /// Without it the world is hollow, and visibly so. The plates are inset by 7%, so there is
+        /// a gap along every edge, and behind that gap was the skybox - you could see space
+        /// through the planet, and its silhouette was a ragged fringe of loose tiles rather than a
+        /// horizon. The dual's tiles cover the sphere EXACTLY, so the same fan drawn at full width
+        /// and without the extrusion closes it.
+        ///
+        /// It is part of the TILE MESH rather than a second renderer under it. Two renderers
+        /// sharing one material and one bounds centre do not reliably sort against each other -
+        /// the crust drew over the plates it was supposed to be beneath - and a mesh cannot
+        /// disagree with itself about depth. It also keeps the globe at one draw call.
+        ///
+        /// Each tile's crust carries that tile's own colour, deeply shaded, so a chasm between two
+        /// Fire plates is a Fire chasm: depth reads as depth, where flat black would read as
+        /// another hole.
+        /// </summary>
+        public const float CoreShade = 0.22f;
+
         public Material TileMaterial;            // vertex-coloured, unlit
         public Material BorderMaterial;
 
@@ -57,6 +77,13 @@ namespace SpawnRowDuel.View.Campaign
         public int Hover { get; private set; }
 
         public Camera Cam { get; set; }
+
+        /// <summary>The built globe, for the winding test - see PresentationTests.</summary>
+        public Mesh TileMesh { get { return _tileMesh; } }
+
+        /// <summary>Which tile each triangle of <see cref="TileMesh"/> belongs to - the same table
+        /// <see cref="Pick"/> reads a RaycastHit through.</summary>
+        public int[] TriangleTiles { get { return _triToTile; } }
 
         void Awake() { Hover = -1; }
 
@@ -95,7 +122,13 @@ namespace SpawnRowDuel.View.Campaign
 
                 var c = ToUnity(tile.Center);
 
-                // centre, then the inset top ring, then the same ring on the sphere for the skirt
+                // Four rings per tile, in this order - Recolour and the skirt/crust shading both
+                // count on it:
+                //   [0]              the plate's centre, extruded
+                //   [1 .. ring]      the plate's inset rim, extruded
+                //   [ring+1 .. 2r]   the same rim dropped to the sphere - the plate's SIDE
+                //   [2r+1]           the crust's centre, on the sphere
+                //   [2r+2 .. 3r+1]   the crust's rim at FULL width, on the sphere
                 verts.Add(c * Extrude);
                 for (int i = 0; i < ring; i++)
                 {
@@ -109,22 +142,45 @@ namespace SpawnRowDuel.View.Campaign
                     var insetDir = Vector3.Lerp(p, c, 1f - Inset).normalized;
                     verts.Add(insetDir * Radius);
                 }
+                verts.Add(c * Radius);
+                for (int i = 0; i < ring; i++)
+                    verts.Add(ToUnity(corners[tile.Corners[i]]) * Radius);
 
                 _tileVertexCount[t] = verts.Count - start;
-                for (int i = start; i < verts.Count; i++) cols.Add(Color.white);
+                int crust = start + 1 + 2 * ring;              // the crust's centre vertex
+
+                // BOTTOM-UP, and that order is load-bearing: crust, then the plate's side, then
+                // its face. The globe is drawn back-to-front rather than depth-sorted - see the
+                // shader - so within a tile the last thing written wins, and a crust emitted after
+                // the face paints over the face it is supposed to lie under.
+                for (int i = 0; i < ring; i++)
+                {
+                    // the crust, wound like the plate's face so it faces out of the sphere too.
+                    // Its triangles map to this tile as well, so a tap that lands in a chasm picks
+                    // the ground it fell on rather than nothing.
+                    int a3 = crust + 1 + i;
+                    int b3 = crust + 1 + (i + 1) % ring;
+                    tris.Add(crust); tris.Add(a3); tris.Add(b3);
+                    triTile.Add(t);
+                }
 
                 for (int i = 0; i < ring; i++)
                 {
                     int a = start + 1 + i;
                     int b = start + 1 + (i + 1) % ring;
-                    tris.Add(start); tris.Add(b); tris.Add(a);
-                    triTile.Add(t);
-
                     int a2 = start + 1 + ring + i;
                     int b2 = start + 1 + ring + (i + 1) % ring;
-                    tris.Add(a); tris.Add(b); tris.Add(a2);
+                    tris.Add(a); tris.Add(a2); tris.Add(b);
                     triTile.Add(t);
-                    tris.Add(b); tris.Add(b2); tris.Add(a2);
+                    tris.Add(b); tris.Add(a2); tris.Add(b2);
+                    triTile.Add(t);
+                }
+
+                for (int i = 0; i < ring; i++)
+                {
+                    int a = start + 1 + i;
+                    int b = start + 1 + (i + 1) % ring;
+                    tris.Add(start); tris.Add(a); tris.Add(b);
                     triTile.Add(t);
                 }
             }
@@ -232,14 +288,20 @@ namespace SpawnRowDuel.View.Campaign
                 if (terr.Owner == _faction) c = Color.Lerp(c, Color.white, 0.30f);
                 if (tid == Hover) c = Color.Lerp(c, Color.white, 0.35f);
 
-                int start = _tileVertexStart[t], n = _tileVertexCount[t];
-                int ring = (n - 1) / 2;
-                for (int i = 0; i < n; i++)
-                {
-                    // the skirt is in shadow: it is the side of a plate, not its face
-                    bool skirt = i > ring;
-                    _colors[start + i] = skirt ? c * 0.42f : c;
-                }
+                int start = _tileVertexStart[t];
+                int ring = _sphere.Tiles[t].Corners.Length;
+
+                var side = c * 0.42f;                  // the plate's edge: in shadow, not its face
+                var deep = c * CoreShade;              // the crust: a chasm, not a hole
+                side.a = 1f;
+                deep.a = 1f;
+
+                _colors[start] = c;
+                for (int i = 0; i < ring; i++) _colors[start + 1 + i] = c;
+                for (int i = 0; i < ring; i++) _colors[start + 1 + ring + i] = side;
+
+                int crust = start + 1 + 2 * ring;
+                for (int i = 0; i <= ring; i++) _colors[crust + i] = deep;
             }
             _tileMesh.SetColors(_colors);
             BuildBorderMesh();

@@ -95,11 +95,11 @@ namespace SpawnRowDuel.Rules
 
         public override string Text(CreatureUnit o, ICardCatalog cat)
         {
-            return "Detonate " + o.Detonate + ". When destroyed, deals " + o.Detonate
+            return "Detonate " + StatScale.Str(o.Detonate) + ". When destroyed, deals " + StatScale.Str(o.Detonate)
                  + " to the deadliest enemy creature (or an enemy structure). Never hits a command center.";
         }
 
-        public override string Label(CreatureUnit o) { return "Detonate " + o.Detonate; }
+        public override string Label(CreatureUnit o) { return "Detonate " + StatScale.Str(o.Detonate); }
 
         public override void OnDeath(GameState s, CreatureUnit self, Side owner, ICardCatalog cat,
                                      EventSink ev)
@@ -206,7 +206,7 @@ namespace SpawnRowDuel.Rules
 
         public override string Text(CreatureUnit o, ICardCatalog cat)
         {
-            return "Ward. On entry, conjures a 0/" + o.WardHp + " Lumen token blocker beside it.";
+            return "Ward. On entry, conjures a 0/" + StatScale.Str(o.WardHp) + " Lumen token blocker beside it.";
         }
 
         public override string Label(CreatureUnit o) { return "Ward"; }
@@ -237,11 +237,11 @@ namespace SpawnRowDuel.Rules
 
         public override string Text(CreatureUnit o, ICardCatalog cat)
         {
-            return "Reap " + o.Reap + ". When destroyed, raises a " + o.Reap + "/" + o.Reap
+            return "Reap " + StatScale.Str(o.Reap) + ". When destroyed, raises a " + StatScale.Str(o.Reap) + "/" + StatScale.Str(o.Reap)
                  + " Shade token in its place.";
         }
 
-        public override string Label(CreatureUnit o) { return "Reap " + o.Reap; }
+        public override string Label(CreatureUnit o) { return "Reap " + StatScale.Str(o.Reap); }
 
         public override void OnDeath(GameState s, CreatureUnit self, Side owner, ICardCatalog cat,
                                      EventSink ev)
@@ -276,8 +276,8 @@ namespace SpawnRowDuel.Rules
             string into = "";
             CreatureCard baseCard;
             if (cat != null && cat.TryCreature(o.Card, out baseCard) && baseCard.Into != null)
-                into = " " + baseCard.Into.Name + " (attack " + baseCard.Into.Attack
-                     + "/health " + baseCard.Into.Health + ")";
+                into = " " + baseCard.Into.Name + " (attack " + StatScale.Str(baseCard.Into.Attack)
+                     + "/health " + StatScale.Str(baseCard.Into.Health) + ")";
 
             return "Chrysalis " + o.ChrysalisCount + "/" + (o.Hatch > 0 ? o.Hatch : 3)
                  + ". Cannot attack; swells +" + (o.Grow > 0 ? o.Grow : 1)

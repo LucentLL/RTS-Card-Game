@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 3 | 2026-08-23 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Remaining: tower deck/GY piles, horizon + sky, FX, audio |
+| M13 — presentation pass | 🟡 slice 4 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
 | M14 — campaign | 🟡 first pass | 2026-08-24 — the hexsphere globe (162 tiles), map generation, absorb cascade, end-turn AI, the 4-line challenge dialogue and the save, all pure C# and tested; globe view with drag-spin and raycast picking, world-map HUD, attack confirm and battle handoff. Open: garrison affects nothing, AI never absorbs, no custom deck in campaign |
 | M15 — menus, deck builder, save/load | 🟡 first pass | 2026-08-24 — main menu, banner select and a screen router that switches the battle world off; three-column deck builder with search/filter/sort, mana curve, 5 slots and a duel-with-it path. Open: no solo deck-pick screen, no settings |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -856,3 +856,69 @@ rather than letting you bring a built one; and there is no save-slot UI beyond l
 
 265 passing. New probes: `shell-menu`, `shell-faction`, `shell-worldmap`, `shell-challenge`,
 `shell-deckbuilder`.
+
+### 2026-08-24 (later) — M13 slice 4: the numbers, the tiles, and the clash
+
+Five from the phone, and one of them had been wrong since the globe was built.
+
+* **"Attack and HP should be reduced by 10 — 3000 ATK becomes 300."** The display had two
+  scales, not one: the board overlays and the deck builder divided by 500 (a 3000-attack dragon
+  read as "6") while the card frames and the wall rails printed the raw number (the same dragon
+  read "3000", and the wall it was hitting read "10000"). One divisor now, ten, everywhere —
+  `StatScale.Show` in Rules, because the keyword and spell text producers print statlines into
+  sentences and "Deal 1000 damage" beside a creature showing ♥200 is worse than either scale
+  alone; `View.Stat` wraps it with the glyphs. **The engine is untouched** (D23): the ×500
+  registry and the 10000 life pool are what the M12 harness pins against the living JS.
+
+* **"The cards on the field should fill their respective tiles, no gaps."** They did not come
+  close: `0.98` of a cell "along the card's long axis" was then divided by the card's own aspect,
+  so a 0.72 × 0.98 card sat on a 1.00 × 1.45 tile and covered under half of it. The plate is the
+  tile's face exactly now, at a cost of 4% of stretch along the card's length (D24).
+
+* **"Buildings are still floating far too high above their tiles."** The feet were at the CELL
+  CENTRE, which is where the cell is and not where the ground looks like it is — with the card
+  now covering the whole tile, its near half sits below the point the figure stood on. They stand
+  at the front of their own tile (the reference's `bottom: 11%`), the shadow moved with them and
+  is sized to the figure, and the sprite is lifted by its RENDERED height rather than its budgeted
+  one, which is what made a width-clamped cut-out hover by the difference (D25).
+
+* **"The campaign globe and hex grid is hollow."** It was, literally: **every tile fan was wound
+  inward**, so `Cull Back` removed the near hemisphere and the globe you were looking at was the
+  inside of the far one. It passed for a planet for a whole milestone because a lit shell looks
+  like one — until something is put underneath it, which is exactly what happened when a crust was
+  added and drew straight over the plates it was meant to lie beneath. The plates, their side
+  walls and the new crust all face out now, the sphere is closed at its own radius so the chasms
+  have a floor, and `EveryGlobeTriangleFacesOutOfTheSphere` checks all 3840 triangles — in both
+  senses, because a side wall's normal is tangential and the naive radial test reads zero for it
+  (D26). The shader also declares its light mode and a `DepthOnly` pass, since the globe had never
+  been in URP's depth prepass at all and was being drawn by `Cull Back` and index order (D27).
+
+* **"I can't see the health of buildings I am attacking. I don't see attacks when they happen.
+  The cards that are attacking and defending should pop up like in old Yu-Gi-Oh games."** Three
+  things, and they landed as three:
+
+  1. `UnitVitals` replaces the IMGUI overlay. That overlay floated 1.45 cells ABOVE each slot,
+     which under the tilt is most of a row up the screen, so the foe's back row put its numbers
+     behind the castle wall and the layer's own answer was to drop them — the row you attack into
+     was the row with no numbers. They hang off each tile's near edge now, in UI Toolkit, where ♥
+     and ⚔ have a font that can draw them (IMGUI's has none and drops them silently, which is why
+     the old overlay read "6 hp"), with a health bar under the line and a red TARGET ring on
+     anything your selected attacker may legally hit (D30).
+  2. Damage numbers. Every `DamageApplied` and every `WallStruck` throws a "-150" off the thing
+     that took it — which covers Bolts, Cannon Towers and Backlash as well as combat.
+  3. The battle cut-in (`CombatTheatre` + `BattleCard`), ported from `#battleView` in the
+     reference build: the attacker's card flies in from the left, the defender's from the right,
+     ⚔ lands between them, and each card shows what it hit for, what it has left, and a DESTROYED
+     stamp if it did not survive. It fires on the RESOLUTION rather than the declaration (D29) and
+     holds the AI for as long as it runs, because `AiDriver` pumps a command every 0.35 s and
+     would otherwise talk over it.
+
+  Drawing a fight at all needed a fix under the floor: the loser is graved inside the same
+  `Apply`, so nothing that reads `GameState` can draw it. `CombatTheatre` keeps a one-frame-old
+  snapshot of every unit — and for that to be the board BEFORE the blow, `MatchController` had to
+  stop pumping events once per frame at the top of `Update`. It drains them immediately after
+  every command now (D28); the frame pump stays as a catch-all.
+
+271 passing (six new). New probe: `battle-cutin.png` — a staged same-row duel, resolved, caught
+mid-clash. It is the only witness the cut-in has, and getting it to render at all is what turned up
+both the snapshot timing bug and the fact that declaring is not fighting.

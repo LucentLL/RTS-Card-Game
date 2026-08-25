@@ -36,9 +36,28 @@ namespace SpawnRowDuel.View.Cards
 
         const float BobPeriod = 3.4f;          // seconds, ease-in-out, translateY 0 → -7% → 0
         const float BobAmount = 0.07f;
-        const float FigureHeight = 1.30f;      // cells - min(150cqh, 120cqw) at a 1×1 cell
-        const float StructureHeight = 1.05f;
-        const float MaxWidth = 1.60f;          // the 165cqw cap: standees must not inflate with depth
+
+        // The reference stylesheet's sizes, in the cell's own container units (01_board.css):
+        //   creature  height min(150cqh, 120cqw), max-width 165cqw
+        //   structure height min(122cqh, 102cqw), max-width 132cqw
+        // cqh is the cell's DEPTH and cqw its WIDTH, which on this board are 1.45 and 1.00 - so
+        // the width term is the one that binds, exactly as it does in the browser at the tilt.
+        const float FigureH = 1.50f, FigureHCapW = 1.20f, FigureMaxW = 1.65f;
+        const float StructH = 1.22f, StructHCapW = 1.02f, StructMaxW = 1.32f;
+
+        /// <summary>
+        /// Where the figure's FEET are, as a fraction of the tile's depth measured from the tile's
+        /// near edge - `.spritebob { bottom: 11% }` in the reference (12% for a structure).
+        ///
+        /// This is the whole of "the buildings float far too high above their tiles". The feet
+        /// were at the tile's CENTRE, which is geometrically where the cell is and visually where
+        /// nothing is: the card now covers the whole tile, so its near half sits BELOW the point
+        /// the figure stands on, and a building with half a card showing under it is a building
+        /// hovering over one. Standing it at the front of its own tile puts the card behind it,
+        /// where the ground a standee stands on belongs.
+        /// </summary>
+        const float FeetFromFront = 0.11f;
+        const float StructFeetFromFront = 0.12f;
 
         /// <summary>
         /// How high the figure stands: just clear of the card plate lying on the tile (0.03) and
@@ -50,6 +69,16 @@ namespace SpawnRowDuel.View.Cards
         /// over the row behind it, and the player loses track of which slot the unit is in.
         /// </summary>
         const float Lift = 0.05f;
+
+        /// <summary>
+        /// How far TOWARD THE CAMERA of its cell centre a standing figure's feet are, in world
+        /// units. Always inside the figure's own tile - the front of it, never past the edge.
+        /// </summary>
+        public static float FeetOffset(BoardView board, bool structure)
+        {
+            float tileD = board.CellSize * board.RowStretch;
+            return (0.5f - (structure ? StructFeetFromFront : FeetFromFront)) * tileD;
+        }
 
         MatchController _match;
         BoardInput _input;
@@ -151,20 +180,32 @@ namespace SpawnRowDuel.View.Cards
             st.Root.SetActive(sprite != null);
             if (sprite == null) return;                    // no cut-out yet (G1) - the plate carries it
 
-            var world = _match.Board.WorldOf(cell);
-            st.Root.transform.position = world + new Vector3(0f, Lift, 0f);
-
             bool structure = o is StructureUnit;
-            float targetH = structure ? StructureHeight : FigureHeight;
+
+            // the tile's own footprint - the figure is sized and placed against the ground it
+            // stands on, not against an abstract "cell" that stopped being square two slices ago
+            float tileW = _match.Board.CellSize;
+            float tileD = _match.Board.CellSize * _match.Board.RowStretch;
+
+            bool laid = !structure && !CanActNow(o as CreatureUnit, cell, s);
+            st.Laid = laid;
+
+            // A LAID figure lies on the middle of its own card; a STANDING one is planted at the
+            // front of the tile, so the card reads as the ground behind its feet.
+            float feet = laid ? 0f : FeetOffset(_match.Board, structure);
+            var ground = _match.Board.WorldOf(cell) - new Vector3(0f, 0f, feet);
+            st.Root.transform.position = ground + new Vector3(0f, Lift, 0f);
+
+            float targetH = structure
+                ? Mathf.Min(StructH * tileD, StructHCapW * tileW)
+                : Mathf.Min(FigureH * tileD, FigureHCapW * tileW);
+            float maxW = (structure ? StructMaxW : FigureMaxW) * tileW;
 
             // fit the sprite into the height budget, then clamp its WIDTH - a wide cut-out would
             // otherwise spill across its neighbours in the tilted view
             var size = sprite.bounds.size;
             float scale = size.y > 0.0001f ? targetH / size.y : 1f;
-            if (size.x * scale > MaxWidth) scale = MaxWidth / Mathf.Max(0.0001f, size.x);
-
-            bool laid = !structure && !CanActNow(o as CreatureUnit, cell, s);
-            st.Laid = laid;
+            if (size.x * scale > maxW) scale = maxW / Mathf.Max(0.0001f, size.x);
 
             float bob = 0f;
             if (!laid && !structure)
@@ -190,15 +231,15 @@ namespace SpawnRowDuel.View.Cards
             {
                 st.Pivot.localPosition = new Vector3(0f, bob, 0f);
                 st.Pivot.rotation = Quaternion.LookRotation(cam.transform.forward, Vector3.up);
-                st.Figure.transform.localPosition = new Vector3(0f, targetH * 0.5f, 0f);
+                st.Figure.transform.localPosition = new Vector3(0f, size.y * scale * 0.5f, 0f);
             }
 
-            // ABOVE the cell surface, not inside it: the cell is a 0.12-thick cube whose top face
-            // sits at y=0.06, and a shadow quad under that z-fought with it into a bright ellipse.
-            // It now lands on the CARD instead of the tile, which is where a hovering figure's
-            // shadow belongs anyway.
-            st.Shadow.transform.position = world + new Vector3(0f, 0.042f, 0f);
-            st.Shadow.transform.localScale = new Vector3(0.62f, 0.30f, 1f);
+            // AT THE FEET, and as wide as the figure is. It used to sit at the cell centre at a
+            // fixed size, which is a shadow belonging to no particular thing: a figure standing at
+            // the front of its tile with a shadow half a tile behind it reads as flying.
+            float shadowW = Mathf.Max(0.35f, size.x * scale * 0.72f);
+            st.Shadow.transform.position = ground + new Vector3(0f, 0.042f, 0f);
+            st.Shadow.transform.localScale = new Vector3(shadowW, shadowW * 0.46f, 1f);
             st.Shadow.color = new Color(0f, 0f, 0f, (laid ? 0.30f : 0.50f) * show);
 
             // the owner reads at a glance even before the stat overlay: a cold rim for the foe
