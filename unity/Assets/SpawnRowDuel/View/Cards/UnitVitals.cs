@@ -91,34 +91,46 @@ namespace SpawnRowDuel.View.Cards
                     if (cre == null && bld == null) continue;      // a face-down card says nothing
                     if (cre != null && cre.IsWorker) continue;
 
-                    if (Place(o, cre, bld, kv.Key, cam, panel, scale)) _seen.Add(o.Id);
+                    _seen.Add(o.Id);
+                    Place(o, cre, bld, kv.Key, cam, panel, scale);
                 }
             }
 
             Prune();
         }
 
-        bool Place(BoardObject o, CreatureUnit cre, StructureUnit bld, CellRef cell,
+        /// <summary>
+        /// A chip that cannot be placed is HIDDEN, never destroyed: a unit behind an open wall or
+        /// off the near plane would otherwise have its element torn down and rebuilt every frame
+        /// it stayed there.
+        /// </summary>
+        void Place(BoardObject o, CreatureUnit cre, StructureUnit bld, CellRef cell,
                    Camera cam, Vector2 panel, float scale)
         {
+            var chip = Ensure(o.Id);
             // the tile's NEAR edge: the chip hangs off the front of the card, where there is
             // always board left to hang it on - even in the foe's back row
             float depth = _match.Board.CellSize * _match.Board.RowStretch;
             var anchor = _match.Board.WorldOf(cell) - new Vector3(0f, 0f, depth * 0.5f);
 
             Vector2 p, side;
-            if (!_hand.TryProject(cam, anchor, out p)) return false;
-            if (!_hand.TryProject(cam, anchor + new Vector3(_match.Board.ColPitch, 0f, 0f), out side))
-                return false;
+            if (!_hand.TryProject(cam, anchor, out p)
+                || !_hand.TryProject(cam, anchor + new Vector3(_match.Board.ColPitch, 0f, 0f), out side))
+            {
+                chip.Root.style.display = DisplayStyle.None;
+                return;
+            }
 
             float cellW = Mathf.Max(26f, Mathf.Abs(side.x - p.x));
 
             // behind a wall is behind a wall - the board is framed clear of the rails, so this
             // only ever fires while one is open
             if (p.y < HudLayout.TopBlockPx * scale || p.y > panel.y - HudLayout.BottomBlockPx * scale)
-                return false;
+            {
+                chip.Root.style.display = DisplayStyle.None;
+                return;
+            }
 
-            var chip = Ensure(o.Id);
             bool mine = o.Owner == Side.You;
             bool target = Has(_input != null ? _input.LegalAttacks : null, cell);
 
@@ -161,7 +173,6 @@ namespace SpawnRowDuel.View.Cards
             chip.Root.style.left = p.x - cellW * 0.5f;
             chip.Root.style.top = p.y + 2f;
             chip.Root.style.display = DisplayStyle.Flex;
-            return true;
         }
 
         /// <summary>IReadOnlyList has no Contains, and LINQ on a per-unit per-frame path is a

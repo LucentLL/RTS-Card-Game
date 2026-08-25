@@ -245,8 +245,9 @@ namespace SpawnRowDuel.View.Fx
         /// </summary>
         void Resolved(Fight f)
         {
-            if (f == null || f.Queued) return;
-            if (f == _showing) { _rebind = true; return; }
+            if (f == null) return;
+            if (f == _showing) { _rebind = true; return; }   // FIRST: a shown fight stays Queued
+            if (f.Queued) return;
             f.Queued = true;
             _queue.Add(f);
         }
