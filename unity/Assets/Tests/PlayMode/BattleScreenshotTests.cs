@@ -134,6 +134,25 @@ namespace SpawnRowDuel.PlayTests
                 Assert.IsTrue(engine.Apply(new PourIntoChargeCommand(Side.You, set, charge.Id, 1)).Applied,
                     "pouring into your own charge on your own action phase");
 
+            // ... and a TRAP beside it, which is the other half of the picture: a trap consumed
+            // its ◆1 rather than banking it, so what it shows is that ◆1. A face-down reading ◆1
+            // is either a trap or a creature nobody has funded, and a face-down reading ◆12 is a
+            // threat or a bluff - which is the whole reason the number is on the card.
+            for (int h = 0; h < s.P(Side.You).Hand.Count; h++)
+            {
+                SpellCard sp;
+                if (!engine.Catalog.TrySpell(s.P(Side.You).Hand[h].Id, out sp) || !sp.IsTrap) continue;
+
+                bool trapped = false;
+                for (int i = 0; i < Board.Cells && !trapped; i++)
+                {
+                    var cell = CellRef.FromIndex(i);
+                    trapped = engine.Apply(
+                        new PlayCardCommand(Side.You, h, Rules.PlayMode.SetTrap, cell)).Applied;
+                }
+                if (trapped) break;
+            }
+
             yield return Frames(6);
             yield return Shoot("set-card.png");
         }

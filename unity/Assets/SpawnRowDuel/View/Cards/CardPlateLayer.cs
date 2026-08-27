@@ -187,10 +187,17 @@ namespace SpawnRowDuel.View.Cards
         /// <summary>
         /// The mana riding on this card, ON the card.
         ///
-        /// A set card carried a floating "SET 1" over its tile instead, which put the card's own
-        /// number on the board rather than on the card - and dropped the ◆ while it was at it,
-        /// because that overlay is IMGUI and IMGUI's font has no diamond. A face-down card with a
-        /// number on it needs no caption: that is what a charge is.
+        /// A FACE-DOWN card always shows what was paid to put it there, and shows it to BOTH
+        /// players. That number is the whole of the bluff: setting costs ◆1, you may pour in more
+        /// than the card needs, and a card that will not have its cost when it is turned over
+        /// simply fails (Traps.ProvokeFaceDown destroys an underfunded charge outright). A bluff
+        /// nobody can read is not a bluff, so hiding the figure from the opponent - which is what
+        /// this did - removed the only reason to over-pay.
+        ///
+        /// A set TRAP consumed its ◆1 rather than banking it, so it has no investment to report;
+        /// it reports the ◆1 it cost. That is not a rounding of the truth, it is the point: a
+        /// face-down showing ◆1 is either a trap or a creature nobody has funded yet, and telling
+        /// those apart is the guess the mechanic is made of.
         ///
         /// Face-down it sits under the sleeve's emblem, where the eye already is. Face-up it takes
         /// the stat bar's right corner, out of the illustration's way.
@@ -198,10 +205,12 @@ namespace SpawnRowDuel.View.Cards
         void PlaceBank(Plate p, BoardObject o, GameState s, float plateW, float plateH, bool faceDown)
         {
             var charge = o as ChargeUnit;
-            int bank = charge != null ? charge.Invested : o.Bank;
-            if (bank <= 0 || (o.Owner != Side.You && faceDown))
+            int bank = faceDown
+                ? (charge != null ? charge.Invested : 1 + o.Bank)   // a trap spent its ◆1 outright
+                : o.Bank;
+
+            if (bank <= 0)
             {
-                // their face-down cards keep their secret; a bank they can see is a bank you can
                 p.Bank.enabled = false;
                 return;
             }

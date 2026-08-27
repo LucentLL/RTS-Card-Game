@@ -88,6 +88,41 @@ namespace SpawnRowDuel.Rules.Tests
             finally { Object.DestroyImmediate(go); }
         }
 
+        // ── taps that must not reach the board ────────────────────────────────────────────
+
+        /// <summary>
+        /// A control drawn over the field blocks the field.
+        ///
+        /// Legacy Input cannot see IMGUI consume an event, so BoardInput has to be TOLD where the
+        /// HUD is. It used to be told about panels only, by hand, which is why tapping ⚔ WALL
+        /// aimed at nothing and selected the card underneath it instead. Registration lives in
+        /// MatchHud.Btn now - drawing a control registers it - and this pins the mechanism the
+        /// buttons rely on.
+        /// </summary>
+        [Test]
+        public void ARegisteredControl_BlocksTheBoardUnderIt()
+        {
+            HudLayout.Recompute();
+            HudLayout.ClearControls();
+
+            float s = HudLayout.Scale;
+            HudLayout.Control(new Rect(100f, 50f, 60f, 24f));      // GUI units
+
+            // Blocks() takes a bottom-left-origin mouse position, as legacy Input reports it
+            Assert.IsTrue(HudLayout.Blocks(Mouse(130f * s, 60f * s)), "inside the control");
+            Assert.IsFalse(HudLayout.Blocks(Mouse(130f * s, 200f * s)), "well below the control");
+
+            HudLayout.ClearControls();
+            Assert.IsFalse(HudLayout.Blocks(Mouse(130f * s, 60f * s)),
+                "a control that stopped being drawn stops blocking");
+        }
+
+        /// <summary>GUI space is top-left origin; Input.mousePosition is bottom-left.</summary>
+        static Vector2 Mouse(float x, float yFromTop)
+        {
+            return new Vector2(x, Screen.height - yFromTop);
+        }
+
         // ── the globe ─────────────────────────────────────────────────────────────────────
 
         /// <summary>

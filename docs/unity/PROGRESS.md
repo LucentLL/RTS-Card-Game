@@ -922,3 +922,37 @@ Five from the phone, and one of them had been wrong since the globe was built.
 271 passing (six new). New probe: `battle-cutin.png` — a staged same-row duel, resolved, caught
 mid-clash. It is the only witness the cut-in has, and getting it to render at all is what turned up
 both the snapshot timing bug and the fact that declaring is not fighting.
+
+### 2026-08-24 (later still) — M13 slice 5: the number on a set card, the tap that missed, the far row
+
+Three more from the phone.
+
+* **"Set cards, even if they cost 1, should display how much mana was used to play them
+  face-down."** Set CREATURES did (a charge banks its ◆1 and shows it); set TRAPS showed nothing,
+  because a trap consumes its ◆1 rather than banking it and the badge read the bank. It reports
+  the ◆1 it cost now. The bigger half of the change is that the number is shown to BOTH players
+  (D32): over-paying a face-down is a bluff, a bluff nobody can read is not one, and a face-down
+  reading ◆1 being either a trap or an unfunded creature is the guess the mechanic is made of.
+  The rule behind it was already right and is worth stating: `Traps.ProvokeFaceDown` destroys an
+  underfunded charge outright rather than flipping it, so a card that cannot pay when it is turned
+  over simply fails.
+
+* **"I'm unable to attack Wall because the button is over a card... this issue was already fixed
+  for another button, it should be fixed across the game."** Right on both counts. BoardInput
+  cannot see IMGUI consume a tap, so every control over the field has to publish its rect - and
+  only the three PANELS did, by hand. `MatchHud.Btn` registers what it draws (D31), so all
+  twenty-nine loose controls block the board now and the next one cannot be forgotten. Pinned by
+  `ARegisteredControl_BlocksTheBoardUnderIt`.
+
+* **"Buildings in the opponent's back row are extending far outside of the tile."** They were:
+  1.64× their tile's height at the back row against 0.76× at the front. A billboard's screen
+  height falls off as 1/z and a tile's falls off faster - the tile is lying down, so its near edge
+  is nearer than its far one - and a figure sized in world units therefore grows relative to its
+  own ground the further away it stands. Standees are sized against the tile AS IT PROJECTS now,
+  which is what the reference stylesheet's `cqh`/`cqw` units always meant. Finding it turned up a
+  second error in the same place: a standee is a camera-facing billboard, so it grows along the
+  CAMERA's up axis, and measuring against world +Y understates that by cos(42°) - which had every
+  figure coming out half again too big to compensate (D33).
+
+272 passing. `set-card.png` now sets a trap beside the poured-into charge, so the shot witnesses
+both halves of the bluff: ◆12 and ◆1, side by side.

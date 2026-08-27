@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SpawnRowDuel.View
@@ -100,6 +101,30 @@ namespace SpawnRowDuel.View
         public static Rect LogPx;
         public static Rect RailPx;    // the right-edge turn controls
 
+        /// <summary>
+        /// Every IMGUI CONTROL drawn over the field this frame, in real pixels.
+        ///
+        /// The three rects above cover PANELS, and a panel is easy to remember. A loose button is
+        /// not: the attack row's ⚔ WALL sat straight on the board, was never published, and a tap
+        /// on it went through to the cell underneath - so aiming at the wall selected whatever was
+        /// standing in front of it. Naming one more rect would have fixed that one button and left
+        /// the next one to be discovered the same way, so the registration moved into the drawing
+        /// itself: MatchHud.Btn registers what it draws, and a control that is drawn is blocked.
+        ///
+        /// Rebuilt on every OnGUI pass, so it is never a frame stale in the direction that matters
+        /// (a control that has gone away stops blocking on the same pass it stops being drawn).
+        /// </summary>
+        static readonly List<Rect> Controls = new List<Rect>();
+
+        public static void ClearControls() { Controls.Clear(); }
+
+        /// <summary>Register a control's rect, in the GUI's own scaled units.</summary>
+        public static void Control(Rect logical)
+        {
+            Controls.Add(new Rect(logical.x * Scale, logical.y * Scale,
+                                  logical.width * Scale, logical.height * Scale));
+        }
+
         /// <summary>Scale by the SHORT side - landscape must not inherit portrait's width math.</summary>
         public static float Recompute()
         {
@@ -119,7 +144,9 @@ namespace SpawnRowDuel.View
         {
             var p = new Vector2(mousePos.x, Screen.height - mousePos.y);
             if (p.y <= TopBlockPx || p.y >= Screen.height - BottomBlockPx) return true;
-            return MenuPx.Contains(p) || LogPx.Contains(p) || RailPx.Contains(p);
+            if (MenuPx.Contains(p) || LogPx.Contains(p) || RailPx.Contains(p)) return true;
+            for (int i = 0; i < Controls.Count; i++) if (Controls[i].Contains(p)) return true;
+            return false;
         }
     }
 }

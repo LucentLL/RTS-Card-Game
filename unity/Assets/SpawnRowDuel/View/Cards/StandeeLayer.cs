@@ -40,8 +40,16 @@ namespace SpawnRowDuel.View.Cards
         // The reference stylesheet's sizes, in the cell's own container units (01_board.css):
         //   creature  height min(150cqh, 120cqw), max-width 165cqw
         //   structure height min(122cqh, 102cqw), max-width 132cqw
-        // cqh is the cell's DEPTH and cqw its WIDTH, which on this board are 1.45 and 1.00 - so
-        // the width term is the one that binds, exactly as it does in the browser at the tilt.
+        //
+        // cqh and cqw are the cell's RENDERED height and width - what the tile measures on screen,
+        // not what it measures in the world. That distinction is the whole of "buildings in the
+        // opponent's back row extend far outside of the tile": a billboard's screen height falls
+        // off with distance as 1/z, while its tile's screen height falls off FASTER, because the
+        // tile is lying down and its near edge is closer to the camera than its far one. Sized to
+        // a fixed number of world units, a figure therefore grows relative to its own tile the
+        // further away it stands - by the foe's back row a structure was half again taller than
+        // the ground it was standing on. Measured against the tile as it actually projects, the
+        // proportion holds across all five rows.
         const float FigureH = 1.50f, FigureHCapW = 1.20f, FigureMaxW = 1.65f;
         const float StructH = 1.22f, StructHCapW = 1.02f, StructMaxW = 1.32f;
 
@@ -78,6 +86,45 @@ namespace SpawnRowDuel.View.Cards
         {
             float tileD = board.CellSize * board.RowStretch;
             return (0.5f - (structure ? StructFeetFromFront : FeetFromFront)) * tileD;
+        }
+
+        /// <summary>
+        /// How big this tile is ON SCREEN, and how much screen a world unit is worth standing on
+        /// it. Everything a standee is sized by is one of these four numbers.
+        ///
+        /// Six projections per figure per frame, which is nothing next to twenty units, and the
+        /// alternative is a constant that is only right in the middle of the board.
+        /// </summary>
+        static bool Measure(Camera cam, Vector3 ground, float tileW, float tileD,
+                            out float screenH, out float screenW,
+                            out float upPerWorld, out float rightPerWorld)
+        {
+            screenH = screenW = upPerWorld = rightPerWorld = 1f;
+
+            var here = cam.WorldToScreenPoint(ground);
+            if (here.z <= 0.01f) return false;
+
+            // the TILE, which lies in the ground plane
+            var near = cam.WorldToScreenPoint(ground + new Vector3(0f, 0f, -tileD * 0.5f));
+            var far = cam.WorldToScreenPoint(ground + new Vector3(0f, 0f, tileD * 0.5f));
+            var left = cam.WorldToScreenPoint(ground + new Vector3(-tileW * 0.5f, 0f, 0f));
+            var right = cam.WorldToScreenPoint(ground + new Vector3(tileW * 0.5f, 0f, 0f));
+
+            // the FIGURE, which does not: it is a billboard, so it grows along the CAMERA's own
+            // up and right, not the world's. Measuring its height against world +Y understates it
+            // by cos(pitch) - a third of it at 42° - and every figure came out half again too big
+            // to make up the difference.
+            var up = cam.WorldToScreenPoint(ground + cam.transform.up);
+            var across = cam.WorldToScreenPoint(ground + cam.transform.right);
+            if (near.z <= 0.01f || far.z <= 0.01f || up.z <= 0.01f || across.z <= 0.01f) return false;
+
+            screenH = Mathf.Abs(near.y - far.y);
+            screenW = Mathf.Abs(right.x - left.x);
+            upPerWorld = Vector2.Distance(new Vector2(up.x, up.y), new Vector2(here.x, here.y));
+            rightPerWorld = Vector2.Distance(new Vector2(across.x, across.y),
+                                             new Vector2(here.x, here.y));
+
+            return screenH > 0.01f && screenW > 0.01f && upPerWorld > 0.01f && rightPerWorld > 0.01f;
         }
 
         MatchController _match;
@@ -196,10 +243,22 @@ namespace SpawnRowDuel.View.Cards
             var ground = _match.Board.WorldOf(cell) - new Vector3(0f, 0f, feet);
             st.Root.transform.position = ground + new Vector3(0f, Lift, 0f);
 
-            float targetH = structure
-                ? Mathf.Min(StructH * tileD, StructHCapW * tileW)
-                : Mathf.Min(FigureH * tileD, FigureHCapW * tileW);
-            float maxW = (structure ? StructMaxW : FigureMaxW) * tileW;
+            // The tile AS IT PROJECTS, converted back into world units at the figure's own depth.
+            // Sizing against the flat numbers instead is what let the far rows outgrow their
+            // ground: one world unit of upright billboard is worth more screen at the back of the
+            // board than one world unit of tile is.
+            float upPerWorld, rightPerWorld;
+            float tileScreenH, tileScreenW;
+            if (!Measure(cam, ground, tileW, tileD,
+                         out tileScreenH, out tileScreenW, out upPerWorld, out rightPerWorld))
+            {
+                tileScreenH = tileD; tileScreenW = tileW; upPerWorld = 1f; rightPerWorld = 1f;
+            }
+
+            float targetH = (structure
+                ? Mathf.Min(StructH * tileScreenH, StructHCapW * tileScreenW)
+                : Mathf.Min(FigureH * tileScreenH, FigureHCapW * tileScreenW)) / upPerWorld;
+            float maxW = (structure ? StructMaxW : FigureMaxW) * tileScreenW / rightPerWorld;
 
             // fit the sprite into the height budget, then clamp its WIDTH - a wide cut-out would
             // otherwise spill across its neighbours in the tilted view
