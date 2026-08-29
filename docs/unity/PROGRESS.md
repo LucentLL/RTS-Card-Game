@@ -956,3 +956,32 @@ Three more from the phone.
 
 272 passing. `set-card.png` now sets a trap beside the poured-into charge, so the shot witnesses
 both halves of the bluff: ◆12 and ◆1, side by side.
+
+### 2026-08-28 — the last three creature pools get their art
+
+Dark, Electric and Forest were the three pools G1 named as empty, and they are the three the user
+just filled in locally. All 64 elemental creatures now carry both a `_cardart` and a `_fieldart`;
+no pool is a placeholder pool any more.
+
+* **Twenty-one of the forty-six new files were not PNGs.** Fourteen were WebP and seven were JPEG,
+  all wearing `.png`. This is the same trap as the M3 batch (thirty files then), and it splits the
+  same way: a browser sniffs content and renders all of them, so the web build was never wrong,
+  while Unity decodes JPEG and cannot decode WebP at all. The fourteen WebP files therefore
+  imported as texture type Default, went invisible to the importer's `FindAssets("t:Sprite")`, and
+  their cards came out with `cardArt: {fileID: 0}` while every `_fieldart` beside them bound fine.
+  Converted in place with ffmpeg (~0.5 MB → ~3.6 MB; dimensions unchanged, and the largest of them
+  is still smaller than the Fire art already committed). The seven JPEGs are left alone —
+  `magmaw` and `pyrewing` have shipped that way since M3 and both pipelines read them correctly.
+
+* **`FixArtImporters()` could not have saved this one.** Its self-heal scans `t:Texture2D`, and a
+  file Unity failed to decode is not indexed as any type, so the repair pass found nothing to
+  repair on two consecutive runs. Worth remembering that the function covers the ordering race it
+  was written for and not a decode failure — the symptom (`0 updated`, art still missing) looks
+  identical from the log.
+
+* Four Forest files also arrived slugged as their display names — `hive cradle_cardart.png`,
+  `sap pod_fieldart.png`. `slugify` strips non-alphanumerics, so the probe wants `hivecradle` and
+  `sappod`; renamed.
+
+23 CardDefinition assets rebound, 272 passing, no code changed. The remaining art gap is the four
+Divine creatures, three structures and the worker — still G1, still not fatal.

@@ -64,5 +64,5 @@ MonoBehaviour:
   deepHex: 
   bgStops: []
   description: 
-  cardArt: {fileID: 0}
-  fieldArt: {fileID: 0}
+  cardArt: {fileID: 21300000, guid: fe3713f76b80f154a977affd84ef541f, type: 3}
+  fieldArt: {fileID: 21300000, guid: 982efdb0df1c6634bab58020990dc0b1, type: 3}
