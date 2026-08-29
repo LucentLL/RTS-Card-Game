@@ -250,6 +250,105 @@ namespace SpawnRowDuel.PlayTests
         }
 
         /// <summary>
+        /// A JOINT attack: one target, three attackers, declared the way a player declares one -
+        /// aim once, then tap the others.
+        ///
+        /// Two things have no other witness. On the board, the attack GROUP: after the first
+        /// declaration the assault stays live, every creature that may still join is lit, and a tap
+        /// on one joins instead of selecting it. In the theatre, the STACK: three declarations
+        /// against one defender are told as one cut-in with the attackers fanned, rather than as
+        /// three cut-ins of the same fight.
+        ///
+        /// The duel is STAGED - a mid-game board is all structures, because the scripted AI builds
+        /// its economy before it fights - but every declaration goes through the controller's own
+        /// funnel, so what the shot shows is the real flow and not a hand-built picture of it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureAttackGroup()
+        {
+            yield return PlayToMidGame();
+
+            var match = Object.FindFirstObjectByType<MatchController>();
+            var engine = match.Engine;
+            var s = engine.State;
+
+            Assert.AreEqual(Side.You, s.Turn, "the group flow is the PLAYER's");
+            Assert.AreEqual(TurnPhase.Action, s.Phase);
+
+            var cat = engine.Catalog;
+            var mine = new List<CellRef>();
+            var row = Board.RowFor(Side.You, SlotName.Front);
+            var pool = cat.PoolOf(s.P(Side.You).PrimaryColor);
+
+            for (int c = 0; c < Board.Columns && mine.Count < 3; c++)
+            {
+                var cell = new CellRef(row, c);
+                if (!Board.IsRealSlot(row, c) || s.At(cell) != null) continue;
+                var u = UnitFactory.MakeCreature(s, Side.You, pool[mine.Count + 2],
+                                                 pool[mine.Count + 2].Element);
+                u.Sick = false;
+                s.Put(cell, u);
+                mine.Add(cell);
+            }
+            Assert.AreEqual(3, mine.Count, "no three free cells in your front row");
+
+            // something of theirs worth ganging up on, in their own front row
+            var foeRow = Board.RowFor(Side.Foe, SlotName.Front);
+            CellRef target = default(CellRef);
+            bool staged = false;
+            for (int c = 0; c < Board.Columns && !staged; c++)
+            {
+                var cell = new CellRef(foeRow, c);
+                if (!Board.IsRealSlot(foeRow, c) || s.At(cell) != null) continue;
+                var theirs = cat.PoolOf(s.P(Side.Foe).PrimaryColor)[6];
+                var u = UnitFactory.MakeCreature(s, Side.Foe, theirs, theirs.Element);
+                u.Sick = false;
+                s.Put(cell, u);
+                target = cell;
+                staged = true;
+            }
+            Assert.IsTrue(staged, "no free cell in the foe's front row");
+
+            yield return Frames(2);                 // let the theatre snapshot the board as it is
+
+            // aim: the first declaration opens the assault
+            Assert.AreEqual(Rejection.None, match.TryAttack(mine[0], target));
+            Assert.IsNotNull(match.Assault, "declaring did not open an attack group");
+            Assert.AreEqual(target, match.AssaultCell);
+
+            // and the others JOIN - the thing the board could not do before
+            Assert.IsTrue(match.CanJoinAssault(mine[1]),
+                "a ready creature could not join the attack it is standing next to");
+            Assert.AreEqual(Rejection.None, match.JoinAssault(mine[1]));
+
+            // Shot with the THIRD still out: what it has to show is the live group - the target
+            // ringed, the creature that may still pile in lit, and the mode row saying so. The
+            // highlights repaint off the controller's version bump, so nothing is cleared here:
+            // clearing the selection would wipe them and nothing would ask for them back.
+            yield return Frames(6);
+            yield return Shoot("attack-group.png");
+
+            Assert.IsTrue(match.CanJoinAssault(mine[2]));
+            Assert.AreEqual(Rejection.None, match.JoinAssault(mine[2]));
+            Assert.AreEqual(3, engine.State.Combat.Declarations.Count,
+                "three taps did not make three declarations");
+
+            // ... and the whole assault is told as ONE cut-in
+            Assert.AreEqual(Rejection.None, match.TryHuman(new ResolveCombatCommand(Side.You)));
+
+            var defence = new Ai.ScriptedAiPolicy(Side.Foe);
+            for (int i = 0; i < 16 && engine.State.Pending != null; i++)
+            {
+                var answer = defence.Next(engine);
+                if (answer == null || match.TryHuman(answer) != Rejection.None) break;
+            }
+
+            yield return Frames(2);
+            yield return GameSeconds(0.5f);
+            yield return Shoot("battle-stack.png");
+        }
+
+        /// <summary>
         /// Both walls RAISED - the state a still cannot catch on its own, because a wall only
         /// rises while it is being looked at and a batchmode camera never looks at anything.
         ///

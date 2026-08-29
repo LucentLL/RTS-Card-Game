@@ -24,7 +24,7 @@ this file is status only.
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 4 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
+| M13 — presentation pass | 🟡 slice 6 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Slice 6: the stats printed ON the card (a health meter in the stat bar, attack/workers/printed health in the ability box), the foe half turned round so each side reads its own edge, tap-to-join attack groups, and a cut-in three times the size that stacks a joint attack into one clash. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
 | M14 — campaign | 🟡 first pass | 2026-08-24 — the hexsphere globe (162 tiles), map generation, absorb cascade, end-turn AI, the 4-line challenge dialogue and the save, all pure C# and tested; globe view with drag-spin and raycast picking, world-map HUD, attack confirm and battle handoff. Open: garrison affects nothing, AI never absorbs, no custom deck in campaign |
 | M15 — menus, deck builder, save/load | 🟡 first pass | 2026-08-24 — main menu, banner select and a screen router that switches the battle world off; three-column deck builder with search/filter/sort, mana curve, 5 slots and a duel-with-it path. Open: no solo deck-pick screen, no settings |
 | M16 — parity flags resolved, ship prep | ⬜ | |
@@ -985,3 +985,64 @@ no pool is a placeholder pool any more.
 
 23 CardDefinition assets rebound, 272 passing, no code changed. The remaining art gap is the four
 Divine creatures, three structures and the worker — still G1, still not fatal.
+
+
+### 2026-08-29 — M13 slice 6: the numbers on the card, the attack group, the clash
+
+Three from the phone, and the third arrived while the first was being built.
+
+* **"The black bars under the card should display health — a meter with a number in it. Above the
+  black bar, the Attack, Worker Amount (+ or -) and Base HP."** They do. The frame was drawing a
+  stat bar with nothing in it and three ruled lines standing in for text; the stats band is a
+  health meter with the number printed across it now, and the ability box is a plaque reading
+  ✕attack ⚒±workers ♥printed-health. The frame's own argument against this — no text is legible in
+  a band twelve pixels tall — was answered by measuring the other axis: the band is the widest
+  thing on the card (D34).
+
+  Three measurements decide whether it reads (D36). The digits are STRETCHED, about 1 : 1.4,
+  because the strip is width-limited and the height was going spare. The raster is twice the
+  band's own resolution, because the cell size is an integer and at 192 texels the step from a
+  size that fits to one that does not threw away a fifth of the width. And everything carrying a
+  number is sorted OVER the standee, because the figure stands at the front of its own tile and
+  its shins cross exactly the two bands the numbers live in. The meter is quads — a raster would
+  cost a texture per (hp, max) pair the fight reaches — and only the number is rastered, keyed by
+  value. The attack mark is an X: an upright sword drawn in a dozen pixels is a blade three of
+  them wide.
+
+  **The foe's cards are upside down now** (D35), which is what puts each side's meter on its own
+  edge of the board. Every readout inside is counter-rotated, because a card can be upside down
+  and a number cannot. The vitals chip that used to carry ⚔/♥ and a bar is a NAMEPLATE: the name,
+  the two keyword states that change, and the target ring. The same health in two places a
+  finger's width apart is not redundancy, it is two things to check.
+
+* **"When attacking with multiple monsters, I shouldn't have to individually select their target
+  to be the same to attack together."** A declared target opens an ASSAULT; tapping your other
+  ready creatures joins it (D37). The rules did not move a point — a joint attack has always been
+  N declarations sharing a target, regrouped at resolve time, and there is deliberately no group
+  command — what moved is that re-picking a target you have already picked is not a decision. All
+  four declaration paths (board tap, ⚔ WALL, the three worker stacks) go through one funnel, so
+  the buttons open a group exactly as a tap does; the group dies with its declarations, with your
+  action phase, or on DONE. Joiners wear a gold ring on their nameplate, because a lit CELL is
+  under the card that covers the whole tile.
+
+  The half of it that is not UI: a declaration parks a blocker choice on the defender, and the AI
+  was answering it on its own 0.35 s beat — so two of any three quick taps landed inside a window
+  where every command is rejected as ChoicePending. The defender's answer is part of resolving
+  your command and no longer waits for a beat (D38), narrowly: blocker requests parked on the foe
+  and nothing else, so the cut-in's hold is untouched.
+
+* **"When combat occurs, the cards should be larger... when multi-combat happens, the cards can be
+  stacked."** A cut-in card is three tenths of the screen wide, or as much as its height allows —
+  which on any landscape screen is what decides. Scaling it needed the type unclamped first: every
+  font size inside a battle card was capped at 14 / 18 / 34 px, so a bigger card alone would have
+  been a poster with eight-point type on it. A joint attack is told as ONE cut-in with the
+  attackers fanned against the card they are all hitting (D39) — which needed the theatre to read
+  its own declaration list rather than the queue, since only the first declaration against a
+  defender is ever resolved by name.
+
+281 tests (279 passing, 2 skipped as before), nine new. Two new probes: `attack-group.png` (a live
+group — the target ringed red, the creature that may still join ringed gold, two declarations
+standing) and `battle-stack.png` (all three told as one clash). Worth remembering about the probe
+harness: it composites the camera's render texture with the UI Toolkit panel's, so IMGUI is not in
+a probe shot at all — the mode row's join hint and the side rail have never been in one and cannot
+be checked there.

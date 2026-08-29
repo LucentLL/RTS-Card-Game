@@ -6,26 +6,26 @@ using UnityEngine.UIElements;
 namespace SpawnRowDuel.View.Cards
 {
     /// <summary>
-    /// What every unit on the board has left, drawn under its own tile.
+    /// Who each unit IS, drawn under its own tile - and whether your selected attacker may hit it.
     ///
-    /// This replaces the IMGUI overlay, and it replaces it for three reasons that all came out of
-    /// the same complaint - "I can't see the health of buildings I am attacking":
+    /// It used to carry the numbers as well: ⚔ and ♥ on a line with a health bar under it, which
+    /// is where the vitals lived between the IMGUI overlay that could not draw a ♥ at all and the
+    /// card itself learning to. They are on the CARD now (<see cref="CardPlateLayer"/> prints the
+    /// meter in the stat bar and the statline in the ability box), and printing them here as well
+    /// put the same health in two places a finger's width apart - which is not redundancy, it is
+    /// two things to check. What is left is what the plate cannot say at board size:
     ///
-    /// 1. **It was in the wrong place.** The label floated 1.45 cells ABOVE the unit's cell, which
-    ///    under the tilt is most of a row further up the screen - so the foe's back row put its
-    ///    numbers behind the castle wall, and the overlay's own answer to that was to DROP them
-    ///    (`if (y < TopH + 2) continue`). The row you attack into is the row whose numbers went
-    ///    missing. They hang off the tile's NEAR edge now, which is inside the board at every row.
-    /// 2. **IMGUI has no ♥.** OnGUI draws with the built-in font, which carries no ♥, ◆ or ⚔, and
-    ///    silently drops them - the reason the old overlay reads "6 hp" rather than "♥6". This is
-    ///    a UI Toolkit surface on the gated font chain, so the glyphs are the same ones the cards
-    ///    and the wall rails use.
-    /// 3. **A number is not a quantity.** A structure at 250 of 300 and one at 30 of 300 both read
-    ///    as three digits. The bar under the line is the thing that answers "can I kill it".
+    /// * the NAME, because the frame's banner is a shape rather than type at 80 pixels tall;
+    /// * the two keyword states that CHANGE - a cocoon's progress and a banked discharge - which
+    ///   are decisions rather than printed stats and so appear on no card;
+    /// * the TARGET ring, straight off BoardInput's engine-probed list, so aiming at something and
+    ///   reading what it has left is one glance.
     ///
-    /// It also has a state the old overlay could not have: a unit your selected attacker may
-    /// legally hit is marked as a TARGET, straight off BoardInput's engine-probed list. Aiming at
-    /// something and reading what it has left is one glance now instead of two.
+    /// The placement is still the one the complaint bought: hung off the tile's NEAR edge, in UI
+    /// Toolkit, on the gated font chain. The old IMGUI overlay floated 1.45 cells ABOVE the cell -
+    /// most of a row up the screen under the tilt - so the foe's back row put its label behind the
+    /// castle wall and the layer's answer was to drop it. The row you attack into was the row with
+    /// nothing on it.
     /// </summary>
     public sealed class UnitVitals : MonoBehaviour
     {
@@ -43,14 +43,13 @@ namespace SpawnRowDuel.View.Cards
         static readonly Color You = new Color(1f, 0.90f, 0.55f);
         static readonly Color Foe = new Color(0.65f, 0.80f, 1f);
         static readonly Color TargetRed = new Color(1f, 0.36f, 0.30f);
+        static readonly Color JoinGold = new Color(1f, 0.80f, 0.36f);
 
         sealed class Chip
         {
             public VisualElement Root;
             public Label Name;
             public Label Line;
-            public VisualElement Bar;
-            public VisualElement Fill;
         }
 
         void Awake()
@@ -132,42 +131,39 @@ namespace SpawnRowDuel.View.Cards
             }
 
             bool mine = o.Owner == Side.You;
-            bool target = Has(_input != null ? _input.LegalAttacks : null, cell);
+            // what your selected attacker may hit - or, with an attack already aimed and nothing
+            // selected, what the whole group is aimed AT
+            bool target = Has(_input != null ? _input.LegalAttacks : null, cell)
+                       || (_match.AssaultCell.HasValue && _match.AssaultCell.Value == cell);
 
-            int hp = cre != null ? cre.Hp : bld.Hp;
-            int maxHp = Mathf.Max(1, cre != null ? cre.MaxHp : bld.MaxHp);
+            // ... and who may still pile into it. The board lights those cells too, and on a board
+            // where the card covers the whole tile that light is UNDER the card - so the ring here
+            // is the only one anybody sees.
+            bool joining = !target && Has(_input != null ? _input.Joiners : null, cell);
 
             float font = Mathf.Clamp(cellW * 0.19f, 8f, 15f);
-            bool roomy = cellW >= 52f;
 
-            chip.Name.text = roomy ? Name(cre, bld) : "";
-            chip.Name.style.display = roomy ? DisplayStyle.Flex : DisplayStyle.None;
-            chip.Name.style.fontSize = font * 0.86f;
-            chip.Name.style.color = target ? TargetRed : (mine ? You : Foe);
+            chip.Name.text = Name(cre, bld);
+            chip.Name.style.fontSize = font * 0.92f;
+            chip.Name.style.color = target ? TargetRed : joining ? JoinGold : (mine ? You : Foe);
 
-            chip.Line.text = cre != null
-                ? Stat.Atk(cre.EffectiveAttack) + " " + Stat.Hp(hp) + Extra(cre)
-                : Stat.Hp(hp);
+            string extra = cre != null ? Extra(cre) : "";
+            chip.Line.text = extra;
+            chip.Line.style.display = extra.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             chip.Line.style.fontSize = font;
-            chip.Line.style.color = hp * 4 <= maxHp ? new Color(1f, 0.55f, 0.45f)
-                                                    : (mine ? You : Foe);
+            chip.Line.style.color = mine ? You : Foe;
 
-            float frac = Mathf.Clamp01(hp / (float)maxHp);
-            chip.Bar.style.height = Mathf.Max(2.5f, font * 0.24f);
-            chip.Fill.style.width = Length.Percent(frac * 100f);
-            chip.Fill.style.backgroundColor = frac > 0.5f ? new Color(0.45f, 0.92f, 0.55f)
-                                            : frac > 0.25f ? new Color(1f, 0.82f, 0.35f)
-                                                           : new Color(1f, 0.38f, 0.32f);
-
-            // a target wears the red ring; nothing else draws a border, so it cannot be mistaken
-            float border = target ? 1.5f : 0f;
+            // a target wears the red ring and a creature that may join it a gold one; nothing
+            // else draws a border, so neither can be mistaken for anything
+            float border = target || joining ? 1.5f : 0f;
+            var ring = target ? TargetRed : JoinGold;
             chip.Root.style.borderTopWidth = border; chip.Root.style.borderBottomWidth = border;
             chip.Root.style.borderLeftWidth = border; chip.Root.style.borderRightWidth = border;
-            chip.Root.style.borderTopColor = TargetRed; chip.Root.style.borderBottomColor = TargetRed;
-            chip.Root.style.borderLeftColor = TargetRed; chip.Root.style.borderRightColor = TargetRed;
-            chip.Root.style.backgroundColor = target
-                ? new Color(0.28f, 0.04f, 0.04f, 0.82f)
-                : new Color(0.02f, 0.02f, 0.04f, 0.62f);
+            chip.Root.style.borderTopColor = ring; chip.Root.style.borderBottomColor = ring;
+            chip.Root.style.borderLeftColor = ring; chip.Root.style.borderRightColor = ring;
+            chip.Root.style.backgroundColor = target ? new Color(0.28f, 0.04f, 0.04f, 0.82f)
+                                            : joining ? new Color(0.24f, 0.16f, 0.02f, 0.82f)
+                                                      : new Color(0.02f, 0.02f, 0.04f, 0.62f);
 
             chip.Root.style.width = cellW;
             chip.Root.style.left = p.x - cellW * 0.5f;
@@ -192,17 +188,16 @@ namespace SpawnRowDuel.View.Cards
         }
 
         /// <summary>
-        /// The two keyword states that CHANGE, appended to the statline. A cocoon's progress and a
-        /// banked discharge are decisions a player makes; every other keyword is printed on the
-        /// card and does not belong on the board.
+        /// The two keyword states that CHANGE. A cocoon's progress and a banked discharge are
+        /// decisions a player makes; every other keyword is printed on the card, and the mana
+        /// banked on a card is a badge ON that card, so neither is repeated here.
         /// </summary>
         static string Extra(CreatureUnit c)
         {
             if (c.Keyword == Keyword.Chrysalis)
-                return "  " + c.ChrysalisCount + "/" + (c.Hatch > 0 ? c.Hatch : 3);
+                return c.ChrysalisCount + "/" + (c.Hatch > 0 ? c.Hatch : 3);
             if (c.Keyword == Keyword.Overcharge && c.OverchargeBank > 0)
-                return "  ◆" + c.OverchargeBank;
-            if (c.Bank > 0) return "  ◆" + c.Bank;
+                return "◆" + c.OverchargeBank;
             return "";
         }
 
@@ -228,17 +223,7 @@ namespace SpawnRowDuel.View.Cards
             line.style.whiteSpace = WhiteSpace.NoWrap;
             root.Add(line);
 
-            var bar = new VisualElement { pickingMode = PickingMode.Ignore };
-            bar.style.width = Length.Percent(84f);
-            bar.style.backgroundColor = new Color(0f, 0f, 0f, 0.7f);
-            bar.style.marginTop = 1;
-            root.Add(bar);
-
-            var fill = new VisualElement { pickingMode = PickingMode.Ignore };
-            fill.style.height = Length.Percent(100f);
-            bar.Add(fill);
-
-            c = new Chip { Root = root, Name = name, Line = line, Bar = bar, Fill = fill };
+            c = new Chip { Root = root, Name = name, Line = line };
             _live[id] = c;
             return c;
         }

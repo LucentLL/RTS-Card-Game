@@ -28,7 +28,7 @@ namespace SpawnRowDuel.View.Fx
             public Sprite Art;
         }
 
-        readonly VisualElement _art, _bar, _barFill, _stamp;
+        readonly VisualElement _art, _bar, _barFill, _stamp, _stats;
         readonly Label _name, _type, _lead, _hp, _damage, _stampText;
 
         Model _model;
@@ -48,7 +48,6 @@ namespace SpawnRowDuel.View.Fx
             _name.style.color = new Color(0.906f, 0.933f, 0.984f);
             _name.style.whiteSpace = WhiteSpace.NoWrap;
             _name.style.overflow = Overflow.Hidden;
-            _name.style.paddingTop = 2; _name.style.paddingBottom = 2;
             Add(_name);
 
             _art = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -93,8 +92,8 @@ namespace SpawnRowDuel.View.Fx
             stats.style.justifyContent = Justify.SpaceBetween;
             stats.style.alignItems = Align.Center;
             stats.style.backgroundColor = new Color(0f, 0f, 0f, 0.62f);
-            stats.style.paddingLeft = 5; stats.style.paddingRight = 5;
             Add(stats);
+            _stats = stats;
 
             _lead = CombatTheatre.NewLabel(UiFont.DisplayBlack, 13f);
             _lead.style.color = new Color(1f, 0.60f, 0.42f);
@@ -124,10 +123,18 @@ namespace SpawnRowDuel.View.Fx
             var sw = palette.Of(m.Element);
             style.width = width;
             style.height = width * CardFace.Aspect;
-            Border(this, 2f, ElementPalette.Mix(sw.Color, Color.black, 0.45f));
+            Border(this, Mathf.Max(2f, width * 0.012f),
+                   ElementPalette.Mix(sw.Color, Color.black, 0.45f));
+            Radius(this, Mathf.Max(9f, width * 0.05f));
 
+            // Every size below is a FRACTION of the card, with a floor and no ceiling. They used
+            // to be clamped at 14 / 18 / 34 px, which is invisible while the card is 132 px wide
+            // and absurd the moment it is 520: a poster-sized portrait with eight-point type on
+            // it. A cut-in is one picture, so it has one scale.
+            _name.style.paddingTop = width * 0.018f;
+            _name.style.paddingBottom = width * 0.018f;
             _name.text = m.Name;
-            _name.style.fontSize = Mathf.Clamp(width * 0.105f, 8f, 14f);
+            _name.style.fontSize = Mathf.Max(8f, width * 0.105f);
 
             _art.style.backgroundImage = m.Art != null
                 ? Background.FromSprite(m.Art)
@@ -137,19 +144,21 @@ namespace SpawnRowDuel.View.Fx
                 : ElementPalette.Mix(sw.Deep, Color.black, 0.45f);
 
             _type.text = m.Wall ? "CASTLE WALL" : m.Structure ? "STRUCTURE" : "CREATURE";
-            _type.style.fontSize = Mathf.Clamp(width * 0.062f, 6f, 10f);
+            _type.style.fontSize = Mathf.Max(6f, width * 0.062f);
             _type.style.color = ElementPalette.Mix(sw.Accent, Color.white, 0.5f);
 
             _lead.text = m.Lead;
-            _lead.style.fontSize = Mathf.Clamp(width * 0.135f, 9f, 18f);
-            _hp.style.fontSize = Mathf.Clamp(width * 0.135f, 9f, 18f);
+            _lead.style.fontSize = Mathf.Max(9f, width * 0.135f);
+            _hp.style.fontSize = Mathf.Max(9f, width * 0.135f);
 
+            _stats.style.paddingLeft = width * 0.04f;
+            _stats.style.paddingRight = width * 0.04f;
             _bar.style.height = Mathf.Max(3f, width * 0.035f);
-            _damage.style.fontSize = Mathf.Clamp(width * 0.26f, 14f, 34f);
+            _damage.style.fontSize = Mathf.Max(14f, width * 0.26f);
             _damage.style.top = width * 0.32f;
             _stamp.style.top = width * 0.62f;
-            _stampText.style.fontSize = Mathf.Clamp(width * 0.105f, 8f, 14f);
-            _stamp.style.paddingTop = 2; _stamp.style.paddingBottom = 2;
+            _stampText.style.fontSize = Mathf.Max(8f, width * 0.105f);
+            _stamp.style.paddingTop = width * 0.012f; _stamp.style.paddingBottom = width * 0.012f;
 
             ShowResult(false);
         }

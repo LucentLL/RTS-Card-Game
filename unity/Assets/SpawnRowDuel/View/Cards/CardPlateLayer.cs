@@ -18,8 +18,12 @@ namespace SpawnRowDuel.View.Cards
     /// picture twice, once flat and once standing, and the plate is the one that belongs to the
     /// tile.
     ///
-    /// All plates face the viewer, the foe's included, exactly as Master Duel rotates its whole
-    /// field to one reader rather than making half the board upside down.
+    /// The foe's cards are UPSIDE DOWN, the way they are across a table. That is what puts each
+    /// side's health meter on its own edge of the board - yours along the near edge of your tiles,
+    /// theirs along the far edge of theirs - so the two never sit in the same place and a glance
+    /// down the board is never reading someone else's numbers. What does NOT turn over is any
+    /// number: the plate is rotated and every readout on it is counter-rotated, because a figure
+    /// nobody can read is not information (D34).
     /// </summary>
     public sealed class CardPlateLayer : MonoBehaviour
     {
@@ -53,6 +57,23 @@ namespace SpawnRowDuel.View.Cards
         public static readonly Quaternion FlatOnTile =
             Quaternion.LookRotation(Vector3.down, Vector3.forward);
 
+        /// <summary>
+        /// The same card, turned to face the other seat: a half turn about the board's up axis,
+        /// which for a card lying flat is a half turn IN ITS OWN PLANE. A rotation, not a
+        /// reflection - the art is the right way round, it is only the wrong way up.
+        /// </summary>
+        public static readonly Quaternion FoeOnTile =
+            Quaternion.Euler(0f, 180f, 0f) * FlatOnTile;
+
+        /// <summary>Undoes that half turn for one child, so a readout on a foe card comes out the
+        /// same way up as one on yours. Local +Z is the plate's normal, so this is in-plane.</summary>
+        public static readonly Quaternion UprightOnFoeCard = Quaternion.Euler(0f, 0f, 180f);
+
+        public static Quaternion RotationFor(Side owner)
+        {
+            return owner == Side.You ? FlatOnTile : FoeOnTile;
+        }
+
         // the CSS sleeve fallbacks, for a player whose element never resolved
         static readonly Color YouSleeve = ElementPalette.Hex("#d9b04a");
         static readonly Color FoeSleeve = ElementPalette.Hex("#9a5cc6");
@@ -71,7 +92,22 @@ namespace SpawnRowDuel.View.Cards
             public SpriteRenderer Frame;
             public SpriteRenderer Art;
             public SpriteRenderer Bank;
+            public SpriteRenderer Stats;      // attack / workers / printed health
+            public SpriteRenderer Trough;     // the health meter's ground ...
+            public SpriteRenderer Fill;       // ... and what is left of it
+            public SpriteRenderer Hp;         // the number printed across the meter
         }
+
+        /// <summary>
+        /// Sorting orders. The frame and the art sit UNDER the standee (20); everything carrying a
+        /// number sits over it, and has to: the figure is planted at the FRONT of its own tile, so
+        /// its shins cross the two bands the numbers are printed in, and a number behind a
+        /// cut-out is a number that is not there. The cost is that a tall figure in the row in
+        /// front can have a far row's numbers drawn across its head - a band's worth of wrong
+        /// occlusion, traded for every number on the board being readable.
+        /// </summary>
+        const int OrderFrame = 4, OrderArt = 6, OrderTrough = 22, OrderFill = 23,
+                  OrderStats = 24, OrderNum = 25, OrderBank = 26;
 
         void Awake()
         {
@@ -114,9 +150,13 @@ namespace SpawnRowDuel.View.Cards
             p = new Plate
             {
                 Root = root,
-                Frame = NewRenderer(root.transform, "frame", 4),
-                Art = NewRenderer(root.transform, "art", 6),
-                Bank = NewRenderer(root.transform, "bank", 8),
+                Frame = NewRenderer(root.transform, "frame", OrderFrame),
+                Art = NewRenderer(root.transform, "art", OrderArt),
+                Trough = NewRenderer(root.transform, "meter", OrderTrough),
+                Fill = NewRenderer(root.transform, "fill", OrderFill),
+                Stats = NewRenderer(root.transform, "stats", OrderStats),
+                Hp = NewRenderer(root.transform, "hp", OrderNum),
+                Bank = NewRenderer(root.transform, "bank", OrderBank),
             };
             _live[o.Id] = p;
             return p;
@@ -148,7 +188,15 @@ namespace SpawnRowDuel.View.Cards
             float plateW = foot.x;
             float plateH = foot.y;
 
+            bool foe = o.Owner != Side.You;
             p.Root.transform.position = _match.Board.WorldOf(cell) + new Vector3(0f, Lift, 0f);
+            p.Root.transform.rotation = RotationFor(o.Owner);
+
+            // everything with a number on it turns back the right way up
+            var upright = foe ? UprightOnFoeCard : Quaternion.identity;
+            p.Stats.transform.localRotation = upright;
+            p.Hp.transform.localRotation = upright;
+            p.Bank.transform.localRotation = upright;
 
             bool faceDown = o is ChargeUnit || o is TrapUnit;
             var frame = faceDown ? CardPlateTextures.Back(Sleeve(s, o.Owner))
@@ -182,6 +230,105 @@ namespace SpawnRowDuel.View.Cards
             p.Art.color = tint;
 
             PlaceBank(p, o, s, plateW, plateH, faceDown);
+            PlaceNumbers(p, o, plateW, plateH, faceDown, foe);
+        }
+
+        /// <summary>
+        /// Local Y of a band's centre. The frame states its bands as fractions of the card's
+        /// height measured from the TOP, and the plate's local +Y points at that top, so one
+        /// conversion in one place beats four sign errors in four.
+        /// </summary>
+        static float BandY(float fromTop, float bandH, float plateH)
+        {
+            return (0.5f - (fromTop + bandH * 0.5f)) * plateH;
+        }
+
+        /// <summary>
+        /// What a card on the board is worth, printed on the card: the health METER in the stat
+        /// bar, and the statline - attack, worker draw or upkeep, printed health - in the ability
+        /// box directly above it.
+        ///
+        /// It answers "the black bars under the card should display health, a meter with a number
+        /// in it, and above the black bar the Attack, Worker Amount and Base HP" - and it answers
+        /// the older complaint underneath that one, which is that a board's numbers belong to the
+        /// pieces rather than to labels floating near them. The frame was drawing a black bar and
+        /// three ruled lines: a stat bar with no stats in it and a stand-in for text. Both are now
+        /// the thing they were standing in for.
+        ///
+        /// The meter is quads rather than a raster: one texture per (hp, max) pair the match
+        /// reaches is a cache that grows with the fight, and a scaled quad drains continuously
+        /// where a texture drains in texel steps. Only the NUMBER is rastered, keyed by its value.
+        /// </summary>
+        void PlaceNumbers(Plate p, BoardObject o, float plateW, float plateH, bool faceDown, bool foe)
+        {
+            var cre = o as CreatureUnit;
+            var bld = o as StructureUnit;
+
+            // a face-down card says its investment and nothing else - the rest is the secret
+            if (faceDown || (cre == null && bld == null))
+            {
+                p.Stats.enabled = false;
+                p.Trough.enabled = false;
+                p.Fill.enabled = false;
+                p.Hp.enabled = false;
+                return;
+            }
+
+            int hp = cre != null ? cre.Hp : bld.Hp;
+            int max = Mathf.Max(1, cre != null ? cre.MaxHp : bld.MaxHp);
+            float frac = Mathf.Clamp01(hp / (float)max);
+            int worker = cre != null ? -cre.Upkeep : bld.Support;
+
+            // ---- the statline, filling the ability box
+            float rulesTop = CardPlateTextures.BannerH + CardPlateTextures.ArtH;
+            var line = CardPlateTextures.StatLine(
+                cre != null ? Stat.Show(cre.EffectiveAttack) : 0,
+                worker, Stat.Show(max), cre != null, worker != 0);
+
+            float boxW = plateW * (1f - 8f / CardPlateTextures.W);      // inside inset + outline
+            float boxH = plateH * CardPlateTextures.RulesH * 0.98f;
+            p.Stats.sprite = line;
+            p.Stats.enabled = true;
+            p.Stats.transform.localScale = FillScale(line, boxW, boxH);
+            p.Stats.transform.localPosition =
+                new Vector3(0f, BandY(rulesTop, CardPlateTextures.RulesH, plateH), -0.003f);
+
+            // ---- the meter, filling the stat bar
+            float barW = plateW * (1f - 4f / CardPlateTextures.W);      // inside the frame's border
+            float barH = plateH * CardPlateTextures.StatsH;
+            float y = BandY(rulesTop + CardPlateTextures.RulesH, CardPlateTextures.StatsH, plateH);
+            var solid = CardPlateTextures.Solid();
+
+            float troughH = barH * 0.82f;
+            p.Trough.sprite = solid;
+            p.Trough.enabled = true;
+            p.Trough.color = CardPlateTextures.MeterTrough;
+            p.Trough.transform.localScale = new Vector3(barW, troughH, 1f);
+            p.Trough.transform.localPosition = new Vector3(0f, y, -0.003f);
+
+            // The fill grows the same way ON SCREEN for both sides. It is the one thing on the
+            // card that is not turned over with it: a meter has no up, and two boards draining in
+            // opposite directions is a thing to decode rather than to read.
+            float m = troughH * 0.13f;
+            float runW = barW - 2f * m;
+            float fillW = runW * frac;
+            float dir = foe ? -1f : 1f;
+
+            p.Fill.sprite = solid;
+            p.Fill.enabled = fillW > 0.0001f;
+            p.Fill.color = CardPlateTextures.HealthTint(frac);
+            p.Fill.transform.localScale = new Vector3(fillW, troughH - 2f * m, 1f);
+            p.Fill.transform.localPosition =
+                new Vector3(dir * (fillW * 0.5f - runW * 0.5f), y, -0.004f);
+
+            var num = CardPlateTextures.Num(Stat.Show(hp));
+            var size = num.bounds.size;
+            float k = Mathf.Min(barH * 0.76f / Mathf.Max(0.0001f, size.y),
+                                barW * 0.62f / Mathf.Max(0.0001f, size.x));
+            p.Hp.sprite = num;
+            p.Hp.enabled = true;
+            p.Hp.transform.localScale = new Vector3(k, k, k);
+            p.Hp.transform.localPosition = new Vector3(0f, y, -0.005f);
         }
 
         /// <summary>
@@ -199,8 +346,9 @@ namespace SpawnRowDuel.View.Cards
         /// face-down showing ◆1 is either a trap or a creature nobody has funded yet, and telling
         /// those apart is the guess the mechanic is made of.
         ///
-        /// Face-down it sits under the sleeve's emblem, where the eye already is. Face-up it takes
-        /// the stat bar's right corner, out of the illustration's way.
+        /// Face-down it sits under the sleeve's emblem, where the eye already is. Face-up it rides
+        /// the BANNER's right corner - the stat bar it used to take is the health meter now, and a
+        /// badge parked over a meter hides the half of it that matters.
         /// </summary>
         void PlaceBank(Plate p, BoardObject o, GameState s, float plateW, float plateH, bool faceDown)
         {
@@ -223,14 +371,15 @@ namespace SpawnRowDuel.View.Cards
             // A flat card is foreshortened by sin(42°) at the tilted angle, so a badge sized to
             // look right on the texture reads at two thirds of that on screen. Face-down it is
             // the ONLY thing the card says, so it is a stamp rather than a corner mark.
-            float h = plateH * (faceDown ? 0.34f : 0.15f);
+            float h = plateH * (faceDown ? 0.34f : CardPlateTextures.BannerH * 0.84f);
             float k = h / Mathf.Max(0.0001f, badge.bounds.size.y);
             p.Bank.transform.localScale = new Vector3(k, k, k);
 
             float bw = badge.bounds.size.x * k;
-            float x = faceDown ? 0f : (plateW * 0.5f - bw * 0.5f - plateW * 0.04f);
-            float y = faceDown ? -plateH * 0.12f : -plateH * 0.42f;
-            p.Bank.transform.localPosition = new Vector3(x, y, -0.002f);   // local -Z is up
+            float x = faceDown ? 0f : (plateW * 0.5f - bw * 0.5f - plateW * 0.035f);
+            float y = faceDown ? -plateH * 0.12f
+                               : BandY(0f, CardPlateTextures.BannerH, plateH);
+            p.Bank.transform.localPosition = new Vector3(x, y, -0.006f);   // local -Z is up
         }
 
         /// <summary>

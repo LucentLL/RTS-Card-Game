@@ -34,6 +34,16 @@ namespace SpawnRowDuel.View.Fx
     ///    next summon lands while the clash is still on screen. The theatre HOLDS the autopilot for
     ///    exactly as long as a cut-in runs (MatchController.Hold) and never holds your own input.
     ///
+    /// It is drawn BIG - a card is about three tenths of the screen wide, or as much as fits its
+    /// height - because the cut-in's whole job is to be looked at, and at the old 132 px cap it was
+    /// a pair of postage stamps in the middle of a board it was supposed to interrupt.
+    ///
+    /// A JOINT attack is told as one picture, not as three: every declaration against the same
+    /// defender is stacked on the left, fanned so each card's name and blow still shows, against
+    /// the one card they are all hitting. Which is attacking which needs no arrows in that shape -
+    /// everything on the left is attacking the thing on the right - and three cut-ins in a row for
+    /// one decision is exactly the thing MaxToldPerCombat exists to stop.
+    ///
     /// Damage numbers are separate from the cut-in on purpose: a Bolt, a Cannon Tower's upkeep
     /// shot and a Backlash are not battles and get no cut-in, but they are all still damage, and
     /// "-150" floating off the thing that took it is the one witness they have.
@@ -96,6 +106,15 @@ namespace SpawnRowDuel.View.Fx
         readonly List<Fight> _queue = new List<Fight>();
 
         Fight _showing;
+
+        /// <summary>The fights being told AS ONE: a joint attack, in declaration order, sharing
+        /// the defender <see cref="_showing"/> names.</summary>
+        readonly List<Fight> _group = new List<Fight>();
+
+        /// <summary>How many attackers one cut-in will stack. Past three the fan is a smear and
+        /// the cards are too narrow to read a name off.</summary>
+        const int MaxStack = 3;
+
         float _shownAt = -99f;
         int _told;
         bool _rebind;
@@ -115,7 +134,8 @@ namespace SpawnRowDuel.View.Fx
 
         VisualElement _cutIn, _inner, _left, _right;
         Label _clash;
-        BattleCard _leftCard, _rightCard;
+        BattleCard _rightCard;
+        readonly List<BattleCard> _leftCards = new List<BattleCard>();
 
         VisualElement _floatLayer;
         readonly List<Floater> _floaters = new List<Floater>();
@@ -204,16 +224,18 @@ namespace SpawnRowDuel.View.Fx
             {
                 Pop(WallWorld(wallHit.Defender), "-" + Stat.Show(wallHit.Amount), Hurt);
 
-                // wall damage is AGGREGATED over the whole combat and applied once, so it is told
-                // by whichever declaration aimed at that wall first
+                // Wall damage is AGGREGATED over the whole combat and applied once, so the total
+                // is told by whichever declaration aimed at that wall first - but every attacker
+                // that aimed there is part of the picture, so they all resolve and the group
+                // stacks them.
+                bool first = true;
                 for (int i = 0; i < _fights.Count; i++)
                 {
                     var f = _fights[i];
                     if (!f.HasDefender || !f.Defender.Wall || f.Defender.Owner != wallHit.Defender)
                         continue;
-                    f.DamageToDefender += wallHit.Amount;
+                    if (first) { f.DamageToDefender += wallHit.Amount; first = false; }
                     Resolved(f);
-                    return;
                 }
                 return;
             }
@@ -246,7 +268,7 @@ namespace SpawnRowDuel.View.Fx
         void Resolved(Fight f)
         {
             if (f == null) return;
-            if (f == _showing) { _rebind = true; return; }   // FIRST: a shown fight stays Queued
+            if (_group.Contains(f)) { _rebind = true; return; }   // FIRST: a shown fight stays Queued
             if (f.Queued) return;
             f.Queued = true;
             _queue.Add(f);
@@ -278,10 +300,11 @@ namespace SpawnRowDuel.View.Fx
                 var next = _queue[0];
                 _queue.RemoveAt(0);
                 if (CutIns && _told < MaxToldPerCombat) { Show(next); _told++; }
+                else Regroup(next);              // still claim its partners, so they do not queue
             }
             else if (_rebind && _showing != null)
             {
-                BindCards(_showing);
+                BindCards();
             }
             _rebind = false;
 
@@ -430,23 +453,101 @@ namespace SpawnRowDuel.View.Fx
             _showing = f;
             _shownAt = Time.unscaledTime;
 
-            BindCards(f);
+            Regroup(f);
+            BindCards();
             _cutIn.style.display = DisplayStyle.Flex;
 
             // hold the opponent for as long as this runs - and no longer
             MatchController.Hold(CutInSeconds);
         }
 
-        void BindCards(Fight f)
+        /// <summary>
+        /// Everything declared against the same defender, told together.
+        ///
+        /// It reads `_fights`, not the queue, and has to: in a joint attack only ONE fight is ever
+        /// resolved by name - `Record` attributes every blow the defender takes to the first
+        /// declaration that named it, which is what makes that card show the TOTAL - so the other
+        /// attackers are sitting in the list having done everything and been told nothing. They
+        /// are claimed here, marked Queued so they cannot come back as a second cut-in of the same
+        /// fight, and drawn as the stack.
+        /// </summary>
+        void Regroup(Fight primary)
         {
-            float panelW = _hand.PanelSize().x;
-            float cardW = Mathf.Clamp(panelW * 0.15f, 72f, 132f);
+            _group.Clear();
+            _group.Add(primary);
+            if (!primary.HasDefender) return;
 
-            _leftCard.Bind(Model(f.Attacker, f.DamageToAttacker, f.AttackerDied), _palette, cardW);
-            _rightCard.Bind(Model(f.Defender, f.DamageToDefender, f.DefenderDied), _palette, cardW);
+            for (int i = 0; i < _fights.Count && _group.Count < MaxStack; i++)
+            {
+                var f = _fights[i];
+                if (f == primary || !f.HasDefender) continue;
+                if (f.Defender.Id != primary.Defender.Id) continue;
+                if (f.Queued && !_queue.Contains(f)) continue;      // already told, on its own
+                _queue.Remove(f);
+                f.Queued = true;
+                _group.Add(f);
+            }
+
+            _group.Sort((a, b) => a.Index.CompareTo(b.Index));      // declaration order
+        }
+
+        /// <summary>
+        /// How wide one card is. Both axes matter: the pair has to fit across the screen AND
+        /// inside its height, and a card is 1.39 times taller than it is wide, so on any landscape
+        /// screen it is the HEIGHT that decides. The floor is what a phone in portrait gets.
+        /// </summary>
+        float CardWidth()
+        {
+            var panel = _hand.PanelSize();
+            return Mathf.Max(64f, Mathf.Min(panel.x * 0.31f, panel.y * 0.72f / CardFace.Aspect));
+        }
+
+        /// <summary>Two cards fan into the width of about one and a half; three into two.</summary>
+        static float StackScale(int n) { return n <= 1 ? 1f : n == 2 ? 0.84f : 0.72f; }
+
+        void BindCards()
+        {
+            float cardW = CardWidth();
+            int n = Mathf.Max(1, _group.Count);
+            float stackW = cardW * StackScale(n);
+
+            // Rebuilt in REVERSE so the first declaration is the last child: UI Toolkit draws in
+            // child order, and the card the fight is named after has to be the one on top of the
+            // fan - which is also the one nearest the clash.
+            _left.Clear();
+            for (int i = n - 1; i >= 0; i--)
+            {
+                var card = LeftCard(i);
+                card.Bind(Model(_group[i].Attacker, _group[i].DamageToAttacker,
+                                _group[i].AttackerDied), _palette, stackW);
+
+                card.style.marginLeft = i == n - 1 ? 0f : -stackW * 0.36f;
+                card.style.translate = new Translate(0f, i * stackW * 0.05f);
+                card.style.rotate = new Rotate(new Angle(-3.5f * i, AngleUnit.Degree));
+                _left.Add(card);
+            }
+
+            // the defender takes the sum, which is where every blow was attributed anyway, and
+            // dies if any declaration in the group killed it
+            int damage = 0;
+            bool died = false;
+            for (int i = 0; i < _group.Count; i++)
+            {
+                damage += _group[i].DamageToDefender;
+                died |= _group[i].DefenderDied;
+            }
+            _rightCard.Bind(Model(_showing.Defender, damage, died), _palette, cardW);
 
             _clash.text = "⚔";
             _clash.style.fontSize = cardW * 0.42f;
+            _clash.style.marginLeft = cardW * 0.10f;
+            _clash.style.marginRight = cardW * 0.10f;
+        }
+
+        BattleCard LeftCard(int i)
+        {
+            while (_leftCards.Count <= i) _leftCards.Add(new BattleCard());
+            return _leftCards[i];
         }
 
         BattleCard.Model Model(Snap s, int damage, bool died)
@@ -476,6 +577,7 @@ namespace SpawnRowDuel.View.Fx
             if (age > CutInSeconds)
             {
                 _showing = null;
+                _group.Clear();
                 _cutIn.style.display = DisplayStyle.None;
                 return;
             }
@@ -488,7 +590,7 @@ namespace SpawnRowDuel.View.Fx
 
             float slide = Mathf.Clamp01(age / SlideSeconds);
             float ease = 1f - (1f - slide) * (1f - slide) * (1f - slide);      // out-cubic
-            float off = (1f - ease) * 70f;
+            float off = (1f - ease) * CardWidth() * 0.55f;
             _left.style.translate = new Translate(-off, 0f);
             _right.style.translate = new Translate(off, 0f);
 
@@ -502,7 +604,8 @@ namespace SpawnRowDuel.View.Fx
             // the numbers land WITH the clash, not with the fly-in: the cards read as they were,
             // then the blow happens
             bool hit = age >= SlideSeconds * 0.5f + 0.12f;
-            _leftCard.ShowResult(hit);
+            for (int i = 0; i < _group.Count && i < _leftCards.Count; i++)
+                _leftCards[i].ShowResult(hit);
             _rightCard.ShowResult(hit);
         }
 
@@ -637,8 +740,8 @@ namespace SpawnRowDuel.View.Fx
             _cutIn.Add(_inner);
 
             _left = new VisualElement { pickingMode = PickingMode.Ignore };
-            _leftCard = new BattleCard();
-            _left.Add(_leftCard);
+            _left.style.flexDirection = FlexDirection.Row;
+            _left.style.alignItems = Align.Center;
             _inner.Add(_left);
 
             _clash = NewLabel(UiFont.DisplayBlack, 34f);

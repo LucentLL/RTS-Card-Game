@@ -359,6 +359,20 @@ namespace SpawnRowDuel.View
                 return;
             }
 
+            // An aimed attack: who is in it, what it is on, and how to stop adding to it.
+            // A PICKED CARD still outranks it - declaring an attack must not take the summon
+            // button away from the hand, and the board tap that plays a card is checked before
+            // the one that joins an attack for the same reason.
+            if (myTurn && _selectedHandIndex < 0 && _match.Assault != null)
+            {
+                GUI.Label(new Rect(w / 2f - 250, by, 320, 24),
+                    "attacking " + _match.AssaultLabel + " with " + _match.AssaultSize
+                    + " — tap another ready creature to join", _center);
+                if (Btn(new Rect(w / 2f + 80, by, 100, 24), "DONE", _button))
+                    _match.EndAssault();
+                return;
+            }
+
             // selected hand card during your action: mode buttons
             if (_selectedHandIndex >= 0 && _selectedHandIndex < hand.Count
                 && myTurn && s.Phase == TurnPhase.Action)
@@ -442,7 +456,8 @@ namespace SpawnRowDuel.View
                         if (wallOk)
                         {
                             float ww = legalZones.Count > 0 ? 130 : 250;
-                            if (Btn(new Rect(x, by, ww, 24), "⚔ WALL", _button)) Try(wall);
+                            if (Btn(new Rect(x, by, ww, 24), "⚔ WALL", _button))
+                                Declare(cell, new WallTarget(Side.Foe), "the wall");
                             x += ww + 5;
                         }
                         float zw = legalZones.Count > 0
@@ -452,8 +467,8 @@ namespace SpawnRowDuel.View
                             var z = legalZones[i];
                             int n = s.P(Side.Foe).Workers[(int)z].Count;
                             if (Btn(new Rect(x, by, zw, 24), "⚒" + ZoneTag(z) + n, _button))
-                                Try(new DeclareAttackCommand(Side.You, cell, atk.Id,
-                                    new WorkerStackTarget(Side.Foe, z)));
+                                Declare(cell, new WorkerStackTarget(Side.Foe, z),
+                                        "the " + ZoneName(z) + " workers");
                             x += zw + 4;
                         }
                         return;
@@ -811,6 +826,11 @@ namespace SpawnRowDuel.View
             return z == WorkerZone.Back ? "B" : z == WorkerZone.Front ? "F" : "C";
         }
 
+        static string ZoneName(WorkerZone z)
+        {
+            return z == WorkerZone.Back ? "back" : z == WorkerZone.Front ? "front" : "centre";
+        }
+
         // ---- board overlays -------------------------------------------------------------------
 
         /// <summary>
@@ -1036,6 +1056,15 @@ namespace SpawnRowDuel.View
         void Try(ICommand cmd)
         {
             var why = _match.TryHuman(cmd);
+            if (why != Rejection.None) Hint(MatchController.Hint(why));
+        }
+
+        /// <summary>An attack declared from a BUTTON rather than from a board tap. It goes through
+        /// the controller's one declaration funnel, so the wall and the worker stacks open an
+        /// attack group exactly as tapping a unit does.</summary>
+        void Declare(CellRef from, AttackTarget target, string label)
+        {
+            var why = _match.Declare(from, target, label);
             if (why != Rejection.None) Hint(MatchController.Hint(why));
         }
 

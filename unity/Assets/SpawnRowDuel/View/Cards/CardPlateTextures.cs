@@ -235,6 +235,186 @@ namespace SpawnRowDuel.View.Cards
                 }
         }
 
+        // -- a 3x5 bitmap font, and everything printed with it -----------------------------
+
+        /// <summary>
+        /// 0-9, then '+' and '-'. Top row first, one bit per column.
+        ///
+        /// Nothing in this layer can reach the SDF font chain - a plate is a world-space sprite,
+        /// not a label - and twelve glyphs of bitmap is cheaper than the machinery that would let
+        /// it. The cells are rastered NON-SQUARE on purpose: every strip on a card is limited by
+        /// the card's WIDTH and has height going spare, so a digit is drawn about 1 : 1.75 and
+        /// gains half its size again over a square one.
+        /// </summary>
+        static readonly byte[] Font =
+        {
+            0x7, 0x5, 0x5, 0x5, 0x7,   // 0
+            0x2, 0x6, 0x2, 0x2, 0x7,   // 1
+            0x7, 0x1, 0x7, 0x4, 0x7,   // 2
+            0x7, 0x1, 0x7, 0x1, 0x7,   // 3
+            0x5, 0x5, 0x7, 0x1, 0x1,   // 4
+            0x7, 0x4, 0x7, 0x1, 0x7,   // 5
+            0x7, 0x4, 0x7, 0x5, 0x7,   // 6
+            0x7, 0x1, 0x1, 0x1, 0x1,   // 7
+            0x7, 0x5, 0x7, 0x5, 0x7,   // 8
+            0x7, 0x5, 0x7, 0x1, 0x7,   // 9
+            0x0, 0x2, 0x7, 0x2, 0x0,   // +
+            0x0, 0x0, 0x7, 0x0, 0x0,   // -
+        };
+
+        const int Cols = 3, Rows = 5, Tracking = 1;
+
+        static int GlyphOf(char c)
+        {
+            if (c >= '0' && c <= '9') return c - '0';
+            if (c == '+') return 10;
+            if (c == '-') return 11;
+            return -1;                       // anything else advances and draws nothing
+        }
+
+        /// <summary>How wide <paramref name="text"/> rasters at a cell width of sx texels.</summary>
+        static int TextW(string text, int sx)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            return text.Length * (Cols + Tracking) * sx - Tracking * sx;
+        }
+
+        /// <summary>Text with its TOP-LEFT at (x, y); one font cell is sx by sy texels.</summary>
+        static void Text(Color[] px, int w, int h, string text, int x, int y,
+                         int sx, int sy, Color c)
+        {
+            for (int i = 0; i < text.Length; i++)
+            {
+                int g = GlyphOf(text[i]);
+                if (g < 0) continue;
+                int gx = x + i * (Cols + Tracking) * sx;
+                for (int row = 0; row < Rows; row++)
+                {
+                    byte bits = Font[g * Rows + row];
+                    for (int col = 0; col < Cols; col++)
+                        if ((bits & (1 << (Cols - 1 - col))) != 0)
+                            PBox(px, w, h, gx + col * sx, y + row * sy,
+                                 gx + (col + 1) * sx, y + (row + 1) * sy, c);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The same, ringed. A number printed ACROSS a meter crosses both the fill and the empty
+        /// half of the trough, so no single ink colour reads the whole way - the ring is what
+        /// makes one work over both.
+        /// </summary>
+        static void TextRinged(Color[] px, int w, int h, string text, int x, int y,
+                               int sx, int sy, Color c, Color ring, int r)
+        {
+            for (int dy = -r; dy <= r; dy++)
+                for (int dx = -r; dx <= r; dx++)
+                    if (dx != 0 || dy != 0)
+                        Text(px, w, h, text, x + dx, y + dy, sx, sy, ring);
+            Text(px, w, h, text, x, y, sx, sy, c);
+        }
+
+        // -- raster helpers for a buffer of any size. Top-left origin, like the ones above --
+
+        /// <summary>Solid rectangle, CLIPPED - not clamped, which is what the plate's own helpers
+        /// do and would smear an out-of-range box along the edge of the texture.</summary>
+        static void PBox(Color[] px, int w, int h, int x0, int y0, int x1, int y1, Color c)
+        {
+            if (x0 < 0) x0 = 0;
+            if (y0 < 0) y0 = 0;
+            if (x1 > w) x1 = w;
+            if (y1 > h) y1 = h;
+            for (int y = y0; y < y1; y++)
+            {
+                int row = (h - 1 - y) * w;
+                for (int x = x0; x < x1; x++) px[row + x] = c;
+            }
+        }
+
+        static void POutline(Color[] px, int w, int h, int x0, int y0, int x1, int y1, Color c)
+        {
+            PBox(px, w, h, x0, y0, x1, y0 + 1, c);
+            PBox(px, w, h, x0, y1 - 1, x1, y1, c);
+            PBox(px, w, h, x0, y0, x0 + 1, y1, c);
+            PBox(px, w, h, x1 - 1, y0, x1, y1, c);
+        }
+
+        /// <summary>The corners bitten off, so a filled band reads as a chip rather than a
+        /// sticker. Two texels, which is what the badge has always used.</summary>
+        static void PBite(Color[] px, int w, int h)
+        {
+            var clear = new Color(0f, 0f, 0f, 0f);
+            PBox(px, w, h, 0, 0, 2, 2, clear);
+            PBox(px, w, h, w - 2, 0, w, 2, clear);
+            PBox(px, w, h, 0, h - 2, 2, h, clear);
+            PBox(px, w, h, w - 2, h - 2, w, h, clear);
+        }
+
+        // -- the three marks a statline is made of ------------------------------------------
+
+        enum Mark : byte { Sword = 0, Hammer = 1, Heart = 2 }
+
+        /// <summary>
+        /// The glyph as a SHAPE. The real ones live in the gated font chain and are unreachable
+        /// from a sprite; and at sixteen texels the crossed blades of a real "swords" glyph are a
+        /// smudge anyway, so the attack mark is one upright sword and reads at half the size.
+        /// </summary>
+        static void Icon(Color[] px, int w, int h, Mark m, int x, int y, int iw, int ih, Color c)
+        {
+            switch (m)
+            {
+                case Mark.Sword:
+                    Cross(px, w, h, x, y, iw, ih, c);
+                    break;
+                case Mark.Hammer:
+                    PBox(px, w, h, x + iw / 16, y, x + iw * 15 / 16, y + ih * 7 / 16, c);
+                    PBox(px, w, h, x + iw * 6 / 16, y + ih * 7 / 16, x + iw * 10 / 16, y + ih, c);
+                    break;
+                case Mark.Heart:
+                    Heart(px, w, h, x + iw * 0.5f, y + ih * 0.5f, iw * 0.5f, ih * 0.5f, c);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Crossed blades, as an X.
+        ///
+        /// An upright sword was tried first and does not survive the size: the mark is about a
+        /// dozen pixels wide on the deployed board, and a sword drawn in a dozen pixels is a
+        /// blade three of them wide - a scratch. An X is the same word (the cut-in's clash glyph
+        /// is two crossed swords) and it is legible down to about five.
+        /// </summary>
+        static void Cross(Color[] px, int w, int h, int x, int y, int iw, int ih, Color c)
+        {
+            int t = Mathf.Max(2, Mathf.RoundToInt(iw * 0.26f));
+            for (int row = 0; row < ih; row++)
+            {
+                float f = ih <= 1 ? 0f : row / (float)(ih - 1);
+                int a = Mathf.RoundToInt(f * (iw - t));
+                PBox(px, w, h, x + a, y + row, x + a + t, y + row + 1, c);
+                PBox(px, w, h, x + iw - t - a, y + row, x + iw - a, y + row + 1, c);
+            }
+        }
+
+        /// <summary>
+        /// The implicit heart - (u^2 + v^2 - 1)^3 - u^2 v^3 &lt;= 0 - mapped onto the box. One
+        /// expression, where a hand-plotted one at this size is a table of magic numbers.
+        /// </summary>
+        static void Heart(Color[] px, int w, int h, float cx, float cy, float rx, float ry, Color c)
+        {
+            int x0 = Mathf.FloorToInt(cx - rx), x1 = Mathf.CeilToInt(cx + rx);
+            int y0 = Mathf.FloorToInt(cy - ry), y1 = Mathf.CeilToInt(cy + ry);
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    // the curve spans u +-1.13 and v [-1.26, 1.0]; +v is UP and +y is DOWN
+                    float u = (x + 0.5f - cx) / rx * 1.16f;
+                    float v = (cy + ry * 0.13f - y - 0.5f) / ry * 1.30f;
+                    float a = u * u + v * v - 1f;
+                    if (a * a * a - u * u * v * v * v <= 0f) PBox(px, w, h, x, y, x + 1, y + 1, c);
+                }
+        }
+
         // -- the banked-mana badge ---------------------------------------------------------
 
         static readonly Dictionary<string, Texture2D> _banks = new Dictionary<string, Texture2D>();
@@ -247,10 +427,6 @@ namespace SpawnRowDuel.View.Cards
         /// diamond in "SET ◆1" was never drawn at all, because that overlay is IMGUI and IMGUI's
         /// built-in font has no ◆. A badge on the card has neither problem - and a face-down card
         /// with a number on it is exactly what a charge IS.
-        ///
-        /// The digits are a 3x5 bitmap font, scaled. Nothing here can reach the SDF font chain -
-        /// this is a world-space sprite, not a label - and eleven glyphs' worth of bitmap is
-        /// cheaper than the machinery that would let it.
         /// </summary>
         public static Sprite Bank(int n, Color tint)
         {
@@ -264,54 +440,23 @@ namespace SpawnRowDuel.View.Cards
             return SpriteOf(tex);
         }
 
-        // 3x5, top row first, one bit per column
-        static readonly byte[] Digits =
-        {
-            0x7, 0x5, 0x5, 0x5, 0x7,   // 0
-            0x2, 0x6, 0x2, 0x2, 0x7,   // 1
-            0x7, 0x1, 0x7, 0x4, 0x7,   // 2
-            0x7, 0x1, 0x7, 0x1, 0x7,   // 3
-            0x5, 0x5, 0x7, 0x1, 0x1,   // 4
-            0x7, 0x4, 0x7, 0x1, 0x7,   // 5
-            0x7, 0x4, 0x7, 0x5, 0x7,   // 6
-            0x7, 0x1, 0x1, 0x1, 0x1,   // 7
-            0x7, 0x5, 0x7, 0x5, 0x7,   // 8
-            0x7, 0x5, 0x7, 0x1, 0x7,   // 9
-        };
-
         const int BankPx = 3;          // one bitmap pixel, in texels
         const int BankH = 22;
 
         static Texture2D BuildBank(int n, Color tint)
         {
             string text = Mathf.Clamp(n, 0, 99).ToString();
-            int gemW = 13, pad = 4, gap = 3, glyphW = 3 * BankPx + 2;
-            int w = pad + gemW + gap + text.Length * glyphW + pad;
+            int gemW = 13, pad = 4, gap = 3;
+            int w = pad + gemW + gap + TextW(text, BankPx) + pad;
 
-            var tex = new Texture2D(w, BankH, TextureFormat.RGBA32, false)
-            {
-                name = "SRD Bank " + n,
-                hideFlags = HideFlags.HideAndDontSave,
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-
+            var tex = New(w, BankH, "SRD Bank " + n);
             var px = new Color[w * BankH];
             var body = new Color(0.043f, 0.047f, 0.066f, 0.92f);
             var edge = ElementPalette.Mix(tint, new Color(0.05f, 0.05f, 0.07f), 0.55f);
 
             for (int i = 0; i < px.Length; i++) px[i] = body;
-
-            // border, and the corners bitten off so it reads as a chip rather than a sticker
-            for (int y = 0; y < BankH; y++)
-                for (int x = 0; x < w; x++)
-                {
-                    bool corner = (x < 2 && y < 2) || (x < 2 && y >= BankH - 2)
-                               || (x >= w - 2 && y < 2) || (x >= w - 2 && y >= BankH - 2);
-                    if (corner) px[y * w + x] = new Color(0f, 0f, 0f, 0f);
-                    else if (x == 0 || y == 0 || x == w - 1 || y == BankH - 1)
-                        px[y * w + x] = edge;
-                }
+            POutline(px, w, BankH, 0, 0, w, BankH, edge);
+            PBite(px, w, BankH);
 
             // the gem: a filled diamond in the owner's element
             float cx = pad + gemW * 0.5f - 0.5f, cy = BankH * 0.5f - 0.5f;
@@ -319,31 +464,178 @@ namespace SpawnRowDuel.View.Cards
                 for (int x = 0; x < w; x++)
                 {
                     float d = Mathf.Abs(x - cx) / (gemW * 0.5f) + Mathf.Abs(y - cy) / (BankH * 0.38f);
-                    if (d <= 1f) px[y * w + x] = Color.Lerp(tint, Color.white, 0.25f * (1f - d));
+                    if (d <= 1f)
+                        PBox(px, w, BankH, x, y, x + 1, y + 1,
+                             Color.Lerp(tint, Color.white, 0.25f * (1f - d)));
                 }
 
-            // the number
-            int gx = pad + gemW + gap;
-            int gy = (BankH - 5 * BankPx) / 2;
-            for (int c = 0; c < text.Length; c++)
+            Text(px, w, BankH, text, pad + gemW + gap, (BankH - Rows * BankPx) / 2,
+                 BankPx, BankPx, Color.white);
+
+            tex.SetPixels(px);
+            tex.Apply(false, false);
+            return tex;
+        }
+
+        // -- what a card on the board is worth ----------------------------------------------
+
+        /// <summary>
+        /// The two bands that carry numbers, at their own aspects - so the layer lays each
+        /// texture straight over its band and does no arithmetic of its own.
+        /// </summary>
+        public const int RuleBoxW = 384;
+        public static readonly int RuleBoxH = Mathf.RoundToInt(RuleBoxW * RulesH * H / (float)W);
+
+        static readonly Dictionary<string, Texture2D> _lines = new Dictionary<string, Texture2D>();
+        static readonly Dictionary<int, Texture2D> _nums = new Dictionary<int, Texture2D>();
+        static Sprite _solid;
+
+        /// <summary>
+        /// One white texel. The health meter's trough and its fill are this, scaled: a meter
+        /// rastered whole would cost a texture for every (hp, max) pair a match reaches, and a
+        /// fill that is a scaled quad moves continuously instead of in texture-sized steps.
+        /// </summary>
+        public static Sprite Solid()
+        {
+            if (_solid != null) return _solid;
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
             {
-                int digit = text[c] - '0';
-                for (int row = 0; row < 5; row++)
-                {
-                    byte bits = Digits[digit * 5 + row];
-                    for (int col = 0; col < 3; col++)
-                    {
-                        if ((bits & (1 << (2 - col))) == 0) continue;
-                        for (int yy = 0; yy < BankPx; yy++)
-                            for (int xx = 0; xx < BankPx; xx++)
-                            {
-                                int x = gx + c * glyphW + col * BankPx + xx;
-                                // rows count DOWN from the glyph's top; texture space is bottom-up
-                                int y = BankH - 1 - (gy + row * BankPx + yy);
-                                if (x >= 0 && x < w && y >= 0 && y < BankH) px[y * w + x] = Color.white;
-                            }
-                    }
-                }
+                name = "SRD Solid",
+                hideFlags = HideFlags.HideAndDontSave,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            tex.SetPixel(0, 0, Color.white);
+            tex.Apply(false, false);
+            _solid = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
+            _solid.name = "SRD Solid";
+            _solid.hideFlags = HideFlags.HideAndDontSave;
+            return _solid;
+        }
+
+        const int NumSx = 8, NumSy = 11, NumRing = 2;
+
+        /// <summary>
+        /// A number, ringed, cached by VALUE alone - which is what keeps the health meter from
+        /// costing a texture per (hp, max) pair. The raster size decides crispness only: the
+        /// layer scales it into whatever band it lands in.
+        /// </summary>
+        public static Sprite Num(int value)
+        {
+            Texture2D tex;
+            if (!_nums.TryGetValue(value, out tex))
+            {
+                tex = BuildNum(value);
+                _nums[value] = tex;
+            }
+            return SpriteOf(tex);
+        }
+
+        static Texture2D BuildNum(int value)
+        {
+            string text = value.ToString();
+            int w = TextW(text, NumSx) + NumRing * 2;
+            int h = Rows * NumSy + NumRing * 2;
+
+            var tex = New(w, h, "SRD Num " + value);
+            var px = new Color[w * h];
+            TextRinged(px, w, h, text, NumRing, NumRing, NumSx, NumSy,
+                       Color.white, new Color(0f, 0f, 0f, 0.92f), NumRing);
+            tex.SetPixels(px);
+            tex.Apply(false, false);
+            return tex;
+        }
+
+        /// <summary>How full a meter is, as the colour its fill takes. The same three steps the
+        /// vitals chips have always used, so one unit never reads two ways.</summary>
+        public static Color HealthTint(float frac)
+        {
+            return frac > 0.5f ? new Color(0.42f, 0.86f, 0.48f)
+                 : frac > 0.25f ? new Color(0.98f, 0.78f, 0.30f)
+                                : new Color(0.95f, 0.34f, 0.28f);
+        }
+
+        /// <summary>The meter's ground: the stat bar's own colour, a shade darker.</summary>
+        public static Color MeterTrough { get { return new Color(0.050f, 0.044f, 0.036f, 0.97f); } }
+
+        /// <summary>
+        /// The ABILITY BOX, filled with what the card is worth: attack, the worker draw or upkeep
+        /// it carries, and the health it was printed with.
+        ///
+        /// A plaque rather than three loose marks, because it has to survive being drawn over a
+        /// standee: the figure stands at the FRONT of its own tile, so its shins cross this band,
+        /// and dark ink over a dark cut-out is nothing at all. The plaque brings its own
+        /// parchment - the same parchment the frame under it already draws - so what the change
+        /// really does is replace the frame's three ruled lines (a stand-in for text) with the
+        /// text they were standing in for.
+        ///
+        /// The cell size is FITTED, not fixed: a four-digit attack has to fit the box a two-digit
+        /// one does, and shrinking the cell is better than clipping the number.
+        /// </summary>
+        public static Sprite StatLine(int attack, int worker, int baseHp,
+                                      bool hasAttack, bool hasWorker)
+        {
+            string key = (hasAttack ? attack.ToString() : "-") + "|"
+                       + (hasWorker ? worker.ToString() : "-") + "|" + baseHp;
+            Texture2D tex;
+            if (!_lines.TryGetValue(key, out tex))
+            {
+                tex = BuildStatLine(attack, worker, baseHp, hasAttack, hasWorker);
+                _lines[key] = tex;
+            }
+            return SpriteOf(tex);
+        }
+
+        static Texture2D BuildStatLine(int attack, int worker, int baseHp,
+                                       bool hasAttack, bool hasWorker)
+        {
+            int w = RuleBoxW, h = RuleBoxH;
+            var tex = New(w, h, "SRD Stats");
+            var px = new Color[w * h];
+
+            for (int y = 0; y < h; y++) PBox(px, w, h, 0, y, w, y + 1, Paper(y / (float)h));
+            POutline(px, w, h, 0, 0, w, h, new Color(0.10f, 0.09f, 0.07f, 0.85f));
+
+            var marks = new Mark[3];
+            var texts = new string[3];
+            var inks = new Color[3];
+            int n = 0;
+
+            if (hasAttack)
+            {
+                marks[n] = Mark.Sword;
+                texts[n] = attack.ToString();
+                inks[n++] = ElementPalette.Hex("#39415c");
+            }
+            if (hasWorker)
+            {
+                marks[n] = Mark.Hammer;
+                texts[n] = (worker > 0 ? "+" : "-") + Mathf.Abs(worker);
+                inks[n++] = ElementPalette.Hex("#7c5a1f");
+            }
+            marks[n] = Mark.Heart;
+            texts[n] = baseHp.ToString();
+            inks[n++] = ElementPalette.Hex("#93262a");
+
+            // The widest cell the content still fits in. The raster is deliberately twice the
+            // band it lands in: the cell size is an INTEGER, and at 192 texels the step from one
+            // that fits to one that does not threw away a fifth of the width - which comes
+            // straight off the size of the digits on screen.
+            int pad = 10, sx = 12;
+            while (sx > 2 && Layout(texts, n, sx) > w - 2 * pad) sx--;
+            int sy = Mathf.Max(1, Mathf.RoundToInt(sx * 1.4f));
+            while (sy > 1 && Rows * sy > h - 16) sy--;
+
+            int x = (w - Layout(texts, n, sx)) / 2;
+            int y0 = (h - Rows * sy) / 2;
+            var ink = ElementPalette.Hex("#1b1610");
+
+            for (int i = 0; i < n; i++)
+            {
+                Icon(px, w, h, marks[i], x, y0, (Cols + Tracking) * sx, Rows * sy, inks[i]);
+                x += (Cols + Tracking) * sx + sx;
+                Text(px, w, h, texts[i], x, y0, sx, sy, ink);
+                x += TextW(texts[i], sx) + 3 * sx;
             }
 
             tex.SetPixels(px);
@@ -351,9 +643,26 @@ namespace SpawnRowDuel.View.Cards
             return tex;
         }
 
-        static Texture2D New(string name)
+        /// <summary>The rastered width of the whole statline at a cell width of sx: each mark is
+        /// one cell-and-tracking wide, sits one cell off its number, and fields are three
+        /// apart.</summary>
+        static int Layout(string[] texts, int n, int sx)
         {
-            return new Texture2D(W, H, TextureFormat.RGBA32, false)
+            int total = 0;
+            for (int i = 0; i < n; i++)
+            {
+                total += (Cols + Tracking) * sx + sx;
+                total += TextW(texts[i], sx);
+                if (i < n - 1) total += 3 * sx;
+            }
+            return total;
+        }
+
+        static Texture2D New(string name) { return New(W, H, name); }
+
+        static Texture2D New(int w, int h, string name)
+        {
+            return new Texture2D(w, h, TextureFormat.RGBA32, false)
             {
                 name = name,
                 hideFlags = HideFlags.HideAndDontSave,

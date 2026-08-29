@@ -23,6 +23,7 @@ namespace SpawnRowDuel.View
         private readonly List<CellRef> _highlighted = new List<CellRef>();
         private readonly List<CellRef> _legalMoves = new List<CellRef>();
         private readonly List<CellRef> _legalAttacks = new List<CellRef>();
+        private readonly List<CellRef> _joiners = new List<CellRef>();
         private int _seenVersion = -1;
 
         public CellRef? Hover { get { return _hover; } }
@@ -32,6 +33,9 @@ namespace SpawnRowDuel.View
         /// the board and read by the vitals layer so a target says what it has left.</summary>
         public IReadOnlyList<CellRef> LegalAttacks { get { return _legalAttacks; } }
         public IReadOnlyList<CellRef> LegalMoves { get { return _legalMoves; } }
+
+        /// <summary>Your creatures that may still pile into the attack already aimed.</summary>
+        public IReadOnlyList<CellRef> Joiners { get { return _joiners; } }
 
         /// <summary>
         /// Select a cell from outside the input layer - the upkeep prompt uses it to put the
@@ -136,6 +140,16 @@ namespace SpawnRowDuel.View
                 return;
             }
 
+            // 3b. one of your ready creatures JOINS the attack that is already aimed. A joint
+            // attack is N declarations sharing a target (spec 03 §6.2) and the target has already
+            // been picked, so the second attacker only has to say "me too".
+            if (_match.Assault != null && _match.CanJoinAssault(cell.Value))
+            {
+                _match.JoinAssault(cell.Value);
+                ClearSelection();
+                return;
+            }
+
             // 4. otherwise select, and light what the engine says this unit may do
             ClearSelection();
             _selected = cell;
@@ -168,6 +182,7 @@ namespace SpawnRowDuel.View
             _highlighted.Clear();
             _legalMoves.Clear();
             _legalAttacks.Clear();
+            _joiners.Clear();
             if (_selected.HasValue) _board.Restore(_selected.Value);
             _selected = null;
         }
@@ -177,6 +192,7 @@ namespace SpawnRowDuel.View
         {
             foreach (var c in _highlighted) _board.Restore(c);
             _highlighted.Clear();
+            _joiners.Clear();          // the vitals ring these, and an ended assault has none
 
             if (_match.Pending != MatchController.Intent.None || _match.SendFrom.HasValue)
             {
@@ -192,6 +208,34 @@ namespace SpawnRowDuel.View
             else if (_selected.HasValue)
             {
                 LightLegal(_selected.Value);
+            }
+            else if (_match.Assault != null)
+            {
+                LightJoiners();
+            }
+        }
+
+        /// <summary>
+        /// With an attack aimed and nobody selected, the board shows the ASSAULT: its target, and
+        /// every creature of yours that may still join it. One CanApply per cell, on a repaint
+        /// rather than a frame - the same probe every other highlight here is.
+        /// </summary>
+        void LightJoiners()
+        {
+            _joiners.Clear();
+            for (int i = 0; i < Rules.Board.Cells; i++)
+            {
+                var c = CellRef.FromIndex(i);
+                if (!_match.CanJoinAssault(c)) continue;
+                _joiners.Add(c);
+                _highlighted.Add(c);
+                _board.Paint(c, _board.HoverMaterial);
+            }
+
+            if (_match.AssaultCell.HasValue)
+            {
+                _highlighted.Add(_match.AssaultCell.Value);
+                _board.Paint(_match.AssaultCell.Value, _board.SelectMaterial);
             }
         }
 

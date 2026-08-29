@@ -133,6 +133,7 @@ namespace SpawnRowDuel.View
         {
             if (Engine == null) return;
             PumpEvents();
+            ExpireAssault();
             Autopilot();
             ReconcilePawns();
             // Board objects are NOT reconciled here any more. They were, once - a tinted plinth
@@ -141,6 +142,19 @@ namespace SpawnRowDuel.View
             // twice: once by this, once by StandeeLayer. The plinth is the bright ellipse that
             // sat under every figure. CardPlateLayer (the card, flat on the tile) and
             // StandeeLayer (the cut-out, hovering over it) own the board now.
+        }
+
+        /// <summary>
+        /// The attack group is a live interaction, not a stored one: the moment its declarations
+        /// are gone (combat resolved) or the moment it stops being your action phase, a tap on
+        /// your own creature has to mean "select" again.
+        /// </summary>
+        void ExpireAssault()
+        {
+            if (Assault == null) return;
+            var s = Engine.State;
+            if (!s.Combat.HasDeclarations || s.Turn != Side.You || s.Phase != TurnPhase.Action)
+                EndAssault();
         }
 
         // ---- commands from the HUD / input ------------------------------------------------
@@ -265,21 +279,136 @@ namespace SpawnRowDuel.View
             return targets;
         }
 
+        // ---- the attack group ------------------------------------------------------------
+
+        /// <summary>
+        /// What this turn's attack is aimed at, once anything has declared against it.
+        ///
+        /// Combat v3 has always had the JOINT attack - several creatures declared against one
+        /// target, blocked from the union of the rows they cross - and there is deliberately no
+        /// group command for it (spec 03 §6.2): a joint attack IS N declarations sharing a target.
+        /// The board made the player spell that out one creature at a time, though - select, aim,
+        /// tap the target, select the next, aim again, tap the same target again - and re-picking
+        /// a target you have already picked is not a decision. While an assault is live, tapping
+        /// one of your ready creatures JOINS it.
+        ///
+        /// It is live only as long as the declarations it belongs to: a resolved combat, the end
+        /// of your action phase, or DONE on the mode row clears it. So a tap on your own creature
+        /// means "select" again the moment the attack is over, and can never quietly become a
+        /// declaration on some later turn.
+        /// </summary>
+        public AttackTarget Assault { get; private set; }
+
+        /// <summary>Where the assault is aimed, when it is aimed at a unit - so the board can ring
+        /// the target even with no attacker selected.</summary>
+        public CellRef? AssaultCell { get; private set; }
+
+        /// <summary>What it is aimed at, in words, for the mode row.</summary>
+        public string AssaultLabel { get; private set; }
+
+        /// <summary>How many creatures are in it.</summary>
+        public int AssaultSize
+        {
+            get { return Engine == null ? 0 : Engine.State.Combat.Declarations.Count; }
+        }
+
+        /// <summary>
+        /// Every attack the PLAYER declares goes through here - the board's taps, the wall button,
+        /// the worker-stack buttons - so the assault is set in one place instead of in three of
+        /// the four paths that can declare one.
+        /// </summary>
+        public Rejection Declare(CellRef from, AttackTarget target, string label)
+        {
+            var u = Engine.State.At(from) as CreatureUnit;
+            if (u == null) return Rejection.NoSuchUnit;
+
+            var why = TryHuman(new DeclareAttackCommand(Side.You, from, u.Id, target));
+            if (why != Rejection.None) return why;
+
+            Assault = target;
+            AssaultLabel = label;
+            var ut = target as UnitTarget;
+            AssaultCell = ut != null ? ut.Cell : (CellRef?)null;
+
+            SettleDefenderChoice();
+            Touch();
+            return Rejection.None;
+        }
+
         /// <summary>A tap on an enemy object while one of your ready creatures is selected.</summary>
         public Rejection TryAttack(CellRef from, CellRef targetCell)
         {
             var u = Engine.State.At(from) as CreatureUnit;
             var t = Engine.State.At(targetCell);
             if (u == null || t == null) return Rejection.NoSuchUnit;
-            return TryHuman(new DeclareAttackCommand(Side.You, from, u.Id,
-                new UnitTarget(targetCell, t.Id)));
+            return Declare(from, new UnitTarget(targetCell, t.Id), NameOf(t));
         }
 
         public Rejection TryAttackWall(CellRef from)
         {
+            return Declare(from, new WallTarget(Side.Foe), "the wall");
+        }
+
+        /// <summary>Would this creature be allowed to join the standing assault? The engine's own
+        /// answer - the same probe the lit cells are.</summary>
+        public bool CanJoinAssault(CellRef from)
+        {
+            if (Assault == null || Engine == null) return false;
             var u = Engine.State.At(from) as CreatureUnit;
-            if (u == null) return Rejection.NoSuchUnit;
-            return TryHuman(new DeclareAttackCommand(Side.You, from, u.Id, new WallTarget(Side.Foe)));
+            if (u == null || u.Owner != Side.You) return false;
+            return Engine.CanApply(new DeclareAttackCommand(Side.You, from, u.Id, Assault))
+                   == Rejection.None;
+        }
+
+        public Rejection JoinAssault(CellRef from)
+        {
+            if (Assault == null) return Rejection.NothingDeclared;
+            return Declare(from, Assault, AssaultLabel);
+        }
+
+        /// <summary>Stand down: the declarations stand, the board goes back to selecting.</summary>
+        public void EndAssault()
+        {
+            if (Assault == null) return;
+            Assault = null;
+            AssaultCell = null;
+            AssaultLabel = null;
+            Touch();
+        }
+
+        /// <summary>
+        /// Answer the blocker choice your own declaration just parked, NOW.
+        ///
+        /// A declaration parks a BlockerRequest on the defender, and the AI answers it on its next
+        /// 0.35 s beat - during which EVERY command is rejected as ChoicePending, the next
+        /// declaration included. That is invisible while a declaration is the end of an
+        /// interaction and fatal once it is the middle of one: tapping three creatures into one
+        /// attack puts two of the taps inside a pending window. The defender's answer is part of
+        /// resolving your command, so it does not wait for a beat.
+        ///
+        /// Narrow on purpose - blocker requests only, and only ones parked on the foe. Nothing
+        /// here resolves combat, so the cut-in's presentation hold is untouched; a choice parked
+        /// mid-RESOLUTION still runs on the beat, where the theatre can pace it.
+        /// </summary>
+        void SettleDefenderChoice()
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                var pending = Engine.State.Pending;
+                if (!(pending is BlockerRequest) || pending.Responder != Side.Foe) return;
+                if (_ai == null || !_ai.Step(null)) return;
+                PumpEvents();
+            }
+        }
+
+        /// <summary>What to call a thing that has just been attacked.</summary>
+        static string NameOf(BoardObject o)
+        {
+            var c = o as CreatureUnit;
+            if (c != null) return c.Name;
+            var b = o as StructureUnit;
+            if (b != null) return string.IsNullOrEmpty(b.Name) ? b.DefId.Value : b.Name;
+            return "the face-down card";
         }
 
         /// <summary>Legal one-square moves for a unit, discovered by probing the engine.</summary>
