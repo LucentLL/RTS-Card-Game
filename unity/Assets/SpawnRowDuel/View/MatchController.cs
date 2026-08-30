@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using SpawnRowDuel.Ai;
 using SpawnRowDuel.Data;
+using SpawnRowDuel.Net;
 using SpawnRowDuel.Rules;
 using UnityEngine;
 
@@ -105,6 +106,15 @@ namespace SpawnRowDuel.View
 
         public bool MatchStarted { get { return Engine != null; } }
 
+        /// <summary>
+        /// The live multiplayer session, or null in solo. When it is set it owns the engine, the
+        /// AI is off, and every command the player makes goes out on the wire as well as into
+        /// the board.
+        /// </summary>
+        public NetSession Net { get; private set; }
+
+        public bool IsNetworked { get { return Net != null; } }
+
         public void StartMatch(CommanderId you, CommanderId foe, ulong seed)
         {
             StartMatch(you, foe, seed, null, null);
@@ -118,10 +128,12 @@ namespace SpawnRowDuel.View
         public void StartMatch(CommanderId you, CommanderId foe, ulong seed,
                                List<HandCard> youDeck, List<HandCard> foeDeck)
         {
+            Net = null;
+            TakeSeat(Side.You);                // solo always sits at the near edge
             HoldUntil = 0f;                    // static: a new match must not inherit a stale hold
             var state = MatchSetup.NewMatch(Catalog, you, foe, youDeck, foeDeck, seed, RulesOptions.JsParity);
             Engine = new DuelEngine(state, Catalog);
-            _ai = new AiDriver(Engine, new ScriptedAiPolicy(Side.Foe));
+            _ai = new AiDriver(Engine, new ScriptedAiPolicy(Seat.Remote));
 
             _log.Clear();
             Push("— " + Catalog.Commander(you).Name + " vs " + Catalog.Commander(foe).Name + " —");
@@ -129,8 +141,69 @@ namespace SpawnRowDuel.View
             Touch();
         }
 
+        /// <summary>
+        /// Take over a match a NetSession has agreed with another player. The engine comes FROM
+        /// the session - both peers built it from the same MatchConfig and checked the same
+        /// opening hash - and this side never constructs one of its own, because a board built
+        /// here could differ from theirs by a byte, and that is the entire failure mode netcode
+        /// has.
+        /// </summary>
+        public void AdoptNetMatch(NetSession session)
+        {
+            Net = session;
+            TakeSeat(session.LocalSide);
+            HoldUntil = 0f;
+            Engine = session.Engine;
+            _ai = null;                        // there is a person over there
+            _aiFaulted = false;
+            CancelPending();
+
+            _log.Clear();
+            var mine = Catalog.Commander(Engine.State.P(Seat.Local).Commander);
+            var theirs = Catalog.Commander(Engine.State.P(Seat.Remote).Commander);
+            Push("- " + mine.Name + " vs " + theirs.Name + " -");
+            Push(Engine.State.Turn == Seat.Local ? "- Your turn -" : "- Their turn -");
+            Touch();
+        }
+
+        /// <summary>
+        /// Which end of the board we are sitting at. ASSIGNED on every match start, never merely
+        /// reset: a seat that leaked out of a multiplayer game would yaw the next campaign
+        /// battle's camera and address every command to the wrong side.
+        /// </summary>
+        void TakeSeat(Side local)
+        {
+            Seat.Take(local);
+            if (Board != null) Board.ApplySeat();
+        }
+
+        /// <summary>
+        /// Drive the session once a frame. It is the only thing in the netcode that moves time,
+        /// so the whole protocol - advertising, pings, retries, the opponent's commands landing -
+        /// happens here and nowhere else.
+        ///
+        /// A rebuilt match (a reconnect handed us the game back) replaces the engine underneath
+        /// us, so the engine is re-read every frame rather than cached at adoption.
+        /// </summary>
+        void PumpNet()
+        {
+            if (Net == null) return;
+
+            Net.Pump(Time.unscaledDeltaTime);
+
+            if (Net.Engine != null && !ReferenceEquals(Net.Engine, Engine))
+            {
+                Engine = Net.Engine;
+                CancelPending();
+                EndAssault();
+                Push("- reconnected -");
+                Touch();
+            }
+        }
+
         void Update()
         {
+            PumpNet();
             if (Engine == null) return;
             PumpEvents();
             ExpireAssault();
@@ -153,7 +226,7 @@ namespace SpawnRowDuel.View
         {
             if (Assault == null) return;
             var s = Engine.State;
-            if (!s.Combat.HasDeclarations || s.Turn != Side.You || s.Phase != TurnPhase.Action)
+            if (!s.Combat.HasDeclarations || s.Turn != Seat.Local || s.Phase != TurnPhase.Action)
                 EndAssault();
         }
 
@@ -161,11 +234,34 @@ namespace SpawnRowDuel.View
 
         public Rejection TryHuman(ICommand cmd)
         {
-            var r = Engine.Apply(cmd);
-            if (r.Status == CommandStatus.Rejected) return r.Rejection;
+            var why = Submit(cmd);
+            if (why != Rejection.None) return why;
             PumpEvents();                      // NOW, not next frame - see PumpEvents
             Touch();
             return Rejection.None;
+        }
+
+        /// <summary>
+        /// The one door out of the view into the rules. In solo it is the engine; in a duel it is
+        /// the session, which applies the command here AND puts it on the wire in the same
+        /// breath. Nothing in the view calls Engine.Apply directly any more, because a command
+        /// that reached the board without reaching the opponent is a desync.
+        /// </summary>
+        public Rejection Submit(ICommand cmd)
+        {
+            if (Net != null) return Net.Submit(cmd);
+            var r = Engine.Apply(cmd);
+            return r.Status == CommandStatus.Rejected ? r.Rejection : Rejection.None;
+        }
+
+        /// <summary>
+        /// Pure what-if, for lighting up legal cells. It goes through the session in a duel so
+        /// that the session's extra gates - not your turn, still catching up after a reconnect -
+        /// grey the board out rather than letting a tap be refused after the fact.
+        /// </summary>
+        public Rejection Probe(ICommand cmd)
+        {
+            return Net != null ? Net.CanSubmit(cmd) : Engine.CanApply(cmd);
         }
 
         /// <summary>Arm a hand play; the next legal-cell tap completes it.</summary>
@@ -175,14 +271,14 @@ namespace SpawnRowDuel.View
             PendingHandIndex = handIndex;
             PendingMode = mode;
             PendingBuild = null;
-            ProbeLegalCells(cell => new PlayCardCommand(Side.You, handIndex, mode, cell));
+            ProbeLegalCells(cell => new PlayCardCommand(Seat.Local, handIndex, mode, cell));
         }
 
         public void BeginBuild(StructureDef def)
         {
             Pending = Intent.Build;
             PendingBuild = def;
-            ProbeLegalCells(cell => new BuildStructureCommand(Side.You, def.Bid, def.Element, cell));
+            ProbeLegalCells(cell => new BuildStructureCommand(Seat.Local, def.Bid, def.Element, cell));
         }
 
         public void CancelPending()
@@ -212,7 +308,7 @@ namespace SpawnRowDuel.View
             for (int i = 0; i < Rules.Board.Cells; i++)
             {
                 var cell = CellRef.FromIndex(i);
-                if (Engine.CanApply(new SendBankedManaCommand(Side.You, from, cell)) == Rejection.None)
+                if (Probe(new SendBankedManaCommand(Seat.Local, from, cell)) == Rejection.None)
                     LegalCells.Add(cell);
             }
             Touch();
@@ -221,7 +317,7 @@ namespace SpawnRowDuel.View
         public void TrySendBankedMana(CellRef to)
         {
             if (!SendFrom.HasValue) return;
-            var why = TryHuman(new SendBankedManaCommand(Side.You, SendFrom.Value, to));
+            var why = TryHuman(new SendBankedManaCommand(Seat.Local, SendFrom.Value, to));
             if (why != Rejection.None) Push("· " + Hint(why));
             SendFrom = null;
             LegalCells.Clear();
@@ -234,7 +330,7 @@ namespace SpawnRowDuel.View
             for (int i = 0; i < Rules.Board.Cells; i++)
             {
                 var cell = CellRef.FromIndex(i);
-                if (Engine.CanApply(make(cell)) == Rejection.None) LegalCells.Add(cell);
+                if (Probe(make(cell)) == Rejection.None) LegalCells.Add(cell);
             }
             Touch();
         }
@@ -248,13 +344,13 @@ namespace SpawnRowDuel.View
             if (Pending == Intent.None) return false;
 
             ICommand cmd = Pending == Intent.PlayCard
-                ? (ICommand)new PlayCardCommand(Side.You, PendingHandIndex, PendingMode, cell)
-                : new BuildStructureCommand(Side.You, PendingBuild.Bid, PendingBuild.Element, cell);
+                ? (ICommand)new PlayCardCommand(Seat.Local, PendingHandIndex, PendingMode, cell)
+                : new BuildStructureCommand(Seat.Local, PendingBuild.Bid, PendingBuild.Element, cell);
 
-            var r = Engine.Apply(cmd);
-            if (r.Status == CommandStatus.Rejected)
+            var why = Submit(cmd);
+            if (why != Rejection.None)
             {
-                Push("· " + Hint(r.Rejection));
+                Push("· " + Hint(why));
                 return true;               // consumed - the armed card stays armed
             }
 
@@ -267,14 +363,14 @@ namespace SpawnRowDuel.View
         {
             var targets = new List<CellRef>();
             var u = Engine.State.At(from) as CreatureUnit;
-            if (u == null || u.Owner != Side.You) return targets;
+            if (u == null || u.Owner != Seat.Local) return targets;
 
             foreach (var kv in Engine.State.Objects())
             {
-                if (kv.Value.Owner == Side.You) continue;
-                var cmd = new DeclareAttackCommand(Side.You, from, u.Id,
+                if (kv.Value.Owner == Seat.Local) continue;
+                var cmd = new DeclareAttackCommand(Seat.Local, from, u.Id,
                     new UnitTarget(kv.Key, kv.Value.Id));
-                if (Engine.CanApply(cmd) == Rejection.None) targets.Add(kv.Key);
+                if (Probe(cmd) == Rejection.None) targets.Add(kv.Key);
             }
             return targets;
         }
@@ -322,7 +418,7 @@ namespace SpawnRowDuel.View
             var u = Engine.State.At(from) as CreatureUnit;
             if (u == null) return Rejection.NoSuchUnit;
 
-            var why = TryHuman(new DeclareAttackCommand(Side.You, from, u.Id, target));
+            var why = TryHuman(new DeclareAttackCommand(Seat.Local, from, u.Id, target));
             if (why != Rejection.None) return why;
 
             Assault = target;
@@ -346,7 +442,7 @@ namespace SpawnRowDuel.View
 
         public Rejection TryAttackWall(CellRef from)
         {
-            return Declare(from, new WallTarget(Side.Foe), "the wall");
+            return Declare(from, new WallTarget(Seat.Remote), "the wall");
         }
 
         /// <summary>Would this creature be allowed to join the standing assault? The engine's own
@@ -355,8 +451,8 @@ namespace SpawnRowDuel.View
         {
             if (Assault == null || Engine == null) return false;
             var u = Engine.State.At(from) as CreatureUnit;
-            if (u == null || u.Owner != Side.You) return false;
-            return Engine.CanApply(new DeclareAttackCommand(Side.You, from, u.Id, Assault))
+            if (u == null || u.Owner != Seat.Local) return false;
+            return Probe(new DeclareAttackCommand(Seat.Local, from, u.Id, Assault))
                    == Rejection.None;
         }
 
@@ -395,7 +491,7 @@ namespace SpawnRowDuel.View
             for (int i = 0; i < 8; i++)
             {
                 var pending = Engine.State.Pending;
-                if (!(pending is BlockerRequest) || pending.Responder != Side.Foe) return;
+                if (!(pending is BlockerRequest) || pending.Responder != Seat.Remote) return;
                 if (_ai == null || !_ai.Step(null)) return;
                 PumpEvents();
             }
@@ -416,12 +512,12 @@ namespace SpawnRowDuel.View
         {
             var moves = new List<CellRef>();
             var u = Engine.State.At(from) as CreatureUnit;
-            if (u == null || u.Owner != Side.You) return moves;
+            if (u == null || u.Owner != Seat.Local) return moves;
 
             System.Span<CellRef> buf = stackalloc CellRef[8];
             int n = Rules.Board.Neighbours(from, buf);
             for (int i = 0; i < n; i++)
-                if (Engine.CanApply(new MoveUnitCommand(Side.You, from, buf[i], u.Id)) == Rejection.None)
+                if (Probe(new MoveUnitCommand(Seat.Local, from, buf[i], u.Id)) == Rejection.None)
                     moves.Add(buf[i]);
             return moves;
         }
@@ -430,7 +526,7 @@ namespace SpawnRowDuel.View
         {
             var u = Engine.State.At(from) as CreatureUnit;
             if (u == null) return Rejection.NoSuchUnit;
-            return TryHuman(new MoveUnitCommand(Side.You, from, to, u.Id));
+            return TryHuman(new MoveUnitCommand(Seat.Local, from, to, u.Id));
         }
 
         public CardDefinition DefOf(string displayName)
@@ -506,10 +602,12 @@ namespace SpawnRowDuel.View
             // a cut-in is on screen: let the player watch it before the next move lands
             if (Time.unscaledTime < HoldUntil) return;
 
+            if (Net != null) { NetAutopilot(s); return; }
+
             _beat += Time.deltaTime;
             if (_beat < 0.35f) return;
 
-            if (s.Pending != null && s.Pending.Responder != Side.Foe) return;
+            if (s.Pending != null && s.Pending.Responder != Seat.Remote) return;
             _beat = 0f;
 
             var report = new AiDriver.Report();
@@ -537,9 +635,31 @@ namespace SpawnRowDuel.View
                 Apply(new BeginTurnCommand(TurnMachine.Other(s.Turn)));
         }
 
+        /// <summary>
+        /// The duel's version of the opponent: there isn't one. Nobody here plays for the other
+        /// side - their commands arrive over the wire and are applied by the session - so the
+        /// only thing left to do automatically is the turn hand-off.
+        ///
+        /// And that is OURS to issue, not theirs. BeginTurn is validated as "the incoming side
+        /// only" (BeginTurnHandler), so each peer starts its own turn. Doing it here rather than
+        /// waiting for the other end also means the hand-off costs no round trip.
+        /// </summary>
+        void NetAutopilot(GameState s)
+        {
+            if (s.Pending != null) return;
+            if (s.Phase != TurnPhase.End) return;
+            if (TurnMachine.Other(s.Turn) != Seat.Local) return;    // their turn to begin
+
+            _beat += Time.deltaTime;
+            if (_beat < 0.25f) return;                              // let the end of a turn land
+            _beat = 0f;
+
+            Apply(new BeginTurnCommand(Seat.Local));
+        }
+
         void Apply(ICommand cmd)
         {
-            if (Engine.Apply(cmd).Applied) { PumpEvents(); Touch(); }
+            if (Submit(cmd) == Rejection.None) { PumpEvents(); Touch(); }
         }
 
         // ---- events -> log ----------------------------------------------------------------
@@ -613,16 +733,16 @@ namespace SpawnRowDuel.View
         {
             var turn = ev as TurnStarted;
             if (turn != null)
-                return "— " + (turn.Side == Side.You ? "Your" : "Foe") + " turn " +
+                return "— " + (turn.Side == Seat.Local ? "Your" : "Foe") + " turn " +
                        turn.TurnNumber + " · Upkeep —";
 
             var harvest = ev as HarvestCollected;
             if (harvest != null)
-                return (Engine.State.Turn == Side.You ? "You harvest ◆" : "Foe harvests ◆") + harvest.Amount;
+                return (Engine.State.Turn == Seat.Local ? "You harvest ◆" : "Foe harvests ◆") + harvest.Amount;
 
             var drawn = ev as CardDrawn;
             if (drawn != null)
-                return Engine.State.Turn == Side.You ? "You draw " + drawn.Card.Value : "Foe draws a card";
+                return Engine.State.Turn == Seat.Local ? "You draw " + drawn.Card.Value : "Foe draws a card";
 
             var summoned = ev as UnitSummoned;
             if (summoned != null) return NameOf(summoned.UnitId) + " enters at " + summoned.At;
@@ -667,21 +787,21 @@ namespace SpawnRowDuel.View
 
             var wall = ev as WallStruck;
             if (wall != null)
-                return (wall.Defender == Side.You ? "Your" : "The enemy") + " wall is stormed for ⚔" +
+                return (wall.Defender == Seat.Local ? "Your" : "The enemy") + " wall is stormed for ⚔" +
                        Stat.Show(wall.Amount) + " — ♥" + Stat.Show(wall.LifeRemaining) + " remains";
 
             var bounced = ev as UnitBounced;
             if (bounced != null)
                 return (bounced.Cause == BounceCause.Undertow ? "Undertow! " : "") +
                        "A creature is hurled back to " +
-                       (bounced.ToHand == Side.You ? "your" : "their") + " hand";
+                       (bounced.ToHand == Seat.Local ? "your" : "their") + " hand";
 
             var sprung = ev as TrapSprung;
             if (sprung != null) return sprung.Card.Value + " springs!";
 
             var token = ev as TokenSpawned;
             if (token != null)
-                return (token.Owner == Side.You ? "You conjure " : "They conjure ") + token.Name +
+                return (token.Owner == Seat.Local ? "You conjure " : "They conjure ") + token.Name +
                        " (" + Stat.Line(token.Attack, token.Hp) + ")";
 
             var hatched = ev as CreatureHatched;
@@ -694,7 +814,7 @@ namespace SpawnRowDuel.View
 
             var cast = ev as SpellResolved;
             if (cast != null)
-                return (cast.Caster == Side.You ? "You cast " : "They cast ") + cast.Card.Value;
+                return (cast.Caster == Seat.Local ? "You cast " : "They cast ") + cast.Card.Value;
 
             var ended = ev as MatchEnded;
             if (ended != null) return "— MATCH OVER: " + ended.Outcome + " —";
@@ -763,7 +883,7 @@ namespace SpawnRowDuel.View
             // never INSIDE the board's own edge: a deep file piles up in place rather than
             // wandering onto the outer column and reading as a unit standing there
             float edgeX = Mathf.Max(half + 0.32f - (index / Abreast) * 0.26f, half + 0.10f);
-            float x = side == Side.You ? -edgeX : edgeX;
+            float x = side == Seat.Local ? -edgeX : edgeX;
             float z = row.z + ((index % Abreast) - (Abreast - 1) * 0.5f) * Board.RowPitch * 0.18f;
 
             go.transform.localPosition = new Vector3(x, 0.22f, z);
@@ -779,7 +899,7 @@ namespace SpawnRowDuel.View
         {
             var r = t.GetComponent<MeshRenderer>();
             if (r == null) return;
-            var tint = tapped ? TappedTint : (side == Side.You ? YouTint : FoeTint);
+            var tint = tapped ? TappedTint : (side == Seat.Local ? YouTint : FoeTint);
             if (sick) tint *= 0.55f;
             _mpb.SetColor("_BaseColor", tint);
             r.SetPropertyBlock(_mpb);

@@ -272,7 +272,13 @@ namespace SpawnRowDuel.View
             float t = Mathf.SmoothStep(0f, 1f, _blend);
 
             float pitch = Mathf.Lerp(TopDownPitch, TiltedPitch, t);
-            var rot = Quaternion.Euler(pitch, 0f, 0f);
+
+            // Half a turn for the far seat. The board is one absolute grid and the rules never
+            // mirror, so "which end am I sitting at" is answered here, once, by moving the
+            // camera - not by mirroring coordinates, which would put the two engines on
+            // different boards. Everything downstream billboards or reads Seat, so this is the
+            // whole of the geometric half of playing as the guest.
+            var rot = Quaternion.Euler(pitch, Seat.CameraYaw, 0f);
 
             float dist, rise;
             Frame(rot, out dist, out rise);

@@ -59,15 +59,44 @@ namespace SpawnRowDuel.View
         /// </summary>
         public const float CellThickness = 0.02f;
 
+        /// <summary>
+        /// Warm for your ground, cold for theirs, and darker at the back of each half.
+        ///
+        /// Keyed on the SEAT, not on the RowKey. This is the one seat-sensitive site with no
+        /// Side.You in it to find: a mechanical sweep for "Side.You meaning me" walks straight
+        /// past a switch over row names. Get it wrong and the guest sees the cold enemy wash on
+        /// the two rows nearest them - their own deploy rows - which inverts the one channel that
+        /// tells a player whose ground they are looking at.
+        /// </summary>
         Material RowMaterial(RowKey row)
         {
-            switch (row)
+            if (row == RowKey.Center) return null;
+
+            bool youSide = row == RowKey.YouFront || row == RowKey.YouBack;
+            bool mine = youSide == (Seat.Local == Side.You);
+            bool back = row == RowKey.YouBack || row == RowKey.FoeBack;
+
+            return mine ? (back ? YouBackMaterial : YouFrontMaterial)
+                        : (back ? FoeBackMaterial : FoeFrontMaterial);
+        }
+
+        /// <summary>
+        /// Re-tint every row for the current seat. The board is built at Awake, before anyone has
+        /// said which end we are sitting at, so the seat is applied when the match starts.
+        /// </summary>
+        public void ApplySeat()
+        {
+            foreach (var kv in _cells)
             {
-                case RowKey.FoeBack: return FoeBackMaterial;
-                case RowKey.FoeFront: return FoeFrontMaterial;
-                case RowKey.YouFront: return YouFrontMaterial;
-                case RowKey.YouBack: return YouBackMaterial;
-                default: return null;
+                var cell = kv.Key;
+                if (cell.Row == RowKey.Center) continue;
+
+                var m = RowMaterial(cell.Row);
+                if (m == null) continue;
+
+                _restMaterials[cell] = m;
+                var mr = kv.Value.GetComponent<MeshRenderer>();
+                if (mr != null) mr.sharedMaterial = m;
             }
         }
 

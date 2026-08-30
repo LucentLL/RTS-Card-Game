@@ -5,6 +5,8 @@ mark what landed, note deviations, name the next target. Decisions go in `DECISI
 this file is status only.
 
 **Test gate:** `bash tools/run-unity-tests.sh` (EditMode via Unity CLI; exit 0 = green).
+**Live relay check:** `bash tools/run-unity-tests.sh LiveRelayTests` — [Explicit], talks to the real
+public MQTT brokers. The only test that can tell you the relays are down rather than the code.
 **Card regen:** `bash tools/regen-cards.sh` after any card edit in `src/js/`.
 **Differential harness:** `node tools/diffjs/replay.mjs` (the committed goldens, ~12 s) ·
 `node tools/diffjs/fuzz.mjs --count 25` (fresh fuzz traces vs the living JS, ~50 s) ·
@@ -27,9 +29,52 @@ this file is status only.
 | M13 — presentation pass | 🟡 slice 6 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Slice 6: the stats printed ON the card (a health meter in the stat bar, attack/workers/printed health in the ability box), the foe half turned round so each side reads its own edge, tap-to-join attack groups, and a cut-in three times the size that stacks a joint attack into one clash. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
 | M14 — campaign | 🟡 first pass | 2026-08-24 — the hexsphere globe (162 tiles), map generation, absorb cascade, end-turn AI, the 4-line challenge dialogue and the save, all pure C# and tested; globe view with drag-spin and raycast picking, world-map HUD, attack confirm and battle handoff. Open: garrison affects nothing, AI never absorbs, no custom deck in campaign |
 | M15 — menus, deck builder, save/load | 🟡 first pass | 2026-08-24 — main menu, banner select and a screen router that switches the battle world off; three-column deck builder with search/filter/sort, mana curve, 5 slots and a duel-with-it path. Open: no solo deck-pick screen, no settings |
-| M16 — parity flags resolved, ship prep | ⬜ | |
+| M16 — parity flags resolved, ship prep | ⬜ | **+ D42: gate SendBankedMana on phase, re-cut the goldens, delete NetSession.LocalGate's phase clause** |
+| M17 — multiplayer (password-linked 1v1) | ✅ done | 2026-08-30 — deterministic command LOCKSTEP over MQTT-to-three-public-brokers, sealed with a key derived from the shared password. 62 EditMode tests: whole matches stay bit-identical across a relay that loses, duplicates and reorders; desync is caught at the ply; both directions of reconnect replay from the other peer's log. Verified live over the open internet. The view now takes a SEAT (~90 sites), so the guest plays from the far side of the board |
 
 ## Session log
+
+### 2026-08-30 — M17: multiplayer (284 -> 346 tests)
+
+Two people share a password and duel. No account, no server of ours, nothing to deploy.
+
+* **Sync is deterministic command LOCKSTEP** (D40), not the JS's host-authoritative snapshots.
+  Both peers run the same engine from a seed neither of them chose alone, and the wire carries
+  only commands. A 200-ply match measured **200 messages and 13.8 KB**, against 25-40 KB *per
+  change* in the JS. Every frame carries the sender's state hash before applying, so a divergence
+  cannot be silent and is reported at the ply with the command that caused it.
+* **`SpawnRowDuel.Net`** is `noEngineReferences`, references Rules only, zero packages: hand-written
+  SHA-256 / HMAC / PBKDF2 / HKDF / ChaCha20-Poly1305 (pinned to RFC 6234/4231/8439 vectors), a
+  varint command codec, the message envelopes, and the session state machine behind
+  `IMessageTransport`. The whole protocol runs headless on a virtual clock, which is why a hostile
+  relay is a test rather than a hope.
+* **A hole in the ordering invariant, found by review** (D41): `GameState.IsInteractive` reads like
+  the guarantee that only one side can act, and has NO CALLERS; `SendBankedManaHandler` has no
+  phase gate, so at `Phase == End` both peers have a legal, non-commuting command. The M12 fuzz
+  corpus contains 218 of them. `NetSession.LocalGate` closes it in the netcode; the rules fix is an
+  M16 item (D42) because it re-cuts the golden corpus.
+* **The transport was rewritten mid-milestone** (D44). The first design polled ntfy.sh over HTTP -
+  one code path on every platform, no jslib - and its own arithmetic killed it: a 60-request burst
+  refilled at one per five seconds, 250 publishes a day. Then ntfy.sh stopped answering this
+  machine entirely after a few dozen probes. Shipped instead: a hand-written MQTT 3.1.1 client over
+  WebSocket, connected to `broker.emqx.io`, `broker.hivemq.com` and `test.mosquitto.org` **at the
+  same time**, publishing to and reading all of them. The pair meets if any one broker works for
+  both. `ClientWebSocket` natively, `Plugins/WebGL/SrdWebSocket.jslib` on the web.
+* **Reconnection is peer-to-peer** (D45): each peer keeps the log, `Hello` and `Join` are the same
+  message in opposite directions, and whichever end still holds the match hands it back whole.
+  Both directions tested; nothing depends on a relay remembering anything.
+* **The view took a seat** (D43). `Seat.Local` / `Seat.Remote` replaced ~90 `Side.You`-means-me
+  reads and the camera yaws 180° for the guest, because mirroring the wire is impossible here -
+  `NewMatch` draws You's deck before Foe's off one shared stream. `BoardView.RowMaterial` had to be
+  fixed by hand: it keys the warm/cold ground wash off `RowKey`, so a substitution sweep walks
+  straight past it and the guest would have seen enemy ground under their own units.
+  `battle-guest-seat.png` in the probe is the proof.
+* **The AI cannot play over the network** (D47): `AiChoices` rolls off the MATCH RNG, so running it
+  on one peer desyncs the other. Human duels have no AI in them, so this costs nothing today.
+* Known, unrelated: `node tools/diffjs/replay.mjs` now diverges on the third golden. That is the
+  UNCOMMITTED JS balance work in the tree (`OC_PER_CHARGE=500`, walls interposing, `placeRowOK`
+  enforcing `def.row`), not a port regression - the only Rules change this session is 26 lines of
+  pure addition to `RulesOptions`. Those changes want porting to C# and the goldens re-cutting.
 
 ### 2026-08-20 — M3 complete, M5 complete (105 → 110 tests)
 

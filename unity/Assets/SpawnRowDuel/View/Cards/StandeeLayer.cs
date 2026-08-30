@@ -302,7 +302,7 @@ namespace SpawnRowDuel.View.Cards
             st.Shadow.color = new Color(0f, 0f, 0f, (laid ? 0.30f : 0.50f) * show);
 
             // the owner reads at a glance even before the stat overlay: a cold rim for the foe
-            var tint = o.Owner == Side.You ? Color.white : new Color(0.86f, 0.88f, 1f);
+            var tint = o.Owner == Seat.Local ? Color.white : new Color(0.86f, 0.88f, 1f);
             tint.a = show;                                 // fades away as the view goes top-down
             st.Figure.color = tint;
         }

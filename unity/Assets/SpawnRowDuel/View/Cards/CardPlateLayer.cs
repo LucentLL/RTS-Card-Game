@@ -188,7 +188,7 @@ namespace SpawnRowDuel.View.Cards
             float plateW = foot.x;
             float plateH = foot.y;
 
-            bool foe = o.Owner != Side.You;
+            bool foe = o.Owner != Seat.Local;
             p.Root.transform.position = _match.Board.WorldOf(cell) + new Vector3(0f, Lift, 0f);
             p.Root.transform.rotation = RotationFor(o.Owner);
 
@@ -225,7 +225,7 @@ namespace SpawnRowDuel.View.Cards
             }
 
             // the foe's half already reads cold from its row tint; the plate keeps the same rule
-            var tint = o.Owner == Side.You ? Color.white : new Color(0.86f, 0.88f, 1f);
+            var tint = o.Owner == Seat.Local ? Color.white : new Color(0.86f, 0.88f, 1f);
             p.Frame.color = tint;
             p.Art.color = tint;
 
@@ -431,7 +431,7 @@ namespace SpawnRowDuel.View.Cards
         {
             var el = s.P(owner).PrimaryColor;
             if (el != Element.None) return _palette.Of(el).Color;
-            return owner == Side.You ? YouSleeve : FoeSleeve;
+            return owner == Seat.Local ? YouSleeve : FoeSleeve;
         }
 
         void Prune()

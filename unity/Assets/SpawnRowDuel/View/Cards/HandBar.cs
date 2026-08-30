@@ -92,7 +92,7 @@ namespace SpawnRowDuel.View.Cards
             // which is what the dark bar through the hand turned out to be.
             _walls.Layout(_match.Engine.State, _palette, PanelWidth());
 
-            var hand = _match.Engine.State.P(Side.You).Hand;
+            var hand = _match.Engine.State.P(Seat.Local).Hand;
             var sig = Signature(hand, peek);
             if (sig == _signature) return;
             _signature = sig;

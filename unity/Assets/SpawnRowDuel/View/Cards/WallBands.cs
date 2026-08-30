@@ -141,8 +141,8 @@ namespace SpawnRowDuel.View.Cards
             int full = Mathf.RoundToInt(HudLayout.WallFullH * scale);
             float foeRail = HudLayout.RailTopPx, youRail = HudLayout.RailBottomPx;
 
-            var foeEl = palette.Of(s.P(Side.Foe).PrimaryColor).Color;
-            var youEl = palette.Of(s.P(Side.You).PrimaryColor).Color;
+            var foeEl = palette.Of(s.P(Seat.Remote).PrimaryColor).Color;
+            var youEl = palette.Of(s.P(Seat.Local).PrimaryColor).Color;
 
             // The stone is rastered at its real pixel size, so its courses are pixel-sized rather
             // than stretched - which means a resize rebuilds it, and nothing else does. It is
@@ -176,8 +176,8 @@ namespace SpawnRowDuel.View.Cards
             float pad = 10f * scale;
             float crestPad = over + 4f * scale;
 
-            Fill(_foe, s, Side.Foe, foeEl);
-            Fill(_you, s, Side.You, youEl);
+            Fill(_foe, s, Seat.Remote, foeEl);
+            Fill(_you, s, Seat.Local, youEl);
 
             _foe.Root.style.left = pad;
             _foe.Root.style.bottom = crestPad;        // the foe's crest is its LOWER edge
@@ -188,8 +188,8 @@ namespace SpawnRowDuel.View.Cards
             _you.Root.style.width = tower - pad;
 
             _turn.text = "TURN " + s.TurnNumber;
-            _phase.text = s.Turn == Side.You ? "YOUR TURN" : "FOE TURN";
-            var live = s.Turn == Side.You ? new Color(1f, 0.85f, 0.4f) : new Color(0.65f, 0.8f, 1f);
+            _phase.text = s.Turn == Seat.Local ? "YOUR TURN" : "FOE TURN";
+            var live = s.Turn == Seat.Local ? new Color(1f, 0.85f, 0.4f) : new Color(0.65f, 0.8f, 1f);
             _turn.style.color = live;
             _phase.style.color = live;
 
@@ -240,7 +240,7 @@ namespace SpawnRowDuel.View.Cards
         {
             var p = s.P(side);
             v.Life.text = Stat.Hp(p.Life);
-            v.Life.style.color = side == Side.You ? new Color(1f, 0.78f, 0.72f)
+            v.Life.style.color = side == Seat.Local ? new Color(1f, 0.78f, 0.72f)
                                                   : new Color(0.80f, 0.86f, 1f);
             v.Mana.text = "◆" + p.Mana;
             v.Mana.style.color = element;
@@ -262,8 +262,8 @@ namespace SpawnRowDuel.View.Cards
         /// </summary>
         void LayoutFoeHand(GameState s, ElementPalette palette, float panelW, float scale)
         {
-            int n = s.P(Side.Foe).Hand.Count;
-            var sleeve = palette.Of(s.P(Side.Foe).PrimaryColor).Color;
+            int n = s.P(Seat.Remote).Hand.Count;
+            var sleeve = palette.Of(s.P(Seat.Remote).PrimaryColor).Color;
 
             float band = HudLayout.FoeHandBandPx;
             float cardH = band * 2.2f;

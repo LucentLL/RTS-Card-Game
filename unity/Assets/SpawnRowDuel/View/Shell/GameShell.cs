@@ -17,6 +17,7 @@ namespace SpawnRowDuel.View.Shell
         Battle = 4,
         DeckBuilder = 5,
         Skirmish = 6,       // the duel's own commander select drives itself
+        Multiplayer = 7,    // the password lobby
     }
 
     /// <summary>
@@ -48,6 +49,7 @@ namespace SpawnRowDuel.View.Shell
         WorldMapUi _map;
         ChallengeUi _challenge;
         DeckBuilderUi _deck;
+        MultiplayerUi _multiplayer;
 
         ICardCatalog Catalog { get { return Match != null ? Match.Catalog : null; } }
 
@@ -86,6 +88,7 @@ namespace SpawnRowDuel.View.Shell
 
             if (Screen == ShellScreen.WorldMap && _map != null) _map.Tick();
             if (Screen == ShellScreen.Challenge && _challenge != null) _challenge.Tick();
+            if (Screen == ShellScreen.Multiplayer && _multiplayer != null) _multiplayer.Tick();
             if (Screen == ShellScreen.Battle) WatchBattle();
         }
 
@@ -96,6 +99,7 @@ namespace SpawnRowDuel.View.Shell
             Screen = screen;
             _map = null;
             _challenge = null;
+            if (screen != ShellScreen.Multiplayer) _multiplayer = null;
             if (_root != null) _root.Clear();
 
             bool battleWorld = screen == ShellScreen.Battle || screen == ShellScreen.Skirmish;
@@ -117,6 +121,7 @@ namespace SpawnRowDuel.View.Shell
                 case ShellScreen.FactionSelect: BuildFactionSelect(); break;
                 case ShellScreen.WorldMap: BuildWorldMap(); break;
                 case ShellScreen.DeckBuilder: BuildDeckBuilder(); break;
+                case ShellScreen.Multiplayer: BuildMultiplayer(); break;
             }
         }
 
@@ -153,11 +158,35 @@ namespace SpawnRowDuel.View.Shell
                 if (Campaign.HasRunnableCampaign) Show(ShellScreen.WorldMap);
                 else Show(ShellScreen.FactionSelect);
             }, 17f);
+            UiKit.Btn(menu, "Duel a Friend", () => Show(ShellScreen.Multiplayer), 17f);
             UiKit.Btn(menu, "Deck Builder", () => Show(ShellScreen.DeckBuilder), 17f);
 
             if (Campaign.State != null && Campaign.State.Lost)
                 UiKit.Text(menu, "your last banner fell — a new world awaits", 11f, UiFont.BodyItalic, UiKit.Danger)
                     .style.marginTop = 6f * UiKit.S;
+        }
+
+
+        // -- multiplayer -----------------------------------------------------------------
+
+        void BuildMultiplayer()
+        {
+            Backdrop();
+            if (Catalog == null) return;
+            _multiplayer = new MultiplayerUi(this, Catalog, _root);
+        }
+
+        /// <summary>
+        /// A duel has been agreed with another player. The battle world comes up on the match the
+        /// SESSION built - never on one built here, because two peers must be looking at boards
+        /// that are identical to the byte, and the only board with that guarantee is the one the
+        /// handshake agreed.
+        /// </summary>
+        public void BeginNetMatch(SpawnRowDuel.Net.NetSession session)
+        {
+            _multiplayer = null;
+            Show(ShellScreen.Battle);
+            if (Match != null) Match.AdoptNetMatch(session);
         }
 
         // ── faction select ──────────────────────────────────────────────────────────────

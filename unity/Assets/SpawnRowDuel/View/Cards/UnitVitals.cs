@@ -130,7 +130,7 @@ namespace SpawnRowDuel.View.Cards
                 return;
             }
 
-            bool mine = o.Owner == Side.You;
+            bool mine = o.Owner == Seat.Local;
             // what your selected attacker may hit - or, with an attack already aimed and nothing
             // selected, what the whole group is aimed AT
             bool target = Has(_input != null ? _input.LegalAttacks : null, cell)

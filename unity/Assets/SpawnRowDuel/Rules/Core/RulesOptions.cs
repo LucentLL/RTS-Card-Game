@@ -85,6 +85,32 @@ namespace SpawnRowDuel.Rules
             }
         }
 
+        /// <summary>
+        /// The exact inverse of <see cref="FlagBits"/>. Netcode needs it: two peers must build
+        /// engines configured identically, and the handshake sends the bits rather than nine
+        /// booleans. A bit this build does not know about is REFUSED rather than ignored - a
+        /// peer running a newer flag set is a peer whose rules differ, and silently dropping the
+        /// difference is how a desync becomes mysterious.
+        /// </summary>
+        public const int KnownFlagMask = (1 << 9) - 1;
+
+        public static bool TryFromFlagBits(int bits, out RulesOptions options)
+        {
+            options = default(RulesOptions);
+            if ((bits & ~KnownFlagMask) != 0) return false;
+
+            options.FaceDownKeepsColor = (bits & (1 << 0)) != 0;
+            options.AbsorberIsWeakestBlocker = (bits & (1 << 1)) != 0;
+            options.AiTakesGuaranteedKillFirst = (bits & (1 << 2)) != 0;
+            options.AiRazeUsesHeuristic = (bits & (1 << 3)) != 0;
+            options.AiUsesStructuralRemainderFallback = (bits & (1 << 4)) != 0;
+            options.AiRetreatsOnRealAdjacency = (bits & (1 << 5)) != 0;
+            options.AiUsesFullSpellSet = (bits & (1 << 6)) != 0;
+            options.FlipStructureResyncsWorkers = (bits & (1 << 7)) != 0;
+            options.EnforcePlaceRowOkFromHand = (bits & (1 << 8)) != 0;
+            return true;
+        }
+
         /// <summary>How many divergences are still outstanding. Must be 0 to ship.</summary>
         public int ActiveFlagCount
         {

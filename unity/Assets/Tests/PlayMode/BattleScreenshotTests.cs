@@ -51,6 +51,46 @@ namespace SpawnRowDuel.PlayTests
             yield return Shoot("battle-open.png");
         }
 
+        /// <summary>
+        /// The same opening board seen from the GUEST'S seat.
+        ///
+        /// In a duel the guest's engine has them as Side.Foe - it must, because both engines have
+        /// to be bit-identical and NewMatch draws You's deck before Foe's off one shared RNG
+        /// stream. So the guest's screen is the one thing in multiplayer that no protocol test can
+        /// check: their own rows have to be at the bottom, their own wall along their edge, their
+        /// own hand face up, their ground warm and the opponent's cold.
+        ///
+        /// Compare this against battle-open.png - it should read as the same board from the other
+        /// chair, not as a board with the colours swapped.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureGuestSeat()
+        {
+            yield return LoadBattle();
+
+            var match = Object.FindFirstObjectByType<MatchController>();
+            Assert.IsNotNull(match);
+
+            match.StartMatch(new CommanderId("fire"), new CommanderId("water"), 909);
+            yield return Frames(6);
+
+            // Take the far seat the way AdoptNetMatch does, without needing a second machine.
+            Seat.Take(Side.Foe);
+            match.Board.ApplySeat();
+            yield return Frames(30);            // the camera eases round; wait for it to arrive
+
+            var input = Object.FindFirstObjectByType<BoardInput>();
+            for (int i = 0; i < 240 && input != null && input.Cam != null
+                 && Mathf.Abs(Mathf.DeltaAngle(input.Cam.transform.eulerAngles.y, 180f)) > 0.5f; i++)
+                yield return null;
+
+            yield return Shoot("battle-guest-seat.png");
+
+            Seat.Take(Side.You);                // never leave a seat behind for the next test
+            match.Board.ApplySeat();
+            yield return Frames(2);
+        }
+
         [UnityTest]
         public IEnumerator CaptureMidGameBoard()
         {
@@ -494,6 +534,13 @@ namespace SpawnRowDuel.PlayTests
             shell.Show(ShellScreen.DeckBuilder);
             yield return Frames(6);
             yield return Shoot("shell-deckbuilder.png");
+
+            // The multiplayer lobby, idle - no session is started, so nothing here touches a
+            // network. It is the one screen a player meets before any of the netcode runs, so
+            // it is worth being able to look at without two machines.
+            shell.Show(ShellScreen.Multiplayer);
+            yield return Frames(6);
+            yield return Shoot("shell-multiplayer.png");
 
             shell.Show(ShellScreen.MainMenu);
             yield return Frames(2);

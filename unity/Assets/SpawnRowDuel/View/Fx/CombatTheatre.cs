@@ -426,7 +426,7 @@ namespace SpawnRowDuel.View.Fx
             return new Snap
             {
                 Id = -1 - (int)defender,
-                Name = defender == Side.You ? "Your Wall" : "Their Wall",
+                Name = defender == Seat.Local ? "Your Wall" : "Their Wall",
                 Color = p.PrimaryColor,
                 Attack = 0,
                 Hp = p.Life,
@@ -563,7 +563,7 @@ namespace SpawnRowDuel.View.Fx
                 Died = died,
                 Element = s.Color,
                 Art = s.Art,
-                Foe = s.Owner == Side.Foe,
+                Foe = s.Owner == Seat.Remote,
                 Wall = s.Wall,
                 Structure = s.Structure,
             };

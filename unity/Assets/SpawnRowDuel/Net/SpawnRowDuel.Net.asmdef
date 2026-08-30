@@ -1,0 +1,14 @@
+{
+    "name": "SpawnRowDuel.Net",
+    "rootNamespace": "SpawnRowDuel.Net",
+    "references": [ "SpawnRowDuel.Rules" ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
