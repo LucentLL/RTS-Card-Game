@@ -24,6 +24,11 @@ Shader "SpawnRowDuel/Veil"
         _Grains    ("Grains", Range(0,2)) = 1
         _GrainColor("Grain colour", Color) = (1, 0.95, 0.84, 1)
 
+        // how the wind varies: how far it breathes, how long a breath takes, how far it wanders
+        _GustSwing ("Gust swing", Range(0,1.5)) = 0.45
+        _GustPeriod("Gust period (s)", Float) = 15
+        _GustWander("Gust wander (deg)", Float) = 12
+
         // a card landing shoves the air out in the shape of the card, not in a circle
         _GustHalf  ("Gust half-size (xz)", Vector) = (0.5, 0.72, 0, 0)
         _GustRound ("Gust corner radius", Float) = 0.22
@@ -66,6 +71,7 @@ Shader "SpawnRowDuel/Veil"
             CBUFFER_START(UnityPerMaterial)
                 float4 _VeilColor, _SunDir, _SunColor, _WindDir;
                 float _Amount, _Speed, _Scale, _NearFade, _Grains;
+                float _GustSwing, _GustPeriod, _GustWander;
                 float4 _GrainColor, _GustHalf;
                 float _GustRound;
                 float4 _BoardHalf;
@@ -89,9 +95,22 @@ Shader "SpawnRowDuel/Veil"
 
                 float2 w = i.positionWS.xz;
                 float t = _Time.y;
-                float2 wind = normalize(_WindDir.xz + float2(0.0001, 0));
                 float layer = i.layer.x;
                 float seed = i.layer.y * 37.0;
+
+                // ── the wind BREATHES ──────────────────────────────────────────────────────
+                //
+                // One speed, one bearing and one density held forever is a scrolling texture
+                // however good the noise inside it is, and the desert is where that reads worst
+                // because the air is the subject. Two slow noises on their own clocks: one swings
+                // the strength from a lull to about double, the other wanders the bearing either
+                // side of the dune trend. Neither is periodic against the other, so the field
+                // never repeats - which is the whole point, since a repeat IS the tell.
+                float breath = SrdFbm(float2(t / max(_GustPeriod, 0.1), 4.7)) * 2.0 - 1.0;
+                float gustNow = saturate(1.0 + breath * _GustSwing);
+                float swingDeg = (SrdFbm(float2(t / max(_GustPeriod * 1.7, 0.1), 19.3)) - 0.5)
+                                 * 2.0 * _GustWander;
+                float2 wind = SrdRotate(normalize(_WindDir.xz + float2(0.0001, 0)), swingDeg);
 
                 // Higher sheets run faster and are stretched further - that shear is most of what
                 // reads as wind rather than as a scrolling texture.
@@ -158,7 +177,7 @@ Shader "SpawnRowDuel/Veil"
                         [unroll] for (int gi = 0; gi < 2; gi++)
                         {
                             float k = (float)gi;
-                            float gs = _Speed * (2.6 + k * 1.9);
+                            float gs = _Speed * (2.6 + k * 1.9) * (0.6 + gustNow * 0.6);
                             float2 q = float2((wu.x - t * gs) * (2.6 + k * 1.4),
                                               wu.y * (5.0 + k * 2.6)) + seed + k * 21.3;
 
@@ -193,7 +212,8 @@ Shader "SpawnRowDuel/Veil"
                 // seen at a grazing angle packs its far half into a few rows of pixels, and
                 // without this the top of the frame silts up with everything the sheet holds.
                 float far = saturate((26.0 - length(_WorldSpaceCameraPos.xz - w)) / 11.0);
-                float alpha = saturate(veil * 0.17 * clear + grains * 0.45 * far) * _Amount;
+                float alpha = saturate(veil * 0.17 * clear + grains * 0.45 * far)
+                            * _Amount * gustNow;
 
                 // Never right on top of the camera - a sheet crossing the near plane is a smear.
                 float dist = length(_WorldSpaceCameraPos - i.positionWS);

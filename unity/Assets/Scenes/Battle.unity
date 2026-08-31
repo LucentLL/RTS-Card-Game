@@ -441,9 +441,9 @@ MonoBehaviour:
   DispWidth: 320
   DispHeight: 240
   UnitPressStrength: 0.95
-  PressDepth: 0.085
-  RimRelief: 0.042
-  RimReach: 0.036
+  PressDepth: 0.075
+  RimRelief: 0.11
+  RimReach: 0.04
   GustSpeed: 5
   GustLife: 1.8
   FallMargin: 9

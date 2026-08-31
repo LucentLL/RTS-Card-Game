@@ -41,6 +41,18 @@ namespace SpawnRowDuel.View.Cards
         Label _turn, _phase;
 
         float _foeOpen, _youOpen;
+
+        /// <summary>
+        /// How far YOUR wall currently stands PROUD of its retracted rail, in real pixels.
+        ///
+        /// The hand rides on this. A wall that opens is a tower window sliding up out of the
+        /// bottom of the screen, and a hand held at that wall has to go up with it - otherwise the
+        /// stonework rises straight through the cards and the player is holding a fan the castle
+        /// is eating. The reverse is deliberately NOT true: reaching for a card is not looking at
+        /// the wall, and a wall that opened every time you touched your hand would spend the whole
+        /// match sitting on the board.
+        /// </summary>
+        public float YouLift { get; private set; }
         float _foeTouched = -99f, _youTouched = -99f;
 
         /// <summary>
@@ -166,11 +178,12 @@ namespace SpawnRowDuel.View.Cards
 
             _foeStone.style.top = -(full - foeCur);
             _youStone.style.bottom = -(full - youCur);
+            YouLift = Mathf.Max(0f, youCur - youRail);
 
             // what the walls cover right now - the board must not take taps through them, and the
             // hands are opaque too even when the wall behind them is down
             HudLayout.TopBlockPx = Mathf.Max(foeCur, HudLayout.FoeHandBandPx);
-            HudLayout.BottomBlockPx = Mathf.Max(youCur, HudLayout.HandBandPx);
+            HudLayout.BottomBlockPx = Mathf.Max(youCur, YouLift + HudLayout.HandBandPx);
 
             float tower = panelW * TowerSpan;
             float pad = 10f * scale;

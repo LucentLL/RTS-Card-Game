@@ -17,6 +17,29 @@ public static class WebGLBuild
         PlayerSettings.WebGL.template = "PROJECT:Fullscreen";
         PlayerSettings.runInBackground = true;
 
+        // ── the two settings that decide whether a crash can be diagnosed at all ──────────
+        //
+        // The project shipped at exceptionSupport 1, "explicitly thrown exceptions only", and
+        // that does not mean what it sounds like: it tells IL2CPP to STOP EMITTING the checks
+        // for null references, array bounds and invalid casts, and Unity documents all three as
+        // undefined behaviour from then on. So a stray index does not throw - it scribbles the
+        // heap, the page keeps running with corrupt pixels in it, and some seconds later the
+        // runtime dies with "RuntimeError: index out of bounds" and twenty-five unnamed wasm
+        // frames pointing at wherever the damage happened to surface. That is exactly the report
+        // we got, and it is why reading the source could not place it.
+        //
+        // 2 puts the checks back: an out-of-range write becomes an IndexOutOfRangeException that
+        // names its own type and method, is caught and logged, and the next frame still runs.
+        // Not 3 - 3 additionally builds stack traces, which is the expensive half in both size
+        // and speed, and this is a turn-based card game downloaded over Pages onto a phone.
+        PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.FullWithoutStacktrace;
+
+        // ...and symbols, which cost nothing at runtime - the loader fetches the sidecar only
+        // when it is formatting a stack. Without them "wasm-function[579]" is all anybody gets,
+        // including for a fault inside Unity's own UI renderer or texture upload, where
+        // exception support has no reach at all.
+        PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.External;
+
         var opts = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/Battle.unity" },

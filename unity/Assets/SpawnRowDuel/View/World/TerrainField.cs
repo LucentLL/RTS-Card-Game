@@ -85,12 +85,29 @@ namespace SpawnRowDuel.View.World
         public float GrassRegrow = 110f;
 
         [Header("Settling")]
-        /// <summary>How proud of the ground the rim around a card stands. Shading, not geometry:
-        /// see the impression block in SRD_Terrain for why it cannot be geometry.</summary>
-        public float RimRelief = 0.042f;
-        /// <summary>How far out of the card's own outline that rim reaches, in X units. It has to
-        /// fit inside the 0.040 of ground the tile leaves beside a card that covers its face.</summary>
-        public float RimReach = 0.036f;
+        /// <summary>How proud of the ground the rim around a card stands. Shading, not geometry -
+        /// see the impression block in SRD_Terrain for why the EDGE cannot be geometry.</summary>
+        public float RimRelief = 0.11f;
+        /// <summary>How far out of the card's own outline that rim reaches, in X units.
+        ///
+        /// The shader CAPS this at the tile's own half-gap whatever it is set to, because only the
+        /// nearest cell is evaluated and a rim wider than the gap is cut off mid-slope at the
+        /// halfway line - a hard seam down every tile boundary. So width is not the knob that
+        /// answers "is the ground displaced at all?": the DISH under it, the crushed grass on it
+        /// and the contact shade in the crack are.</summary>
+        public float RimReach = 0.04f;
+
+        /// <summary>
+        /// How deep the DISH under a card sinks the ground, in world units. This one IS geometry.
+        ///
+        /// The card's crisp outline cannot be - vertices near the board are 0.19 units apart and a
+        /// 1.00-wide card is five of them across, so its edge snapped 0.02 to 0.06 off the card, a
+        /// different amount in every column. A BROAD SOFT DISH is a different question: half a unit
+        /// across is three or four vertices, which the grid carries without a stagger, and at a
+        /// 42-degree camera real relief is what says the ground gave way rather than got painted.
+        /// So the two halves are split - the dish moves vertices, the rim is shaded on top of it.
+        /// </summary>
+        public float PressDepth = 0.075f;
         public float GustSpeed = 5f;             // world units per second the ring travels
         public float GustLife = 1.8f;
 
@@ -295,6 +312,11 @@ namespace SpawnRowDuel.View.World
                 // any more, because a texel is 0.11 units and the whole rim is 0.036 wide.
                 StampRoundedRect(at, _pressHalf, PressRound, 0.10f, UnitPressStrength * level);
 
+                // ...and a BROAD SOFT DISH into B, which is the half that moves vertices. Feathered
+                // over 0.55 of a unit so it spans four or five of the ground's 0.19-unit vertices
+                // and cannot show their staircase - the crisp edge is the rim's job, in shading.
+                StampRoundedDish(at, _pressHalf * 0.55f, 0.55f, level);
+
                 // ...and G says only THAT SOMETHING IS HERE. The fragment reads it at the cell
                 // centre, where a whole card's worth of texels agree, and draws the impression
                 // itself from the pitch - so the shape is the card's, exactly, at pixel
@@ -392,6 +414,31 @@ namespace SpawnRowDuel.View.World
                 }
             }
             return moved;
+        }
+
+        /// <summary>The dish, into B: broad, soft and centred on the card, for the vertex shader.</summary>
+        void StampRoundedDish(Vector3 world, Vector2 half, float feather, float strength)
+        {
+            var c = new Vector2(world.x, world.z);
+            float reach = Mathf.Max(half.x, half.y) + feather;
+            int x0 = WorldToTexelX(c.x - reach), x1 = WorldToTexelX(c.x + reach);
+            int y0 = WorldToTexelY(c.y - reach), y1 = WorldToTexelY(c.y + reach);
+
+            for (int y = Mathf.Max(0, y0); y <= Mathf.Min(DispHeight - 1, y1); y++)
+                for (int x = Mathf.Max(0, x0); x <= Mathf.Min(DispWidth - 1, x1); x++)
+                {
+                    float d = RoundBox(TexelToWorld(x, y) - c, half, PressRound);
+                    float v = strength * (1f - Mathf.SmoothStep(0f, 1f,
+                                          Mathf.Clamp01(d / Mathf.Max(feather, 0.0001f))));
+                    WriteB(x, y, v);
+                }
+        }
+
+        void WriteB(int x, int y, float v)
+        {
+            int i = y * DispWidth + x;
+            byte b = (byte)(Mathf.Clamp01(v) * 255f);
+            if (b > _dispPixels[i].b) _dispPixels[i].b = b;
         }
 
         void Write(int x, int y, float v)
@@ -1241,6 +1288,8 @@ namespace SpawnRowDuel.View.World
                 _groundMat.SetFloat("_CrestLight", look.CrestLight);
                 _groundMat.SetFloat("_TroughShade", look.TroughShade);
                 _groundMat.SetFloat("_Sparkle", look.Sparkle);
+                _groundMat.SetFloat("_GustSwing", look.GustSwing);
+                _groundMat.SetFloat("_GustPeriod", look.GustPeriod);
 
                 _groundMat.SetTexture("_DispTex", _disp);
                 _groundMat.SetVector("_DispOrigin", new Vector4(_dispOrigin.x, _dispOrigin.y, 0f, 0f));
@@ -1254,6 +1303,7 @@ namespace SpawnRowDuel.View.World
                 _groundMat.SetVector("_CellPitch", new Vector4(impCol, impRow, 0f, 0f));
                 _groundMat.SetVector("_CellHalf", new Vector4(_pressHalf.x, _pressHalf.y, 0f, 0f));
                 _groundMat.SetFloat("_CardRound", CardRound);
+                _groundMat.SetFloat("_PressDepth", PressDepth);
                 _groundMat.SetFloat("_RimReach", RimReach);
                 _groundMat.SetFloat("_RimRelief", RimRelief);
 
@@ -1304,6 +1354,9 @@ namespace SpawnRowDuel.View.World
                 _veilMat.SetFloat("_Speed", look.VeilSpeed);
                 _veilMat.SetFloat("_Scale", look.VeilScale);
                 _veilMat.SetFloat("_Grains", look.GrainAmount);
+                _veilMat.SetFloat("_GustSwing", look.GustSwing);
+                _veilMat.SetFloat("_GustPeriod", look.GustPeriod);
+                _veilMat.SetFloat("_GustWander", look.GustWander);
                 _veilMat.SetColor("_GrainColor", look.GrainColor);
                 _veilMat.SetVector("_GustHalf",
                     new Vector4(_pressHalf.x, _pressHalf.y, 0f, 0f));

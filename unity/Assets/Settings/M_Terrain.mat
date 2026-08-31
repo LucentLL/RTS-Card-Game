@@ -30,7 +30,6 @@ Material:
     m_Ints: []
     m_Floats:
     - _Ambient: 0.34
-    - _BermHeight: 0.055
     - _CloudAmount: 1
     - _CloudContrast: 3.2
     - _CloudScale: 9

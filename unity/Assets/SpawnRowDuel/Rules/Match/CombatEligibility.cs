@@ -24,7 +24,11 @@ namespace SpawnRowDuel.Rules
                                                          int aIdx, int tIdx)
         {
             var outRefs = new List<UnitRef>();
-            Span<RowKey> crossed = stackalloc RowKey[5];
+            // Board.Rows, not a hand-typed 5. The true maximum IS five - an attack from the
+            // virtual wall row -1 to the virtual wall row 5 crosses every real row - so this was
+            // correct with exactly zero headroom, and the day the board gains a row it would have
+            // been a silent stack overwrite rather than a compile error.
+            Span<RowKey> crossed = stackalloc RowKey[Board.Rows];
             int n = Board.RowsCrossedInto(aIdx, tIdx, crossed);
 
             for (int r = 0; r < n; r++)

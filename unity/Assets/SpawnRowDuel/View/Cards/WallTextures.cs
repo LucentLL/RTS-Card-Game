@@ -31,8 +31,29 @@ namespace SpawnRowDuel.View.Cards
         const float CourseH = 13f;
         const float BlockW = 26f;
 
-        static Texture2D _you, _foe;
-        static string _youKey = "", _foeKey = "";
+        /// <summary>
+        /// Bands already built, by size-and-colour key. A DICTIONARY, and it is allowed to grow.
+        ///
+        /// It was two slots with an Object.DestroyImmediate on replacement, and that was a live
+        /// dangling reference: the caller assigns the result straight into
+        /// _youStone.style.backgroundImage, C# evaluates the right-hand side first, so the OLD
+        /// texture was freed while the panel still held it and while the UI renderer still had a
+        /// texture slot registered for last frame mesh. UI Toolkit is never told; it keeps an id
+        /// for a native texture that no longer exists, and the other elements in the same panel -
+        /// the hand cards, which are siblings of the stone - start sampling a stale slot. White
+        /// shards and black triangles where a card face should be, on a page whose board, terrain
+        /// and IMGUI rail all still draw perfectly, because those are different renderers.
+        ///
+        /// It rebuilt far more often than "once": the key is built from the panel width, and
+        /// HandBar.PanelWidth reports Screen.width until the panel has resolved, so it flips in
+        /// the first frames of every session and again on every resize or fullscreen toggle.
+        ///
+        /// Growth is bounded by how many distinct (size, colour) pairs a session actually sees -
+        /// a handful - and a couple of megabytes of cached stone is a trade worth making against
+        /// a corrupted panel.
+        /// </summary>
+        static readonly System.Collections.Generic.Dictionary<string, Texture2D> _bands =
+            new System.Collections.Generic.Dictionary<string, Texture2D>();
 
         /// <summary>
         /// One wall band. <paramref name="overhang"/> is how far the battlements rise past the
@@ -41,14 +62,15 @@ namespace SpawnRowDuel.View.Cards
         /// </summary>
         public static Texture2D Band(bool foe, Color element, int w, int h, int overhang, float scale)
         {
-            string key = w + "x" + h + "/" + overhang + "/" + ((Color32)element).GetHashCode();
-            if (foe && _foe != null && _foeKey == key) return _foe;
-            if (!foe && _you != null && _youKey == key) return _you;
+            string key = (foe ? "f" : "y") + w + "x" + h + "/" + overhang + "/"
+                       + ((Color32)element).GetHashCode();
 
-            var tex = Build(foe, element, w, h, overhang, scale);
-            if (foe) { if (_foe != null) Object.DestroyImmediate(_foe); _foe = tex; _foeKey = key; }
-            else { if (_you != null) Object.DestroyImmediate(_you); _you = tex; _youKey = key; }
-            return tex;
+            Texture2D got;
+            if (_bands.TryGetValue(key, out got) && got != null) return got;
+
+            got = Build(foe, element, w, h, overhang, scale);
+            _bands[key] = got;
+            return got;
         }
 
         static Texture2D Build(bool foe, Color element, int w, int h, int overhang, float scale)

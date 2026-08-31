@@ -78,6 +78,14 @@ namespace SpawnRowDuel.View.World
         public float GrainAmount;
         public Color GrainColor;
 
+        /// <summary>
+        /// How the wind VARIES, which is most of what separates weather from a scrolling texture.
+        /// Swing is how far the strength breathes either side of its mean (0 is a constant blow,
+        /// 1 swings from a lull to about double), Period is how many seconds one breath takes, and
+        /// Wander is how many degrees the bearing drifts either way while it does it.
+        /// </summary>
+        public float GustSwing, GustPeriod, GustWander;
+
         // ---- what falls out of the sky --------------------------------------------------------
         /// <summary>Snow, ash. Separate from the veil, which is what the wind drags ACROSS the
         /// ground - a horizontal sheet cannot show vertical motion.</summary>
@@ -261,7 +269,13 @@ namespace SpawnRowDuel.View.World
             b.HazeColor = Hex("#e8d3ab"); b.HazeStart = 9f; b.HazeDensity = 0.62f;
 
             b.VeilAmount = 0.85f; b.VeilColor = Hex("#e8d2a4");
-            b.VeilSpeed = 1.5f; b.VeilScale = 7f; b.VeilHeight = 1.5f;
+            b.VeilSpeed = 1.1f; b.VeilScale = 7f; b.VeilHeight = 1.5f;
+            // WIND THAT GUSTS. One speed, one direction and one density, held forever, is a
+            // scrolling texture however good the noise inside it is - and a desert is the biome
+            // where that reads worst, because the air is the subject. The veil breathes now: it
+            // swells and lulls on a slow clock and its bearing wanders either side of the dune
+            // trend, so the sand comes in squalls rather than at a constant rate.
+            b.GustSwing = 1f; b.GustPeriod = 13f; b.GustWander = 26f;
             // The one biome where the AIR is the subject. Grains stream in the gusts as dashes.
             b.GrainAmount = 0.95f; b.GrainColor = Hex("#fff0cf");
 
@@ -304,7 +318,9 @@ namespace SpawnRowDuel.View.World
             b.HazeColor = Hex("#dfe9f5"); b.HazeStart = 8f; b.HazeDensity = 0.70f;
 
             b.VeilAmount = 0.55f; b.VeilColor = Hex("#eef4ff");
-            b.VeilSpeed = 2.1f; b.VeilScale = 6f; b.VeilHeight = 1.3f;
+            b.VeilSpeed = 1.5f; b.VeilScale = 6f; b.VeilHeight = 1.3f;
+            // Colder wind gusts harder and swings less - a blizzard comes in slabs.
+            b.GustSwing = 1.15f; b.GustPeriod = 9f; b.GustWander = 16f;
             b.GrainAmount = 0.7f; b.GrainColor = Hex("#ffffff");
 
             b.FallAmount = 1.0f; b.FallColor = Hex("#ffffff");
@@ -393,7 +409,7 @@ namespace SpawnRowDuel.View.World
             b.Name = "deep water";
             b.Base = Hex("#123449"); b.Tint2 = Hex("#1a4a66"); b.Tint3 = Hex("#0b2333");
             b.Highlight = Hex("#cdeef8");
-            b.Waves = 1f; b.MotionSpeed = 0.45f;
+            b.Waves = 1f; b.MotionSpeed = 0.26f;
 
             // THE SWELL. A long train rolling toward the player and a little to the right, so the
             // crest lines run across the frame where they can be counted - a train marching along
@@ -402,7 +418,10 @@ namespace SpawnRowDuel.View.World
             // pair of fixed sines had nothing between crests at all because it had no crests.
             b.SwellDir = new Vector2(0.34f, -0.94f);
             b.SwellHeight = 0.26f; b.SwellFoam = 0.75f;
-            b.WaveFreq = 0.20f; b.WaveSpeed = 3.2f;
+            // SLOW. A crest every three seconds is a wave machine; ocean swell has a period of
+            // eight to twelve, and the difference between the two is the difference between water
+            // and a screensaver of water.
+            b.WaveFreq = 0.20f; b.WaveSpeed = 2.4f;
 
             // Water is the one biome whose surface MOVES, so its relief lives in the shader's
             // normals rather than in the mesh. The mesh carries only a long, low swell - enough
@@ -497,7 +516,7 @@ namespace SpawnRowDuel.View.World
             // motion is the same term, but what it is moving over is ground you can see.
             b.Base = Hex("#8a7c58"); b.Tint2 = Hex("#a2916a"); b.Tint3 = Hex("#5d6a63");
             b.Highlight = Hex("#eaf6f8");
-            b.Waves = 0.62f; b.Ripples = 0.45f; b.MotionSpeed = 0.42f;
+            b.Waves = 0.62f; b.Ripples = 0.45f; b.MotionSpeed = 0.26f;
 
             // THE TIDE. The sea is off the far edge, past the foe's wall, and the waterline runs
             // up the beach and drains back on a 24-second breath with a faster swash riding on it.
@@ -512,8 +531,11 @@ namespace SpawnRowDuel.View.World
             // to fight on is a beach the wash runs over, so the waterline sweeps from well past
             // the far wall down to the middle of the board and drains back, and the tiles it
             // crosses go wet and foamed rather than blue.
-            b.TideLevel = 3.5f; b.TideRange = 5.0f; b.TidePeriod = 22f;
-            b.WaveFreq = 0.40f; b.WaveSpeed = 1.9f;
+            // FORTY seconds, not twenty-two. A tide that comes in and goes out twice a minute is
+            // a pump; the whole read of a shore is that the water takes its time, and at 22 the
+            // waterline was visibly sliding while a player was reading their hand.
+            b.TideLevel = 3.5f; b.TideRange = 5.0f; b.TidePeriod = 40f;
+            b.WaveFreq = 0.40f; b.WaveSpeed = 1.1f;
             // A swell under the tide, shoreward and slight. The tide's own train is what breaks on
             // the waterline; this is the water behind it having a surface at all.
             b.SwellDir = new Vector2(0.10f, -0.99f);
@@ -565,6 +587,7 @@ namespace SpawnRowDuel.View.World
                 VeilAmount = 0f, VeilColor = Color.white,
                 VeilSpeed = 1f, VeilScale = 6f, VeilHeight = 1.2f,
                 GrainAmount = 0.4f, GrainColor = Color.white,
+                GustSwing = 0.45f, GustPeriod = 15f, GustWander = 12f,
                 FallAmount = 0f, FallColor = Color.white,
                 FallDensity = 0f, FallHeight = 7f,
                 FallSpeed = 0.2f, FallDrift = 0.9f, FallSize = 0.06f, FallSwirl = 1.2f,

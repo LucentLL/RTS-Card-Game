@@ -78,6 +78,8 @@ Shader "SpawnRowDuel/Terrain"
         _CrestLight  ("Crest light", Range(0,1)) = 0.2
         _TroughShade ("Trough shade", Range(0,1)) = 0.25
         _Sparkle     ("Sparkle", Range(0,2)) = 0
+        _GustSwing   ("Gust swing", Range(0,1.5)) = 0.45
+        _GustPeriod  ("Gust period (s)", Float) = 15
 
         _HazeColor   ("Haze", Color) = (0.78, 0.84, 0.88, 1)
         _HazeStart   ("Haze start", Float) = 10
@@ -102,11 +104,12 @@ Shader "SpawnRowDuel/Terrain"
 
         // The card's own impression. Reach is in X units; Z is squashed to match, so the band is
         // the same fraction of the tile's margin - and the same width on screen - on both axes.
+        _PressDepth  ("Dish depth", Float) = 0.075
         _CellPitch   ("Cell pitch (xz)", Vector) = (1.08, 1.566, 0, 0)
         _CellHalf    ("Card half-size (xz)", Vector) = (0.5, 0.725, 0, 0)
         _CardRound   ("Card corner radius", Float) = 0.06
-        _RimReach    ("Rim width (x units)", Float) = 0.036
-        _RimRelief   ("Rim relief", Float) = 0.042
+        _RimReach    ("Rim width (x units)", Float) = 0.04
+        _RimRelief   ("Rim relief", Float) = 0.11
     }
 
     SubShader
@@ -133,13 +136,14 @@ Shader "SpawnRowDuel/Terrain"
             TEXTURE2D(_DispTex);
             SAMPLER(sampler_DispTex);
 
-            // Where the board has been pressed into the ground, as (how hard, is a piece on it).
-            float2 SrdPress(float2 world, float4 origin, float4 size)
+            // What the board has done to the ground here, as
+            //   R how hard the grass is crushed, G is a piece on this square, B the dish.
+            float3 SrdPress(float2 world, float4 origin, float4 size)
             {
                 float2 uv = (world - origin.xy) / max(size.xy, 0.0001);
-                if (any(uv < 0.0) || any(uv > 1.0)) return float2(0, 0);
+                if (any(uv < 0.0) || any(uv > 1.0)) return float3(0, 0, 0);
                 float4 t = SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, uv, 0);
-                return t.rg;
+                return t.rgb;
             }
 
             // The pile of material a card's edge shoves out: nothing at the card's own outline,
@@ -181,9 +185,10 @@ Shader "SpawnRowDuel/Terrain"
                 float _SunIntensity, _Ambient, _Sheen, _SheenPower, _ShadowDepth;
                 float4 _DispOrigin, _DispSize;
                 float4 _CellPitch, _CellHalf;
-                float _CardRound, _RimReach, _RimRelief;
+                float _CardRound, _RimReach, _RimRelief, _PressDepth;
                 float4 _WindDir;
                 float _StreakAmount, _StreakScale, _DetailBump, _CrestLight, _TroughShade, _Sparkle;
+                float _GustSwing, _GustPeriod;
                 float4 _HazeColor;
                 float _HazeStart, _HazeDensity;
                 float4 _IslandExtent;
@@ -198,13 +203,14 @@ Shader "SpawnRowDuel/Terrain"
                 Varyings o;
                 o.positionWS = TransformObjectToWorld(v.positionOS.xyz);
 
-                // NOTHING the board does moves a vertex any more. It used to pan the whole
-                // plateau down and dent it further under each card, and the vertex grid could not
-                // carry either honestly: vertices near the board are 0.19 units apart, so a
-                // 1.00-wide card is five of them across and its dent landed 0.02 to 0.06 off the
-                // card edge, a different amount in every column. Both are shading now - the press
-                // texture's R still says how flat the GRASS lies, which is a thing 0.19 units of
-                // resolution is entirely good enough for.
+                // The DISH, and only the dish. B is stamped broad and soft - half a unit across,
+                // feathered over another half - so it spans four or five of the ground's 0.19-unit
+                // vertices and the grid carries it without a stagger. The card's crisp EDGE is not
+                // here and cannot be: at that spacing a 1.00-wide card is five vertices across and
+                // its outline snapped 0.02 to 0.06 off the card, a different amount in every
+                // column. The edge is shaded in the fragment, from the pitch, where it is exact.
+                o.positionWS.y -= SrdPress(o.positionWS.xz, _DispOrigin, _DispSize).b * _PressDepth;
+
 
                 o.positionCS = TransformWorldToHClip(o.positionWS);
                 o.normalWS = TransformObjectToWorldNormal(v.normalOS);
@@ -284,10 +290,26 @@ Shader "SpawnRowDuel/Terrain"
                 //
                 // But a card only ever lies on a CELL, so its outline is arithmetic. Round the
                 // world position to the nearest cell centre and the rounded-box distance to the
-                // card is exact at pixel resolution - which is the only place a rim this narrow
-                // can be drawn at all, because it has to fit inside the 0.040 of ground the tile
-                // leaves showing beside a card that covers its whole face.
-                albedo *= 1.0 - SrdPress(w, _DispOrigin, _DispSize).r * 0.16;   // trodden ground is packed
+                // card is exact at PIXEL resolution, which is the only place a rim this fine can
+                // be drawn at all.
+                //
+                // ── trodden ground, and hard enough to see ─────────────────────────────────
+                // A card crushes the grass on its square and the bare earth under it is packed
+                // and darker. At 0.16 that read as a faint tint and the honest answer to "is the
+                // ground displaced at all?" was no.
+                float3 pressW = SrdPress(w, _DispOrigin, _DispSize);
+                albedo *= 1.0 - pressW.r * 0.34;
+
+                // ...and the DISH gets a normal. The vertices moved for it, but a moved vertex on
+                // a 0.19-unit grid barely tilts the face it belongs to - sampling B either side
+                // and bending the normal by the difference is what makes the dip catch the light.
+                {
+                    float2 e2 = _DispSize.xy / float2(320.0, 240.0);
+                    float bx = SrdPress(w + float2(e2.x, 0), _DispOrigin, _DispSize).b;
+                    float bz = SrdPress(w + float2(0, e2.y), _DispOrigin, _DispSize).b;
+                    N = normalize(N + float3((bx - pressW.b) / e2.x, 0, (bz - pressW.b) / e2.y)
+                                      * _PressDepth * 1.6);
+                }
                 {
                     float2 cell = round(w / _CellPitch.xy) * _CellPitch.xy;
                     float here = SrdPress(cell, _DispOrigin, _DispSize).g;
@@ -299,28 +321,43 @@ Shader "SpawnRowDuel/Terrain"
                         // as an oval on a rectangular card. The tile's own margins are 0.040 and
                         // 0.058, whose ratio is 0.69 - within a hair of the foreshortening - so
                         // scaling by them lands the rim on the same pixel count either way.
+                        //
+                        // The reach itself is no longer held inside those margins. It was, and
+                        // nine pixels of rim is a rim nobody can see; two neighbouring cards
+                        // sharing a churned border is what would actually happen anyway.
                         float2 gap    = max(_CellPitch.xy * 0.5 - _CellHalf.xy, 0.0001);
                         float2 aspect = float2(1.0, gap.x / gap.y);
                         float2 rel    = (w - cell) * aspect;
                         float2 halfA  = _CellHalf.xy * aspect;
 
+                        // The reach is CAPPED at the tile's own half-gap, and that is not a style
+                        // choice - it is what stops a seam. Only the nearest cell is evaluated, so
+                        // the rim is cut off dead at the halfway line between two squares; a reach
+                        // wider than the gap is still at most of its height when it gets there,
+                        // and the discontinuity draws a hard line down every tile boundary on the
+                        // board. In the squashed space the two half-gaps are equal by
+                        // construction (z was scaled by exactly gap.x/gap.y), so one cap does both
+                        // axes. What makes the impression READ is the dish under it, the crushed
+                        // grass on it and the contact shade in the crack - not width it cannot have.
+                        float reach = min(_RimReach, gap.x);
+
                         float d   = SrdRoundBox(rel, halfA, _CardRound);
-                        float rim = SrdRim(d, _RimReach);
+                        float rim = SrdRim(d, reach);
 
                         // The slope, by difference. The steps are taken in world units and put
                         // through the same squash, so the gradient stays a world-space slope.
                         const float e = 0.004;
-                        float rx = SrdRim(SrdRoundBox(rel + float2(e, 0) * aspect, halfA, _CardRound), _RimReach);
-                        float rz = SrdRim(SrdRoundBox(rel + float2(0, e) * aspect, halfA, _CardRound), _RimReach);
+                        float rx = SrdRim(SrdRoundBox(rel + float2(e, 0) * aspect, halfA, _CardRound), reach);
+                        float rz = SrdRim(SrdRoundBox(rel + float2(0, e) * aspect, halfA, _CardRound), reach);
                         N = normalize(N + float3(-(rx - rim), 0, -(rz - rim)) * (_RimRelief * here / e));
 
                         // Two surfaces, not one. On the crest, material that has just been turned
                         // over and is loose and pale; in the crack at the card's own edge, contact
                         // shade - and it is the shade that says the card is DOWN IN the ground
                         // rather than lying on top of it. A pale rim on its own reads as a halo.
-                        float lip = 1.0 - saturate(d / max(_RimReach, 0.0001));
-                        albedo = lerp(albedo, albedo * 1.18 + _Highlight.rgb * 0.06, rim * here);
-                        albedo *= 1.0 - saturate(lip - rim) * 0.55 * here;
+                        float lip = 1.0 - saturate(d / max(reach, 0.0001));
+                        albedo = lerp(albedo, albedo * 1.34 + _Highlight.rgb * 0.10, rim * here);
+                        albedo *= 1.0 - saturate(lip - rim) * 0.72 * here;
                     }
                 }
 
@@ -507,10 +544,18 @@ Shader "SpawnRowDuel/Terrain"
                     float ridge = sin(ripple.y + SrdFbm(w * 0.5) * 6.2831);
                     albedo *= 1.0 + ridge * 0.055 * _RippleAmount;
 
-                    // Loose sand streaming off the brinks, which is the thing the eye reads as wind.
-                    float drift = smoothstep(0.72, 1.0,
-                        SrdFbm(float2(wp.x * 0.12, wp.y * 1.1) * 2.0 - float2(t * _MotionSpeed * 0.9, 0)));
-                    albedo = lerp(albedo, _Highlight.rgb, drift * _RippleAmount * 0.22 * saturate(rise * 1.4));
+                    // Loose sand streaming off the brinks, which is the thing the eye reads as
+                    // wind - and it BREATHES, on the same slow clock the veil uses. One rate held
+                    // forever is a scrolling texture: the ground streamed at a constant rate while
+                    // the air above it gusted, and the disagreement was as bad as either alone.
+                    float breath = SrdFbm(float2(t / max(_GustPeriod, 0.1), 4.7)) * 2.0 - 1.0;
+                    float gustNow = saturate(1.0 + breath * _GustSwing);
+
+                    float drift = smoothstep(0.78 - gustNow * 0.10, 1.0,
+                        SrdFbm(float2(wp.x * 0.12, wp.y * 1.1) * 2.0
+                               - float2(t * _MotionSpeed * 0.9 * (0.5 + gustNow * 0.7), 0)));
+                    albedo = lerp(albedo, _Highlight.rgb,
+                                  drift * _RippleAmount * 0.26 * gustNow * saturate(rise * 1.4));
                 }
 
                 // ── ash: embers, and they belong in the hollows ─────────────────────────────

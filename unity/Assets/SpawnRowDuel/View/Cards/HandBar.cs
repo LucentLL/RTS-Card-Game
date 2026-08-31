@@ -79,18 +79,24 @@ namespace SpawnRowDuel.View.Cards
             HudLayout.Recompute();
             float peek = HudLayout.HandBandPx;
 
-            // ON the screen edge. A card stopped short of it with a lip of stone underneath looks
-            // stuck to the wall; a held hand stands proud of the wall it is held at, which is what
-            // the peek being taller than the rail is for.
-            _row.style.bottom = 0f;
             _row.style.height = peek;
-            _lift.style.bottom = 0f;
             _lift.style.height = peek;
 
             // The walls are drawn HERE rather than in IMGUI: IMGUI paints after every UI Toolkit
             // panel, so a band painted there lands on top of the cards instead of behind them -
             // which is what the dark bar through the hand turned out to be.
+            //
+            // And they lay out BEFORE the hand now, because the hand rides on them.
             _walls.Layout(_match.Engine.State, _palette, PanelWidth());
+
+            // ON the screen edge - or on the WALL, when the wall is up. A card stopped short of
+            // the edge with a lip of stone underneath looks stuck to it; a held hand stands proud
+            // of the wall it is held at, which is what the peek being taller than the rail is for.
+            // The hand used to be pinned to the edge, so when a tower window slid up the stonework
+            // rose straight through the cards. One way only: the wall opens because it is being
+            // looked at, never because a card was picked.
+            _row.style.bottom = _walls.YouLift;
+            _lift.style.bottom = _walls.YouLift;
 
             var hand = _match.Engine.State.P(Seat.Local).Hand;
             var sig = Signature(hand, peek);

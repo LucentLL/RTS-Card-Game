@@ -109,7 +109,11 @@ namespace SpawnRowDuel.Rules
             int step = targetRow > attackerRow ? 1 : -1;
             int n = 0;
             for (int r = attackerRow + step; r != targetRow + step; r += step)
-                if (r >= 0 && r < Rows) into[n++] = (RowKey)r;
+            {
+                if (r < 0 || r >= Rows) continue;
+                if (n >= into.Length) break;      // the caller sizes the span; do not trust it
+                into[n++] = (RowKey)r;
+            }
             return n;
         }
 
@@ -144,6 +148,7 @@ namespace SpawnRowDuel.Rules
                     var cell = new CellRef((RowKey)r, c);
                     if (cell == from) continue;
                     if (!IsRealSlot(cell.Row, cell.Col)) continue;
+                    if (n >= into.Length) return n;   // as above: the buffer is not ours
                     into[n++] = cell;
                 }
             }
