@@ -117,6 +117,7 @@ public static class SceneBootstrap
         var mClouds = ShaderMat("M_CloudShadow", "SpawnRowDuel/CloudShadow");
         var mVeil = ShaderMat("M_Veil", "SpawnRowDuel/Veil");
         var mFall = ShaderMat("M_Fall", "SpawnRowDuel/Fall");
+        var mSettle = ShaderMat("M_Settle", "SpawnRowDuel/Settle");
         AssetDatabase.SaveAssets();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -162,6 +163,7 @@ public static class SceneBootstrap
         terrain.CloudMaterial = mClouds;
         terrain.VeilMaterial = mVeil;
         terrain.FallMaterial = mFall;
+        terrain.SettleMaterial = mSettle;
 
         var boardGo = new GameObject("Board");
         var view = boardGo.AddComponent<BoardView>();

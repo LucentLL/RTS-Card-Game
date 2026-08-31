@@ -73,12 +73,46 @@ namespace SpawnRowDuel.View.World
         public Color VeilColor;
         public float VeilSpeed, VeilScale, VeilHeight;
 
+        /// <summary>How much loose material the wind is carrying, as dashes rather than dots.
+        /// This is the dunes' signature and it wants to be near zero anywhere still.</summary>
+        public float GrainAmount;
+        public Color GrainColor;
+
         // ---- what falls out of the sky --------------------------------------------------------
         /// <summary>Snow, ash. Separate from the veil, which is what the wind drags ACROSS the
         /// ground - a horizontal sheet cannot show vertical motion.</summary>
         public float FallAmount;
         public Color FallColor;
+        /// <summary>Flakes per square world unit, and how high they start.</summary>
+        public float FallDensity, FallHeight;
+        /// <summary>Speed is CYCLES PER SECOND now - a flake's whole fall, spawn to landing - and
+        /// size is in world units, because the flakes are in the world rather than on the screen.</summary>
         public float FallSpeed, FallDrift, FallSize, FallSwirl;
+
+        // ---- what has already landed ----------------------------------------------------------
+        /// <summary>How fast coverage builds, in fractions of full cover per second. Zero means
+        /// nothing settles - rain does not lie and neither does spray.</summary>
+        public float SettleRate;
+        /// <summary>Thick cover and thin cover are different colours, not one colour at two
+        /// alphas: a dusting of ash is dirty grey and a covering of it is pale.</summary>
+        public Color SettleColor, SettleShade;
+        /// <summary>The most of a card it may ever cover. Never 1 - a card you cannot read is a
+        /// rule broken by scenery, and a board buried in grey is a board nobody can play.</summary>
+        public float SettleMax, SettleGrain, SettleSparkle;
+        /// <summary>Where the coverage stops GROWING. Deliberately short of full: coverage is a
+        /// threshold against noise, so a field at 1 is uniform and a field at 0.6 is patchy, and
+        /// patchy is what settled ash looks like.</summary>
+        public float SettleCap;
+
+        // ---- the tide -------------------------------------------------------------------------
+        /// <summary>0 for everything that is not a beach. The waterline is a position along
+        /// <see cref="TideDir"/> that swings by TideRange every TidePeriod seconds.</summary>
+        public float TideAmount, TideLevel, TideRange, TidePeriod;
+        /// <summary>Which way the sea is. +Z is past the far wall, which is where it belongs:
+        /// the water comes in at the top of the frame and the players are up the beach.</summary>
+        public Vector2 TideDir;
+        public float WaveFreq, WaveSpeed;
+        public Color WaterColor, DeepColor, FoamColor;
 
         // ---- ground cover ---------------------------------------------------------------------
         /// <summary>Blades per square world unit. Zero means open ground - water has no grass.</summary>
@@ -149,22 +183,28 @@ namespace SpawnRowDuel.View.World
 
             b.VeilAmount = 0.14f; b.VeilColor = Hex("#cfe0b8");
             b.VeilSpeed = 0.5f; b.VeilScale = 5f; b.VeilHeight = 1.1f;
-            // A few seeds and insects in the light, nothing more.
-            b.FallAmount = 0.10f; b.FallColor = Hex("#e8f0c8");
-            b.FallSpeed = 0.06f; b.FallDrift = 0.09f; b.FallSize = 0.45f; b.FallSwirl = 1.4f;
+            // A few seeds and insects in the light, nothing more - and nothing lies.
+            b.FallAmount = 0.5f; b.FallColor = Hex("#eef6d2");
+            b.FallDensity = 0.09f; b.FallHeight = 5f;
+            b.FallSpeed = 0.09f; b.FallDrift = 1.5f; b.FallSize = 0.035f; b.FallSwirl = 2.4f;
+            b.GrainAmount = 0.25f;
 
-            // LUSH. The old meadow was 24 tufts a square unit at 14 cm tall, which is a lawn
-            // somebody has just cut - you could see the ground between every blade, and grass you
-            // can see through does not read as something a card presses INTO.
-            b.BladeDensity = 30f;
-            b.BladeA = Hex("#3a6d26"); b.BladeB = Hex("#6ea845"); b.BladeRoot = Hex("#162e11");
-            b.BladeHeight = 0.185f; b.BladeWidth = 0.175f; b.Sway = 0.055f;
+            // LONG. The quad is two and a half times as tall as it is wide, matching the atlas
+            // cell, and the atlas draws twenty hair-thin blades in it instead of six fat ones.
+            // The previous pass was 0.175 wide by 0.185 tall - a SQUARE sprite of square-ish
+            // blades - and a meadow of them came out looking like a field of cabbages. Density is
+            // slightly down and coverage is well up, because each quad is now worth two and a half
+            // of the old ones.
+            b.BladeDensity = 24f;
+            b.BladeA = Hex("#3a6d26"); b.BladeB = Hex("#7ab54a"); b.BladeRoot = Hex("#16300f");
+            b.BladeHeight = 0.46f; b.BladeWidth = 0.20f; b.Sway = 0.105f;
 
-            // ...and shrubs standing above it, so the field has a canopy with a height to it
-            // rather than one uniform pile. They flatten under a card like everything else.
-            b.BushDensity = 1.9f;
-            b.BushA = Hex("#2f5d20"); b.BushB = Hex("#4c8330"); b.BushRoot = Hex("#14290f");
-            b.BushHeight = 0.70f; b.BushWidth = 0.92f; b.BushSway = 0.030f;
+            // ...and TUSSOCKS standing above it: the same clump, taller and much narrower. They
+            // used to be 0.92 wide against 0.70 tall, which is a shrub, and a meadow full of
+            // shrubs is a hedge maze. A tussock is a rank of long grass that has got away.
+            b.BushDensity = 2.4f;
+            b.BushA = Hex("#2f5d20"); b.BushB = Hex("#5d9a38"); b.BushRoot = Hex("#14290f");
+            b.BushHeight = 0.95f; b.BushWidth = 0.34f; b.BushSway = 0.055f;
             b.ShadowTint = Hex("#7f93c8"); b.CloudAmount = 1f;
             return b;
         }
@@ -198,6 +238,8 @@ namespace SpawnRowDuel.View.World
 
             b.VeilAmount = 0.85f; b.VeilColor = Hex("#e8d2a4");
             b.VeilSpeed = 1.5f; b.VeilScale = 7f; b.VeilHeight = 1.5f;
+            // The one biome where the AIR is the subject. Grains stream in the gusts as dashes.
+            b.GrainAmount = 0.95f; b.GrainColor = Hex("#fff0cf");
 
             // None. A desert with grass in it is a lawn that needs watering, and the reference
             // has not a blade in sight - the surface itself is the whole texture.
@@ -239,8 +281,17 @@ namespace SpawnRowDuel.View.World
 
             b.VeilAmount = 0.55f; b.VeilColor = Hex("#eef4ff");
             b.VeilSpeed = 2.1f; b.VeilScale = 6f; b.VeilHeight = 1.3f;
-            b.FallAmount = 0.85f; b.FallColor = Hex("#ffffff");
-            b.FallSpeed = 0.30f; b.FallDrift = 0.22f; b.FallSize = 1.0f; b.FallSwirl = 0.7f;
+            b.GrainAmount = 0.7f; b.GrainColor = Hex("#ffffff");
+
+            b.FallAmount = 1.0f; b.FallColor = Hex("#ffffff");
+            b.FallDensity = 0.80f; b.FallHeight = 7f;
+            b.FallSpeed = 0.30f; b.FallDrift = 0.85f; b.FallSize = 0.065f; b.FallSwirl = 1.0f;
+
+            // ...and it LIES. Snow on the tiles, snow on the cards, until something moves.
+            b.SettleRate = 0.055f;
+            b.SettleColor = Hex("#f4f8ff"); b.SettleShade = Hex("#b6c5da");
+            b.SettleMax = 0.70f; b.SettleCap = 0.72f;
+            b.SettleGrain = 1.3f; b.SettleSparkle = 0.9f;
 
             b.BladeDensity = 0f;                       // a smooth crust; nothing grows through
             b.BladeA = Hex("#8d8f92"); b.BladeB = Hex("#a9aaad"); b.BladeRoot = Hex("#5f6165");
@@ -278,14 +329,25 @@ namespace SpawnRowDuel.View.World
 
             b.VeilAmount = 0.45f; b.VeilColor = Hex("#6e5a52");
             b.VeilSpeed = 0.9f; b.VeilScale = 5.5f; b.VeilHeight = 1.7f;
-            // Snow, but slower. Ash is lighter than snow and has further to come, so it hangs -
-            // a third of the fall speed, more sideways wander, and it never falls straight.
-            b.FallAmount = 0.80f; b.FallColor = Hex("#cfc4bb");
-            b.FallSpeed = 0.10f; b.FallDrift = 0.30f; b.FallSize = 0.85f; b.FallSwirl = 1.6f;
+            b.GrainAmount = 0.55f; b.GrainColor = Hex("#d8b49a");
 
-            b.BladeDensity = 1.1f;                     // a few burnt stalks, not a crop
-            b.BladeA = Hex("#2f2723"); b.BladeB = Hex("#3d332c"); b.BladeRoot = Hex("#171312");
-            b.BladeHeight = 0.125f; b.BladeWidth = 0.130f; b.Sway = 0.065f;
+            // Snow, but slower. Ash is lighter than snow and has further to come, so it hangs -
+            // a third of the fall rate, twice the wander, and it never falls straight. Small,
+            // too: an ash flake is a flake, and the old pass drew it the size of a snowball.
+            b.FallAmount = 0.95f; b.FallColor = Hex("#d6cbc1");
+            b.FallDensity = 1.05f; b.FallHeight = 7.5f;
+            b.FallSpeed = 0.11f; b.FallDrift = 1.5f; b.FallSize = 0.062f; b.FallSwirl = 2.0f;
+
+            // ...and then it LIES THERE. This is the point of the whole biome: ash gathers in the
+            // seams of the board and greys over the cards, and stays until something moves.
+            b.SettleRate = 0.040f;
+            b.SettleColor = Hex("#b8b0a8"); b.SettleShade = Hex("#5f574f");
+            b.SettleMax = 0.62f; b.SettleCap = 0.58f;
+            b.SettleGrain = 2.4f; b.SettleSparkle = 0f;
+
+            b.BladeDensity = 1.4f;                     // a few burnt stalks, not a crop
+            b.BladeA = Hex("#241e1b"); b.BladeB = Hex("#372d26"); b.BladeRoot = Hex("#120f0e");
+            b.BladeHeight = 0.30f; b.BladeWidth = 0.145f; b.Sway = 0.085f;
             b.ShadowTint = Hex("#8a7f8f"); b.CloudAmount = 0.6f;
             return b;
         }
@@ -319,6 +381,7 @@ namespace SpawnRowDuel.View.World
 
             b.VeilAmount = 0.35f; b.VeilColor = Hex("#dceef5");
             b.VeilSpeed = 1.1f; b.VeilScale = 6.5f; b.VeilHeight = 0.9f;
+            b.GrainAmount = 0.55f; b.GrainColor = Hex("#eaf8ff");
 
             b.BladeDensity = 0f;                       // open water
             b.BladeA = Color.white; b.BladeB = Color.white; b.BladeRoot = Color.white;
@@ -361,11 +424,12 @@ namespace SpawnRowDuel.View.World
             b.VeilSpeed = 0.4f; b.VeilScale = 4.5f; b.VeilHeight = 0.8f;
 
             b.BladeDensity = 9f;                       // trampled weeds at the edges
-            b.BladeA = Hex("#4e5a30"); b.BladeB = Hex("#66743e"); b.BladeRoot = Hex("#2b3119");
-            b.BladeHeight = 0.150f; b.BladeWidth = 0.150f; b.Sway = 0.040f;
-            b.BushDensity = 0.5f;
-            b.BushA = Hex("#3f4a28"); b.BushB = Hex("#556133"); b.BushRoot = Hex("#232a14");
-            b.BushHeight = 0.52f; b.BushWidth = 0.62f; b.BushSway = 0.022f;
+            b.BladeA = Hex("#4e5a30"); b.BladeB = Hex("#75854a"); b.BladeRoot = Hex("#2b3119");
+            b.BladeHeight = 0.34f; b.BladeWidth = 0.165f; b.Sway = 0.075f;
+            b.BushDensity = 0.6f;
+            b.BushA = Hex("#3f4a28"); b.BushB = Hex("#5f6d39"); b.BushRoot = Hex("#232a14");
+            b.BushHeight = 0.72f; b.BushWidth = 0.28f; b.BushSway = 0.042f;
+            b.GrainAmount = 0.2f;
 
             b.ShadowTint = Hex("#7b7f96"); b.CloudAmount = 1f;
             return b;
@@ -384,6 +448,24 @@ namespace SpawnRowDuel.View.World
             b.Highlight = Hex("#eaf6f8");
             b.Waves = 0.62f; b.Ripples = 0.45f; b.MotionSpeed = 0.42f;
 
+            // THE TIDE. The sea is off the far edge, past the foe's wall, and the waterline runs
+            // up the beach and drains back on a 24-second breath with a faster swash riding on it.
+            // A shore whose water only ever flowed one way was a river with sand beside it; what
+            // says "sea" is the line moving, the wave train marching in behind it, and the dark
+            // band of sand between where the water is and where it just was.
+            b.TideAmount = 1f; b.TideDir = new Vector2(0f, 1f);
+            // The water runs ACROSS THE BOARD, and that is not a liberty - it is what the
+            // framing leaves. The camera frames the board to fill the viewport, so everything
+            // past the far row compresses into sixty rows of pixels: a sea out there is a bright
+            // sliver under the wall band that no one would ever call a shore. A beach flat enough
+            // to fight on is a beach the wash runs over, so the waterline sweeps from well past
+            // the far wall down to the middle of the board and drains back, and the tiles it
+            // crosses go wet and foamed rather than blue.
+            b.TideLevel = 3.5f; b.TideRange = 5.0f; b.TidePeriod = 22f;
+            b.WaveFreq = 0.40f; b.WaveSpeed = 1.9f;
+            b.WaterColor = Hex("#2f6f74"); b.DeepColor = Hex("#134350");
+            b.FoamColor = Hex("#eef8f8");
+
             // Almost flat - a beach is flat, and the shallow swell reads entirely in the shading.
             b.Terrain = new TerrainProfile
             {
@@ -400,10 +482,11 @@ namespace SpawnRowDuel.View.World
 
             b.VeilAmount = 0.30f; b.VeilColor = Hex("#e6f0ee");
             b.VeilSpeed = 1.0f; b.VeilScale = 6f; b.VeilHeight = 0.9f;
+            b.GrainAmount = 0.5f; b.GrainColor = Hex("#fff4dd");
 
-            b.BladeDensity = 2.5f;                     // marram grass above the tideline
-            b.BladeA = Hex("#8a9464"); b.BladeB = Hex("#a5ad7c"); b.BladeRoot = Hex("#5c6141");
-            b.BladeHeight = 0.185f; b.BladeWidth = 0.130f; b.Sway = 0.070f;
+            b.BladeDensity = 3.2f;                     // marram grass above the tideline
+            b.BladeA = Hex("#8a9464"); b.BladeB = Hex("#bcc48d"); b.BladeRoot = Hex("#5c6141");
+            b.BladeHeight = 0.42f; b.BladeWidth = 0.15f; b.Sway = 0.115f;
 
             b.ShadowTint = Hex("#7f9ab5"); b.CloudAmount = 0.95f;
             return b;
@@ -424,8 +507,16 @@ namespace SpawnRowDuel.View.World
                 HazeColor = Hex("#c8d6e0"), HazeStart = 10f, HazeDensity = 0.5f,
                 VeilAmount = 0f, VeilColor = Color.white,
                 VeilSpeed = 1f, VeilScale = 6f, VeilHeight = 1.2f,
+                GrainAmount = 0.4f, GrainColor = Color.white,
                 FallAmount = 0f, FallColor = Color.white,
-                FallSpeed = 0.35f, FallDrift = 0.15f, FallSize = 1f, FallSwirl = 0.5f,
+                FallDensity = 0f, FallHeight = 7f,
+                FallSpeed = 0.2f, FallDrift = 0.9f, FallSize = 0.06f, FallSwirl = 1.2f,
+                SettleRate = 0f, SettleColor = Color.white, SettleShade = Color.grey,
+                SettleMax = 0.6f, SettleCap = 0.6f, SettleGrain = 1.6f, SettleSparkle = 0f,
+                TideAmount = 0f, TideLevel = 9f, TideRange = 3.4f, TidePeriod = 26f,
+                TideDir = new Vector2(0f, 1f), WaveFreq = 0.55f, WaveSpeed = 2.1f,
+                WaterColor = Hex("#20505c"), DeepColor = Hex("#0e2c3a"),
+                FoamColor = Hex("#f0fbfb"),
                 BushDensity = 0f, BushA = Color.white, BushB = Color.white, BushRoot = Color.white,
                 BushHeight = 0.5f, BushWidth = 0.6f, BushSway = 0.03f,
                 CloudAmount = 1f,

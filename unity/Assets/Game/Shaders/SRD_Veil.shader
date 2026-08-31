@@ -21,7 +21,12 @@ Shader "SpawnRowDuel/Veil"
         _SunDir    ("Sun (world)", Vector) = (0.2, 0.25, 0.9, 0)
         _SunColor  ("Sun colour", Color) = (1, 0.9, 0.75, 1)
         _NearFade  ("Near fade", Float) = 3.5
-        _Specks    ("Specks", Range(0,2)) = 1
+        _Grains    ("Grains", Range(0,2)) = 1
+        _GrainColor("Grain colour", Color) = (1, 0.95, 0.84, 1)
+
+        // a card landing shoves the air out in the shape of the card, not in a circle
+        _GustHalf  ("Gust half-size (xz)", Vector) = (0.5, 0.72, 0, 0)
+        _GustRound ("Gust corner radius", Float) = 0.22
         _BoardHalf ("Board half-size (xz)", Vector) = (4, 3.3, 0, 0)
         _BoardClear("Clear the board", Range(0,1)) = 0.85
     }
@@ -60,7 +65,9 @@ Shader "SpawnRowDuel/Veil"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _VeilColor, _SunDir, _SunColor, _WindDir;
-                float _Amount, _Speed, _Scale, _NearFade, _Specks;
+                float _Amount, _Speed, _Scale, _NearFade, _Grains;
+                float4 _GrainColor, _GustHalf;
+                float _GustRound;
                 float4 _BoardHalf;
                 float _BoardClear;
             CBUFFER_END
@@ -93,11 +100,20 @@ Shader "SpawnRowDuel/Veil"
                 uv.x -= t * speed;
                 uv += seed;
 
-                // Two scales: long torn sheets, and a finer break-up inside them.
-                float sheet = SrdFbm(float2(uv.x * 0.055, uv.y * 0.42) * _Scale * 0.3);
-                float broken = SrdFbm(float2(uv.x * 0.20, uv.y * 1.05) * _Scale * 0.3 + 13.0);
+                // The sheets TEAR as they travel. Scrolling one noise field moves a fixed
+                // pattern past the camera however many octaves it has; displacing the field along
+                // its own across-wind axis by a second, slower noise makes the streamers stretch
+                // and part instead, which is what blowing sand actually does over a crest.
+                float warp = SrdFbm(float2(uv.x * 0.085, uv.y * 0.5) * _Scale * 0.3 + 7.0) - 0.5;
+                float2 su = float2(uv.x, uv.y + warp * 2.4);
 
-                float veil = saturate(sheet * 0.75 + broken * 0.45 - 0.52) * 2.2;
+                // Two scales: long torn sheets, and a finer break-up inside them.
+                float sheet = SrdFbm(float2(su.x * 0.055, su.y * 0.42) * _Scale * 0.3);
+                float broken = SrdFbm(float2(su.x * 0.20, su.y * 1.05) * _Scale * 0.3 + 13.0);
+
+                // A smooth shoulder rather than a clamp. The old form pinned most of the field at
+                // zero and let the rest come up with a hard edge, so the sheets had outlines.
+                float veil = smoothstep(0.52, 0.94, sheet * 0.62 + broken * 0.38) * 1.7;
 
                 // Thinner higher up, and never a hard lid at the top of the stack.
                 veil *= (1.0 - layer * 0.55);
@@ -108,22 +124,60 @@ Shader "SpawnRowDuel/Veil"
                 for (int g = 0; g < 4; g++)
                 {
                     float2 d = w - _Gusts[g].xy;
-                    float r = length(d);
+                    float r = SrdRoundBox(d, _GustHalf.xy, _GustRound);
                     float ring = 1.0 - saturate(abs(r - _Gusts[g].z) / 1.6);
                     gust += ring * ring * _Gusts[g].w;
                 }
                 veil += saturate(gust) * 0.55 * (1.0 - layer * 0.4);
 
-                // Individual specks catching the light. Sparse, small, and faster than the sheets.
-                float speck = 0.0;
-                if (_Specks > 0.001)
+                // ---- grains ----------------------------------------------------------------
+                // Sand does not travel as dots. It SALTATES: a grain hops downwind in a long flat
+                // arc, so what a camera catches is a dash - the grain smeared along its own path -
+                // and a field of round specks at one size and one speed is the tell that this is a
+                // noise texture rather than moving air. That is what the dunes had.
+                //
+                // Three passes of dashes then, each a different length at a different speed, each
+                // grain sliding through its own cell over its own short life so it fades in, runs,
+                // and fades out rather than blinking at a cell wall. And they are gated by the
+                // SHEET: grains stream inside the gusts and the air between them is clear, which
+                // is most of what makes the wind read as gusting rather than as constant.
+                float grains = 0.0;
+                if (_Grains > 0.001)
                 {
-                    float2 sp = float2(uv.x * 1.9, uv.y * 1.9) * 3.0;
-                    float2 cell = floor(sp);
-                    float2 f = frac(sp);
-                    float2 at = float2(SrdHash(cell + seed), SrdHash(cell + seed + 3.1));
-                    float lit = step(0.955, SrdHash(cell + seed + 7.7));
-                    speck = lit * smoothstep(0.13, 0.0, length(f - at)) * _Specks;
+                    // LOW DOWN, and not many. Sand saltates in the first foot of air, so the
+                    // upper sheets carry almost none - and the first pass of this put grains on
+                    // all five sheets at once, which stacked into a downpour. The dune wind runs
+                    // nearly away from the camera, so a dash elongated along it projects as a
+                    // vertical streak: the elongation has to stay SMALL or blowing sand comes out
+                    // looking like rain, which is exactly what it came out looking like.
+                    float low = saturate(1.0 - layer * 1.35);
+                    if (low > 0.01)
+                    {
+                        float2 wu = float2(dot(w, wind), dot(w, float2(-wind.y, wind.x)));
+
+                        [unroll] for (int gi = 0; gi < 2; gi++)
+                        {
+                            float k = (float)gi;
+                            float gs = _Speed * (2.6 + k * 1.9);
+                            float2 q = float2((wu.x - t * gs) * (2.6 + k * 1.4),
+                                              wu.y * (5.0 + k * 2.6)) + seed + k * 21.3;
+
+                            float2 cell = floor(q);
+                            float2 f = frac(q);
+                            float3 h = SrdHash23(cell + k * 3.7);
+
+                            float lit = step(0.88 - _Grains * 0.09, h.z);   // the air is mostly empty
+                            float life = frac(h.x * 7.1 + t * (0.5 + h.y * 0.8));
+                            float fade = sin(life * 3.14159);
+
+                            float2 at = float2(frac(h.x + life * 0.55), h.y);
+                            float2 d = (f - at) * float2(0.62, 1.0);       // barely elongated
+                            grains += lit * fade * smoothstep(0.13, 0.0, length(d));
+                        }
+
+                        // ...and only inside the gusts. Grains everywhere at once is a texture.
+                        grains *= _Grains * low * (0.20 + 1.30 * saturate(sheet * 1.6));
+                    }
                 }
 
                 // Over the BOARD the sheets thin out but the specks do not.
@@ -135,7 +189,11 @@ Shader "SpawnRowDuel/Veil"
                 float2 overBoard = saturate((abs(w) - _BoardHalf.xy) / 2.2 + 1.0);
                 float clear = 1.0 - _BoardClear * (1.0 - saturate(max(overBoard.x, overBoard.y)));
 
-                float alpha = saturate(veil * 0.17 * clear + speck * 0.42) * _Amount;
+                // Grains fade out with distance as well as near the camera. A horizontal sheet
+                // seen at a grazing angle packs its far half into a few rows of pixels, and
+                // without this the top of the frame silts up with everything the sheet holds.
+                float far = saturate((26.0 - length(_WorldSpaceCameraPos.xz - w)) / 11.0);
+                float alpha = saturate(veil * 0.17 * clear + grains * 0.45 * far) * _Amount;
 
                 // Never right on top of the camera - a sheet crossing the near plane is a smear.
                 float dist = length(_WorldSpaceCameraPos - i.positionWS);
@@ -146,7 +204,7 @@ Shader "SpawnRowDuel/Veil"
                 float3 V = normalize(i.positionWS - _WorldSpaceCameraPos);
                 float toward = saturate(dot(V, normalize(_SunDir.xyz)) * 0.5 + 0.5);
                 float3 col = _VeilColor.rgb * (0.72 + 0.55 * toward)
-                           + _SunColor.rgb * speck * 0.5;
+                           + _GrainColor.rgb * _SunColor.rgb * grains * 0.55;
 
                 return half4(col, alpha);
             }

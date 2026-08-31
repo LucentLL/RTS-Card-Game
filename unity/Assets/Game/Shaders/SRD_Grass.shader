@@ -44,7 +44,14 @@ Shader "SpawnRowDuel/Grass"
         _Flatten    ("Flatten", Range(0,1)) = 0.85
 
         _BladeTex   ("Blade tufts", 2D) = "white" {}
-        _Variants   ("Atlas variants", Float) = 4
+        _Variants   ("Atlas variants", Float) = 6
+        _Inset      ("Atlas cell inset", Float) = 1
+        _TipLight   ("Tip light", Range(0,1)) = 0.22
+        _Ripple     ("Travelling ripple", Float) = 0.35
+
+        // A card is a rounded rectangle and so is the wind ring one throws when it lands.
+        _GustHalf   ("Gust half-size (xz)", Vector) = (0.5, 0.72, 0, 0)
+        _GustRound  ("Gust corner radius", Float) = 0.22
 
         _CloudScale  ("Cloud size", Float) = 6.5
         _CloudSpeed  ("Cloud speed", Float) = 0.55
@@ -98,7 +105,9 @@ Shader "SpawnRowDuel/Grass"
                 float4 _WindDir;
                 float _WindScale, _WindSpeed, _WindGain, _WindBias, _Sway, _Framerate;
                 float4 _DispOrigin, _DispSize, _DispTex_TexelSize;
-                float _PushDist, _Flatten, _Variants;
+                float _PushDist, _Flatten, _Variants, _Inset, _TipLight, _Ripple;
+                float4 _GustHalf;
+                float _GustRound;
                 float _CloudScale, _CloudSpeed, _CloudShadowMin;
                 float4 _CloudDir;
                 float _CloudAmount;
@@ -130,6 +139,14 @@ Shader "SpawnRowDuel/Grass"
                 float lean = SrdDualScroll(foot.xz * _WindScale, normalize(_WindDir.xy),
                                            t, _WindSpeed, 10.0, _WindGain, _WindBias);
 
+                // ...and a WAVE crossing the field on top of the gust field. The dual-scroll noise
+                // gives a meadow that breathes in patches, which is right, but the thing the eye
+                // actually reads as wind on long grass is a coherent band travelling downwind. One
+                // sine along the wind direction is the whole of it.
+                float2 wd = normalize(_WindDir.xy + float2(0.0001, 0));
+                lean += sin(dot(foot.xz, wd) * 1.35 - t * _WindSpeed * 4.5) * _Ripple;
+                lean = clamp(lean, -1.4, 1.4);
+
                 // ── what is standing on this blade ──────────────────────────────────────────
                 // The press field's VALUE says how flat the grass is here; its GRADIENT says
                 // which way it lies, because grass falls away from whatever is pressing it. That
@@ -140,15 +157,27 @@ Shader "SpawnRowDuel/Grass"
                                      SampleDisp(foot.xz + float2(0, ts.y)) - SampleDisp(foot.xz - float2(0, ts.y)));
                 float2 pushXZ = -grad * 6.0;
 
-                // gusts: a ring travelling outward from wherever the card landed
+                // Gusts: a ring travelling outward from wherever the card landed - and it leaves
+                // in the SHAPE OF THE CARD, because that is what pushed the air. A circular ring
+                // out of a rectangular thing was the tell that this was a shader effect and not a
+                // card landing; the distance is a rounded-box SDF now and everything else is the
+                // same arithmetic.
                 [unroll] for (int gi = 0; gi < SRD_GUSTS; gi++)
                 {
                     float4 g = _Gusts[gi];
                     float2 rel = foot.xz - g.xy;
-                    float dist = length(rel) + 1e-4;
+                    float dist = SrdRoundBox(rel, _GustHalf.xy, _GustRound);
                     float ring = exp(-pow((dist - g.z) * 1.1, 2.0)) * g.w;   // a broad band, not a hairline
+
+                    // outward normal of the rounded box, by gradient - the direction the blade lies
+                    float2 e = float2(0.06, 0.0);
+                    float2 n = float2(SrdRoundBox(rel + e.xy, _GustHalf.xy, _GustRound)
+                                    - SrdRoundBox(rel - e.xy, _GustHalf.xy, _GustRound),
+                                      SrdRoundBox(rel + e.yx, _GustHalf.xy, _GustRound)
+                                    - SrdRoundBox(rel - e.yx, _GustHalf.xy, _GustRound));
+
                     press = max(press, ring * 0.55);
-                    pushXZ += (rel / dist) * ring;
+                    pushXZ += normalize(n + 1e-5) * ring;
                 }
 
                 press = saturate(press);
@@ -197,8 +226,10 @@ Shader "SpawnRowDuel/Grass"
                 // blade by its seed: several blades of different heights leaning different ways is
                 // what stops a field reading as rows of identical spikes. RGB is a root-to-tip
                 // luminance ramp; A is coverage.
+                // The atlas has a GUTTER either side of every cell so its mips cannot bleed one
+                // variant into the next, so the quad addresses the inset part of its cell only.
                 float variant = floor(i.tintLean.x * _Variants);
-                float2 uv = float2((variant + i.corner.x + 0.5) / _Variants, i.corner.y);
+                float2 uv = float2((variant + 0.5 + i.corner.x * _Inset) / _Variants, i.corner.y);
                 half4 tuft = SAMPLE_TEXTURE2D(_BladeTex, sampler_BladeTex, uv);
                 clip(tuft.a - 0.05);
 
@@ -210,6 +241,12 @@ Shader "SpawnRowDuel/Grass"
 
                 // a bright edge on the side the wind is pushing toward - a blade catches light
                 col *= 1.0 + i.tintLean.y * sign(i.corner.x) * 0.10 * y;
+
+                // The tips are where the light is. On short tufts this was not worth having; on a
+                // blade three times its own width long it is most of what gives the field a
+                // surface, because the top centimetre of every blade is the only part the sun
+                // reaches straight on.
+                col += _ColorB.rgb * _TipLight * smoothstep(0.55, 1.0, y) * tuft.r;
 
                 // as on the ground: normally off, because the overlay pass shades the whole scene
                 if (_CloudAmount > 0.001)

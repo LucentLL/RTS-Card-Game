@@ -37,6 +37,21 @@ Shader "SpawnRowDuel/Terrain"
 
         _WaveAmount  ("Waves", Range(0,1)) = 0
         _RippleAmount("Ripples", Range(0,1)) = 0
+
+        // the tide: a waterline that comes IN and goes OUT, with the wave train that drives it
+        _TideAmount  ("Tide", Range(0,1)) = 0
+        _TideDir     ("Seaward direction (xz)", Vector) = (0, 0, 1, 0)
+        _TideLevel   ("Waterline, mean", Float) = 9
+        _TideRange   ("Waterline swing", Float) = 3.4
+        _TidePeriod  ("Tide period (s)", Float) = 26
+        _TideFreeze  ("Frozen tide (-1 = live)", Float) = -1
+        _WaveFreq    ("Wave lines per unit", Float) = 0.55
+        _WaveSpeed   ("Wave line speed", Float) = 2.1
+        _WaterColor  ("Water", Color) = (0.20, 0.42, 0.48, 1)
+        _DeepColor   ("Deep water", Color) = (0.10, 0.24, 0.34, 1)
+        _FoamColor   ("Foam", Color) = (0.94, 0.98, 0.99, 1)
+        _BoardHalf   ("Board half-size (xz)", Vector) = (3.8, 3.9, 0, 0)
+        _BoardWet    ("Water tint over the board", Range(0,1)) = 0.45
         _EmberAmount ("Embers", Range(0,1)) = 0
         _MotionSpeed ("Motion speed", Float) = 0.35
 
@@ -131,6 +146,11 @@ Shader "SpawnRowDuel/Terrain"
                 float4 _BaseColor, _Tint2, _Tint3, _Highlight;
                 float _PatchScale, _Patch2Cut, _Patch3Cut, _Grain;
                 float _WaveAmount, _RippleAmount, _EmberAmount, _MotionSpeed;
+                float _TideAmount, _TideLevel, _TideRange, _TidePeriod, _WaveFreq, _WaveSpeed;
+                float _TideFreeze;
+                float4 _BoardHalf;
+                float _BoardWet;
+                float4 _TideDir, _WaterColor, _DeepColor, _FoamColor;
                 float4 _SunDir, _SunColor, _SkyColor, _BounceColor;
                 float _SunIntensity, _Ambient, _Sheen, _SheenPower, _ShadowDepth;
                 float4 _DispOrigin, _DispSize;
@@ -246,8 +266,89 @@ Shader "SpawnRowDuel/Terrain"
                     albedo = lerp(albedo, albedo * 1.13 + _Highlight.rgb * 0.06, saturate(pc.g));
                 }
 
+                // ── the tide ─────────────────────────────────────────────────────────────────
+                // A shore is not "sand with a water shader on it": it is a LINE that moves. The
+                // whole read of a beach is the waterline running up and draining back, the wave
+                // train marching in behind it, and the dark band of sand the last wave wet and the
+                // next one has not reached yet. A surface that only ever flows one way is a river.
+                //
+                // Everything here happens on one axis: `along`, the distance seaward. The
+                // waterline is a value on that axis, the tide moves it slowly, the swash moves it
+                // faster and less far, and a low-frequency noise bends it so the shore is not
+                // ruled with a straight edge.
+                float waterMask = 1.0;          // deep water: the whole surface is water
+                float breaker = 0.0, swashWet = 0.0;
+
+                if (_TideAmount > 0.001)
+                {
+                    float2 sea = normalize(_TideDir.xz + float2(0.0001, 0));
+                    float along = dot(w, sea);
+                    float across = dot(w, float2(-sea.y, sea.x));
+
+                    // In and out, and the faster surge riding on it. _TideFreeze pins the slow
+                    // term for the screenshot probe: a tide on a twenty-second breath is invisible
+                    // in a still taken at the wrong second, and "is the sea there" is not a
+                    // question a test should answer by luck.
+                    float tide = _TideFreeze >= 0.0 ? (1.0 - _TideFreeze * 2.0)
+                                                    : sin(t * 6.2831 / max(_TidePeriod, 0.001));
+                    float swash = sin(t * 6.2831 / max(_TidePeriod * 0.17, 0.001)) * 0.30;
+                    float shoreAt = _TideLevel + (tide + swash) * _TideRange;
+                    shoreAt += (SrdFbm(float2(across * 0.09, t * 0.02)) - 0.5) * 2.2;
+
+                    float depth = along - shoreAt;                      // > 0 is under water
+                    waterMask = smoothstep(-0.15, 0.75, depth);
+
+                    // WAVE LINES. Crests marching shoreward, packed closer and standing taller as
+                    // they shoal - which is the cue that says which way the water is moving, and
+                    // the one thing a scrolling noise can never say.
+                    float shoal = exp(-max(depth, 0.0) * 0.10);
+                    float crestPhase = along * _WaveFreq * (1.0 + shoal * 0.35)
+                                     + t * _WaveSpeed
+                                     + SrdFbm(float2(across * 0.16, along * 0.05)) * 2.6;
+                    float crest = sin(crestPhase);
+                    float train = smoothstep(0.10, 0.80, crest) * shoal;
+
+                    // ...and they BREAK on the line: a bright band of foam pinned to the water's
+                    // edge wherever it currently is.
+                    breaker = exp(-depth * depth * 1.6) * (0.55 + 0.45 * crest);
+                    breaker = saturate(breaker + train * waterMask * 0.95);
+
+                    // trough dark, crest bright: the lines have to be readable AS lines, because
+                    // they are the only thing on a flat sheet of water that says which way it is
+                    // travelling
+                    albedo *= 1.0 + crest * 0.13 * waterMask * _TideAmount;
+
+                    // Behind the retreating water the sand stays dark and holds a lace of foam for
+                    // a moment. Without it the tide slides over dry sand like a decal.
+                    swashWet = saturate((depth + 2.4) / 2.4) * (1.0 - waterMask);
+
+                    // the whole band the sea works over is damp, and darker toward the water
+                    float reach = saturate((along - (_TideLevel - _TideRange * 2.2))
+                                           / max(_TideRange * 2.2, 0.001));
+                    albedo *= lerp(1.0, 0.66, saturate(reach * 0.75 + swashWet * 0.45) * _TideAmount);
+
+                    // The water itself, deeper further out - and THINNER over the board.
+                    //
+                    // The wash runs right across the playing surface, which is the whole point of
+                    // a beach: at this camera angle there is no room for a sea past the far wall,
+                    // so the tide has to be something that happens TO the board rather than behind
+                    // it. But a card under three quarters of an opaque water tint is a card you
+                    // cannot read, and no amount of sea is worth that - so over the tiles the
+                    // water thins to a wet film and the foam does the describing instead.
+                    float2 overBoard = saturate((abs(w) - _BoardHalf.xy) / 1.4 + 1.0);
+                    float onBoard = 1.0 - saturate(max(overBoard.x, overBoard.y));
+                    float tint = lerp(0.82, _BoardWet, onBoard);
+
+                    float3 water = lerp(_WaterColor.rgb, _DeepColor.rgb, saturate(depth / 9.0));
+                    albedo = lerp(albedo, water, waterMask * tint * _TideAmount);
+
+                    // the surface tilts with the wave train, so the sun finds the crests
+                    float slopeW = cos(crestPhase) * _WaveFreq * shoal * 0.35 * waterMask;
+                    N = normalize(N + float3(sea.x, 0, sea.y) * slopeW);
+                }
+
                 // ── water: the surface that actually moves ──────────────────────────────────
-                if (_WaveAmount > 0.001)
+                if (_WaveAmount > 0.001 && waterMask > 0.001)
                 {
                     float t2 = t * _MotionSpeed;
                     float2 d1 = normalize(float2(0.86, 0.51));
@@ -258,14 +359,24 @@ Shader "SpawnRowDuel/Terrain"
 
                     float2 wob = (d1 * cos(dot(w, d1 * 2.9) + t2 * 2.4) * 0.055
                                +  d2 * cos(dot(w, d2 * 4.3) + t2 * 3.1) * 0.035) * _WaveAmount;
-                    N = normalize(N + float3(wob.x, 0, wob.y) * 3.0);
+                    N = normalize(N + float3(wob.x, 0, wob.y) * 3.0 * waterMask);
 
                     float surf = s1 * 0.5 + s2 * 0.32 + swell * 0.5;
-                    albedo *= 1.0 + surf * 0.09 * _WaveAmount;
+                    albedo *= 1.0 + surf * 0.09 * _WaveAmount * waterMask;
 
                     // Foam sits on the brink of a crest, not across the whole of it.
                     float foam = smoothstep(0.86, 1.05, surf);
-                    albedo = lerp(albedo, _Highlight.rgb, foam * _WaveAmount * 0.55);
+                    albedo = lerp(albedo, _Highlight.rgb, foam * _WaveAmount * 0.55 * waterMask);
+                }
+
+                // the surf, over the top of whatever the water surface is doing
+                if (_TideAmount > 0.001)
+                {
+                    float lace = SrdFbm(w * 5.5 + float2(0, t * 0.6));
+                    float foamEdge = saturate(breaker * (0.6 + lace * 0.8));
+                    float foamDry = swashWet * smoothstep(0.45, 0.85, lace) * 0.5;
+                    albedo = lerp(albedo, _FoamColor.rgb,
+                                  saturate(foamEdge + foamDry) * _TideAmount * 0.85);
                 }
 
                 // ── sand: a slow travelling corduroy over the top of the streaks ────────────

@@ -63,6 +63,18 @@ float SrdFbm(float2 p)
     return v;
 }
 
+/// Signed distance to a rounded box, in 2D. Negative inside, and the value outside is a real
+/// distance, so a ring is `abs(d - r)` and nothing else.
+///
+/// Every ripple this project throws used to be a circle, because a circle is one length() call.
+/// But nothing on this board is round: a card is a rounded rectangle, and the material shoved
+/// aside by one piles up in that shape rather than in a disc around it. Same cost, right shape.
+float SrdRoundBox(float2 p, float2 halfSize, float radius)
+{
+    float2 d = abs(p) - max(halfSize - radius, 0.0);
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - radius;
+}
+
 float2 SrdRotate(float2 v, float degrees)
 {
     float a = radians(degrees);

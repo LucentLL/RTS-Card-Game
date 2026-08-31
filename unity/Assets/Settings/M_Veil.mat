@@ -27,12 +27,16 @@ Material:
     m_Floats:
     - _Amount: 1
     - _BoardClear: 0.85
+    - _Grains: 1
+    - _GustRound: 0.22
     - _NearFade: 3.5
     - _Scale: 7
     - _Specks: 1
     - _Speed: 1.5
     m_Colors:
     - _BoardHalf: {r: 4, g: 3.3, b: 0, a: 0}
+    - _GrainColor: {r: 1, g: 0.95, b: 0.84, a: 1}
+    - _GustHalf: {r: 0.5, g: 0.72, b: 0, a: 0}
     - _SunColor: {r: 1, g: 0.9, b: 0.75, a: 1}
     - _SunDir: {r: 0.2, g: 0.25, b: 0.9, a: 0}
     - _VeilColor: {r: 0.9, g: 0.84, b: 0.65, a: 1}

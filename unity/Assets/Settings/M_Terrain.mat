@@ -57,22 +57,32 @@ Material:
     - _StreakAmount: 0.3
     - _StreakScale: 3
     - _SunIntensity: 0.95
+    - _TideAmount: 0
+    - _TideLevel: 9
+    - _TidePeriod: 26
+    - _TideRange: 3.4
     - _TroughShade: 0.25
     - _WaveAmount: 0
+    - _WaveFreq: 0.55
+    - _WaveSpeed: 2.1
     m_Colors:
     - _BaseColor: {r: 0.24, g: 0.42, b: 0.2, a: 1}
     - _BounceColor: {r: 0.29, g: 0.25, b: 0.2, a: 1}
     - _CloudDir: {r: 1, g: 0.35, b: 0, a: 0}
+    - _DeepColor: {r: 0.1, g: 0.24, b: 0.34, a: 1}
     - _DispOrigin: {r: -18, g: -14, b: 0, a: 0}
     - _DispSize: {r: 36, g: 28, b: 0, a: 0}
+    - _FoamColor: {r: 0.94, g: 0.98, b: 0.99, a: 1}
     - _HazeColor: {r: 0.78, g: 0.84, b: 0.88, a: 1}
     - _Highlight: {r: 0.62, g: 0.78, b: 0.48, a: 1}
     - _IslandExtent: {r: 10, g: 8, b: 0, a: 0}
     - _SkyColor: {r: 0.6, g: 0.71, b: 0.85, a: 1}
     - _SunColor: {r: 1, g: 0.93, b: 0.82, a: 1}
     - _SunDir: {r: 0.2, g: 0.25, b: 0.9, a: 0}
+    - _TideDir: {r: 0, g: 0, b: 1, a: 0}
     - _Tint2: {r: 0.28, g: 0.47, b: 0.22, a: 1}
     - _Tint3: {r: 0.2, g: 0.36, b: 0.17, a: 1}
+    - _WaterColor: {r: 0.2, g: 0.42, b: 0.48, a: 1}
     - _WindDir: {r: 1, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

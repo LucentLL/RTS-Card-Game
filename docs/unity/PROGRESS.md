@@ -1091,3 +1091,95 @@ standing) and `battle-stack.png` (all three told as one clash). Worth rememberin
 harness: it composites the camera's render texture with the UI Toolkit panel's, so IMGUI is not in
 a probe shot at all — the mode row's join hint and the side rail have never been in one and cannot
 be checked there.
+
+### 2026-08-31 — Terrain, second pass: the grass, the ash that lands, the tide
+
+Five notes from the phone, all of them about the ground, and four of the five were the same
+complaint in different weather: the effect was drawn rather than happening.
+
+* **"I really do not like the grass you keep adding to backgrounds. I was hoping for something
+  more like this."** The reference is HAIR — long thin blades, many of them, overlapping into a
+  swept surface. What shipped was a 40×64 tuft of six fat blades on a quad 0.175 wide by 0.185
+  tall: a near-square sprite of near-square blades, at which size a meadow reads as a field of
+  cabbages. The cell is 44×112 now, a blade is under two texels across against 112 of height,
+  there are twenty of them in a clump, and the quad matches the cell's 1 : 2.3. The atlas has
+  MIPS (hair-thin blades with none crawl the moment the camera moves) and a gutter either side of
+  every variant so the mip chain cannot bleed one into the next. Six variants, not four.
+
+  The bushes were the other half of the cabbages: 0.92 wide against 0.70 tall is a shrub. They are
+  TUSSOCKS now — 0.34 by 0.95, the same clump grown tall — so the canopy has a height to it
+  without a hedge in it. And the wind field gained a term: the dual-scroll noise gives a meadow
+  that breathes in patches, which is right, but what the eye reads as wind on long grass is a
+  coherent band travelling downwind, and that is one sine along the wind direction.
+
+* **"I'm not a fan of the blocky ashflakes slowly going diagonally. They should fall randomly onto
+  the ground (cards and tiles, partially covering cards until they move)."** Both halves of that
+  are one mistake: the fall was a screen-space pass. A screen-space disc has no perspective, so a
+  flake over the far wall is drawn the size of one by the camera — that is the blockiness — and a
+  pass with no ground in it has nowhere to land, so everything left the bottom of the frame still
+  falling.
+
+  The flakes are in the WORLD now: one quad each, with a fixed landing point on the terrain (or on
+  the cards, over the board), flown down to it by the vertex shader on its own clock, its own
+  wobble, its own rate. In the last few percent of its cycle a flake lies flat, fades, and hands
+  its coverage to a new layer.
+
+  That layer (`SRD_Settle`) is what accumulates. A sheet that follows the ground, drawn AFTER the
+  cards so it lies on them, with coverage from one channel of a texture the CPU grows over time.
+  Growth is a THRESHOLD against fixed noise rather than a rising alpha, because ash arrives in
+  patches that spread and join rather than as a wash getting stronger. "Until they move" needs no
+  special case: a cell whose occupant changed has its patch of the field set to zero and starts
+  again. Coverage stops growing well short of full — a field at 1 is uniform, a field at 0.58 is
+  patchy, and patchy is what settled ash looks like — and it thins hard away from the board,
+  because scorched ground is DARK and burying the horizon in pale grey loses the biome.
+
+  The one thing it needed that is not weather: a mask. The standees are sprites that write no
+  depth, so a sheet drawn after them would paint ash across every figure's knees. G channel carries
+  the strip of ground each standing piece hides — from its own front edge to about a unit behind
+  it, which at 42° is exactly what its billboard covers — and the sheet skips it. Nothing visible
+  is lost, because a figure is standing in front of all of it.
+
+* **"Shore is decent, but it would be nice if the tide came in and out instead of always flowing
+  one way. There should also be wave lines."** The tide is a waterline on one axis: a slow breath,
+  a faster swash riding on it, and a low-frequency noise bending it so the shore is not ruled
+  straight. Wave lines march shoreward, packed and standing taller as they shoal, and break in a
+  band of foam pinned to the water's edge wherever it currently is. Behind the retreating water the
+  sand stays dark and holds a lace of foam.
+
+  It runs ACROSS THE BOARD, and that is not a liberty — it is what the framing leaves. The camera
+  frames the board to FILL the viewport, so everything past the far row compresses into sixty rows
+  of pixels: the first build put a sea out there and it was a bright sliver under the wall band
+  that read as a bug. A beach flat enough to fight on is a beach the wash runs over. Over the tiles
+  the water thins to a wet film and the foam does the describing, because a card under three
+  quarters of an opaque water tint is a card you cannot read.
+
+  `TerrainField.TideFreeze` pins the cycle for the probe. A twenty-second tide photographed at the
+  wrong second is an empty beach, and "is the sea there" should not be a question a test answers by
+  luck: `tide-in.png` and `tide-out.png` are the pair.
+
+* **"Ripples or land displacement should be relatively card shaped, not just circles — rectangles
+  with soft rounded edges."** They are. `SrdRoundBox` is one SDF call where `length()` was, and it
+  now shapes the hollow a piece presses into the ground, the rim of material shoved out of it, and
+  the ring of wind a landing throws through the grass and the veil. Same cost, right shape. While
+  the board's footprint was being read properly for the press, the plateau was fixed with it: it
+  had assumed a square 1.08 pitch and the rows are stretched by 1.45, so the flat area the board
+  stands on was a third too shallow and the back row had the foot of a dune in it.
+
+* **"Dunes looks nice, but the wind with grains seems poorly done by comparison."** Sand does not
+  travel as dots. It saltates — a grain hops downwind in a long flat arc — so what a camera catches
+  is a dash, and a field of round specks at one size and one speed is a noise texture. Two passes
+  of dashes now, each grain sliding through its own cell over its own short life so it fades in,
+  runs and fades out; only on the lowest sheets, where sand travels; and gated by the sheet field,
+  so grains stream inside the gusts and the air between them is clear.
+
+  The first attempt at this was a downpour, and the reason is worth writing down: the dune wind runs
+  nearly AWAY from the camera, so a dash elongated along it projects as a vertical streak. Blowing
+  sand came out looking like rain. The elongation has to stay small at this angle, the grains have
+  to be rare, and they need a far fade — a horizontal sheet at a grazing angle packs its far half
+  into a few rows of pixels, and without one the top of the frame silts up with everything the
+  sheet holds.
+
+346 tests (341 passing, 5 skipped), no rules touched — this is all scenery. Four new probes:
+`settled-scorched.png` and `settled-drifts.png` (a board that weather has been landing on, via
+`TerrainField.PrimeSettle`, because waiting twenty-five seconds of match for a screenshot is a
+probe nobody runs) and the tide pair.

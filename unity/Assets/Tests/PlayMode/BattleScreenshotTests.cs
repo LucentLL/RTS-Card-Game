@@ -430,6 +430,63 @@ namespace SpawnRowDuel.PlayTests
         }
 
         /// <summary>
+        /// A board that weather has been landing on for a while.
+        ///
+        /// The falling half of the weather photographs itself; the SETTLED half does not, because
+        /// it takes twenty-five seconds of match to build and a probe frame is taken in one. So
+        /// the field is filled directly and the shot answers the only question that matters:
+        /// does a covered board still read as a board.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureSettled()
+        {
+            yield return PlayToMidGame();
+
+            var terrain = Object.FindFirstObjectByType<TerrainField>();
+            Assert.IsNotNull(terrain, "the Battle scene has no TerrainField");
+
+            foreach (var id in new[] { BiomeId.Ash, BiomeId.Snow })
+            {
+                TerrainField.Requested = id;
+                yield return Frames(6);
+                terrain.PrimeSettle(0.95f);
+                yield return Frames(3);
+                yield return Shoot("settled-" + Biomes.NameOf(id) + ".png");
+            }
+
+            TerrainField.Requested = BiomeId.Grass;
+        }
+
+        /// <summary>
+        /// The shore at both ends of its breath.
+        ///
+        /// The tide is a twenty-second cycle and a screenshot is one instant of it, so the first
+        /// shot of this beach was taken at low water with the sea off the top of the frame - a
+        /// picture of an empty beach that looked exactly like a bug. The pair is the test: water
+        /// well up the sand in one, drawn back with a wet band behind it in the other.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureTide()
+        {
+            yield return PlayToMidGame();
+
+            TerrainField.Requested = BiomeId.Shore;
+            yield return Frames(6);
+
+            TerrainField.TideFreeze = 0.95f;      // in
+            yield return Frames(3);
+            yield return Shoot("tide-in.png");
+
+            TerrainField.TideFreeze = 0.05f;      // out
+            yield return Frames(3);
+            yield return Shoot("tide-out.png");
+
+            TerrainField.TideFreeze = -1f;        // static: never leave the sea frozen
+            TerrainField.Requested = BiomeId.Grass;
+            yield return Frames(2);
+        }
+
+        /// <summary>
         /// The same frame twice, a fixed slice of GAME TIME apart, plus a gust in between.
         ///
         /// This exists because a still cannot fail the only question the terrain has: does it
