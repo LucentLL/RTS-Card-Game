@@ -64,8 +64,19 @@ namespace SpawnRowDuel.View.Cards
         /// hovering over one. Standing it at the front of its own tile puts the card behind it,
         /// where the ground a standee stands on belongs.
         /// </summary>
-        const float FeetFromFront = 0.11f;
-        const float StructFeetFromFront = 0.12f;
+        ///
+        /// 0.26 now, up from 0.11. The card frame prints its stat bar in the bottom 15.5% of the
+        /// card and its ability box in the 21.1% above that, so a figure at 0.11 was standing
+        /// INSIDE its own health meter - which is what forced the plate to draw every number over
+        /// the top of the field art to stay readable. 0.26 is the seam between the ability box and
+        /// the illustration: the whole readout is in front of the feet and the art is behind them,
+        /// so neither has to be drawn through the other. Still well forward of the tile's CENTRE,
+        /// which is the number that made buildings look like they were hovering.
+        /// 0.37, not the 0.26 tried on the way: 0.26 lands INSIDE the ability box, and a wide
+        /// cut-out still had its skirts across the statline. 0.366 is where the readout actually
+        /// ends, so 0.37 is the seam.
+        const float FeetFromFront = 0.37f;
+        const float StructFeetFromFront = 0.38f;
 
         /// <summary>
         /// How high the figure stands: just clear of the card plate lying on the tile (0.03) and
@@ -314,7 +325,10 @@ namespace SpawnRowDuel.View.Cards
         /// still has a move and somewhere to move to. On the opponent's turn the question is
         /// instead "could it still block", which a sick creature can and a spent blocker cannot.
         /// </summary>
-        bool CanActNow(CreatureUnit c, CellRef at, GameState s)
+        /// <remarks>Public and static because the SCENERY needs the same answer: a figure that
+        /// is lying down hides no ground behind it, so settled ash must not be masked off its
+        /// card. It touches no instance state, so there is nothing to share but the rule.</remarks>
+        public static bool CanActNow(CreatureUnit c, CellRef at, GameState s)
         {
             if (c == null) return true;
             if (s.Turn == c.Owner)

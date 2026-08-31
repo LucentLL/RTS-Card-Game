@@ -1,4 +1,5 @@
 using SpawnRowDuel.Rules;
+using SpawnRowDuel.View.Cards;
 using UnityEngine;
 
 namespace SpawnRowDuel.View.World
@@ -60,18 +61,36 @@ namespace SpawnRowDuel.View.World
         public int BladeSeed = 20260822;
 
         [Header("Displacement")]
-        // 0.11 world units a texel over the island - fine enough that the rim of displaced
-        // material around a card is a curve rather than a staircase.
+        // 0.11 world units a texel over the island. That used to have to describe the rim of
+        // displaced material around a card and it never could: a card covers its whole tile face,
+        // so the ground it leaves showing is the tile's own 0.040 gap - a third of a texel. The
+        // rim is drawn from the board's PITCH now (SRD_Terrain), so all this field carries is how
+        // flat the grass lies (R) and which squares have a piece on them (G).
         public int DispWidth = 320, DispHeight = 240;
         public float UnitPressStrength = 0.95f;   // a card presses the grass it is lying on
 
+        /// <summary>
+        /// How long a crushed square takes to stand back up, in seconds.
+        ///
+        /// There is no MOW any more. The board used to stamp 0.80 across its whole plateau, which
+        /// cut every blade over the playing surface to a third of its height and left a visible
+        /// rectangle of lawn in the middle of a meadow. The field is one field now: the grass on
+        /// the board is the same grass as the grass beside it, and the only thing that flattens it
+        /// is a CARD lying on it.
+        ///
+        /// Which means it has to come back, and slowly - grass that springs up the instant a unit
+        /// steps off is grass on a hinge. Nearly two minutes, so a square a creature left three
+        /// turns ago is still visibly trodden and a square it left ten turns ago is not.
+        /// </summary>
+        public float GrassRegrow = 110f;
+
         [Header("Settling")]
-        /// <summary>How deep a card sinks into the ground, in world units.</summary>
-        public float PressDepth = 0.085f;
-        /// <summary>How high the material shoved aside piles up around it.</summary>
-        public float BermHeight = 0.055f;
-        /// <summary>How far past a card's own footprint the displaced rim reaches.</summary>
-        public float BermReach = 0.42f;
+        /// <summary>How proud of the ground the rim around a card stands. Shading, not geometry:
+        /// see the impression block in SRD_Terrain for why it cannot be geometry.</summary>
+        public float RimRelief = 0.042f;
+        /// <summary>How far out of the card's own outline that rim reaches, in X units. It has to
+        /// fit inside the 0.040 of ground the tile leaves beside a card that covers its face.</summary>
+        public float RimReach = 0.036f;
         public float GustSpeed = 5f;             // world units per second the ring travels
         public float GustLife = 1.8f;
 
@@ -86,9 +105,13 @@ namespace SpawnRowDuel.View.World
         /// of world the press field covers. Coarser than the press field, because settled ash is
         /// broken up by noise in the shader and never shows a texel edge.</summary>
         public int SettleWidth = 160, SettleHeight = 120;
-        /// <summary>Seconds between accumulation ticks. Ash takes half a minute to cover a card;
-        /// resolving that at six frames a second is more than the eye can follow.</summary>
+        /// <summary>Seconds between accumulation ticks. Coverage arrives a ply at a time and eases
+        /// on over about a second; resolving that at six frames a second is all the eye can follow.</summary>
         public float SettleTick = 0.16f;
+        /// <summary>How fast a ply's worth of coverage eases on, in cover per second. Fast enough
+        /// that a ply has landed before the next one is billed - the AI beats a command every
+        /// 0.35s - and slow enough that it arrives as weather rather than as a lighting change.</summary>
+        public float SettleEase = 0.12f;
         /// <summary>How far past the board the settled layer reaches before it fades out.</summary>
         public float SettleReach = 5f;
 
@@ -109,12 +132,28 @@ namespace SpawnRowDuel.View.World
         Color32[] _settlePixels;
         float[] _settleLevel;
         int[] _cellOwner, _cellNow;
+        bool[] _cellStands, _cellIsStruct;
+
+        // how crushed each square is, 1 under a card and easing back to 0 once it leaves
+        float[] _pressLevel;
+        float _pressAt;
+        bool _pressDirty = true;
         float _settleRate, _settleCap = 1f, _settleAt;
+        float _settleOwed;            // coverage billed by a ply and not yet eased on
+        int _settleTurn = -1;
         bool _settleDirty;
 
         /// <summary>A card's own footprint, which is the shape everything the board presses into
         /// the ground now takes. Filled from the board's real cell size.</summary>
-        Vector2 _pressHalf = new Vector2(0.44f, 0.64f);
+        Vector2 _pressHalf = new Vector2(0.5f, 0.725f);
+
+        /// <summary>The corner radius the impression is drawn with. The card FRAME starts with a
+        /// filled rectangle and has square corners, so 0.16 was rounding a shape that is not
+        /// round - and offset outward by the rim it came out at an effective 0.37.</summary>
+        public const float CardRound = 0.06f;
+
+        /// <summary>What the press stamp rounds ITS corners by. Unchanged: R is read by the grass,
+        /// and a blade does not care about a tenth of a corner.</summary>
         const float PressRound = 0.16f;
 
         struct GustPulse { public Vector2 At; public float Born, Strength; }
@@ -143,11 +182,23 @@ namespace SpawnRowDuel.View.World
             {
                 _seenVersion = _match.Version;
                 SyncOccupancy();
+                _pressDirty = true;
+            }
+
+            // The press field changes on its own now - grass rises back out of a square a card has
+            // left - so it is repainted off a clock as well as off the board's version stamp. Five
+            // times a second: a hundred-second regrowth resolved any finer is work nobody can see.
+            if (StepPress()) _pressDirty = true;
+            if (_pressDirty && Time.time - _pressAt >= 0.2f)
+            {
+                _pressAt = Time.time;
+                _pressDirty = false;
                 RepaintDisplacement();
             }
 
             if (_groundMat != null) _groundMat.SetFloat("_TideFreeze", TideFreeze);
 
+            BillSettle();
             GrowSettle();
             PushGusts();
         }
@@ -225,30 +276,31 @@ namespace SpawnRowDuel.View.World
             System.Array.Clear(_dispPixels, 0, _dispPixels.Length);
 
             SyncBoardShape();
-            float boardX = TerrainHeight.PlateauHalf.x;
-            float boardZ = TerrainHeight.PlateauHalf.y;
 
-            // The board is MOWN. 0.30 was right when the meadow was 24 thin tufts a square
-            // unit and you could see between them; at a real density it buried the tiles and the
-            // grid with them. Grass still grows across the board - the cards lie in it - but it
-            // lies down hard enough to read the ground through.
-            StampRect(boardX, boardZ, 1.4f, 0.80f);
+            // NO BOARD-WIDE MOW. It used to stamp 0.80 across the whole plateau, and that is a
+            // lawn: every blade over the playing surface cut to a third of its height, in a
+            // rectangle, in the middle of a meadow. The one field runs straight under the board
+            // now and the only thing that flattens it is a card lying on it.
+            if (_match == null || _match.Board == null || _pressLevel == null) return;
 
-            if (_match != null && _match.Engine != null && _match.Board != null)
+            for (int i = 0; i < _pressLevel.Length; i++)
             {
-                foreach (var kv in _match.Engine.State.Objects())
-                {
-                    var cre = kv.Value as CreatureUnit;
-                    if (cre != null && cre.IsWorker) continue;
+                float level = _pressLevel[i];
+                if (level <= 0.004f) continue;
+                var at = _match.Board.WorldOf(CellRef.FromIndex(i));
 
-                    // A CARD SHAPE, not a disc. What is lying on the ground is a rectangle with
-                    // rounded corners, and the hollow it makes and the rim of material it shoves
-                    // out both take its outline - the concentric circles around every piece were
-                    // the single loudest tell that the ground was a shader and not ground.
-                    var at = _match.Board.WorldOf(kv.Key);
-                    StampRoundedRect(at, _pressHalf, PressRound, 0.34f, UnitPressStrength);
-                    StampRoundedBerm(at, _pressHalf, PressRound, BermReach, 1f);
-                }
+                // A CARD SHAPE, not a disc. R is what a blade reads to know how flat to lie, and
+                // 0.10 past the outline is the tile's own gap: beyond that a card has no business
+                // flattening anything. The rim of shoved-out material is not stamped here at all
+                // any more, because a texel is 0.11 units and the whole rim is 0.036 wide.
+                StampRoundedRect(at, _pressHalf, PressRound, 0.10f, UnitPressStrength * level);
+
+                // ...and G says only THAT SOMETHING IS HERE. The fragment reads it at the cell
+                // centre, where a whole card's worth of texels agree, and draws the impression
+                // itself from the pitch - so the shape is the card's, exactly, at pixel
+                // resolution, which no 0.11-unit texel and no 0.19-unit vertex could give it.
+                // Scaled by the same level, so the dent fades out as the grass stands back up.
+                StampCellFlag(at, level);
             }
 
             _disp.SetPixels32(_dispPixels);
@@ -283,43 +335,63 @@ namespace SpawnRowDuel.View.World
         }
 
         /// <summary>
-        /// The material shoved out of the way, as a rim OUTSIDE the card's outline.
+        /// "There is a piece on this square", as a solid patch of G around the cell centre.
         ///
-        /// Written to G while the hollow goes to R, so one texture fetch in the terrain shader
-        /// gets both. The rim is what actually sells "set into the ground" - a plain depression
-        /// under an opaque card is invisible, because the card is covering it. What you see is
-        /// the pile around the edge, and it is card-shaped because the card made it.
+        /// Deliberately CRUDE - it is a flag, not a shape. The shader rounds a world position to
+        /// the nearest cell centre and samples G there, so the only thing that has to be true is
+        /// that the texels around a centre all read 1; the impression's outline is arithmetic off
+        /// the pitch and owes this texture nothing. Half a card is stamped rather than a single
+        /// texel so that bilinear filtering cannot soften the flag at a cell centre.
+        ///
+        /// What used to be here was the rim of shoved-out material itself, and that is the change:
+        /// a texel is 0.11 units and the whole rim is 0.036 wide, so this texture never had the
+        /// resolution to draw it, and the ground mesh - 0.19 between vertices - had less.
         /// </summary>
-        void StampRoundedBerm(Vector3 world, Vector2 half, float round, float reach, float strength)
+        void StampCellFlag(Vector3 world, float level)
         {
             var c = new Vector2(world.x, world.z);
-            float span = Mathf.Max(half.x, half.y) + reach;
-            int x0 = WorldToTexelX(c.x - span), x1 = WorldToTexelX(c.x + span);
-            int y0 = WorldToTexelY(c.y - span), y1 = WorldToTexelY(c.y + span);
+            var half = _pressHalf * 0.5f;
+            int x0 = WorldToTexelX(c.x - half.x), x1 = WorldToTexelX(c.x + half.x);
+            int y0 = WorldToTexelY(c.y - half.y), y1 = WorldToTexelY(c.y + half.y);
 
             for (int y = Mathf.Max(0, y0); y <= Mathf.Min(DispHeight - 1, y1); y++)
                 for (int x = Mathf.Max(0, x0); x <= Mathf.Min(DispWidth - 1, x1); x++)
-                {
-                    float d = RoundBox(TexelToWorld(x, y) - c, half, round);
-                    if (d < 0f || d > reach) continue;
-
-                    // Peaks just outside the card and falls away - material does not pile up in
-                    // a wall, it slumps.
-                    float u = d / Mathf.Max(0.0001f, reach);
-                    float ring = Mathf.Sin(u * Mathf.PI);
-                    WriteG(x, y, strength * ring * ring);
-                }
+                    WriteG(x, y, level);
         }
 
-        void StampRect(float halfX, float halfZ, float falloff, float strength)
+        /// <summary>
+        /// Crush what is stood on and let the rest come back up. Returns whether anything moved.
+        ///
+        /// The crush is INSTANT and the recovery is not, which is the asymmetry the effect lives
+        /// on: a card lands with a thump, and the square it lands on is flat before the animation
+        /// has finished. What takes time is the grass standing up again after it leaves - and it
+        /// has to, because grass that springs back the frame a unit steps off is grass on a hinge.
+        /// </summary>
+        bool StepPress()
         {
-            for (int y = 0; y < DispHeight; y++)
-                for (int x = 0; x < DispWidth; x++)
+            if (_match == null || _match.Board == null || _cellNow == null) return false;
+
+            if (_pressLevel == null || _pressLevel.Length != _cellNow.Length)
+            {
+                _pressLevel = new float[_cellNow.Length];
+                return true;
+            }
+
+            float back = Time.deltaTime / Mathf.Max(1f, GrassRegrow);
+            bool moved = false;
+            for (int i = 0; i < _pressLevel.Length; i++)
+            {
+                if (_cellNow[i] != 0)
                 {
-                    Vector2 w = TexelToWorld(x, y);
-                    float d = Mathf.Max(Mathf.Abs(w.x) - halfX, Mathf.Abs(w.y) - halfZ);
-                    Write(x, y, strength * (1f - Mathf.Clamp01(d / falloff)));
+                    if (_pressLevel[i] < 1f) { _pressLevel[i] = 1f; moved = true; }
                 }
+                else if (_pressLevel[i] > 0f)
+                {
+                    _pressLevel[i] = Mathf.Max(0f, _pressLevel[i] - back);
+                    moved = true;
+                }
+            }
+            return moved;
         }
 
         void Write(int x, int y, float v)
@@ -575,6 +647,7 @@ namespace SpawnRowDuel.View.World
             _veil = go.AddComponent<MeshRenderer>();
             _veil.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _veil.receiveShadows = false;
+            _veil.sortingOrder = 45;      // the air is in front of everything it blows across
             _veilMat = Instance(VeilMaterial);
             _veil.sharedMaterial = _veilMat;
         }
@@ -683,6 +756,7 @@ namespace SpawnRowDuel.View.World
             _fall = go.AddComponent<MeshRenderer>();
             _fall.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _fall.receiveShadows = false;
+            _fall.sortingOrder = 40;      // in front of the settled sheet, as falling is of fallen
             _fallMat = Instance(FallMaterial);
             _fall.sharedMaterial = _fallMat;
         }
@@ -717,8 +791,35 @@ namespace SpawnRowDuel.View.World
         }
 
         /// <summary>
-        /// Grow the cover. Off a clock rather than per frame: ash takes half a minute to bury a
-        /// card and there is nothing in that to resolve at sixty frames a second.
+        /// Bill a ply's worth of coverage, once, when the turn number moves.
+        ///
+        /// The rate used to be per WALL-CLOCK SECOND, and the doc comments claiming half a minute
+        /// to bury a card were out by two: 0.055 a second against a cap of 0.72 is thirteen
+        /// seconds to full and under nine to half cover, so the board went from clean to buried
+        /// inside about one round - and, worse, it went on thickening while a player sat looking
+        /// at their hand. Everything else in this system is turn-shaped ("until they move", the
+        /// wipe on an occupancy change); the clock was the odd one out, and it was the complaint.
+        ///
+        /// A ply at a time puts it back where it belongs. Cover starts showing around the fourth
+        /// ply and caps around the tenth, and nothing changes while nobody is playing.
+        /// </summary>
+        void BillSettle()
+        {
+            if (_settleRate <= 0.0001f || _match == null || _match.Engine == null) return;
+
+            int turn = _match.Engine.State.TurnNumber;
+            if (turn == _settleTurn) return;
+
+            // One ply's worth however far the number jumped - a rematch resets it to 1 and a
+            // backwards step must not bank a negative debt.
+            _settleTurn = turn;
+            _settleOwed = Mathf.Min(_settleOwed + _settleRate, _settleRate * 2f);
+        }
+
+        /// <summary>
+        /// Ease the billed coverage on. Off a clock rather than per frame: what a ply buys is
+        /// about a fiftieth of the visible band, and there is nothing in that to resolve at sixty
+        /// frames a second.
         /// </summary>
         /// <summary>
         /// Fill the accumulation field, for the screenshot probe.
@@ -731,6 +832,14 @@ namespace SpawnRowDuel.View.World
         public void PrimeSettle(float level)
         {
             if (_settleLevel == null) return;
+            // OCCUPANCY FIRST, then the fill. The other way round - which is how this read - has
+            // SyncOccupancy see every piece as newly arrived (the ownership array is empty until
+            // it runs once) and wipe the square each one is standing on, so the probe photographed
+            // a fully settled field with a clean rectangle under every card. Priming means "this
+            // has been falling for a while", and a card that has been sitting there the whole time
+            // is a card it has been falling ON.
+            SyncOccupancy();
+
             level = Mathf.Min(Mathf.Clamp01(level), _settleCap);
             byte b = (byte)(level * 255f);
             for (int i = 0; i < _settleLevel.Length; i++)
@@ -738,7 +847,6 @@ namespace SpawnRowDuel.View.World
                 _settleLevel[i] = level;
                 _settlePixels[i].r = b;
             }
-            SyncOccupancy();          // the pieces standing on it still wipe their own squares
             _settleDirty = true;
             _settleTex.SetPixels32(_settlePixels);
             _settleTex.Apply(false);
@@ -749,6 +857,8 @@ namespace SpawnRowDuel.View.World
         {
             if (_settleLevel == null) return;
             System.Array.Clear(_settleLevel, 0, _settleLevel.Length);
+            _settleOwed = 0f;
+            _settleTurn = -1;
             for (int i = 0; i < _settlePixels.Length; i++) _settlePixels[i].r = 0;
             _settleDirty = true;
             if (_cellOwner != null) System.Array.Clear(_cellOwner, 0, _cellOwner.Length);
@@ -759,12 +869,17 @@ namespace SpawnRowDuel.View.World
             if (_settleTex == null || _settleLevel == null) return;
             if (Time.time - _settleAt < SettleTick) return;
 
-            float dt = Time.time - _settleAt;
+            // dt is CLAMPED. A biome change rebuilds the ground, forty-eight thousand blades and
+            // three thousand flake quads in one frame, and a WebGL hitch is longer still; without
+            // this the first tick after one of those dumps a whole ply in a single frame, which is
+            // the exact thing the easing exists to prevent.
+            float dt = Mathf.Min(Time.time - _settleAt, 0.25f);
             _settleAt = Time.time;
 
-            if (_settleRate > 0.0001f)
+            if (_settleRate > 0.0001f && _settleOwed > 0.0001f)
             {
-                float step = _settleRate * dt;
+                float step = Mathf.Min(_settleOwed, SettleEase * dt);
+                _settleOwed -= step;
                 bool any = false;
                 for (int i = 0; i < _settleLevel.Length; i++)
                 {
@@ -800,19 +915,30 @@ namespace SpawnRowDuel.View.World
             {
                 _cellOwner = new int[cells];
                 _cellNow = new int[cells];
+                _cellStands = new bool[cells];
+                _cellIsStruct = new bool[cells];
             }
 
+            var state = _match.Engine.State;
             System.Array.Clear(_cellNow, 0, cells);
-            foreach (var kv in _match.Engine.State.Objects())
+            System.Array.Clear(_cellStands, 0, cells);
+            foreach (var kv in state.Objects())
             {
                 int i = kv.Key.Index;
-                if (i >= 0 && i < cells && kv.Value != null) _cellNow[i] = kv.Value.Id;
+                if (i < 0 || i >= cells || kv.Value == null) continue;
+                _cellNow[i] = kv.Value.Id;
+                _cellIsStruct[i] = kv.Value is StructureUnit;
+                _cellStands[i] = StandsUp(kv.Value, kv.Key, state);
             }
 
             // G is a pure function of who is standing where, so it is rebuilt rather than patched
             for (int i = 0; i < _settlePixels.Length; i++) _settlePixels[i].g = 0;
 
-            var pad = _pressHalf + new Vector2(0.14f, 0.14f);
+            // The card, plus the tile's own gap. It used to be 0.14 on a _pressHalf that was 88%
+            // of a card, which wiped 1.28 x 1.73 of clean ground around a 1.00 x 1.45 card - the
+            // ground's own complaint, in ash. 0.06 and no less, though: the sheet draws a hair
+            // above the card and at this angle that height throws about 0.03 of ash forward.
+            var pad = _pressHalf + new Vector2(0.06f, 0.06f);
             for (int i = 0; i < cells; i++)
             {
                 var world = _match.Board.WorldOf(CellRef.FromIndex(i));
@@ -823,7 +949,7 @@ namespace SpawnRowDuel.View.World
                     WipeSettle(world, pad);
                 }
 
-                if (_cellNow[i] != 0) MaskFigure(world);
+                if (_cellStands[i]) MaskFigure(world, _cellIsStruct[i]);
             }
 
             _settleDirty = true;
@@ -831,8 +957,15 @@ namespace SpawnRowDuel.View.World
 
         void WipeSettle(Vector3 world, Vector2 half)
         {
+            // 0.08 of rim, not 0.2. What actually sets the size of the bare patch a new card
+            // leaves is this ramp rather than the pad above it, and at 0.2 the clean rectangle
+            // came out 1.52 x 1.97 around a 1.00 x 1.45 card - the ground's own complaint again,
+            // in ash. Still a ramp and not a stencil: an edge this sharp on a field broken up by
+            // noise would be the one straight line on the board.
+            const float Rim = 0.08f;
+
             var c = new Vector2(world.x, world.z);
-            float reach = Mathf.Max(half.x, half.y) + 0.2f;
+            float reach = Mathf.Max(half.x, half.y) + Rim;
             int x0 = SettleTexelX(c.x - reach), x1 = SettleTexelX(c.x + reach);
             int y0 = SettleTexelY(c.y - reach), y1 = SettleTexelY(c.y + reach);
 
@@ -840,37 +973,67 @@ namespace SpawnRowDuel.View.World
                 for (int x = Mathf.Max(0, x0); x <= Mathf.Min(SettleWidth - 1, x1); x++)
                 {
                     float d = RoundBox(SettleTexelToWorld(x, y) - c, half, PressRound);
-                    if (d > 0.2f) continue;
+                    if (d > Rim) continue;
 
                     int i = y * SettleWidth + x;
-                    float keep = Mathf.Clamp01(d / 0.2f);      // a soft rim, not a stencil
+                    float keep = Mathf.Clamp01(d / Rim);
                     _settleLevel[i] *= keep;
                     _settlePixels[i].r = (byte)(_settleLevel[i] * 255f);
                 }
         }
 
-        /// <summary>The strip of ground a standing billboard covers: its own square, and about a
-        /// square and a half of ground behind it.</summary>
-        void MaskFigure(Vector3 world)
+        /// <summary>
+        /// Whether a FIGURE is actually drawn standing up on this square.
+        ///
+        /// The mask below exists for one reason - a standee is a sprite that writes no depth, so
+        /// ash drawn after it would be painted across its knees - and it was being stamped for
+        /// every occupied cell instead, whatever was on it. That is the whole of "the snow does
+        /// not accumulate on the cards": a face-down charge has no figure at all (StandeeLayer
+        /// skips anything that is not a creature or a structure, and bails again when the card has
+        /// no cut-out), and a LAID creature - which is every creature on the turn it arrives and
+        /// every attacker after it swings - lies flat on its own card and hides nothing behind it.
+        /// All three were masking a strip of ground nothing was standing in front of.
+        /// </summary>
+        bool StandsUp(BoardObject o, CellRef at, GameState s)
+        {
+            if (!StandeeLayer.Enabled) return false;
+            if (!(o is CreatureUnit) && !(o is StructureUnit)) return false;
+            var cre = o as CreatureUnit;
+            if (cre != null && cre.IsWorker) return false;
+
+            var def = _match.DefOfObject(o);
+            if (def == null || !def.HasFieldArt) return false;
+
+            return cre == null || StandeeLayer.CanActNow(cre, at, s);
+        }
+
+        /// <summary>The strip of ground a standing billboard covers: from its own FEET back, which
+        /// is not the same as from its own square back.</summary>
+        void MaskFigure(Vector3 world, bool structure)
         {
             var c = new Vector2(world.x, world.z);
-            // A figure stands at the FRONT of its tile and rises about a tile's height, so at a
-            // 42-degree camera it hides the ground from its own front edge to roughly one unit
-            // behind it. Any more than that and the mask starts clearing ash from ground nothing
-            // is standing in front of, which reads as a swept rectangle.
-            float halfW = _pressHalf.x * 0.72f, reach = 1.05f, feather = 0.3f;
 
-            int x0 = SettleTexelX(c.x - halfW - feather), x1 = SettleTexelX(c.x + halfW + feather);
-            int y0 = SettleTexelY(c.y - 0.32f), y1 = SettleTexelY(c.y + reach + feather);
+            // A figure is planted at the FRONT of its tile (StandeeLayer.FeetOffset) and stands
+            // about a tile-and-a-half tall, so at 42 degrees it hides 1.6 units of ground BEHIND
+            // its feet - and none at all in front of them. The mask used to run from 0.32 in front
+            // of the CELL CENTRE, which is 0.25 forward of the feet and covers the one strip of an
+            // occupied card the figure does not already hide: the stats band at its near edge.
+            // That strip is where ash on a card is actually seen, so the front edge is hard now.
+            float front = -StandeeLayer.FeetOffset(_match.Board, structure);
+            const float Reach = 1.62f, Feather = 0.22f, Toe = 0.06f;
+            float halfW = _pressHalf.x * 0.84f;
+
+            int x0 = SettleTexelX(c.x - halfW - Feather), x1 = SettleTexelX(c.x + halfW + Feather);
+            int y0 = SettleTexelY(c.y + front), y1 = SettleTexelY(c.y + front + Reach + Feather);
 
             for (int y = Mathf.Max(0, y0); y <= Mathf.Min(SettleHeight - 1, y1); y++)
                 for (int x = Mathf.Max(0, x0); x <= Mathf.Min(SettleWidth - 1, x1); x++)
                 {
                     var w = SettleTexelToWorld(x, y) - c;
-                    float dx = Mathf.Abs(w.x) - halfW;
-                    float dz = Mathf.Max(-0.32f - w.y, w.y - reach);
-                    float d = Mathf.Max(dx, dz);
-                    float v = 1f - Mathf.Clamp01(d / feather);
+                    float side = 1f - Mathf.Clamp01((Mathf.Abs(w.x) - halfW) / Feather);
+                    float back = 1f - Mathf.Clamp01((w.y - (front + Reach)) / Feather);
+                    float ahead = Mathf.Clamp01((w.y - front) / Toe);
+                    float v = side * back * ahead;
                     if (v <= 0f) continue;
 
                     int i = y * SettleWidth + x;
@@ -922,8 +1085,12 @@ namespace SpawnRowDuel.View.World
                 {
                     float x = Mathf.Lerp(-half.x, half.x, i / (float)N);
                     float z = Mathf.Lerp(-half.y, half.y, j / (float)N);
+                    // 0.055 over the ground, so on the plateau the sheet lies at y 0.035 - five
+                    // thousandths over the card plate at 0.030. It was 0.075, and at 42 degrees
+                    // that extra height threw the ash a full 0.03 forward of whatever it was
+                    // supposed to be lying on.
                     verts[j * (N + 1) + i] =
-                        new Vector3(x, TerrainHeight.At(x, z, look.Terrain) + 0.075f, z);
+                        new Vector3(x, TerrainHeight.At(x, z, look.Terrain) + 0.055f, z);
                 }
 
             int t2 = 0;
@@ -963,6 +1130,18 @@ namespace SpawnRowDuel.View.World
             _settle = go.AddComponent<MeshRenderer>();
             _settle.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _settle.receiveShadows = false;
+
+            // SORTING ORDER, not the render queue, and this is the whole reason ash never lay on a
+            // card. The material is Transparent+10 and the card plates are Sprites/Default at
+            // 3000, so on queue alone the sheet draws second and wins - but a renderer's sorting
+            // layer and order are compared BEFORE its queue, and every plate sprite carries an
+            // explicit order (4 to 16) while a bare MeshRenderer carries 0. The sheet was sorting
+            // underneath every card on the board and the queue never got a say.
+            //
+            // 30 puts it over the plates and over the standees (20) as well, which is intended:
+            // the figures are handled by the G mask, which exists precisely because they write no
+            // depth for the sheet to test against.
+            _settle.sortingOrder = 30;
             _settleMat = Instance(SettleMaterial);
             _settle.sharedMaterial = _settleMat;
         }
@@ -988,7 +1167,10 @@ namespace SpawnRowDuel.View.World
 
             TerrainHeight.PlateauHalf = new Vector2(Board.Columns * col * 0.5f,
                                                     (Board.Rows + 2) * row * 0.5f);
-            _pressHalf = new Vector2(cellW * 0.44f, cellD * 0.44f);
+            // THE CARD, exactly. CardPlateLayer.Fill is 1, so a card covers its whole tile face -
+            // 0.44 was drawing every impression, gust ring and ash wipe at 88% of the thing that
+            // made it, and then the settle sheet multiplied it back up by 1.14 to compensate.
+            _pressHalf = new Vector2(cellW * 0.5f, cellD * 0.5f);
         }
 
         /// <summary>The board's cell pitch, for anything that has to line up with the grid.</summary>
@@ -1063,8 +1245,17 @@ namespace SpawnRowDuel.View.World
                 _groundMat.SetTexture("_DispTex", _disp);
                 _groundMat.SetVector("_DispOrigin", new Vector4(_dispOrigin.x, _dispOrigin.y, 0f, 0f));
                 _groundMat.SetVector("_DispSize", new Vector4(_dispSize.x, _dispSize.y, 0f, 0f));
-                _groundMat.SetFloat("_PressDepth", PressDepth);
-                _groundMat.SetFloat("_BermHeight", BermHeight);
+
+                // The impression is drawn from the board's own geometry, so the shader is handed
+                // the pitch and the card's real half-size rather than anything measured off the
+                // press texture.
+                float impCol, impRow;
+                BoardCell(out impCol, out impRow);
+                _groundMat.SetVector("_CellPitch", new Vector4(impCol, impRow, 0f, 0f));
+                _groundMat.SetVector("_CellHalf", new Vector4(_pressHalf.x, _pressHalf.y, 0f, 0f));
+                _groundMat.SetFloat("_CardRound", CardRound);
+                _groundMat.SetFloat("_RimReach", RimReach);
+                _groundMat.SetFloat("_RimRelief", RimRelief);
 
                 _groundMat.SetColor("_HazeColor", look.HazeColor);
                 _groundMat.SetFloat("_HazeStart", look.HazeStart);
@@ -1076,6 +1267,10 @@ namespace SpawnRowDuel.View.World
                 _groundMat.SetColor("_Highlight", look.Highlight);
                 _groundMat.SetFloat("_WaveAmount", look.Waves);
                 _groundMat.SetFloat("_RippleAmount", look.Ripples);
+                _groundMat.SetVector("_SwellDir",
+                    new Vector4(look.SwellDir.x, 0f, look.SwellDir.y, 0f));
+                _groundMat.SetFloat("_SwellHeight", look.SwellHeight);
+                _groundMat.SetFloat("_SwellFoam", look.SwellFoam);
 
                 _groundMat.SetFloat("_TideAmount", look.TideAmount);
                 _groundMat.SetVector("_TideDir",
@@ -1164,7 +1359,7 @@ namespace SpawnRowDuel.View.World
                 BoardCell(out col, out row);
                 _settleMat.SetVector("_CellPitch", new Vector4(col, row, 0f, 0f));
                 _settleMat.SetVector("_CellHalf",
-                    new Vector4(_pressHalf.x * 1.14f, _pressHalf.y * 1.14f, 0f, 0f));
+                    new Vector4(_pressHalf.x, _pressHalf.y, 0f, 0f));
             }
 
             if (_bushMat != null)

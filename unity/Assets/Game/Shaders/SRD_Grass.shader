@@ -3,15 +3,19 @@ Shader "SpawnRowDuel/Grass"
     // Blades of grass, one camera-facing quad each, swaying in a wind field.
     //
     // Ported in structure from Dynamic 2D Grass (MIT, Jomoho Games, based on original work by
-    // Dylearn). Three things came across, and they are the three that matter:
+    // Dylearn). Four things came across, and they are the four that matter:
     //
     //  1. DUAL SCROLLING NOISE. One noise slid past the camera and read as a texture. Two, pulled
     //     a few degrees apart and scrolled at different rates, multiply into gusts.
-    //  2. A QUANTISED CLOCK, with a per-blade phase offset. Snapping the sway to ~7 steps a second
-    //     is what makes it read as drawn rather than tweened; the phase offset is what stops the
-    //     whole field stepping on the same frame, which just looks like dropped frames.
+    //  2. A QUANTISED CLOCK, with a per-blade phase offset. Snapping the sway to steps - twelve a
+    //     second, as the reference material sets it - is what makes it read as drawn rather than
+    //     tweened; the phase offset is what stops the whole field stepping on the same frame,
+    //     which just looks like dropped frames.
     //  3. SHEAR FROM THE BASE. The blade's foot is pinned and only its tip moves, weighted by
     //     height along the quad - so a field bends, it does not slide.
+    //  4. FAKE PERSPECTIVE. The clump is squeezed across its own width by the wind it stands in,
+    //     hardest at the root. This one was missing until the meadow was compared side by side
+    //     with the reference, and it is most of what the comparison was short of.
     //
     // The blade sprite is a generated TUFT atlas (GrassTextures), not a single tapered quad cut in
     // the fragment. That was the first version and it looked like what it was: a field of identical
@@ -34,14 +38,15 @@ Shader "SpawnRowDuel/Grass"
         _WindGain   ("Wind gain", Float) = 5.0
         _WindBias   ("Wind bias", Range(-1,1)) = 0.0
         _Sway       ("Sway", Float) = 0.22
-        _Framerate  ("Stepped framerate", Float) = 7.0
+        _Framerate  ("Stepped framerate", Float) = 12.0
+        _Perspective("Fake perspective", Range(0,0.6)) = 0.30
 
         // the press field: R is how flattened the grass is, and its GRADIENT is which way it lies
         _DispTex    ("Displacement", 2D) = "black" {}
         _DispOrigin ("Displacement origin (xz)", Vector) = (-18, -14, 0, 0)
         _DispSize   ("Displacement size (xz)", Vector) = (36, 28, 0, 0)
         _PushDist   ("Push distance (blade heights)", Float) = 1.15
-        _Flatten    ("Flatten", Range(0,1)) = 0.85
+        _Flatten    ("Flatten", Range(0,1)) = 0.94
 
         _BladeTex   ("Blade tufts", 2D) = "white" {}
         _Variants   ("Atlas variants", Float) = 6
@@ -105,7 +110,7 @@ Shader "SpawnRowDuel/Grass"
                 float4 _WindDir;
                 float _WindScale, _WindSpeed, _WindGain, _WindBias, _Sway, _Framerate;
                 float4 _DispOrigin, _DispSize, _DispTex_TexelSize;
-                float _PushDist, _Flatten, _Variants, _Inset, _TipLight, _Ripple;
+                float _PushDist, _Flatten, _Variants, _Inset, _TipLight, _Ripple, _Perspective;
                 float4 _GustHalf;
                 float _GustRound;
                 float _CloudScale, _CloudSpeed, _CloudShadowMin;
@@ -229,7 +234,21 @@ Shader "SpawnRowDuel/Grass"
                 // The atlas has a GUTTER either side of every cell so its mips cannot bleed one
                 // variant into the next, so the quad addresses the inset part of its cell only.
                 float variant = floor(i.tintLean.x * _Variants);
-                float2 uv = float2((variant + 0.5 + i.corner.x * _Inset) / _Variants, i.corner.y);
+
+                // FAKE PERSPECTIVE - the reference's third signature, and the one we did not have.
+                // The clump is squeezed across its own width by the wind it is standing in, hardest
+                // at the ROOT and not at all at the tip. It is what stops a billboard reading as a
+                // flat cut-out: a tuft leaning away from you is narrower at the bottom, and no
+                // amount of shearing the top says that.
+                //
+                // The driver is clamped to +/-1 first. Ours is not the reference's bounded noise -
+                // it is a saturated dual-scroll plus a travelling ripple, re-clamped at +/-1.4 - and
+                // at 1.4 the squeeze crops rather than narrows, so the outer blades of every clump
+                // vanish and the tuft visibly pumps in width with each gust.
+                float persp = clamp(i.tintLean.y, -1.0, 1.0) * _Perspective;
+                float across = clamp(i.corner.x * ((1.0 - i.corner.y) * persp + 1.0), -0.5, 0.5);
+
+                float2 uv = float2((variant + 0.5 + across * _Inset) / _Variants, i.corner.y);
                 half4 tuft = SAMPLE_TEXTURE2D(_BladeTex, sampler_BladeTex, uv);
                 clip(tuft.a - 0.05);
 

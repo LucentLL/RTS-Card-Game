@@ -63,6 +63,12 @@ namespace SpawnRowDuel.View
         private float _scale = 1f;
         private int _lastLogCount;
         private float _logShownUntil;
+        private bool _logOpen, _settingsOpen, _guiFaulted;
+        private float _pendingSince;
+        private int _inspectId = -1;
+        private float _inspectUntil;
+        private Vector2 _logScroll;
+        private Rect _rail;               // where DrawSideRail put itself, so the log can hang off it
         private readonly HashSet<int> _chosenBlockers = new HashSet<int>();
         private PendingRequest _seenPending;
         private bool _upgradeMenuOpen;
@@ -150,8 +156,6 @@ namespace SpawnRowDuel.View
             // by dropping those labels - the rows you attack into were the rows with no numbers.
             // UnitVitals hangs them off each tile's near edge instead, in UI Toolkit, where ♥ and
             // ⚔ have a font that can draw them.
-            DrawLog(w);
-
             // NOTHING is painted across the bottom here any more. IMGUI draws AFTER every UI
             // Toolkit panel, so a band painted here lands ON TOP of the hand rather than behind
             // it - that was the dark bar through the cards. The hand owns its own backdrop, and
@@ -166,16 +170,56 @@ namespace SpawnRowDuel.View
 
             PromptUpkeepOffender(s);
 
+            // ── every panel, behind one guard ───────────────────────────────────────────────
+            //
+            // OnGUI is a straight-line pass and every control the player has is downstream in it:
+            // the mode row, the rail with END TURN and BUILD, the build menu, the charge panel and
+            // the choice panel. So ONE exception anywhere in that sequence takes all of them off
+            // the screen - not for a frame, but for the rest of the match, because it throws again
+            // on the next pass and every pass after it.
+            //
+            // And it does not look like a crash while it happens. The board is drawn by six other
+            // MonoBehaviours with their own LateUpdate, and Unity isolates a throw to the callback
+            // it came from - so the grass keeps swaying, the standees keep bobbing, the phase track
+            // keeps saying ACTION, and nothing on the screen responds to anything. "The game is
+            // frozen in browser", exactly.
+            //
+            // This does not fix whatever throws. It makes the failure SURVIVABLE and, more to the
+            // point, VISIBLE: the player gets a line in the log naming the exception instead of a
+            // dead board, and on a build whose only test surface is a public URL that is the
+            // difference between a report anyone can act on and "it froze".
+            try
+            {
+                DrawPanels(s, w, h);
+            }
+            catch (System.Exception e)
+            {
+                if (!_guiFaulted)
+                {
+                    _guiFaulted = true;
+                    Debug.LogException(e);
+                    _match.Note("· HUD error: " + e.GetType().Name + " - " + e.Message);
+                }
+                DrawSideRail(s, w, h);      // whatever else fails, keep a way to end the turn
+            }
+
+            if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
+                GUI.Label(new Rect(0, h - BottomH - 22, w, 20), _hint, _center);
+        }
+
+        void DrawPanels(GameState s, float w, float h)
+        {
             // the hand is UI Toolkit now (HandBar) - real card faces, same band, same selection
             DrawModeRow(s, w, h);
             DrawSideRail(s, w, h);
+            DrawInspect(s, w, h);
+            DrawLog(w);
+            if (_logOpen) DrawLogHistory(w, h);
+            if (_settingsOpen) DrawSettings(w, h);
             if (_buildMenuOpen) DrawBuildMenu(s, w, h);
             else if (_upgradeMenuOpen) DrawUpgradeMenu(s, w, h);
             else DrawChargePanel(s, w, h);
             DrawChoicePanel(s, w, h);
-
-            if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
-                GUI.Label(new Rect(0, h - BottomH - 22, w, 20), _hint, _center);
         }
 
         /// <summary>
@@ -303,14 +347,24 @@ namespace SpawnRowDuel.View
         // font and the built-in font has none of them. The bar has been reading "FOE 10000 0
         // hand 4" on the deployed build for as long as it has existed.
 
+        /// <summary>
+        /// The last few lines of the log, in the RIGHT-HAND COLUMN above the turn rail.
+        ///
+        /// It used to run from the middle of the screen to the right edge along the top, and the
+        /// middle of the top of the screen is exactly where the foe's board is: the panel covered
+        /// their cards and, because it correctly blocks taps, covered the cells under them too.
+        /// The right edge is the one strip of screen the board never needs - the turn rail already
+        /// lives there - so the log stacks on top of the rail and the field is left alone.
+        ///
+        /// Still auto-hiding after five seconds. What it says is a thing that JUST happened; the
+        /// whole match is behind the LOG button on the rail.
+        /// </summary>
         void DrawLog(float w)
         {
             var log = _match.Log;
-            int lines = Mathf.Min(3, log.Count);
-            if (lines <= 0) return;
+            int lines = Mathf.Min(4, log.Count);
+            if (lines <= 0 || _logOpen) return;
 
-            // auto-hide: the panel sits over the foe's board corner and (correctly) blocks taps
-            // there, so it only lingers a few seconds after something actually happened
             if (log.Count != _lastLogCount)
             {
                 _lastLogCount = log.Count;
@@ -318,17 +372,188 @@ namespace SpawnRowDuel.View
             }
             if (Time.unscaledTime > _logShownUntil) return;
 
-            // RIGHT of the top bar: the left corner under it belongs to the inspect card now, the
-            // way Master Duel reserves that corner for whatever you are looking at.
-            var panel = new Rect(w * 0.45f, TopH, w * 0.55f, lines * 14f + 4f);
+            const float panelW = 168f;
+            float height = lines * 14f + 6f;
+            float top = Mathf.Max(TopH + 4f, _rail.y - height - 6f);
+            var panel = new Rect(w - panelW - 6f, top, panelW, height);
+
             Panel(panel, PanelSoft);
             HudLayout.LogPx = new Rect(panel.x * _scale, panel.y * _scale,
                                        panel.width * _scale, panel.height * _scale);
-            float y = TopH + 2;
+            float y = panel.y + 3f;
             for (int i = log.Count - lines; i < log.Count; i++)
             {
-                GUI.Label(new Rect(panel.x + 8, y, panel.width - 12, 14), log[i], _small);
+                GUI.Label(new Rect(panel.x + 7, y, panel.width - 12, 14), log[i], _small);
                 y += 14f;
+            }
+        }
+
+
+        /// <summary>
+        /// WHAT YOU ARE LOOKING AT, down the left-hand edge.
+        ///
+        /// The board can only ever print what fits on a tile - a health meter and a statline - and
+        /// the moment it tries to print more it is covering its own art with text. So the field
+        /// keeps the numbers and this keeps the reading: point at a piece, or select one, and its
+        /// whole card is here at a size you can actually read, with the rules text the plate has
+        /// no room for.
+        ///
+        /// The LEFT edge specifically. The right belongs to the turn rail and the log, the top and
+        /// bottom to the two hands, and the middle is the board - the left column is the one strip
+        /// of screen nothing else has a claim on.
+        ///
+        /// Hover feeds it on a mouse; selection feeds it on a touch screen, where there is no
+        /// hover to have. Neither costs a tap: this only ever reads state the input layer already
+        /// keeps.
+        /// </summary>
+        void DrawInspect(GameState s, float w, float h)
+        {
+            if (_input == null) return;
+
+            var at = _input.Hover ?? _input.Selected;
+            BoardObject o = at.HasValue ? s.At(at.Value) : null;
+
+            // A LATCH, and it is load bearing rather than a nicety. The panel registers itself as
+            // a blocker so a click on it cannot fall through to the cell behind, and BoardInput
+            // drops the hover whenever the pointer is over a blocker - so a panel driven straight
+            // off the hover would appear, cover the cell that summoned it, lose the hover, vanish,
+            // and start again, sixty times a second. Holding the last thing looked at for a moment
+            // breaks that loop, and it is what you want anyway: the reading stays put long enough
+            // to move the pointer onto it.
+            if (o != null) { _inspectId = o.Id; _inspectUntil = Time.unscaledTime + 0.5f; }
+            else if (Time.unscaledTime < _inspectUntil) o = FindObject(s, _inspectId);
+            if (o == null) return;
+
+            // a face-down card is a secret, and the panel is not a way around that
+            if (o is ChargeUnit || o is TrapUnit)
+            {
+                if (o.Owner != Seat.Local) return;
+            }
+
+            var def = _match.DefOfObject(o);
+            if (def == null) return;
+
+            const float panelW = 150f;
+            float top = TopH + 6f;
+            float maxH = h - top - HandH - ModeH - 8f;
+
+            float artH = panelW * 1.28f;
+            var panel = new Rect(6f, top, panelW, Mathf.Min(maxH, artH + 96f));
+            Panel(panel, PanelColor);
+            HudLayout.Control(panel);
+
+            float y = panel.y + 5f;
+            GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 16), def.DisplayName, _label);
+            y += 18f;
+
+            var art = def.CardArt != null ? def.CardArt : def.FieldArt;
+            if (art != null && art.texture != null)
+            {
+                var box = new Rect(panel.x + 7, y, panel.width - 14, artH * 0.62f);
+                var r = art.textureRect;
+                var uv = new Rect(r.x / art.texture.width, r.y / art.texture.height,
+                                  r.width / art.texture.width, r.height / art.texture.height);
+                GUI.DrawTextureWithTexCoords(box, art.texture, uv);
+                y += box.height + 6f;
+            }
+
+            var cre = o as CreatureUnit;
+            var bld = o as StructureUnit;
+            if (cre != null)
+            {
+                GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 14),
+                          "ATK " + Stat.Show(cre.EffectiveAttack)
+                          + "   HP " + Stat.Show(cre.Hp) + "/" + Stat.Show(cre.MaxHp), _small);
+                y += 15f;
+                if (cre.Upkeep != 0)
+                {
+                    GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 14),
+                              "UPKEEP " + cre.Upkeep, _small);
+                    y += 15f;
+                }
+            }
+            else if (bld != null)
+            {
+                GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 14),
+                          "HP " + Stat.Show(bld.Hp) + "/" + Stat.Show(bld.MaxHp)
+                          + "   WORK " + bld.Support, _small);
+                y += 15f;
+            }
+
+            // The rules text, which is the whole reason this panel exists - it is the one thing
+            // about a card that has never fitted anywhere on the board.
+            string text = def.Description;
+            if (!string.IsNullOrEmpty(text))
+            {
+                var body = new GUIStyle(_small) { wordWrap = true };
+                float left = panel.yMax - y - 5f;
+                if (left > 10f)
+                    GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, left), text, body);
+            }
+        }
+
+
+        static BoardObject FindObject(GameState s, int id)
+        {
+            if (id < 0) return null;
+            foreach (var kv in s.Objects()) if (kv.Value != null && kv.Value.Id == id) return kv.Value;
+            return null;
+        }
+
+        /// <summary>The whole match, scrollable. Same right-hand column, floor to ceiling.</summary>
+        void DrawLogHistory(float w, float h)
+        {
+            var log = _match.Log;
+            const float panelW = 210f;
+            var panel = new Rect(w - panelW - 6f, TopH + 4f, panelW, h - TopH - HandH - ModeH - 12f);
+
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            GUI.Label(new Rect(panel.x + 8, panel.y + 4, panel.width - 60, 16), "MATCH LOG", _label);
+            if (Btn(new Rect(panel.xMax - 46, panel.y + 4, 40, 16), "CLOSE", _small))
+                _logOpen = false;
+
+            var view = new Rect(panel.x + 6, panel.y + 24, panel.width - 12, panel.height - 30);
+            var content = new Rect(0, 0, view.width - 16, Mathf.Max(view.height, log.Count * 14f + 4f));
+
+            // pinned to the BOTTOM on open, because the interesting end of a log is the new end
+            _logScroll = GUI.BeginScrollView(view, _logScroll, content);
+            for (int i = 0; i < log.Count; i++)
+                GUI.Label(new Rect(2, i * 14f, content.width - 4, 14f), log[i], _small);
+            GUI.EndScrollView();
+        }
+
+        /// <summary>
+        /// Camera angle and the way out. Both belong to the player rather than to the match, so
+        /// they sit behind one button instead of taking rail space of their own.
+        /// </summary>
+        void DrawSettings(float w, float h)
+        {
+            const float panelW = 176f;
+            var panel = new Rect(w * 0.5f - panelW * 0.5f, h * 0.5f - 74f, panelW, 148f);
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            GUI.Label(new Rect(panel.x + 10, panel.y + 8, panel.width - 20, 18), "SETTINGS", _label);
+
+            GUI.Label(new Rect(panel.x + 10, panel.y + 32, panel.width - 20, 14), "Camera", _small);
+            bool tilted = _input == null || _input.Tilted;
+            if (Btn(new Rect(panel.x + 10, panel.y + 48, panel.width - 20, 24),
+                    tilted ? "TILTED" : "TOP-DOWN", _button) && _input != null)
+                _input.Tilted = !tilted;
+
+            if (Btn(new Rect(panel.x + 10, panel.y + 80, panel.width - 20, 24), "RESUME", _button))
+                _settingsOpen = false;
+
+            // The one destructive control on the screen, so it is the one that says what it does.
+            if (Btn(new Rect(panel.x + 10, panel.y + 110, panel.width - 20, 24), "QUIT MATCH", _button))
+            {
+                _settingsOpen = false;
+                var shell = FindFirstObjectByType<Shell.GameShell>();
+                if (shell != null) shell.Show(Shell.ShellScreen.MainMenu);
             }
         }
 
@@ -558,14 +783,55 @@ namespace SpawnRowDuel.View
             float buildH = (acting && s.Phase == TurnPhase.Action) ? 26f : 0f;
             float totalH = trackH + (btnH > 0 ? btnH + 5f : 0f) + (buildH > 0 ? buildH + 4f : 0f);
 
+            // LOG and the settings gear are always here, whoever's turn it is - the log because
+            // the interesting lines are the ones the FOE just made, and settings because a player
+            // who wants out should not have to wait for their turn to ask.
+            totalH += 24f;
+
             float y = Mathf.Max(TopH + 8f, h * 0.5f - totalH * 0.5f);
             var rail = new Rect(x, y, railW, totalH);
+            _rail = rail;
             Panel(rail, PanelSoft);
             HudLayout.RailPx = new Rect(rail.x * _scale, rail.y * _scale,
                                         rail.width * _scale, rail.height * _scale);
 
             DrawPhaseTrack(s, new Rect(x + 4, y + 4, railW - 8, trackH - 8));
             y += trackH;
+
+            // A PARKED CHOICE, said out loud. While s.Pending is set the engine refuses every
+            // command that is not an answer to it, so if the answer belongs to the other seat this
+            // board takes no input at all - and until now it said nothing about why. A player
+            // whose taps stop working reports that the game froze, and they are not wrong.
+            if (s.Pending != null && s.Pending.Responder != Seat.Local)
+            {
+                if (_pendingSince <= 0f) _pendingSince = Time.unscaledTime;
+                float held = Time.unscaledTime - _pendingSince;
+                if (held > 1.5f)
+                {
+                    var wait = new GUIStyle(_tiny) { wordWrap = true };
+                    wait.normal.textColor = held > 8f ? new Color(1f, 0.55f, 0.4f) : Gold;
+                    GUI.Label(new Rect(x + 4, y, railW - 8, 26),
+                              "waiting on foe " + Mathf.FloorToInt(held) + "s", wait);
+                }
+            }
+            else _pendingSince = 0f;
+
+            float footY = rail.yMax - 22f;
+            if (Btn(new Rect(x + 5, footY, railW - 34, 18f), "LOG", _small))
+            {
+                _logOpen = !_logOpen;
+                _settingsOpen = false;
+                _buildMenuOpen = false;
+                _logScroll.y = float.MaxValue;      // open on the newest line
+            }
+            // "SET", not a gear glyph. OnGUI draws with the built-in font, which has no ⚙ any
+            // more than it had the ♥ that drove the vitals out of IMGUI in the first place.
+            if (Btn(new Rect(x + railW - 27, footY, 22f, 18f), "SET", _tiny))
+            {
+                _settingsOpen = !_settingsOpen;
+                _logOpen = false;
+                _buildMenuOpen = false;
+            }
 
             if (!acting) { _buildMenuOpen = false; return; }
 
@@ -1024,6 +1290,22 @@ namespace SpawnRowDuel.View
             Hint("Upkeep shortfall — this creature needs a worker, a payment, or its life");
         }
 
+        /// <summary>
+        /// Arm a play, and DROP THE CARD while it is armed.
+        ///
+        /// BeginPlay captures the hand index, so nothing downstream needs the selection any more -
+        /// and leaving it set is not free. A picked card is lifted to the bottom of the screen at
+        /// nearly three times its resting peek, which is about 100 x 139 logical pixels standing
+        /// over your own two deploy rows: exactly the cells a summon is aimed at. It is the one
+        /// pickable element on the hand panel, so a tap there can be taken by the card instead of
+        /// by the lit cell under it, and the card's own handler toggles the selection off and
+        /// cancels the play. Whether that or the board wins is a frame-ordering coin toss between
+        /// two input systems that cannot see each other's events - and the honest fix is not to
+        /// arbitrate it but to have nothing lying over the board to arbitrate.
+        ///
+        /// The armed branch of the mode row already reads nothing from the selection, and dropping
+        /// the card back into the peek strip puts it inside the band BoardInput refuses outright.
+        /// </summary>
         void Arm(Rules.PlayMode mode)
         {
             _match.BeginPlay(_selectedHandIndex, mode);
@@ -1031,7 +1313,9 @@ namespace SpawnRowDuel.View
             {
                 _match.CancelPending();
                 Hint("No legal cell for that right now");
+                return;
             }
+            _selectedHandIndex = -1;
         }
 
         /// <summary>

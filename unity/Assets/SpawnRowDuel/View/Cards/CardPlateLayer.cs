@@ -99,15 +99,23 @@ namespace SpawnRowDuel.View.Cards
         }
 
         /// <summary>
-        /// Sorting orders. The frame and the art sit UNDER the standee (20); everything carrying a
-        /// number sits over it, and has to: the figure is planted at the FRONT of its own tile, so
-        /// its shins cross the two bands the numbers are printed in, and a number behind a
-        /// cut-out is a number that is not there. The cost is that a tall figure in the row in
-        /// front can have a far row's numbers drawn across its head - a band's worth of wrong
-        /// occlusion, traded for every number on the board being readable.
+        /// Sorting orders. EVERYTHING on the plate sits UNDER the standee (20) now; it used to sit
+        /// over it, at 22 to 26.
+        ///
+        /// The old order was not arbitrary - it was bought with a real argument: a figure planted
+        /// 11% up its own tile has its shins crossing the two bands the numbers are printed in,
+        /// and a number behind a cut-out is a number that is not there. But paying for that with
+        /// the FIGURE was the wrong way round. A health meter ruled across a creature's legs is
+        /// the game covering its own art, and the art is the thing a player is looking at.
+        ///
+        /// So the collision is removed rather than arbitrated: StandeeLayer.FeetFromFront stands
+        /// the figure at the top of the ability box instead of inside the stat bar, which puts the
+        /// whole readout in FRONT of its feet and the illustration behind them. Nothing overlaps;
+        /// where an unusually wide cut-out still does, the art wins - which is also the right
+        /// answer to a far row's numbers being drawn across a near figure's head.
         /// </summary>
-        const int OrderFrame = 4, OrderArt = 6, OrderTrough = 22, OrderFill = 23,
-                  OrderStats = 24, OrderNum = 25, OrderBank = 26;
+        const int OrderFrame = 4, OrderArt = 6, OrderTrough = 12, OrderFill = 13,
+                  OrderStats = 14, OrderNum = 15, OrderBank = 16;
 
         void Awake()
         {

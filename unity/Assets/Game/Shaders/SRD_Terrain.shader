@@ -38,6 +38,12 @@ Shader "SpawnRowDuel/Terrain"
         _WaveAmount  ("Waves", Range(0,1)) = 0
         _RippleAmount("Ripples", Range(0,1)) = 0
 
+        // the open-sea swell: which way the train marches, how hard it bends the light, and how
+        // much white it breaks off at the brink
+        _SwellDir    ("Swell bearing (xz)", Vector) = (0.82, 0, 0.57, 0)
+        _SwellHeight ("Swell relief", Float) = 0.10
+        _SwellFoam   ("Whitecaps", Range(0,1)) = 0.5
+
         // the tide: a waterline that comes IN and goes OUT, with the wave train that drives it
         _TideAmount  ("Tide", Range(0,1)) = 0
         _TideDir     ("Seaward direction (xz)", Vector) = (0, 0, 1, 0)
@@ -86,12 +92,21 @@ Shader "SpawnRowDuel/Terrain"
         _CloudDir    ("Cloud direction", Vector) = (1, 0.35, 0, 0)
         _CloudAmount ("Cloud amount", Range(0,1)) = 1
 
-        // What the board has pressed into the ground. R the hollow, G the rim shoved out of it.
+        // What the board has pressed into the ground. R is how hard - a card crushes the square
+        // it lies on, and the value eases back to nothing over about two minutes after it leaves,
+        // which is what the grass reads to know how flat to lie. G is the same number used as a
+        // FLAG, and it is what switches on the impression the fragment draws from the pitch.
         _DispTex     ("Displacement", 2D) = "black" {}
         _DispOrigin  ("Displacement origin", Vector) = (-18, -14, 0, 0)
         _DispSize    ("Displacement size", Vector) = (36, 28, 0, 0)
-        _PressDepth  ("Press depth", Float) = 0.085
-        _BermHeight  ("Berm height", Float) = 0.055
+
+        // The card's own impression. Reach is in X units; Z is squashed to match, so the band is
+        // the same fraction of the tile's margin - and the same width on screen - on both axes.
+        _CellPitch   ("Cell pitch (xz)", Vector) = (1.08, 1.566, 0, 0)
+        _CellHalf    ("Card half-size (xz)", Vector) = (0.5, 0.725, 0, 0)
+        _CardRound   ("Card corner radius", Float) = 0.06
+        _RimReach    ("Rim width (x units)", Float) = 0.036
+        _RimRelief   ("Rim relief", Float) = 0.042
     }
 
     SubShader
@@ -118,13 +133,22 @@ Shader "SpawnRowDuel/Terrain"
             TEXTURE2D(_DispTex);
             SAMPLER(sampler_DispTex);
 
-            // Where the board has been pressed into the ground, as (hollow, rim).
+            // Where the board has been pressed into the ground, as (how hard, is a piece on it).
             float2 SrdPress(float2 world, float4 origin, float4 size)
             {
                 float2 uv = (world - origin.xy) / max(size.xy, 0.0001);
                 if (any(uv < 0.0) || any(uv > 1.0)) return float2(0, 0);
                 float4 t = SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, uv, 0);
                 return t.rg;
+            }
+
+            // The pile of material a card's edge shoves out: nothing at the card's own outline,
+            // nothing again at the tile's margin, a rounded crest in between. Sin squared rather
+            // than a triangle because loose material SLUMPS - a wall of it reads as a wall.
+            float SrdRim(float d, float reach)
+            {
+                float s = sin(saturate(d / max(reach, 0.0001)) * 3.14159265);
+                return s * s;
             }
 
             struct Attributes
@@ -146,6 +170,8 @@ Shader "SpawnRowDuel/Terrain"
                 float4 _BaseColor, _Tint2, _Tint3, _Highlight;
                 float _PatchScale, _Patch2Cut, _Patch3Cut, _Grain;
                 float _WaveAmount, _RippleAmount, _EmberAmount, _MotionSpeed;
+                float4 _SwellDir;
+                float _SwellHeight, _SwellFoam;
                 float _TideAmount, _TideLevel, _TideRange, _TidePeriod, _WaveFreq, _WaveSpeed;
                 float _TideFreeze;
                 float4 _BoardHalf;
@@ -154,7 +180,8 @@ Shader "SpawnRowDuel/Terrain"
                 float4 _SunDir, _SunColor, _SkyColor, _BounceColor;
                 float _SunIntensity, _Ambient, _Sheen, _SheenPower, _ShadowDepth;
                 float4 _DispOrigin, _DispSize;
-                float _PressDepth, _BermHeight;
+                float4 _CellPitch, _CellHalf;
+                float _CardRound, _RimReach, _RimRelief;
                 float4 _WindDir;
                 float _StreakAmount, _StreakScale, _DetailBump, _CrestLight, _TroughShade, _Sparkle;
                 float4 _HazeColor;
@@ -171,12 +198,13 @@ Shader "SpawnRowDuel/Terrain"
                 Varyings o;
                 o.positionWS = TransformObjectToWorld(v.positionOS.xyz);
 
-                // The ground gives way under what is standing on it. Real displacement rather
-                // than a painted shadow: the hollow and the rim of material shoved out of it
-                // both move VERTICES, so a card sits in a dent with a silhouette, and the light
-                // finds the rim the same way it finds a dune.
-                float2 press = SrdPress(o.positionWS.xz, _DispOrigin, _DispSize);
-                o.positionWS.y += press.g * _BermHeight - press.r * _PressDepth;
+                // NOTHING the board does moves a vertex any more. It used to pan the whole
+                // plateau down and dent it further under each card, and the vertex grid could not
+                // carry either honestly: vertices near the board are 0.19 units apart, so a
+                // 1.00-wide card is five of them across and its dent landed 0.02 to 0.06 off the
+                // card edge, a different amount in every column. Both are shading now - the press
+                // texture's R still says how flat the GRASS lies, which is a thing 0.19 units of
+                // resolution is entirely good enough for.
 
                 o.positionCS = TransformWorldToHClip(o.positionWS);
                 o.normalWS = TransformObjectToWorldNormal(v.normalOS);
@@ -244,26 +272,56 @@ Shader "SpawnRowDuel/Terrain"
                 float2 bend = float2(dot(g, float2(wind.x, -wind.y)), dot(g, float2(wind.y, wind.x)));
                 N = normalize(N + float3(bend.x, 0, bend.y) * _DetailBump * 0.10);
 
-                // ── what the board pressed into it ─────────────────────────────────────────
-                // The vertices already moved; this is the SHADING of that dent. Sampling the
-                // neighbourhood gives the slope of the hollow, which is what makes its rim catch
-                // the sun - a displaced surface with an undisturbed normal reads as a decal.
+                // ── the impression a card leaves ───────────────────────────────────────────
+                //
+                // Drawn from the board's PITCH rather than from the press texture, and that is
+                // the whole of this fix. The rim used to be stamped into _DispTex and displaced
+                // as geometry, and at 0.19 units between ground vertices it could never take the
+                // card's shape: it came out 1.30 x 1.70 around a 1.00 x 1.45 card, ROUNDER in
+                // aspect than the card, corner-rounded to 0.37 against a card frame with square
+                // corners, and standing 0.055 proud of a dent of 0.013 - four times the relief of
+                // the thing it was supposed to belong to. A ring, not an impression.
+                //
+                // But a card only ever lies on a CELL, so its outline is arithmetic. Round the
+                // world position to the nearest cell centre and the rounded-box distance to the
+                // card is exact at pixel resolution - which is the only place a rim this narrow
+                // can be drawn at all, because it has to fit inside the 0.040 of ground the tile
+                // leaves showing beside a card that covers its whole face.
+                albedo *= 1.0 - SrdPress(w, _DispOrigin, _DispSize).r * 0.16;   // trodden ground is packed
                 {
-                    float2 texel = _DispSize.xy / 320.0;
-                    float2 pc = SrdPress(w, _DispOrigin, _DispSize);
-                    float2 px = SrdPress(w + float2(texel.x, 0), _DispOrigin, _DispSize);
-                    float2 pz = SrdPress(w + float2(0, texel.y), _DispOrigin, _DispSize);
+                    float2 cell = round(w / _CellPitch.xy) * _CellPitch.xy;
+                    float here = SrdPress(cell, _DispOrigin, _DispSize).g;
+                    if (here > 0.01)
+                    {
+                        // Z into X units first. Depth is foreshortened by sin(42 deg) = 0.669 at
+                        // this camera, so a band the same width in world units comes out two
+                        // thirds as wide along the rows as across them, and the impression reads
+                        // as an oval on a rectangular card. The tile's own margins are 0.040 and
+                        // 0.058, whose ratio is 0.69 - within a hair of the foreshortening - so
+                        // scaling by them lands the rim on the same pixel count either way.
+                        float2 gap    = max(_CellPitch.xy * 0.5 - _CellHalf.xy, 0.0001);
+                        float2 aspect = float2(1.0, gap.x / gap.y);
+                        float2 rel    = (w - cell) * aspect;
+                        float2 halfA  = _CellHalf.xy * aspect;
 
-                    float hc = pc.g * _BermHeight - pc.r * _PressDepth;
-                    float hx = px.g * _BermHeight - px.r * _PressDepth;
-                    float hz = pz.g * _BermHeight - pz.r * _PressDepth;
+                        float d   = SrdRoundBox(rel, halfA, _CardRound);
+                        float rim = SrdRim(d, _RimReach);
 
-                    N = normalize(N + float3(-(hx - hc) / texel.x, 0, -(hz - hc) / texel.y) * 2.2);
+                        // The slope, by difference. The steps are taken in world units and put
+                        // through the same squash, so the gradient stays a world-space slope.
+                        const float e = 0.004;
+                        float rx = SrdRim(SrdRoundBox(rel + float2(e, 0) * aspect, halfA, _CardRound), _RimReach);
+                        float rz = SrdRim(SrdRoundBox(rel + float2(0, e) * aspect, halfA, _CardRound), _RimReach);
+                        N = normalize(N + float3(-(rx - rim), 0, -(rz - rim)) * (_RimRelief * here / e));
 
-                    // Disturbed material is a different surface: packed and darker in the hollow,
-                    // loose and pale on the rim where it has just been turned over.
-                    albedo *= 1.0 - pc.r * 0.16;
-                    albedo = lerp(albedo, albedo * 1.13 + _Highlight.rgb * 0.06, saturate(pc.g));
+                        // Two surfaces, not one. On the crest, material that has just been turned
+                        // over and is loose and pale; in the crack at the card's own edge, contact
+                        // shade - and it is the shade that says the card is DOWN IN the ground
+                        // rather than lying on top of it. A pale rim on its own reads as a halo.
+                        float lip = 1.0 - saturate(d / max(_RimReach, 0.0001));
+                        albedo = lerp(albedo, albedo * 1.18 + _Highlight.rgb * 0.06, rim * here);
+                        albedo *= 1.0 - saturate(lip - rim) * 0.55 * here;
+                    }
                 }
 
                 // ── the tide ─────────────────────────────────────────────────────────────────
@@ -278,6 +336,11 @@ Shader "SpawnRowDuel/Terrain"
                 // ruled with a straight edge.
                 float waterMask = 1.0;          // deep water: the whole surface is water
                 float breaker = 0.0, swashWet = 0.0;
+
+                // Where the glitter is allowed to be. One everywhere by default - snow crystals
+                // are scattered over the whole crust and should be - but the swell below pins it
+                // to the crests, because sun on water is on the water that is FACING the sun.
+                float sparkleGate = 1.0;
 
                 if (_TideAmount > 0.001)
                 {
@@ -347,26 +410,84 @@ Shader "SpawnRowDuel/Terrain"
                     N = normalize(N + float3(sea.x, 0, sea.y) * slopeW);
                 }
 
-                // ── water: the surface that actually moves ──────────────────────────────────
+                // ── open water: a swell that MARCHES ────────────────────────────────────────
+                //
+                // The old version was two fixed sines and a scrolling fbm. Every term of it was
+                // symmetric about its own mean and not one of them was long-crested, so the sea
+                // had no crest LINES anywhere in it - and a surface with no lines cannot say which
+                // way it is travelling. It shimmered; it never went anywhere.
+                //
+                // What reads as open water is a TRAIN: long crests lying across one bearing,
+                // SHARPENED so the crest comes to a brink and the trough is broad and flat (that
+                // asymmetry is the whole difference between a swell and a ripple tank), bent along
+                // their own length so they are not ruled with a straightedge, and a second shorter
+                // train crossing at 32 degrees so the field is a sea rather than corduroy.
+                //
+                // Not the shore's tide, deliberately. A tide is a LINE that runs up a beach and
+                // drains back; this water has no beach and nothing recedes - it just keeps coming.
                 if (_WaveAmount > 0.001 && waterMask > 0.001)
                 {
                     float t2 = t * _MotionSpeed;
-                    float2 d1 = normalize(float2(0.86, 0.51));
-                    float2 d2 = normalize(float2(-0.42, 0.91));
-                    float s1 = sin(dot(w, d1 * 2.9) + t2 * 2.4);
-                    float s2 = sin(dot(w, d2 * 4.3) + t2 * 3.1);
-                    float swell = SrdFbm(w * 0.75 + float2(t2 * 0.16, t2 * 0.11)) * 2.0 - 1.0;
+                    float2 d1 = normalize(_SwellDir.xz + float2(0.0001, 0));
+                    float2 d2 = SrdRotate(d1, 32.0);
 
-                    float2 wob = (d1 * cos(dot(w, d1 * 2.9) + t2 * 2.4) * 0.055
-                               +  d2 * cos(dot(w, d2 * 4.3) + t2 * 3.1) * 0.035) * _WaveAmount;
-                    N = normalize(N + float3(wob.x, 0, wob.y) * 3.0 * waterMask);
+                    float k1 = 6.2831853 * _WaveFreq;
+                    float k2 = k1 / 0.58;                       // the cross swell is the shorter one
 
-                    float surf = s1 * 0.5 + s2 * 0.32 + swell * 0.5;
-                    albedo *= 1.0 + surf * 0.09 * _WaveAmount * waterMask;
+                    // The bend. A slow noise sampled ACROSS each train and added to its phase:
+                    // the crests keep their spacing and lose their straightness, which is what a
+                    // real crest does. Sampled across only - a noise in both axes would break the
+                    // lines up into blobs and put us back where we started.
+                    float a1 = dot(w, float2(-d1.y, d1.x));
+                    float a2 = dot(w, float2(-d2.y, d2.x));
+                    float b1 = (SrdValueNoise(float2(a1 * 0.11, t2 * 0.05)) - 0.5) * 2.4;
+                    float b2 = (SrdValueNoise(float2(a2 * 0.17 + 9.4, t2 * 0.04)) - 0.5) * 1.7;
 
-                    // Foam sits on the brink of a crest, not across the whole of it.
-                    float foam = smoothstep(0.86, 1.05, surf);
-                    albedo = lerp(albedo, _Highlight.rgb, foam * _WaveAmount * 0.55 * waterMask);
+                    float p1 = (dot(w, d1) - t2 * _WaveSpeed) * k1 + b1;
+                    float p2 = (dot(w, d2) - t2 * _WaveSpeed * 0.78) * k2 + b2;
+
+                    // (sin+1)/2 raised to a power: the crest peaks, the trough spreads out flat,
+                    // and the derivative falls out of the same two terms, so the light gets the
+                    // real slope of the water rather than a wobble bolted on beside it.
+                    float c1 = 0.5 + 0.5 * sin(p1), c2 = 0.5 + 0.5 * sin(p2);
+                    float q1 = pow(c1, 1.6), q2 = pow(c2, 1.2);
+                    float e1 = q1 * c1, e2 = q2 * c2;
+                    float g1 = 1.30 * q1 * cos(p1) * k1;
+                    float g2 = 1.10 * q2 * cos(p2) * k2 * 0.55;
+
+                    float surf = saturate(e1 + e2 * 0.55);
+                    float2 slope = d1 * g1 + d2 * g2;
+
+                    // Over the board it all THINS. The sea runs across the playing surface because
+                    // at this camera there is nowhere else for it to be, and a card under a full
+                    // swell is a card nobody can read.
+                    float2 overBoard = saturate((abs(w) - _BoardHalf.xy) / 1.6 + 1.0);
+                    float keep = lerp(0.42, 1.0, saturate(max(overBoard.x, overBoard.y)));
+
+                    N = normalize(N + float3(slope.x, 0, slope.y) * _SwellHeight * waterMask * keep);
+
+                    // Crest bright, trough deep. The colour swing is what carries the wave across
+                    // the middle distance, where the surface is nearly edge-on and the normal has
+                    // almost nothing left to catch.
+                    albedo = lerp(albedo, _DeepColor.rgb,
+                                  (1.0 - surf) * 0.30 * _WaveAmount * waterMask * keep);
+                    albedo *= 1.0 + (surf - 0.42) * 0.34 * _WaveAmount * waterMask * keep;
+
+                    // Whitecaps on the BRINK: the steep front face of the tallest crests only,
+                    // broken along the crest by a noise so they are patches of white water and not
+                    // a painted line following every wave.
+                    float steep = saturate(-g1 / max(k1, 0.001));
+                    float lace = SrdValueNoise(w * 3.2 + float2(t2 * 0.5, 0.0));
+                    float cap = smoothstep(0.55, 0.92, e1)
+                              * smoothstep(0.15, 0.60, steep)
+                              * smoothstep(0.34, 0.66, lace);
+                    albedo = lerp(albedo, _FoamColor.rgb, cap * _SwellFoam * waterMask * keep);
+
+                    // ...and the glitter goes ON the crests. Point glints scattered evenly over a
+                    // whole sea are a second particle field, which is exactly what the loose specs
+                    // over this biome already read as; pinned to the moving crests they are sun on
+                    // water, and they travel with the wave that carries them.
+                    sparkleGate = smoothstep(0.35, 0.85, surf) * keep;
                 }
 
                 // the surf, over the top of whatever the water surface is doing
@@ -444,7 +565,8 @@ Shader "SpawnRowDuel/Terrain"
                 {
                     float2 sg = w * 42.0;
                     float spark = step(0.9965, SrdHash(floor(sg) + floor(t * 3.0) * 17.0));
-                    col += _SunColor.rgb * spark * _Sparkle * saturate(diffuse * 1.4) * shadow * 1.6;
+                    col += _SunColor.rgb * spark * _Sparkle * sparkleGate
+                         * saturate(diffuse * 1.4) * shadow * 1.6;
                 }
 
                 // ── cloud shadow ────────────────────────────────────────────────────────────

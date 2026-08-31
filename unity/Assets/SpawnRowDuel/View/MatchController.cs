@@ -347,6 +347,13 @@ namespace SpawnRowDuel.View
                 ? (ICommand)new PlayCardCommand(Seat.Local, PendingHandIndex, PendingMode, cell)
                 : new BuildStructureCommand(Seat.Local, PendingBuild.Bid, PendingBuild.Element, cell);
 
+            // TryHuman, not Submit. This was the ONE human command path that skipped the event
+            // pump - every other one goes through TryHuman - so a summon or a build left its
+            // events (UnitSummoned, ManaChanged, and on a trap the whole cascade) sitting in the
+            // sink until some later frame drained them, with a full LateUpdate in between. The
+            // contract at PumpEvents says immediately after every command, and it says it because
+            // a listener that animates a board it has not been told about yet is the whole class
+            // of bug this is in.
             var why = Submit(cmd);
             if (why != Rejection.None)
             {
@@ -354,6 +361,7 @@ namespace SpawnRowDuel.View
                 return true;               // consumed - the armed card stays armed
             }
 
+            PumpEvents();
             CancelPending();
             return true;
         }
@@ -632,8 +640,27 @@ namespace SpawnRowDuel.View
 
             // nobody wants to act and a side has finished its turn: hand off
             if (s.Pending == null && s.Phase == TurnPhase.End)
+            {
                 Apply(new BeginTurnCommand(TurnMachine.Other(s.Turn)));
+                return;
+            }
+
+            // ...and if nobody wants to act and the turn is NOT over, the match is wedged.
+            //
+            // Once _aiFaulted latches, the branch above it is skipped for good and the hand-off is
+            // guarded on there being no parked choice - so a policy that faults while a choice is
+            // parked on the foe leaves a board that paints perfectly and answers nothing, forever,
+            // with one error five seconds in the log and then silence. Say it again, and keep
+            // saying it: a stall a player cannot see is a stall they report as "it froze".
+            if (_aiFaulted && Time.unscaledTime >= _stallSaidAt + 6f)
+            {
+                _stallSaidAt = Time.unscaledTime;
+                Push("· the opponent is stuck in " + s.Phase
+                     + (s.Pending != null ? " waiting on a choice" : "") + " - the match cannot go on");
+            }
         }
+
+        float _stallSaidAt = -99f;
 
         /// <summary>
         /// The duel's version of the opponent: there isn't one. Nobody here plays for the other
@@ -722,6 +749,16 @@ namespace SpawnRowDuel.View
             if (killed != null && killed.OnBoard)
             { World.TerrainField.Gust(Board.WorldOf(killed.At), 0.75f); return; }
         }
+
+        /// <summary>
+        /// Put a line in the match log from OUTSIDE the controller.
+        ///
+        /// The log is the engine's narration and the view has no business writing to it - with
+        /// one exception, which is the view failing. A HUD that throws takes every control off the
+        /// screen and leaves a board that paints and answers nothing, and on a build whose only
+        /// test surface is a public URL the log is the one channel that can say so.
+        /// </summary>
+        public void Note(string line) { Push(line); }
 
         void Push(string line)
         {
