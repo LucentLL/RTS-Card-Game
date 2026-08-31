@@ -88,6 +88,26 @@
         productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
         productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
         showBanner: unityShowBanner,
+
+        // Unity hooks window.onerror and puts a modal ALERT over the game for anything that
+        // reaches it. Its own filter list has exactly one entry, "fullscreen error", and that is
+        // not the message Android Chrome produces: it refuses the orientation lock Unity does
+        // inside SetFullscreen with "TypeError: Permissions check failed", and it does it
+        // asynchronously out of a promise chain we do not own - so neither the try/catch nor the
+        // .catch on the return value below ever sees it. The loader takes errorHandler as a
+        // documented hook and skips its alert when one returns true.
+        //
+        // Scoped to that one message on purpose. Swallowing everything here would hide the real
+        // crashes this dialog exists to report.
+        errorHandler: function (message) {
+          var text = typeof message === "string" ? message : (message && message.message) || "";
+          if (text.indexOf("Permissions check failed") !== -1
+              || text.indexOf("fullscreen error") !== -1) {
+            console.warn("browser declined fullscreen or the orientation lock:", text);
+            return true;
+          }
+          return false;
+        },
       };
 
       // No manual canvas sizing here on purpose. config.matchWebGLToCanvasSize defaults to true,

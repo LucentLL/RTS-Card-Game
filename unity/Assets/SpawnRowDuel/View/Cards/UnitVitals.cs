@@ -107,10 +107,21 @@ namespace SpawnRowDuel.View.Cards
                    Camera cam, Vector2 panel, float scale)
         {
             var chip = Ensure(o.Id);
-            // the tile's NEAR edge: the chip hangs off the front of the card, where there is
-            // always board left to hang it on - even in the foe's back row
+
+            // THE CARD'S OWN TITLE BAND, not the ground under its near edge.
+            //
+            // The chip used to hang off the tile's front, on the reasoning that there is always
+            // board left to hang it on. There is - and that is the problem: a name floating on the
+            // grass BELOW a card is a label belonging to nothing. The card has a title area, the
+            // frame prints one on every card in the hand, and the name belongs in it.
+            //
+            // CardPlateTextures.BannerH is the top 15.5% of the card measured from its far edge,
+            // so the band's middle sits (0.5 - BannerH/2) of a tile's depth PAST the cell centre,
+            // away from the camera - which is exactly where the card's name would be printed if
+            // the board plate printed one.
             float depth = _match.Board.CellSize * _match.Board.RowStretch;
-            var anchor = _match.Board.WorldOf(cell) - new Vector3(0f, 0f, depth * 0.5f);
+            float band = (0.5f - CardPlateTextures.BannerH * 0.5f) * depth;
+            var anchor = _match.Board.WorldOf(cell) + new Vector3(0f, 0f, band);
 
             Vector2 p, side;
             if (!_hand.TryProject(cam, anchor, out p)
@@ -143,7 +154,12 @@ namespace SpawnRowDuel.View.Cards
 
             float font = Mathf.Clamp(cellW * 0.19f, 8f, 15f);
 
-            chip.Name.text = Name(cre, bld);
+            // ...and the ELEMENT beside it, which is the other half of a card's title line. The
+            // board plate has no cost circle to hold it - a card on the field has already been
+            // paid for - so the glyph rides with the name.
+            var def = _match.DefOfObject(o);
+            string glyph = def != null && !string.IsNullOrEmpty(def.Glyph) ? def.Glyph + " " : "";
+            chip.Name.text = glyph + Name(cre, bld);
             chip.Name.style.fontSize = font * 0.92f;
             chip.Name.style.color = target ? TargetRed : joining ? JoinGold : (mine ? You : Foe);
 
@@ -165,9 +181,11 @@ namespace SpawnRowDuel.View.Cards
                                             : joining ? new Color(0.24f, 0.16f, 0.02f, 0.82f)
                                                       : new Color(0.02f, 0.02f, 0.04f, 0.62f);
 
+            // Centred ON the band rather than hung under it, so the chip reads as the card's own
+            // title line instead of a caption stuck to the bottom of the tile.
             chip.Root.style.width = cellW;
             chip.Root.style.left = p.x - cellW * 0.5f;
-            chip.Root.style.top = p.y + 2f;
+            chip.Root.style.top = p.y - font * 0.8f;
             chip.Root.style.display = DisplayStyle.Flex;
         }
 

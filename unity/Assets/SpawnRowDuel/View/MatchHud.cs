@@ -117,6 +117,29 @@ namespace SpawnRowDuel.View
             _center.normal.textColor = Gold;
         }
 
+
+        /// <summary>
+        /// One line's worth of height for a style, rounded up, with a hair of leading.
+        ///
+        /// Every row in this HUD used to be a hard-coded 14, chosen against an 11px font on a
+        /// desktop. It is not a constant: GUIStyle.lineHeight comes from the font Unity actually
+        /// resolved, and IMGUI CLIPS a label to its rect - so on a phone, where the same 11px
+        /// style resolves to a taller line, every row in the log and the inspect panel had its
+        /// descenders sliced off. Text that is drawn at all must be drawn whole.
+        /// </summary>
+        static float Row(GUIStyle st)
+        {
+            return Mathf.Ceil(st.lineHeight) + 2f;
+        }
+
+        /// <summary>A label that is guaranteed to fit what it is given, wrapping if it must.</summary>
+        float Line(float x, float y, float w, string text, GUIStyle st)
+        {
+            float h = Mathf.Max(Row(st), st.CalcHeight(new GUIContent(text), w));
+            GUI.Label(new Rect(x, y, w, h), text, st);
+            return h;
+        }
+
         static void Panel(Rect r, Color c)
         {
             var old = GUI.color;
@@ -373,7 +396,8 @@ namespace SpawnRowDuel.View
             if (Time.unscaledTime > _logShownUntil) return;
 
             const float panelW = 168f;
-            float height = lines * 14f + 6f;
+            float row = Row(_small);
+            float height = lines * row + 6f;
             float top = Mathf.Max(TopH + 4f, _rail.y - height - 6f);
             var panel = new Rect(w - panelW - 6f, top, panelW, height);
 
@@ -383,8 +407,8 @@ namespace SpawnRowDuel.View
             float y = panel.y + 3f;
             for (int i = log.Count - lines; i < log.Count; i++)
             {
-                GUI.Label(new Rect(panel.x + 7, y, panel.width - 12, 14), log[i], _small);
-                y += 14f;
+                GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, row), log[i], _small);
+                y += row;
             }
         }
 
@@ -433,63 +457,70 @@ namespace SpawnRowDuel.View
             var def = _match.DefOfObject(o);
             if (def == null) return;
 
-            const float panelW = 150f;
+            const float panelW = 158f;
             float top = TopH + 6f;
-            float maxH = h - top - HandH - ModeH - 8f;
+            float roomH = h - top - HandH - ModeH - 8f;
 
-            float artH = panelW * 1.28f;
-            var panel = new Rect(6f, top, panelW, Mathf.Min(maxH, artH + 96f));
+            var cre = o as CreatureUnit;
+            var bld = o as StructureUnit;
+
+            // MEASURE FIRST, then draw. Every row takes the height the font actually needs and
+            // the panel takes the height the rows actually need - nothing here is a magic 14, and
+            // nothing gets its descenders sliced off on a screen whose font resolved taller than
+            // the desktop one this was laid out on.
+            var body = new GUIStyle(_small) { wordWrap = true };
+            var head = new GUIStyle(_label) { wordWrap = true };
+            float pad = 7f;
+            float textW = panelW - pad * 2f;
+
+            string stats = cre != null
+                ? "ATK " + Stat.Show(cre.EffectiveAttack)
+                  + "   HP " + Stat.Show(cre.Hp) + "/" + Stat.Show(cre.MaxHp)
+                : bld != null
+                ? "HP " + Stat.Show(bld.Hp) + "/" + Stat.Show(bld.MaxHp) + "   WORK " + bld.Support
+                : "";
+            string upkeep = (cre != null && cre.Upkeep != 0) ? "UPKEEP " + cre.Upkeep : "";
+            string rules = def.Description != null ? def.Description : "";
+
+            var art = def.CardArt != null ? def.CardArt : def.FieldArt;
+            float artH = art != null && art.texture != null ? panelW * 0.76f : 0f;
+
+            float need = 5f + head.CalcHeight(new GUIContent(def.DisplayName), textW) + 4f
+                       + (artH > 0f ? artH + 6f : 0f)
+                       + (stats.Length > 0 ? Row(body) : 0f)
+                       + (upkeep.Length > 0 ? Row(body) : 0f)
+                       + (rules.Length > 0 ? body.CalcHeight(new GUIContent(rules), textW) + 4f : 0f)
+                       + 6f;
+
+            // If it will not all fit, the ART is what goes - the words are the reason the panel
+            // exists, and a picture the player is already looking at on the board is the one thing
+            // here they can spare.
+            if (need > roomH && artH > 0f) { need -= artH + 6f; artH = 0f; }
+
+            var panel = new Rect(6f, top, panelW, Mathf.Min(roomH, need));
             Panel(panel, PanelColor);
             HudLayout.Control(panel);
 
             float y = panel.y + 5f;
-            GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 16), def.DisplayName, _label);
-            y += 18f;
+            y += Line(panel.x + pad, y, textW, def.DisplayName, head) + 4f;
 
-            var art = def.CardArt != null ? def.CardArt : def.FieldArt;
-            if (art != null && art.texture != null)
+            if (artH > 0f)
             {
-                var box = new Rect(panel.x + 7, y, panel.width - 14, artH * 0.62f);
+                var box = new Rect(panel.x + pad, y, textW, artH);
                 var r = art.textureRect;
                 var uv = new Rect(r.x / art.texture.width, r.y / art.texture.height,
                                   r.width / art.texture.width, r.height / art.texture.height);
                 GUI.DrawTextureWithTexCoords(box, art.texture, uv);
-                y += box.height + 6f;
+                y += artH + 6f;
             }
 
-            var cre = o as CreatureUnit;
-            var bld = o as StructureUnit;
-            if (cre != null)
-            {
-                GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 14),
-                          "ATK " + Stat.Show(cre.EffectiveAttack)
-                          + "   HP " + Stat.Show(cre.Hp) + "/" + Stat.Show(cre.MaxHp), _small);
-                y += 15f;
-                if (cre.Upkeep != 0)
-                {
-                    GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 14),
-                              "UPKEEP " + cre.Upkeep, _small);
-                    y += 15f;
-                }
-            }
-            else if (bld != null)
-            {
-                GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, 14),
-                          "HP " + Stat.Show(bld.Hp) + "/" + Stat.Show(bld.MaxHp)
-                          + "   WORK " + bld.Support, _small);
-                y += 15f;
-            }
+            if (stats.Length > 0) y += Line(panel.x + pad, y, textW, stats, body);
+            if (upkeep.Length > 0) y += Line(panel.x + pad, y, textW, upkeep, body);
 
             // The rules text, which is the whole reason this panel exists - it is the one thing
             // about a card that has never fitted anywhere on the board.
-            string text = def.Description;
-            if (!string.IsNullOrEmpty(text))
-            {
-                var body = new GUIStyle(_small) { wordWrap = true };
-                float left = panel.yMax - y - 5f;
-                if (left > 10f)
-                    GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, left), text, body);
-            }
+            if (rules.Length > 0 && panel.yMax - y > Row(body))
+                Line(panel.x + pad, y + 2f, textW, rules, body);
         }
 
 
@@ -511,17 +542,30 @@ namespace SpawnRowDuel.View
             HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
                                         panel.width * _scale, panel.height * _scale);
 
-            GUI.Label(new Rect(panel.x + 8, panel.y + 4, panel.width - 60, 16), "MATCH LOG", _label);
-            if (Btn(new Rect(panel.xMax - 46, panel.y + 4, 40, 16), "CLOSE", _small))
+            float head = Row(_label);
+            GUI.Label(new Rect(panel.x + 8, panel.y + 4, panel.width - 62, head), "MATCH LOG", _label);
+            if (Btn(new Rect(panel.xMax - 52, panel.y + 4, 46, head), "CLOSE", _small))
                 _logOpen = false;
 
-            var view = new Rect(panel.x + 6, panel.y + 24, panel.width - 12, panel.height - 30);
-            var content = new Rect(0, 0, view.width - 16, Mathf.Max(view.height, log.Count * 14f + 4f));
+            // Every line is measured and WRAPPED. A log line is a sentence of unknown length -
+            // "Mistling enters at FoeFront[3]" is already wider than this column on a phone - and
+            // a fixed row height silently sliced the bottom off every one of them.
+            var body = new GUIStyle(_small) { wordWrap = true };
+            float top = panel.y + 8f + head;
+            var view = new Rect(panel.x + 6, top, panel.width - 12, panel.yMax - top - 6f);
+
+            float total = 4f;
+            float lineW = view.width - 18f;
+            for (int i = 0; i < log.Count; i++)
+                total += Mathf.Max(Row(body), body.CalcHeight(new GUIContent(log[i]), lineW));
+
+            var content = new Rect(0, 0, lineW, Mathf.Max(view.height, total));
 
             // pinned to the BOTTOM on open, because the interesting end of a log is the new end
             _logScroll = GUI.BeginScrollView(view, _logScroll, content);
+            float ly = 2f;
             for (int i = 0; i < log.Count; i++)
-                GUI.Label(new Rect(2, i * 14f, content.width - 4, 14f), log[i], _small);
+                ly += Line(2f, ly, lineW - 4f, log[i], body);
             GUI.EndScrollView();
         }
 
