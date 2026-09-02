@@ -31,6 +31,7 @@ namespace SpawnRowDuel.View.Cards
 
         MatchController _match;
         MatchHud _hud;
+        BoardInput _input;
 
         PanelSettings _panel;
         UIDocument _doc;
@@ -61,11 +62,13 @@ namespace SpawnRowDuel.View.Cards
         CardArtIndex _art;
 
         string _signature = "";      // what is currently drawn, so a rebuild only happens on change
+        string _inspectKey = "";     // ...and what the inspect card is currently bound to
 
         void Awake()
         {
             _match = GetComponent<MatchController>();
             _hud = GetComponent<MatchHud>();
+            _input = GetComponent<BoardInput>();
         }
 
         void LateUpdate()
@@ -79,9 +82,6 @@ namespace SpawnRowDuel.View.Cards
             HudLayout.Recompute();
             float peek = HudLayout.HandBandPx;
 
-            _row.style.height = peek;
-            _lift.style.height = peek;
-
             // The walls are drawn HERE rather than in IMGUI: IMGUI paints after every UI Toolkit
             // panel, so a band painted there lands on top of the cards instead of behind them -
             // which is what the dark bar through the hand turned out to be.
@@ -89,16 +89,34 @@ namespace SpawnRowDuel.View.Cards
             // And they lay out BEFORE the hand now, because the hand rides on them.
             _walls.Layout(_match.Engine.State, _palette, PanelWidth());
 
-            // ON the screen edge - or on the WALL, when the wall is up. A card stopped short of
-            // the edge with a lip of stone underneath looks stuck to it; a held hand stands proud
-            // of the wall it is held at, which is what the peek being taller than the rail is for.
-            // The hand used to be pinned to the edge, so when a tower window slid up the stonework
-            // rose straight through the cards. One way only: the wall opens because it is being
-            // looked at, never because a card was picked.
+            // THE WHOLE CARD comes up with the wall, not the top third of it.
+            //
+            // A resting card hangs below the screen edge with only its banner showing, which is
+            // what makes the hand affordable - the band the board gives up is one banner tall. But
+            // a wall that opens is the player asking to LOOK, and answering that with a strip of
+            // card that is still mostly off-screen is answering half a question. The strip grows
+            // with the wall until, fully open, it is a card tall and the hand is simply readable.
+            //
+            // Driven by the wall's OPENNESS rather than by how far it has risen in pixels: the
+            // stone only stands 74 units proud of its rail and a card is 139 tall, so lift alone
+            // tops out at seven eighths of a card and never quite finishes the job.
+            float cardH = peek * CardToPeek;
+            float show = Mathf.Lerp(peek, cardH, _walls.YouOpen);
+
             _row.style.bottom = _walls.YouLift;
+            _row.style.height = show;
             _lift.style.bottom = _walls.YouLift;
+            _lift.style.height = show;
+
+            // ...and the board must not take taps through a card that is now a card tall.
+            // WallBands published the band for a PEEK-height hand a moment ago; this is the
+            // same rect measured against what the hand actually occupies.
+            HudLayout.BottomBlockPx =
+                Mathf.Max(HudLayout.BottomBlockPx, _walls.YouLift + show);
 
             var hand = _match.Engine.State.P(Seat.Local).Hand;
+            UpdateInspect(hand, peek);
+
             var sig = Signature(hand, peek);
             if (sig == _signature) return;
             _signature = sig;
@@ -133,7 +151,7 @@ namespace SpawnRowDuel.View.Cards
         {
             _row.Clear();
             _lift.Clear();
-            _inspect.style.display = DisplayStyle.None;
+
             if (hand.Count == 0) return;
 
             float cardH = peek * CardToPeek;
@@ -169,8 +187,11 @@ namespace SpawnRowDuel.View.Cards
                 face.style.left = x0 + i * step;
 
                 bool picked = i == selected;
-                // at rest the card hangs below the strip, showing its banner only
-                face.style.bottom = picked ? 0f : -(cardH - peek);
+                // A resting card anchors to the TOP of the strip and is clipped by it, so how
+                // much of it shows is entirely the strip's height - which is what lets the wall
+                // grow the hand without touching a single card. The picked one still anchors to
+                // the bottom, in the unclipped overlay, so it rises clear.
+                if (picked) face.style.bottom = 0f; else face.style.top = 0f;
 
                 int index = i;
                 face.RegisterCallback<PointerDownEvent>(evt =>
@@ -185,7 +206,7 @@ namespace SpawnRowDuel.View.Cards
                 if (picked) _lift.Add(face); else _row.Add(face);
             }
 
-            if (selected >= 0 && selected < hand.Count) ShowInspect(hand[selected].Id, cardH);
+
         }
 
         /// <summary>
@@ -193,13 +214,98 @@ namespace SpawnRowDuel.View.Cards
         /// its rules text can be read, carrying the FULL ability text rather than the hand card's
         /// three-line brief.
         /// </summary>
-        void ShowInspect(CardId id, float handCardH)
+
+        /// <summary>
+        /// What the inspect card shows: the picked hand card, or whatever on the BOARD the player
+        /// is pointing at.
+        ///
+        /// It is a real CardFace - the same element the hand is built from - because the question
+        /// "what is that thing" is answered by the card, not by a summary of it. The panel that
+        /// used to live here was an IMGUI box with a cropped illustration and three lines of
+        /// plain text, which is a description of a card rather than a card.
+        ///
+        /// A face-down card the foe owns is not inspectable. That secret is a rule.
+        /// </summary>
+        void UpdateInspect(IReadOnlyList<HandCard> hand, float peek)
         {
             CardFaceModel model;
-            if (!CardFaceModel.TryOfCard(id, _match.Engine.Catalog, _text, _art, out model)) return;
+            bool has = false;
 
+            int sel = _hud != null ? _hud.SelectedHandIndex : -1;
+            if (sel >= 0 && sel < hand.Count)
+                has = TryHandModel(hand[sel].Id, out model);
+            else
+                has = TryBoardModel(out model);
+
+            if (!has)
+            {
+                _inspect.style.display = DisplayStyle.None;
+                _inspectKey = "";
+                return;
+            }
+
+            // Rebind only when the SUBJECT changes. CardFace.Bind rebuilds its children, and doing
+            // that every frame while a pointer rests on one unit is a rebuild a second at sixty.
+            string key = model.Name + "|" + model.Hp + "/" + model.MaxHp + "|" + model.Attack;
+            if (key == _inspectKey) return;
+            _inspectKey = key;
+
+            ShowInspect(model, peek * CardToPeek);
+        }
+
+        bool TryHandModel(CardId id, out CardFaceModel model)
+        {
+            if (!CardFaceModel.TryOfCard(id, _match.Engine.Catalog, _text, _art, out model)) return false;
             var full = _text.Full(id);
             if (!string.IsNullOrEmpty(full)) model.Rules = full;
+            return true;
+        }
+
+        /// <summary>The unit under the pointer, or the one selected on a screen with no pointer.</summary>
+        bool TryBoardModel(out CardFaceModel model)
+        {
+            model = default(CardFaceModel);
+            if (_input == null || _match.Board == null) return false;
+
+            var at = _input.Hover ?? _input.Selected;
+            if (!at.HasValue) return false;
+
+            var o = _match.Engine.State.At(at.Value);
+            if (o == null) return false;
+
+            var cre = o as CreatureUnit;
+            if (cre != null)
+            {
+                if (cre.IsWorker) return false;
+                if (!TryHandModel(cre.Card, out model)) return false;
+                // the LIVE unit, not the printed card - what is standing there has taken damage
+                model.Attack = Stat.Show(cre.EffectiveAttack);
+                model.Hp = Stat.Show(cre.Hp);
+                model.MaxHp = Stat.Show(cre.MaxHp);
+                return true;
+            }
+
+            var bld = o as StructureUnit;
+            if (bld != null)
+            {
+                var def = _match.Engine.Catalog.Structure(bld.DefId, bld.Color);
+                model = CardFaceModel.OfStructure(def, _text, _art);
+                model.Hp = Stat.Show(bld.Hp);
+                model.MaxHp = Stat.Show(bld.MaxHp);
+                return true;
+            }
+
+            // a set charge or trap: only its owner may look
+            if (o.Owner != Seat.Local) return false;
+
+            var trap = o as TrapUnit;
+            if (trap != null) return TryHandModel(trap.Card, out model);
+
+            return false;
+        }
+
+        void ShowInspect(CardFaceModel model, float handCardH)
+        {
 
             // as tall as the board band allows, never taller than the band itself
             float room = Screen.height - HudLayout.TopPx - HudLayout.BottomPx - 24f;

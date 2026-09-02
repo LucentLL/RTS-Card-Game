@@ -53,6 +53,11 @@ namespace SpawnRowDuel.View.Cards
         /// match sitting on the board.
         /// </summary>
         public float YouLift { get; private set; }
+
+        /// <summary>The same thing as a FRACTION, 0 shut to 1 wide open. The hand grows on this
+        /// rather than on YouLift, because the stone only stands 74 units proud of its rail while
+        /// a card is 139 tall - lift alone tops out at seven eighths of a card.</summary>
+        public float YouOpen { get; private set; }
         float _foeTouched = -99f, _youTouched = -99f;
 
         /// <summary>
@@ -179,6 +184,7 @@ namespace SpawnRowDuel.View.Cards
             _foeStone.style.top = -(full - foeCur);
             _youStone.style.bottom = -(full - youCur);
             YouLift = Mathf.Max(0f, youCur - youRail);
+            YouOpen = _youOpen;
 
             // what the walls cover right now - the board must not take taps through them, and the
             // hands are opaque too even when the wall behind them is down

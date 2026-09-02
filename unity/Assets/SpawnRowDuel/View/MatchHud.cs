@@ -65,8 +65,6 @@ namespace SpawnRowDuel.View
         private float _logShownUntil;
         private bool _logOpen, _settingsOpen, _guiFaulted;
         private float _pendingSince;
-        private int _inspectId = -1;
-        private float _inspectUntil;
         private Vector2 _logScroll;
         private Rect _rail;               // where DrawSideRail put itself, so the log can hang off it
         private readonly HashSet<int> _chosenBlockers = new HashSet<int>();
@@ -235,7 +233,6 @@ namespace SpawnRowDuel.View
             // the hand is UI Toolkit now (HandBar) - real card faces, same band, same selection
             DrawModeRow(s, w, h);
             DrawSideRail(s, w, h);
-            DrawInspect(s, w, h);
             DrawLog(w);
             if (_logOpen) DrawLogHistory(w, h);
             if (_settingsOpen) DrawSettings(w, h);
@@ -412,124 +409,6 @@ namespace SpawnRowDuel.View
             }
         }
 
-
-        /// <summary>
-        /// WHAT YOU ARE LOOKING AT, down the left-hand edge.
-        ///
-        /// The board can only ever print what fits on a tile - a health meter and a statline - and
-        /// the moment it tries to print more it is covering its own art with text. So the field
-        /// keeps the numbers and this keeps the reading: point at a piece, or select one, and its
-        /// whole card is here at a size you can actually read, with the rules text the plate has
-        /// no room for.
-        ///
-        /// The LEFT edge specifically. The right belongs to the turn rail and the log, the top and
-        /// bottom to the two hands, and the middle is the board - the left column is the one strip
-        /// of screen nothing else has a claim on.
-        ///
-        /// Hover feeds it on a mouse; selection feeds it on a touch screen, where there is no
-        /// hover to have. Neither costs a tap: this only ever reads state the input layer already
-        /// keeps.
-        /// </summary>
-        void DrawInspect(GameState s, float w, float h)
-        {
-            if (_input == null) return;
-
-            var at = _input.Hover ?? _input.Selected;
-            BoardObject o = at.HasValue ? s.At(at.Value) : null;
-
-            // A LATCH, and it is load bearing rather than a nicety. The panel registers itself as
-            // a blocker so a click on it cannot fall through to the cell behind, and BoardInput
-            // drops the hover whenever the pointer is over a blocker - so a panel driven straight
-            // off the hover would appear, cover the cell that summoned it, lose the hover, vanish,
-            // and start again, sixty times a second. Holding the last thing looked at for a moment
-            // breaks that loop, and it is what you want anyway: the reading stays put long enough
-            // to move the pointer onto it.
-            if (o != null) { _inspectId = o.Id; _inspectUntil = Time.unscaledTime + 0.5f; }
-            else if (Time.unscaledTime < _inspectUntil) o = FindObject(s, _inspectId);
-            if (o == null) return;
-
-            // a face-down card is a secret, and the panel is not a way around that
-            if (o is ChargeUnit || o is TrapUnit)
-            {
-                if (o.Owner != Seat.Local) return;
-            }
-
-            var def = _match.DefOfObject(o);
-            if (def == null) return;
-
-            const float panelW = 158f;
-            float top = TopH + 6f;
-            float roomH = h - top - HandH - ModeH - 8f;
-
-            var cre = o as CreatureUnit;
-            var bld = o as StructureUnit;
-
-            // MEASURE FIRST, then draw. Every row takes the height the font actually needs and
-            // the panel takes the height the rows actually need - nothing here is a magic 14, and
-            // nothing gets its descenders sliced off on a screen whose font resolved taller than
-            // the desktop one this was laid out on.
-            var body = new GUIStyle(_small) { wordWrap = true };
-            var head = new GUIStyle(_label) { wordWrap = true };
-            float pad = 7f;
-            float textW = panelW - pad * 2f;
-
-            string stats = cre != null
-                ? "ATK " + Stat.Show(cre.EffectiveAttack)
-                  + "   HP " + Stat.Show(cre.Hp) + "/" + Stat.Show(cre.MaxHp)
-                : bld != null
-                ? "HP " + Stat.Show(bld.Hp) + "/" + Stat.Show(bld.MaxHp) + "   WORK " + bld.Support
-                : "";
-            string upkeep = (cre != null && cre.Upkeep != 0) ? "UPKEEP " + cre.Upkeep : "";
-            string rules = def.Description != null ? def.Description : "";
-
-            var art = def.CardArt != null ? def.CardArt : def.FieldArt;
-            float artH = art != null && art.texture != null ? panelW * 0.76f : 0f;
-
-            float need = 5f + head.CalcHeight(new GUIContent(def.DisplayName), textW) + 4f
-                       + (artH > 0f ? artH + 6f : 0f)
-                       + (stats.Length > 0 ? Row(body) : 0f)
-                       + (upkeep.Length > 0 ? Row(body) : 0f)
-                       + (rules.Length > 0 ? body.CalcHeight(new GUIContent(rules), textW) + 4f : 0f)
-                       + 6f;
-
-            // If it will not all fit, the ART is what goes - the words are the reason the panel
-            // exists, and a picture the player is already looking at on the board is the one thing
-            // here they can spare.
-            if (need > roomH && artH > 0f) { need -= artH + 6f; artH = 0f; }
-
-            var panel = new Rect(6f, top, panelW, Mathf.Min(roomH, need));
-            Panel(panel, PanelColor);
-            HudLayout.Control(panel);
-
-            float y = panel.y + 5f;
-            y += Line(panel.x + pad, y, textW, def.DisplayName, head) + 4f;
-
-            if (artH > 0f)
-            {
-                var box = new Rect(panel.x + pad, y, textW, artH);
-                var r = art.textureRect;
-                var uv = new Rect(r.x / art.texture.width, r.y / art.texture.height,
-                                  r.width / art.texture.width, r.height / art.texture.height);
-                GUI.DrawTextureWithTexCoords(box, art.texture, uv);
-                y += artH + 6f;
-            }
-
-            if (stats.Length > 0) y += Line(panel.x + pad, y, textW, stats, body);
-            if (upkeep.Length > 0) y += Line(panel.x + pad, y, textW, upkeep, body);
-
-            // The rules text, which is the whole reason this panel exists - it is the one thing
-            // about a card that has never fitted anywhere on the board.
-            if (rules.Length > 0 && panel.yMax - y > Row(body))
-                Line(panel.x + pad, y + 2f, textW, rules, body);
-        }
-
-
-        static BoardObject FindObject(GameState s, int id)
-        {
-            if (id < 0) return null;
-            foreach (var kv in s.Objects()) if (kv.Value != null && kv.Value.Id == id) return kv.Value;
-            return null;
-        }
 
         /// <summary>The whole match, scrollable. Same right-hand column, floor to ceiling.</summary>
         void DrawLogHistory(float w, float h)

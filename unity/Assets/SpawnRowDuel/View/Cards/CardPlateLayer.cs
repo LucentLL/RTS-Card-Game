@@ -96,6 +96,7 @@ namespace SpawnRowDuel.View.Cards
             public SpriteRenderer Trough;     // the health meter's ground ...
             public SpriteRenderer Fill;       // ... and what is left of it
             public SpriteRenderer Hp;         // the number printed across the meter
+            public SpriteRenderer Name;       // the card's own title, in its banner
         }
 
         /// <summary>
@@ -114,7 +115,7 @@ namespace SpawnRowDuel.View.Cards
         /// where an unusually wide cut-out still does, the art wins - which is also the right
         /// answer to a far row's numbers being drawn across a near figure's head.
         /// </summary>
-        const int OrderFrame = 4, OrderArt = 6, OrderTrough = 12, OrderFill = 13,
+        const int OrderFrame = 4, OrderName = 5, OrderArt = 6, OrderTrough = 12, OrderFill = 13,
                   OrderStats = 14, OrderNum = 15, OrderBank = 16;
 
         void Awake()
@@ -165,6 +166,7 @@ namespace SpawnRowDuel.View.Cards
                 Stats = NewRenderer(root.transform, "stats", OrderStats),
                 Hp = NewRenderer(root.transform, "hp", OrderNum),
                 Bank = NewRenderer(root.transform, "bank", OrderBank),
+                Name = NewRenderer(root.transform, "name", OrderName),
             };
             _live[o.Id] = p;
             return p;
@@ -205,6 +207,7 @@ namespace SpawnRowDuel.View.Cards
             p.Stats.transform.localRotation = upright;
             p.Hp.transform.localRotation = upright;
             p.Bank.transform.localRotation = upright;
+            p.Name.transform.localRotation = upright;   // a foe name still reads the right way up
 
             bool faceDown = o is ChargeUnit || o is TrapUnit;
             var frame = faceDown ? CardPlateTextures.Back(Sleeve(s, o.Owner))
@@ -237,8 +240,47 @@ namespace SpawnRowDuel.View.Cards
             p.Frame.color = tint;
             p.Art.color = tint;
 
+            PlaceName(p, def, faceDown, plateW, plateH);
             PlaceBank(p, o, s, plateW, plateH, faceDown);
             PlaceNumbers(p, o, plateW, plateH, faceDown, foe);
+        }
+
+        /// <summary>
+        /// The card's NAME, in its own title band.
+        ///
+        /// A plate prints one because nothing else honestly can. The name lived as a UI Toolkit
+        /// chip hung off the tile's front - a label floating on the grass, belonging to nothing -
+        /// and then as the same chip moved onto the title band, where it drew straight across the
+        /// field art, because an overlay panel cannot sort behind a sprite in the scene. Here it
+        /// is a sprite like the rest of the card, at OrderName, so the standee covers it wherever
+        /// the cut-out is opaque and it shows through wherever it is not. In TOP-DOWN, where the
+        /// figures lie down, the whole board reads its own names.
+        ///
+        /// A face-down card has no name to print - that is the secret.
+        /// </summary>
+        void PlaceName(Plate p, SpawnRowDuel.Data.CardDefinition def, bool faceDown,
+                       float plateW, float plateH)
+        {
+            var strip = faceDown || def == null ? null
+                      : CardPlateTextures.Name(def.DisplayName);
+            p.Name.sprite = strip;
+            p.Name.enabled = strip != null;
+            if (strip == null) return;
+
+            // inside the banner, with the frame's own margin either side
+            float boxW = plateW * (1f - 10f / CardPlateTextures.W);
+            float boxH = plateH * CardPlateTextures.BannerH * 0.62f;
+
+            // FIT, not fill. Every other readout on this card is stretched to its band because
+            // it was rastered at the band's own aspect; a name is rastered at whatever aspect its
+            // letters came to, so stretching it to a fixed box would squash a short name and
+            // starve a long one.
+            var size = strip.bounds.size;
+            float k = Mathf.Min(boxW / Mathf.Max(0.0001f, size.x),
+                                boxH / Mathf.Max(0.0001f, size.y));
+            p.Name.transform.localScale = new Vector3(k, k, 1f);
+            p.Name.transform.localPosition =
+                new Vector3(0f, BandY(0f, CardPlateTextures.BannerH, plateH), -0.0005f);
         }
 
         /// <summary>

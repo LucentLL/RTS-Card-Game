@@ -260,6 +260,41 @@ namespace SpawnRowDuel.View.Cards
             0x7, 0x5, 0x7, 0x1, 0x7,   // 9
             0x0, 0x2, 0x7, 0x2, 0x0,   // +
             0x0, 0x0, 0x7, 0x0, 0x0,   // -
+
+            // ...and the ALPHABET, added so a plate can print its own NAME. Twenty-six more
+            // glyphs of five bytes is two hundred bytes; the alternative was a world-space text
+            // renderer, or leaving the name to a UI overlay drawn ACROSS the field art, which is
+            // what it was doing and what got it removed from there.
+            0x2, 0x5, 0x7, 0x5, 0x5,   // A
+            0x6, 0x5, 0x6, 0x5, 0x6,   // B
+            0x3, 0x4, 0x4, 0x4, 0x3,   // C
+            0x6, 0x5, 0x5, 0x5, 0x6,   // D
+            0x7, 0x4, 0x6, 0x4, 0x7,   // E
+            0x7, 0x4, 0x6, 0x4, 0x4,   // F
+            0x3, 0x4, 0x5, 0x5, 0x3,   // G
+            0x5, 0x5, 0x7, 0x5, 0x5,   // H
+            0x7, 0x2, 0x2, 0x2, 0x7,   // I
+            0x1, 0x1, 0x1, 0x5, 0x2,   // J
+            0x5, 0x5, 0x6, 0x5, 0x5,   // K
+            0x4, 0x4, 0x4, 0x4, 0x7,   // L
+            0x5, 0x7, 0x7, 0x5, 0x5,   // M
+            0x6, 0x5, 0x5, 0x5, 0x5,   // N
+            0x2, 0x5, 0x5, 0x5, 0x2,   // O
+            0x6, 0x5, 0x6, 0x4, 0x4,   // P
+            0x2, 0x5, 0x5, 0x6, 0x3,   // Q
+            0x6, 0x5, 0x6, 0x5, 0x5,   // R
+            0x3, 0x4, 0x2, 0x1, 0x6,   // S
+            0x7, 0x2, 0x2, 0x2, 0x2,   // T
+            0x5, 0x5, 0x5, 0x5, 0x7,   // U
+            0x5, 0x5, 0x5, 0x5, 0x2,   // V
+            0x5, 0x5, 0x7, 0x7, 0x5,   // W
+            0x5, 0x5, 0x2, 0x5, 0x5,   // X
+            0x5, 0x5, 0x2, 0x2, 0x2,   // Y
+            0x7, 0x1, 0x2, 0x4, 0x7,   // Z
+
+            0x0, 0x0, 0x0, 0x0, 0x0,   // space - advances and draws nothing
+            0x0, 0x0, 0x0, 0x0, 0x2,   // .
+            0x2, 0x2, 0x0, 0x0, 0x0,   // apostrophe
         };
 
         const int Cols = 3, Rows = 5, Tracking = 1;
@@ -269,6 +304,11 @@ namespace SpawnRowDuel.View.Cards
             if (c >= '0' && c <= '9') return c - '0';
             if (c == '+') return 10;
             if (c == '-') return 11;
+            if (c >= 'A' && c <= 'Z') return 12 + (c - 'A');
+            if (c >= 'a' && c <= 'z') return 12 + (c - 'a');   // the font has one case
+            if (c == ' ') return 38;
+            if (c == '.') return 39;
+            if (c == '\'') return 40;
             return -1;                       // anything else advances and draws nothing
         }
 
@@ -474,6 +514,62 @@ namespace SpawnRowDuel.View.Cards
 
             tex.SetPixels(px);
             tex.Apply(false, false);
+            return tex;
+        }
+
+
+        // -- the card's own NAME, printed in its title band --------------------------------
+
+        static readonly Dictionary<string, Texture2D> _names = new Dictionary<string, Texture2D>();
+
+        /// <summary>How tall a name glyph is rastered, in texels. The strip is scaled to the
+        /// banner by the layer, so this only decides how crisp it gets there.</summary>
+        const int NameSy = 6, NameSx = 4, NameRing = 1;
+
+        /// <summary>
+        /// The card's name as a strip, WHITE on transparent with a dark ring, for the layer to
+        /// tint and lay into the banner.
+        ///
+        /// This exists because the name had nowhere honest to go. It was a UI Toolkit chip hung
+        /// off the tile's front, which is a label floating on the grass belonging to nothing; then
+        /// it was the same chip moved onto the card's title band, which drew it straight ACROSS
+        /// the field art, because an overlay panel cannot sort behind a sprite in the scene. A
+        /// strip on the plate can: it is a world-space sprite like everything else on the card, it
+        /// sorts under the standee (CardPlateLayer.OrderName), and where the cut-out is opaque the
+        /// ART WINS - which is the whole of what was asked for.
+        ///
+        /// White and ringed so one texture serves both seats: the ring is what lets it read over
+        /// a pale banner and a dark one, and the tint is the renderer's, not the raster's.
+        /// </summary>
+        public static Sprite Name(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return null;
+
+            Texture2D tex;
+            if (!_names.TryGetValue(text, out tex))
+            {
+                tex = BuildName(text);
+                _names[text] = tex;
+            }
+            return SpriteOf(tex);
+        }
+
+        static Texture2D BuildName(string text)
+        {
+            int w = TextW(text, NameSx) + NameRing * 2 + 2;
+            int h = Rows * NameSy + NameRing * 2 + 2;
+
+            var px = new Color[w * h];
+            TextRinged(px, w, h, text, NameRing + 1, NameRing + 1, NameSx, NameSy,
+                       Color.white, new Color(0f, 0f, 0f, 0.85f), NameRing);
+
+            var tex = New(w, h, "SRD Name " + text);
+            tex.SetPixels(px);
+
+            // Upload and let the CPU copy go. Nothing ever reads a name strip back, and a cache
+            // that grows with the card pool has no business keeping a second copy of each one in
+            // a heap that starts at thirty-two megabytes.
+            tex.Apply(false, true);
             return tex;
         }
 

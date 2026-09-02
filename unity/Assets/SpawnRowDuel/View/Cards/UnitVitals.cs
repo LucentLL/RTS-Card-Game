@@ -8,18 +8,23 @@ namespace SpawnRowDuel.View.Cards
     /// <summary>
     /// Who each unit IS, drawn under its own tile - and whether your selected attacker may hit it.
     ///
-    /// It used to carry the numbers as well: ⚔ and ♥ on a line with a health bar under it, which
-    /// is where the vitals lived between the IMGUI overlay that could not draw a ♥ at all and the
-    /// card itself learning to. They are on the CARD now (<see cref="CardPlateLayer"/> prints the
-    /// meter in the stat bar and the statline in the ability box), and printing them here as well
-    /// put the same health in two places a finger's width apart - which is not redundancy, it is
-    /// two things to check. What is left is what the plate cannot say at board size:
+    /// It used to carry the numbers, and then the name, and it carries neither now. The numbers
+    /// went to the CARD (<see cref="CardPlateLayer"/> prints the meter in the stat bar and the
+    /// statline in the ability box), because the same health in two places a finger's width apart
+    /// is not redundancy, it is two things to check. The NAME went to the card as well, printed
+    /// into its title band at a sorting order beneath the standee - the only placement that is
+    /// both ON the card and not drawn across the field art, which an overlay panel can never
+    /// manage, since it cannot sort behind a sprite in the scene.
     ///
-    /// * the NAME, because the frame's banner is a shape rather than type at 80 pixels tall;
-    /// * the two keyword states that CHANGE - a cocoon's progress and a banked discharge - which
-    ///   are decisions rather than printed stats and so appear on no card;
+    /// What is left is what an overlay is actually for - things that are true right now and
+    /// appear on no card at all:
+    ///
+    /// * the two keyword states that CHANGE - a cocoon's progress and a banked discharge;
     /// * the TARGET ring, straight off BoardInput's engine-probed list, so aiming at something and
     ///   reading what it has left is one glance.
+    ///
+    /// With nothing to say it does not draw at all. A board of quiet units is a board of bare
+    /// cards, which is the point.
     ///
     /// The placement is still the one the complaint bought: hung off the tile's NEAR edge, in UI
     /// Toolkit, on the gated font chain. The old IMGUI overlay floated 1.45 cells ABOVE the cell -
@@ -108,20 +113,21 @@ namespace SpawnRowDuel.View.Cards
         {
             var chip = Ensure(o.Id);
 
-            // THE CARD'S OWN TITLE BAND, not the ground under its near edge.
+            // BACK to the tile's near edge, and carrying no NAME any more.
             //
-            // The chip used to hang off the tile's front, on the reasoning that there is always
-            // board left to hang it on. There is - and that is the problem: a name floating on the
-            // grass BELOW a card is a label belonging to nothing. The card has a title area, the
-            // frame prints one on every card in the hand, and the name belongs in it.
+            // The name went through both wrong answers in turn. Hung off the front of the tile it
+            // was a label floating on the grass, belonging to nothing; moved onto the card's title
+            // band it drew straight across the field art, because this is an overlay panel and an
+            // overlay cannot sort behind a sprite in the scene. CardPlateLayer prints the name on
+            // the plate itself now, at a sorting order under the standee, which is the only place
+            // that satisfies both.
             //
-            // CardPlateTextures.BannerH is the top 15.5% of the card measured from its far edge,
-            // so the band's middle sits (0.5 - BannerH/2) of a tile's depth PAST the cell centre,
-            // away from the camera - which is exactly where the card's name would be printed if
-            // the board plate printed one.
+            // What is left here is what an overlay is FOR: the target ring, and the two keyword
+            // states that change and appear on no card. Those are decisions rather than identity,
+            // they are tiny, and they sit on the ground in front of the card where they cross
+            // nothing.
             float depth = _match.Board.CellSize * _match.Board.RowStretch;
-            float band = (0.5f - CardPlateTextures.BannerH * 0.5f) * depth;
-            var anchor = _match.Board.WorldOf(cell) + new Vector3(0f, 0f, band);
+            var anchor = _match.Board.WorldOf(cell) - new Vector3(0f, 0f, depth * 0.5f);
 
             Vector2 p, side;
             if (!_hand.TryProject(cam, anchor, out p)
@@ -154,20 +160,22 @@ namespace SpawnRowDuel.View.Cards
 
             float font = Mathf.Clamp(cellW * 0.19f, 8f, 15f);
 
-            // ...and the ELEMENT beside it, which is the other half of a card's title line. The
-            // board plate has no cost circle to hold it - a card on the field has already been
-            // paid for - so the glyph rides with the name.
-            var def = _match.DefOfObject(o);
-            string glyph = def != null && !string.IsNullOrEmpty(def.Glyph) ? def.Glyph + " " : "";
-            chip.Name.text = glyph + Name(cre, bld);
-            chip.Name.style.fontSize = font * 0.92f;
-            chip.Name.style.color = target ? TargetRed : joining ? JoinGold : (mine ? You : Foe);
-
+            // The chip is a STATUS marker now, not a nameplate. It draws at all only when it has
+            // something to say that no card carries: a ring for what your attacker may hit or
+            // join, and a keyword state that is mid-change.
             string extra = cre != null ? Extra(cre) : "";
+            if (!target && !joining && extra.Length == 0)
+            {
+                chip.Root.style.display = DisplayStyle.None;
+                return;
+            }
+
+            chip.Name.style.display = DisplayStyle.None;
+
             chip.Line.text = extra;
             chip.Line.style.display = extra.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             chip.Line.style.fontSize = font;
-            chip.Line.style.color = mine ? You : Foe;
+            chip.Line.style.color = target ? TargetRed : joining ? JoinGold : (mine ? You : Foe);
 
             // a target wears the red ring and a creature that may join it a gold one; nothing
             // else draws a border, so neither can be mistaken for anything
@@ -181,11 +189,9 @@ namespace SpawnRowDuel.View.Cards
                                             : joining ? new Color(0.24f, 0.16f, 0.02f, 0.82f)
                                                       : new Color(0.02f, 0.02f, 0.04f, 0.62f);
 
-            // Centred ON the band rather than hung under it, so the chip reads as the card's own
-            // title line instead of a caption stuck to the bottom of the tile.
             chip.Root.style.width = cellW;
             chip.Root.style.left = p.x - cellW * 0.5f;
-            chip.Root.style.top = p.y - font * 0.8f;
+            chip.Root.style.top = p.y + 2f;
             chip.Root.style.display = DisplayStyle.Flex;
         }
 
