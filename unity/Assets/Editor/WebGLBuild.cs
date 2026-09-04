@@ -40,6 +40,22 @@ public static class WebGLBuild
         // exception support has no reach at all.
         PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.External;
 
+        // ── the heap the whole game lives in ──────────────────────────────────────────────
+        //
+        // It started at THIRTY-TWO megabytes and grew 20% at a time. Every one of those growth
+        // steps is a new ArrayBuffer and a full copy of the old one, and on a phone a copy that
+        // large can simply fail - at which point realloc returns null and the failure surfaces
+        // wherever the allocator was standing: "indirect call to null" inside
+        // MemoryManager::Reallocate under UI Toolkit growing a GPU staging buffer, or an
+        // out-of-bounds inside emscripten_builtin_free under BufferManagerGLES::AcquireBuffer.
+        // Both of those are this, and neither of them looks like it from the stack.
+        //
+        // This game loads four hundred textures, a URP pipeline, two UI Toolkit panels and a
+        // fifty-thousand-vertex terrain before a card is played. Half a gigabyte up front means
+        // it never has to make that copy at all; growth stays available to 2GB behind it.
+        PlayerSettings.WebGL.memorySize = 512;
+        PlayerSettings.WebGL.initialMemorySize = 512;
+
         var opts = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/Battle.unity" },

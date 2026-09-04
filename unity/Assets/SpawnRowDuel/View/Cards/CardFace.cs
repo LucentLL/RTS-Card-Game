@@ -88,7 +88,7 @@ namespace SpawnRowDuel.View.Cards
             _costCircle.style.alignItems = Align.Center;
             _costCircle.style.justifyContent = Justify.Center;
             _costCircle.style.flexShrink = 0;
-            Add(_costCircle);
+            // added to the root LAST - see below
 
             _cost = Text("", UiFont.DisplayBlack);
             _cost.style.color = new Color(0.08f, 0.06f, 0.04f);
@@ -100,7 +100,7 @@ namespace SpawnRowDuel.View.Cards
             _gem.style.alignItems = Align.Center;
             _gem.style.justifyContent = Justify.Center;
             _gem.style.flexShrink = 0;
-            Add(_gem);
+            // added to the root LAST - see below
 
             _gemGlyph = Text("", UiFont.Cjk);      // kanji-only: the static face is its PRIMARY font
             _gemGlyph.style.color = Color.white;
@@ -205,6 +205,13 @@ namespace SpawnRowDuel.View.Cards
             _stats.style.paddingLeft = 5; _stats.style.paddingRight = 5;
             _stats.style.flexShrink = 0;
             Add(_stats);
+
+            // THE BADGE AND THE GEM GO ON LAST, because in UI Toolkit a sibling drawn later is
+            // drawn on top. They are positioned to hang off the banner into the picture, and
+            // added before the art window they were hanging BEHIND it - the picture clipped the
+            // mana cost and the element clean off the card.
+            Add(_costCircle);
+            Add(_gem);
 
             _power = Text("", UiFont.DisplayBlack);
             _power.style.color = Color.white;

@@ -47,6 +47,29 @@ namespace SpawnRowDuel.View.Shell
         public const bool Supported = false;
 #endif
 
+        /// <summary>
+        /// Stop the player swallowing the keyboard, once, before any scene loads.
+        ///
+        /// This is the whole of "there is a caret but nothing types". Unity WebGL defaults to
+        /// captureAllKeyboardInput, which attaches its key listeners to the DOCUMENT and calls
+        /// preventDefault on almost everything so a held arrow key does not scroll the page - and
+        /// preventDefault on a keydown is exactly what stops the character reaching a focused
+        /// input. It listens in the CAPTURE phase, so stopping propagation at the input is too
+        /// late: the ancestor has already run and already cancelled the key.
+        ///
+        /// With it off, Unity listens on the CANVAS instead. Keys pressed while the browser input
+        /// has focus are the browser's business, and keys pressed while the canvas has focus are
+        /// still the game's - which is every key the game actually reads, because the board has to
+        /// be clicked before it can be played.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void ReleaseTheKeyboard()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            WebGLInput.captureAllKeyboardInput = false;
+#endif
+        }
+
         /// <summary>How long a password, deck name or search may be. Long enough for any of the
         /// three; short enough that the poll buffer is a fixed size and never grows.</summary>
         const int MaxLen = 64;
