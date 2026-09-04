@@ -386,8 +386,14 @@ namespace SpawnRowDuel.View
 
             var all = World.Biomes.All;
             bool rolled = !MatchController.ArenaChosen;
-            const float bw = 84f, gap = 6f;
-            float total = (all.Length + 1) * bw + all.Length * gap;
+
+            // Eight buttons at a fixed 84 ran off both edges the moment RANDOM joined the row.
+            // The row is sized to the screen it is on instead - the labels are short and the
+            // build is played on a phone.
+            const float gap = 6f;
+            int n = all.Length + 1;
+            float bw = Mathf.Min(84f, (w - 16f - gap * (n - 1)) / n);
+            float total = n * bw + (n - 1) * gap;
             float x = w / 2f - total / 2f;
 
             var old = GUI.color;
