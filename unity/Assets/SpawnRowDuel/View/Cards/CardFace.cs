@@ -368,6 +368,13 @@ namespace SpawnRowDuel.View.Cards
             if (_names == null || _name == null || _nameSize <= 0f) return;
             if (string.IsNullOrEmpty(_name.text)) return;
 
+            // MeasureTextSize reads the panel's DPI, and HandBar binds a face BEFORE it adds it -
+            // so measuring here off-panel warned once per card per rebuild (135 of them in one
+            // probe run) and measured against a DPI it had to invent. Nothing is lost by waiting:
+            // the GeometryChangedEvent below fires when the card is attached and laid out, which
+            // is the first moment the answer can be right anyway.
+            if (_name.panel == null) return;
+
             float avail = _names.resolvedStyle.width;
             float cur = _name.resolvedStyle.fontSize;
             if (avail <= 1f || cur <= 0f) return;
