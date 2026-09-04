@@ -313,10 +313,16 @@ namespace SpawnRowDuel.View.Cards
         void ShowInspect(CardFaceModel model, float handCardH)
         {
 
-            // as tall as the board band allows, never taller than the band itself
-            float room = Screen.height - HudLayout.TopPx - HudLayout.BottomPx - 24f;
-            float h = Mathf.Min(Mathf.Clamp(Screen.height * 0.52f, handCardH, 460f),
-                                Mathf.Max(160f, room));
+            // As tall as the board band allows, never taller than the band itself - and every
+            // number here is in SCALED pixels, because a raw one is not a fixed fraction of
+            // anybody's screen. The 460 ceiling was raw: at 1600x900 it never bound, and at
+            // 3200x1800 it bound HARD, so the same card came out half the relative size on the
+            // bigger monitor. That single constant is most of "a massive placement discrepancy
+            // between my two monitors".
+            float px = HudLayout.Scale;
+            float room = Screen.height - HudLayout.TopPx - HudLayout.BottomPx - 24f * px;
+            float h = Mathf.Min(Mathf.Clamp(Screen.height * 0.52f, handCardH, 460f * px),
+                                Mathf.Max(160f * px, room));
             float w = h / CardFace.Aspect;
 
             _inspect.Bind(model, _palette, w);
@@ -326,8 +332,8 @@ namespace SpawnRowDuel.View.Cards
             // card rising out of the strip; up here it is clear of that card by the whole board.
             _inspect.style.right = StyleKeyword.Auto;
             _inspect.style.bottom = StyleKeyword.Auto;
-            _inspect.style.left = 12f;
-            _inspect.style.top = HudLayout.TopPx + 12f;
+            _inspect.style.left = 12f * px;
+            _inspect.style.top = HudLayout.TopPx + 12f * px;
         }
 
         void EnsurePanel()

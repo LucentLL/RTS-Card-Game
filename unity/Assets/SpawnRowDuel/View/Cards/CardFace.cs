@@ -238,6 +238,14 @@ namespace SpawnRowDuel.View.Cards
             var sw = palette.Of(m.Element);
             var ec = sw.Color;
 
+            // Every FLOOR and CEILING on a font size in here is in real pixels, and a real pixel
+            // is not a fixed fraction of anybody's screen. Left raw, a clamp that exists to stop
+            // text going illegible on a small card silently becomes the DOMINANT term on a big
+            // display: at 3200x1800 every one of these pinned at its ceiling, so the whole card
+            // read at half the relative size it has at 1600x900. Scaled, they mean the same
+            // thing - "never smaller than this looks on a 480-tall reference screen".
+            float px = HudLayout.Scale;
+
             _width = width;
             style.width = width;
             style.height = width * Aspect;
@@ -281,9 +289,9 @@ namespace SpawnRowDuel.View.Cards
             _banner.style.paddingLeft = width * 0.022f + cost + gem + width * 0.03f;
 
             _name.text = m.Name;
-            _name.style.fontSize = Mathf.Clamp(width * NameSize, 8f, 14f);
+            _name.style.fontSize = Mathf.Clamp(width * NameSize, 8f * px, 14f * px);
             _type.text = string.IsNullOrEmpty(m.TypeLine) ? "" : m.TypeLine.ToUpperInvariant();
-            _type.style.fontSize = Mathf.Clamp(width * TypeSize, 6f, 10f);
+            _type.style.fontSize = Mathf.Clamp(width * TypeSize, 6f * px, 10f * px);
             _type.style.color = ElementPalette.Mix(ec, Color.black, 0.72f);
 
             // art
@@ -299,29 +307,29 @@ namespace SpawnRowDuel.View.Cards
 
             // lozenge
             _ribbonText.text = m.Ribbon;
-            _ribbonText.style.fontSize = Mathf.Clamp(width * RibbonSize, 6f, 12f);
+            _ribbonText.style.fontSize = Mathf.Clamp(width * RibbonSize, 6f * px, 12f * px);
             _ribbon.style.unityBackgroundImageTintColor = ec;
             _ribbon.style.marginTop = -(width * 0.055f);
             _ribbon.style.marginLeft = 4;
 
             // rules
             _rules.text = m.Rules;
-            _rules.style.fontSize = Mathf.Clamp(width * RulesSize, 7f, 13f);
+            _rules.style.fontSize = Mathf.Clamp(width * RulesSize, 7f * px, 13f * px);
             _rulesBox.style.display = string.IsNullOrEmpty(m.Rules) ? DisplayStyle.None : DisplayStyle.Flex;
 
             // stats
             _stats.style.display = m.ShowStats ? DisplayStyle.Flex : DisplayStyle.None;
             _stats.style.height = width * StatsH;
             _power.text = m.Attack > 0 ? Stat.Num(m.Attack) : "";
-            _power.style.fontSize = Mathf.Clamp(width * PowerSize, 11f, 26f);
+            _power.style.fontSize = Mathf.Clamp(width * PowerSize, 11f * px, 26f * px);
             _hp.text = Stat.Hp(m.Hp);
-            _hp.style.fontSize = Mathf.Clamp(width * HpSize, 9f, 18f);
+            _hp.style.fontSize = Mathf.Clamp(width * HpSize, 9f * px, 18f * px);
 
             if (m.HasWorkerChip)
             {
                 _chip.style.display = DisplayStyle.Flex;
                 _chip.text = "⚒" + (m.WorkerChip > 0 ? "+" : "") + m.WorkerChip;
-                _chip.style.fontSize = Mathf.Clamp(width * ChipSize, 6f, 11f);
+                _chip.style.fontSize = Mathf.Clamp(width * ChipSize, 6f * px, 11f * px);
                 bool plus = m.WorkerChip > 0;
                 _chip.style.color = plus ? new Color(0.72f, 0.98f, 0.72f) : new Color(0.96f, 0.90f, 0.76f);
                 _chip.style.backgroundColor = plus
@@ -337,7 +345,8 @@ namespace SpawnRowDuel.View.Cards
         void BindStateChips(CardFaceModel m, float width)
         {
             _stateChips.Clear();
-            float size = Mathf.Clamp(width * 0.13f, 8f, 15f);
+            float px = HudLayout.Scale;
+            float size = Mathf.Clamp(width * 0.13f, 8f * px, 15f * px);
 
             if (m.Sick) AddChip("💤", size, new Color(0.55f, 0.75f, 1f));
             if (m.Moved) AddChip("⤧", size, new Color(0.85f, 0.85f, 0.95f));

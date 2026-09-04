@@ -158,7 +158,9 @@ namespace SpawnRowDuel.View.Cards
             // is the only one anybody sees.
             bool joining = !target && Has(_input != null ? _input.Joiners : null, cell);
 
-            float font = Mathf.Clamp(cellW * 0.19f, 8f, 15f);
+            // the floor and ceiling scale, or they become the dominant term on a big display
+            float px = HudLayout.Scale;
+            float font = Mathf.Clamp(cellW * 0.19f, 8f * px, 15f * px);
 
             // The chip is a STATUS marker now, not a nameplate. It draws at all only when it has
             // something to say that no card carries: a ring for what your attacker may hit or
