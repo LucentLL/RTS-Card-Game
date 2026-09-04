@@ -17,6 +17,19 @@ namespace SpawnRowDuel.EditorPipeline
             var importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
+
+            // 512, down from the 2048 default.
+            //
+            // CardDatabase holds a direct Sprite reference for every card, so Unity loads ALL of
+            // them the moment the database loads - 212 illustrations and 184 cut-outs, nearly four
+            // hundred textures resident for the whole session. At 1024 square that is hundreds of
+            // megabytes of texture memory on a phone, and when the graphics device cannot get what
+            // it asks for the failure does not arrive as a tidy error: it arrives as a wasm trap
+            // inside SetVertexStateGLES with torn geometry on screen a frame earlier.
+            //
+            // Nothing draws one bigger than this. The largest use is the inspect card, whose art
+            // box is 0.68 of a card that is at most a third of the screen - a few hundred pixels.
+            importer.maxTextureSize = 512;
             importer.mipmapEnabled = false;
             importer.alphaIsTransparency = true;
 
@@ -45,6 +58,6 @@ namespace SpawnRowDuel.EditorPipeline
         /// assets whose importer version differs - without this the two hundred card arts already
         /// in the project keep the mesh type they were first imported with.
         /// </summary>
-        public override uint GetVersion() { return 2; }
+        public override uint GetVersion() { return 3; }
     }
 }

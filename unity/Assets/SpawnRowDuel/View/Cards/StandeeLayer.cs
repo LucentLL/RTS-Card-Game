@@ -63,20 +63,20 @@ namespace SpawnRowDuel.View.Cards
         /// the figure stands on, and a building with half a card showing under it is a building
         /// hovering over one. Standing it at the front of its own tile puts the card behind it,
         /// where the ground a standee stands on belongs.
-        /// </summary>
         ///
-        /// 0.26 now, up from 0.11. The card frame prints its stat bar in the bottom 15.5% of the
-        /// card and its ability box in the 21.1% above that, so a figure at 0.11 was standing
-        /// INSIDE its own health meter - which is what forced the plate to draw every number over
-        /// the top of the field art to stay readable. 0.26 is the seam between the ability box and
-        /// the illustration: the whole readout is in front of the feet and the art is behind them,
-        /// so neither has to be drawn through the other. Still well forward of the tile's CENTRE,
-        /// which is the number that made buildings look like they were hovering.
-        /// 0.37, not the 0.26 tried on the way: 0.26 lands INSIDE the ability box, and a wide
-        /// cut-out still had its skirts across the statline. 0.366 is where the readout actually
-        /// ends, so 0.37 is the seam.
-        const float FeetFromFront = 0.37f;
-        const float StructFeetFromFront = 0.38f;
+        /// It went to 0.37 for a while - where the printed readout ends - and standing the figure
+        /// there did keep every number clear, at the cost of the thing the figure is for. A
+        /// billboard one and a half tile-heights tall planted at the FAR end of its card leans
+        /// back off the card entirely and stands on the grass behind it, and the card then reads
+        /// as a separate object lying in front of its feet rather than as the ground it is
+        /// standing on.
+        ///
+        /// The readout does not need protecting any more: the plate draws every number UNDER the
+        /// standee, so where a wide cut-out crosses the statline the ART WINS, and the inspect
+        /// card carries the live attack and health of whatever is being pointed at.
+        /// </summary>
+        const float FeetFromFront = 0.11f;
+        const float StructFeetFromFront = 0.12f;
 
         /// <summary>
         /// How high the figure stands: just clear of the card plate lying on the tile (0.03) and

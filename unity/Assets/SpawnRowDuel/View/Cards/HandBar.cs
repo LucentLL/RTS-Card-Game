@@ -103,16 +103,22 @@ namespace SpawnRowDuel.View.Cards
             float cardH = peek * CardToPeek;
             float show = Mathf.Lerp(peek, cardH, _walls.YouOpen);
 
-            _row.style.bottom = _walls.YouLift;
+            // BOTTOM ZERO, always. The hand used to ride up on the wall's lift, which left the
+            // fully open cards floating a stone's height above the screen edge with a strip of
+            // battlement under them. A held hand rests on the bottom of the screen; what the wall
+            // changes is how much of the card is showing, not where the card ends.
+            //
+            // Nothing is lost by letting the stone pass behind them: the wall's own readouts live
+            // in the tower spans at either end and the hand only ever occupies the middle.
+            _row.style.bottom = 0f;
             _row.style.height = show;
-            _lift.style.bottom = _walls.YouLift;
+            _lift.style.bottom = 0f;
             _lift.style.height = show;
 
             // ...and the board must not take taps through a card that is now a card tall.
             // WallBands published the band for a PEEK-height hand a moment ago; this is the
             // same rect measured against what the hand actually occupies.
-            HudLayout.BottomBlockPx =
-                Mathf.Max(HudLayout.BottomBlockPx, _walls.YouLift + show);
+            HudLayout.BottomBlockPx = Mathf.Max(HudLayout.BottomBlockPx, show);
 
             var hand = _match.Engine.State.P(Seat.Local).Hand;
             UpdateInspect(hand, peek);
