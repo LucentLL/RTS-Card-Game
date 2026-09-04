@@ -57,9 +57,10 @@ namespace SpawnRowDuel.View.Cards
 
         readonly VisualElement _banner, _costCircle, _gem, _artWin, _art, _vignette, _ribbon, _rulesBox, _stats;
         readonly Label _cost, _gemGlyph, _name, _type, _ribbonText, _rules, _power, _hp, _chip;
-        readonly VisualElement _stateChips;
+        readonly VisualElement _stateChips, _names;
 
         float _width;
+        float _nameSize;      // the size the name WANTS, before it is shrunk to fit its column
 
         public CardFace()
         {
@@ -114,6 +115,12 @@ namespace SpawnRowDuel.View.Cards
             names.style.overflow = Overflow.Hidden;
             names.style.marginLeft = 3;
             _banner.Add(names);
+            _names = names;
+
+            // The banner's width is not known at Bind time - it is a flex child, and the badge and
+            // the gem that set its left padding are absolute. So the name is fitted when the
+            // column's geometry actually resolves, and again whenever the card is resized.
+            names.RegisterCallback<GeometryChangedEvent>(_ => FitName());
 
             _name = Text("", UiFont.DisplayBlack);
             _name.style.color = new Color(0.10f, 0.078f, 0.04f);        // #1a140a
@@ -289,7 +296,9 @@ namespace SpawnRowDuel.View.Cards
             _banner.style.paddingLeft = width * 0.022f + cost + gem + width * 0.03f;
 
             _name.text = m.Name;
-            _name.style.fontSize = Mathf.Clamp(width * NameSize, 8f * px, 14f * px);
+            _nameSize = Mathf.Clamp(width * NameSize, 8f * px, 14f * px);
+            _name.style.fontSize = _nameSize;
+            FitName();
             _type.text = string.IsNullOrEmpty(m.TypeLine) ? "" : m.TypeLine.ToUpperInvariant();
             _type.style.fontSize = Mathf.Clamp(width * TypeSize, 6f * px, 10f * px);
             _type.style.color = ElementPalette.Mix(ec, Color.black, 0.72f);
@@ -339,6 +348,40 @@ namespace SpawnRowDuel.View.Cards
             else _chip.style.display = DisplayStyle.None;
 
             BindStateChips(m, width);
+        }
+
+        /// <summary>
+        /// Shrink the name until it FITS its column, instead of cutting it off at the edge.
+        ///
+        /// The label is NoWrap with overflow hidden, which on a long name meant the card simply
+        /// stopped printing it partway - "Topple the Spi". A card name is an identifier: half of
+        /// one is not a smaller version of it, it is a different card. So the size the layout
+        /// asked for is treated as a MAXIMUM and the text is scaled down to whatever the column
+        /// actually has, with a floor so it never becomes a grey smear.
+        ///
+        /// The quarter-pixel deadband is load-bearing. This runs from GeometryChangedEvent, and
+        /// changing a font size is itself a geometry change - without it, a card whose fit lands
+        /// between two sizes would relayout every frame forever.
+        /// </summary>
+        void FitName()
+        {
+            if (_names == null || _name == null || _nameSize <= 0f) return;
+            if (string.IsNullOrEmpty(_name.text)) return;
+
+            float avail = _names.resolvedStyle.width;
+            float cur = _name.resolvedStyle.fontSize;
+            if (avail <= 1f || cur <= 0f) return;
+
+            var size = _name.MeasureTextSize(_name.text, 0f, MeasureMode.Undefined,
+                                                          0f, MeasureMode.Undefined);
+            if (size.x <= 0f) return;
+
+            // measured at whatever size it is drawing now; text width is linear in font size, so
+            // this is how wide it would be at the size the layout wanted
+            float want = size.x * (_nameSize / cur);
+            float target = want > avail ? Mathf.Max(6f, _nameSize * (avail / want)) : _nameSize;
+
+            if (Mathf.Abs(target - cur) > 0.25f) _name.style.fontSize = target;
         }
 
         /// <summary>Sick / tapped / moved / banked, as small chips over the art (spec 09 §3.7).</summary>

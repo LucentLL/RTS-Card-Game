@@ -77,7 +77,7 @@ namespace SpawnRowDuel.View
         private CommanderId _pickFoe = new CommanderId("water");
         private Vector2 _selectScrollYou, _selectScrollFoe;
 
-        private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center;
+        private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center, _wrap;
 
         private static readonly Color PanelColor = new Color(0.055f, 0.06f, 0.085f, 1f);
 
@@ -113,6 +113,11 @@ namespace SpawnRowDuel.View
             _cardName = new GUIStyle(_label) { fontSize = 9, alignment = TextAnchor.MiddleCenter };
             _center = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter };
             _center.normal.textColor = Gold;
+
+            // The log's own style, wrapping, built ONCE. Both log panels need it and OnGUI runs
+            // every frame, so `new GUIStyle(_small)` inside the draw was a per-frame allocation
+            // for a style that never changes.
+            _wrap = new GUIStyle(_small) { wordWrap = true };
         }
 
 
@@ -392,9 +397,31 @@ namespace SpawnRowDuel.View
             }
             if (Time.unscaledTime > _logShownUntil) return;
 
-            const float panelW = 168f;
-            float row = Row(_small);
-            float height = lines * row + 6f;
+            // Same width as the history panel, and for the same reason: this is the column that
+            // has to hold a sentence. 168 was narrower than "Mistling enters at FoeFront[3]".
+            const float panelW = 210f;
+            float lineW = panelW - 14f;
+
+            // MEASURE, then draw - the fix the history panel already got and this one did not.
+            // Every entry used to be handed one fixed row of exactly Row(_small): anything longer
+            // than the column ran off the right edge, and anything that wrapped had everything
+            // past the first line sliced off. A log line is a sentence of unknown length, so the
+            // only correct row height is the one the style reports for that line at this width.
+            //
+            // Walking BACKWARDS from the newest also settles what to drop when four wrapped lines
+            // will not fit above the rail: the oldest ones. The newest is always drawn, whatever
+            // its height, because a panel that appears and says nothing is worse than a tall one.
+            float room = Mathf.Max(Row(_wrap) + 6f, _rail.y - 6f - (TopH + 4f));
+            float height = 6f;
+            int start = log.Count;
+            while (start > 0 && log.Count - start < lines)
+            {
+                float lh = Mathf.Max(Row(_wrap), _wrap.CalcHeight(new GUIContent(log[start - 1]), lineW));
+                if (start < log.Count && height + lh > room) break;
+                height += lh;
+                start--;
+            }
+
             float top = Mathf.Max(TopH + 4f, _rail.y - height - 6f);
             var panel = new Rect(w - panelW - 6f, top, panelW, height);
 
@@ -402,11 +429,8 @@ namespace SpawnRowDuel.View
             HudLayout.LogPx = new Rect(panel.x * _scale, panel.y * _scale,
                                        panel.width * _scale, panel.height * _scale);
             float y = panel.y + 3f;
-            for (int i = log.Count - lines; i < log.Count; i++)
-            {
-                GUI.Label(new Rect(panel.x + 7, y, panel.width - 14, row), log[i], _small);
-                y += row;
-            }
+            for (int i = start; i < log.Count; i++)
+                y += Line(panel.x + 7, y, lineW, log[i], _wrap);
         }
 
 
@@ -429,7 +453,7 @@ namespace SpawnRowDuel.View
             // Every line is measured and WRAPPED. A log line is a sentence of unknown length -
             // "Mistling enters at FoeFront[3]" is already wider than this column on a phone - and
             // a fixed row height silently sliced the bottom off every one of them.
-            var body = new GUIStyle(_small) { wordWrap = true };
+            var body = _wrap;
             float top = panel.y + 8f + head;
             var view = new Rect(panel.x + 6, top, panel.width - 12, panel.yMax - top - 6f);
 
