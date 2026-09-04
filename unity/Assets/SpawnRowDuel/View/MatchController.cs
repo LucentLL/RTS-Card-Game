@@ -130,7 +130,7 @@ namespace SpawnRowDuel.View
             Engine = new DuelEngine(state, Catalog);
             _ai = new AiDriver(Engine, new ScriptedAiPolicy(Seat.Remote));
 
-            RollBattlefield();
+            RollBattlefield(true);
 
             _log.Clear();
             Push("— " + Catalog.Commander(you).Name + " vs " + Catalog.Commander(foe).Name + " —");
@@ -156,9 +156,17 @@ namespace SpawnRowDuel.View
             World.BiomeId.Snow, World.BiomeId.Earth,
         };
 
-        void RollBattlefield()
+        /// <summary>
+        /// True while the player has NAMED an arena on the commander screen. Static, like the
+        /// biome it governs, and false by default so a duel nobody has an opinion about is rolled
+        /// rather than being a meadow forever.
+        /// </summary>
+        public static bool ArenaChosen;
+
+        void RollBattlefield(bool honourTheMenu)
         {
             if (Engine == null) return;
+            if (honourTheMenu && ArenaChosen) return;     // the player named the ground
             World.TerrainField.Requested = BattlefieldFor(Engine.Hash());
         }
 
@@ -186,7 +194,9 @@ namespace SpawnRowDuel.View
             _aiFaulted = false;
             CancelPending();
 
-            RollBattlefield();
+            // NOT the menu's choice: both peers must be in the same field, and one player's
+            // arena button cannot bind the other's board.
+            RollBattlefield(false);
 
             _log.Clear();
             var mine = Catalog.Commander(Engine.State.P(Seat.Local).Commander);
@@ -590,9 +600,9 @@ namespace SpawnRowDuel.View
         }
 
         /// <summary>
-        /// Which of those cells cost one of your own cards to enter. The board lights these
-        /// differently and the tap asks before it commits - a move that razes your own Citadel is
-        /// legal, is sometimes right, and must never happen because a finger landed one row over.
+        /// Which of those cells cost one of your own cards to enter. The tap ASKS before it
+        /// commits - a move that razes your own Citadel is legal, is sometimes right, and must
+        /// never happen because a finger landed one row over.
         /// </summary>
         public bool MoveRazes(CellRef to)
         {

@@ -369,22 +369,45 @@ namespace SpawnRowDuel.View
         /// biome - but it is the first thing anybody sees, so it gets picked with the commanders
         /// rather than buried in an options screen. The campaign will set it from the map tile.
         /// </summary>
+        /// <summary>
+        /// Pick the ground, or leave it to the roll.
+        ///
+        /// A duel with nothing chosen lands wherever the opening hash puts it (MatchController
+        /// .RollBattlefield) - which is the fix for "every battlefield was the meadow", meadow
+        /// being the static default nobody ever changed. Touching a button here says otherwise,
+        /// and then that IS the arena; ROLL hands it back.
+        ///
+        /// A duel over the wire ignores all of this: both peers have to be standing in the same
+        /// field, and one player's menu cannot bind the other's.
+        /// </summary>
         void DrawArenaRow(float w, float h)
         {
             GUI.Label(new Rect(0, h - 132, w, 16), "ARENA", _center);
 
             var all = World.Biomes.All;
+            bool rolled = !MatchController.ArenaChosen;
             const float bw = 84f, gap = 6f;
-            float x = w / 2f - (all.Length * bw + (all.Length - 1) * gap) / 2f;
+            float total = (all.Length + 1) * bw + all.Length * gap;
+            float x = w / 2f - total / 2f;
+
+            var old = GUI.color;
+            if (rolled) GUI.color = Gold;
+            if (Btn(new Rect(x, h - 114, bw, 24), "RANDOM", _button))
+                MatchController.ArenaChosen = false;
+            GUI.color = old;
+            x += bw + gap;
 
             for (int i = 0; i < all.Length; i++)
             {
-                bool on = World.TerrainField.Requested == all[i];
-                var old = GUI.color;
+                bool on = !rolled && World.TerrainField.Requested == all[i];
+                var was = GUI.color;
                 if (on) GUI.color = Gold;
                 if (Btn(new Rect(x, h - 114, bw, 24), World.Biomes.NameOf(all[i]), _button))
+                {
                     World.TerrainField.Requested = all[i];
-                GUI.color = old;
+                    MatchController.ArenaChosen = true;
+                }
+                GUI.color = was;
                 x += bw + gap;
             }
         }

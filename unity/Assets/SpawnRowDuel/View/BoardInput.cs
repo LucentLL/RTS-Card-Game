@@ -111,6 +111,12 @@ namespace SpawnRowDuel.View
         void Tap(CellRef? cell)
         {
             if (_match == null || !_match.MatchStarted) return;
+
+            // A pending confirm is MODAL. Its panel blocks the taps under it, but a tap anywhere
+            // else would queue a second command behind an answer that has not been given - and
+            // the held command would then commit against a board that had moved.
+            if (_match.Asking != null) return;
+
             if (!cell.HasValue) { ClearSelection(); return; }
 
             // 1. an armed play/build consumes the tap (an illegal drop keeps the card armed)
