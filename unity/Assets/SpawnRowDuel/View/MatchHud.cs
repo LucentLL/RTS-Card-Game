@@ -537,10 +537,23 @@ namespace SpawnRowDuel.View
             // the one that joins an attack for the same reason.
             if (myTurn && _selectedHandIndex < 0 && _match.Assault != null)
             {
-                GUI.Label(new Rect(w / 2f - 250, by, 320, 24),
-                    "attacking " + _match.AssaultLabel + " with " + _match.AssaultSize
-                    + " — tap another ready creature to join", _center);
-                if (Btn(new Rect(w / 2f + 80, by, 100, 24), "DONE", _button))
+                // The attacker's half of the exchange, spelled out: how many are in, what they
+                // are on, and the one button that ENDS the choosing. Nothing has been shown to
+                // the defender yet - the declarations are deferred, so ⚔ ATTACK is the moment
+                // they are first asked anything, and until then the group can still grow.
+                //
+                // A row that fits: laid out from a centred band rather than from fixed offsets
+                // either side of the middle, which ran off the left edge of a portrait phone.
+                float rowW = Mathf.Min(w - 16f, 500f);
+                float rx = (w - rowW) / 2f;
+
+                GUI.Label(new Rect(rx, by, rowW - 190f, 24),
+                    "⚔" + _match.AssaultSize + " on " + _match.AssaultLabel
+                    + " — tap more to join", _center);
+
+                if (Btn(new Rect(rx + rowW - 186f, by, 118f, 24), "⚔ ATTACK", _button))
+                    Confirm();
+                if (Btn(new Rect(rx + rowW - 64f, by, 64f, 24), "LATER", _button))
                     _match.EndAssault();
                 return;
             }
@@ -1066,7 +1079,12 @@ namespace SpawnRowDuel.View
             const float rowH = 26f;
             const float pw = 300f;
 
-            string title = "";
+            // Every one of these panels answers the same question - WHICH CARD IS ON WHICH - so
+            // each says the pairing out loud in a second line rather than making the player hold
+            // the board in their head. The exchange alternates: the defender picks blockers per
+            // declaration, then the attacker assigns each gang-blocked blow, then the defender
+            // aims each retaliation, until nothing is unassigned.
+            string title = "", pairing = "";
             UnitRef[] options = null;
             var blocker = pending as BlockerRequest;
             var absorber = pending as AbsorberRequest;
@@ -1079,23 +1097,33 @@ namespace SpawnRowDuel.View
             }
             if (blocker != null)
             {
-                title = "BLOCK " + UnitLabel(s, blocker.AttackerId) + "?";
+                // "attack 2 of 3": the whole assault was declared before you were asked anything,
+                // so how far through it this one is belongs on the panel.
+                title = blocker.DeclarationCount > 1
+                    ? "DEFEND — attack " + (blocker.DeclarationIndex + 1) + " of "
+                      + blocker.DeclarationCount
+                    : "DEFEND";
+                pairing = UnitLabel(s, blocker.AttackerId) + " → " + DeclaredTarget(s, blocker);
                 options = blocker.Eligible;
             }
             else if (absorber != null)
             {
-                title = "ASSIGN THE BLOW — " + UnitLabel(s, absorber.AttackerId) + " is gang-blocked";
+                title = "ASSIGN THE BLOW";
+                pairing = UnitLabel(s, absorber.AttackerId) + " is gang-blocked by "
+                        + absorber.Blockers.Length + " — which one takes it?";
                 options = absorber.Blockers;
             }
             else if (retaliation != null)
             {
-                title = "STRIKE BACK — " + UnitLabel(s, retaliation.DefenderId) + " retaliates at:";
+                title = "STRIKE BACK";
+                pairing = UnitLabel(s, retaliation.DefenderId) + " was hit by "
+                        + retaliation.Attackers.Length + " — which one does it hit back?";
                 options = retaliation.Attackers;
             }
             else return;
 
             int extraRows = blocker != null ? 2 : 1;           // commit/pass rows
-            float contentH = (options.Length + extraRows) * rowH + 30;
+            float contentH = (options.Length + extraRows) * rowH + 48;
             float regionTop = TopH + 6;
             float regionBottom = h - BottomH - 6;
             float ph = Mathf.Min(contentH, regionBottom - regionTop);
@@ -1106,8 +1134,9 @@ namespace SpawnRowDuel.View
             HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
                                         panel.width * _scale, panel.height * _scale);
 
-            GUI.Label(new Rect(panel.x + 8, panel.y + 4, pw - 16, 22), title, _small);
-            float y = panel.y + 28;
+            GUI.Label(new Rect(panel.x + 8, panel.y + 4, pw - 16, 20), title, _small);
+            GUI.Label(new Rect(panel.x + 8, panel.y + 22, pw - 16, 20), pairing, _small);
+            float y = panel.y + 46;
 
             for (int i = 0; i < options.Length; i++)
             {
@@ -1133,7 +1162,7 @@ namespace SpawnRowDuel.View
             if (blocker != null)
             {
                 if (Btn(new Rect(panel.x + 8, y, (pw - 20) / 2f, rowH - 3),
-                        "COMMIT (" + _chosenBlockers.Count + ")", _button))
+                        "BLOCK WITH " + _chosenBlockers.Count, _button))
                 {
                     var picks = new List<UnitRef>();
                     for (int i = 0; i < options.Length; i++)
@@ -1201,6 +1230,21 @@ namespace SpawnRowDuel.View
                 Try(new RespondCommand(Seat.Local, TrapChosen.Passed));
         }
 
+        /// <summary>What a parked blocker request's declaration is actually aimed at - the other
+        /// half of "which card is attacking which", which the request itself does not carry.</summary>
+        string DeclaredTarget(GameState s, BlockerRequest req)
+        {
+            if (req.DeclarationIndex < 0 || req.DeclarationIndex >= s.Combat.Declarations.Count)
+                return "your line";
+
+            var d = s.Combat.Declarations[req.DeclarationIndex];
+            if (d.Kind == DeclarationKind.Wall)
+                return d.TargetSide == Seat.Local ? "YOUR WALL" : "their wall";
+            if (d.Kind == DeclarationKind.WorkerStack)
+                return "your " + ZoneName(d.TargetZone) + " workers";
+            return UnitLabel(s, d.TargetUnitId);
+        }
+
         string UnitLabel(GameState s, int unitId)
         {
             CellRef at;
@@ -1212,6 +1256,8 @@ namespace SpawnRowDuel.View
                        (c.IsWorker ? " (worker)" : "");
             var b = o as StructureUnit;
             if (b != null) return b.DefId.Value;
+            if (o is ChargeUnit) return "a face-down card";
+            if (o is TrapUnit) return "a set card";
             return "unit " + unitId;
         }
 
@@ -1296,6 +1342,13 @@ namespace SpawnRowDuel.View
         void Declare(CellRef from, AttackTarget target, string label)
         {
             var why = _match.Declare(from, target, label);
+            if (why != Rejection.None) Hint(MatchController.Hint(why));
+        }
+
+        /// <summary>Close the attack group and resolve it - the attacker's confirm.</summary>
+        void Confirm()
+        {
+            var why = _match.ConfirmAssault();
             if (why != Rejection.None) Hint(MatchController.Hint(why));
         }
 

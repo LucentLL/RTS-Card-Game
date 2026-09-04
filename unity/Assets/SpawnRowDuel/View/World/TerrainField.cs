@@ -1060,26 +1060,35 @@ namespace SpawnRowDuel.View.World
         {
             var c = new Vector2(world.x, world.z);
 
-            // A figure is planted at the FRONT of its tile (StandeeLayer.FeetOffset) and stands
+            // A figure is planted at the FRONT of its tile (StandeeLayer.FeetShift) and stands
             // about a tile-and-a-half tall, so at 42 degrees it hides 1.6 units of ground BEHIND
             // its feet - and none at all in front of them. The mask used to run from 0.32 in front
             // of the CELL CENTRE, which is 0.25 forward of the feet and covers the one strip of an
             // occupied card the figure does not already hide: the stats band at its near edge.
             // That strip is where ash on a card is actually seen, so the front edge is hard now.
-            float front = -StandeeLayer.FeetOffset(_match.Board, structure);
+            //
+            // "Front" and "behind" are the SEAT's, not the world's. Away is the direction the
+            // figure leans in, which is away from whoever is looking at it, so both the near edge
+            // and the reach turn round with the camera for the guest - otherwise the guest's ash
+            // is masked off the grass in front of every figure and drawn straight over the card
+            // the figure is standing on.
+            float away = -Seat.TowardCamera;
+            float front = -StandeeLayer.FeetOffset(_match.Board, structure) * away;
             const float Reach = 1.62f, Feather = 0.22f, Toe = 0.06f;
             float halfW = _pressHalf.x * 0.84f;
 
+            float near = c.y + front, far = c.y + front + (Reach + Feather) * away;
             int x0 = SettleTexelX(c.x - halfW - Feather), x1 = SettleTexelX(c.x + halfW + Feather);
-            int y0 = SettleTexelY(c.y + front), y1 = SettleTexelY(c.y + front + Reach + Feather);
+            int y0 = SettleTexelY(Mathf.Min(near, far)), y1 = SettleTexelY(Mathf.Max(near, far));
 
             for (int y = Mathf.Max(0, y0); y <= Mathf.Min(SettleHeight - 1, y1); y++)
                 for (int x = Mathf.Max(0, x0); x <= Mathf.Min(SettleWidth - 1, x1); x++)
                 {
                     var w = SettleTexelToWorld(x, y) - c;
+                    float depth = (w.y - front) * away;          // how far BEHIND the feet, always positive
                     float side = 1f - Mathf.Clamp01((Mathf.Abs(w.x) - halfW) / Feather);
-                    float back = 1f - Mathf.Clamp01((w.y - (front + Reach)) / Feather);
-                    float ahead = Mathf.Clamp01((w.y - front) / Toe);
+                    float back = 1f - Mathf.Clamp01((depth - Reach) / Feather);
+                    float ahead = Mathf.Clamp01(depth / Toe);
                     float v = side * back * ahead;
                     if (v <= 0f) continue;
 

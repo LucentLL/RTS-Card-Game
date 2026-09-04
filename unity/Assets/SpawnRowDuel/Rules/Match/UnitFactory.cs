@@ -11,11 +11,37 @@ namespace SpawnRowDuel.Rules
         public static CreatureUnit MakeCreature(GameState s, Side owner, CreatureCard t,
                                                 Element color)
         {
-            var c = new CreatureUnit();
+            var c = Fill(new CreatureUnit(), t);
             c.Id = s.NewUid();
             c.Owner = owner;
             c.Color = color != Element.None ? color
                 : (t.Element != Element.None ? t.Element : s.P(owner).PrimaryColor);
+            return c;
+        }
+
+        /// <summary>
+        /// The same instance with no match behind it: no id, no owner, nobody's board.
+        ///
+        /// For the TEXT producers only. Every keyword's rules sentence is written against an
+        /// instance (`KeywordEngine.TextOf`) because that is where its numbers live once the
+        /// registry's nulls have collapsed - and a card in hand, in the deck builder or under the
+        /// inspect cursor has no instance yet. Building a throwaway one here keeps that sentence
+        /// in exactly one place instead of growing a second, printed-card copy of it that drifts.
+        ///
+        /// Id stays 0, which is not a value <see cref="GameState.NewUid"/> ever hands out, so one
+        /// of these can never be mistaken for a unit that is really standing somewhere.
+        /// </summary>
+        public static CreatureUnit Printed(CreatureCard t)
+        {
+            var c = Fill(new CreatureUnit(), t);
+            c.Color = t.Element;
+            return c;
+        }
+
+        /// <summary>Everything a creature instance takes from its template, including the way the
+        /// registry's nulls collapse. One copy, so the printed and the played agree.</summary>
+        static CreatureUnit Fill(CreatureUnit c, CreatureCard t)
+        {
             c.Card = t.Id;
             c.Name = t.Name;
             c.Attack = t.Attack;

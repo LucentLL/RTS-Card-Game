@@ -91,6 +91,47 @@ namespace SpawnRowDuel.PlayTests
             yield return Frames(2);
         }
 
+        /// <summary>
+        /// The guest's seat with a BOARD ON IT, which is the only version of that shot that can
+        /// fail.
+        ///
+        /// battle-guest-seat.png is turn one: it proves the camera turned round, the rows are
+        /// tinted for the right player and the hand is the guest's own - and it cannot prove
+        /// anything about what STANDS on the board, because nothing does yet. Every figure is
+        /// planted a fixed depth toward the camera of its tile, and "toward the camera" is the one
+        /// direction that is not the same for the two seats: written as a bare world -Z it stands
+        /// the guest's whole army at the FAR edge of every tile, leaning each billboard off the
+        /// back of its own card and onto the row behind. From the guest's chair that reads as the
+        /// units and buildings floating high above the cards they belong to - reported from a real
+        /// game, invisible in solo, and invisible in the turn-one shot too.
+        ///
+        /// So: the same mid-game board as battle-mid.png, from the other chair. Every figure
+        /// should stand at the NEAR edge of its own card, exactly as it does there.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureGuestSeatMidGame()
+        {
+            yield return PlayToMidGame();
+
+            var match = Object.FindFirstObjectByType<MatchController>();
+            Assert.IsNotNull(match);
+
+            Seat.Take(Side.Foe);
+            match.Board.ApplySeat();
+            yield return Frames(30);
+
+            var input = Object.FindFirstObjectByType<BoardInput>();
+            for (int i = 0; i < 240 && input != null && input.Cam != null
+                 && Mathf.Abs(Mathf.DeltaAngle(input.Cam.transform.eulerAngles.y, 180f)) > 0.5f; i++)
+                yield return null;
+
+            yield return Shoot("battle-guest-mid.png");
+
+            Seat.Take(Side.You);
+            match.Board.ApplySeat();
+            yield return Frames(2);
+        }
+
         [UnityTest]
         public IEnumerator CaptureMidGameBoard()
         {

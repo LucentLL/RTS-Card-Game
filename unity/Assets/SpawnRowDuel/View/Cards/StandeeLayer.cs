@@ -92,11 +92,29 @@ namespace SpawnRowDuel.View.Cards
         /// <summary>
         /// How far TOWARD THE CAMERA of its cell centre a standing figure's feet are, in world
         /// units. Always inside the figure's own tile - the front of it, never past the edge.
+        ///
+        /// A magnitude, not a direction: which way "toward the camera" points is a question about
+        /// the SEAT (<see cref="FeetShift"/>), and the two are kept apart so that the size rule -
+        /// never past your own tile's near edge - stays one number both seats can be tested on.
         /// </summary>
         public static float FeetOffset(BoardView board, bool structure)
         {
             float tileD = board.CellSize * board.RowStretch;
             return (0.5f - (structure ? StructFeetFromFront : FeetFromFront)) * tileD;
+        }
+
+        /// <summary>
+        /// The same offset as a world vector, pointing at whichever end of the board this player
+        /// is sitting at (<see cref="Seat.TowardCamera"/>).
+        ///
+        /// The guest's camera is yawed a half turn, so world -Z runs AWAY from them: planting a
+        /// figure there stands it at the far edge of its own tile, leaning back off its card and
+        /// over the row behind. On a 42-degree tilt that reads as the figure floating high above
+        /// the card it belongs to - and as the guest's whole board doing it at once.
+        /// </summary>
+        public static Vector3 FeetShift(BoardView board, bool structure)
+        {
+            return new Vector3(0f, 0f, FeetOffset(board, structure) * Seat.TowardCamera);
         }
 
         /// <summary>
@@ -249,9 +267,10 @@ namespace SpawnRowDuel.View.Cards
             st.Laid = laid;
 
             // A LAID figure lies on the middle of its own card; a STANDING one is planted at the
-            // front of the tile, so the card reads as the ground behind its feet.
-            float feet = laid ? 0f : FeetOffset(_match.Board, structure);
-            var ground = _match.Board.WorldOf(cell) - new Vector3(0f, 0f, feet);
+            // front of the tile - the end nearest whoever is looking - so the card reads as the
+            // ground behind its feet.
+            var feet = laid ? Vector3.zero : FeetShift(_match.Board, structure);
+            var ground = _match.Board.WorldOf(cell) + feet;
             st.Root.transform.position = ground + new Vector3(0f, Lift, 0f);
 
             // The tile AS IT PROJECTS, converted back into world units at the figure's own depth.

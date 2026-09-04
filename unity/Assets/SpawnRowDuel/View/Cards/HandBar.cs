@@ -288,6 +288,13 @@ namespace SpawnRowDuel.View.Cards
                 model.Attack = Stat.Show(cre.EffectiveAttack);
                 model.Hp = Stat.Show(cre.Hp);
                 model.MaxHp = Stat.Show(cre.MaxHp);
+
+                // ...and its keyword sentence off the unit too, so a cocoon on the board reads
+                // "Chrysalis 2/3" - how close it actually is - instead of the printed 0/3.
+                CreatureCard printed;
+                if (_match.Engine.Catalog.TryCreature(cre.Card, out printed))
+                    model.Rules = _text.CreatureFull(printed,
+                        KeywordEngine.TextOf(cre, _match.Engine.Catalog));
                 return true;
             }
 
@@ -298,6 +305,9 @@ namespace SpawnRowDuel.View.Cards
                 model = CardFaceModel.OfStructure(def, _text, _art);
                 model.Hp = Stat.Show(bld.Hp);
                 model.MaxHp = Stat.Show(bld.MaxHp);
+                // the PARAGRAPH, not the one-line brief: what a Vault or a Reliquary actually
+                // does is a rule nothing else on the screen says out loud
+                model.Rules = _text.StructureFull(bld.Effect, bld.Value, bld.Support);
                 return true;
             }
 

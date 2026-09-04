@@ -46,6 +46,44 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(0, Stat.Show(0), "and nothing is still nothing");
         }
 
+        // ── what a card says it does ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The inspect card EXPLAINS every rule it names.
+        ///
+        /// Reported from a live game: "you could see a card had First Strike Chrysalis, but there
+        /// was no way to see what that effect did". The labels were all the game ever printed -
+        /// the sentences existed, one per keyword handler, and nothing in the view read them.
+        /// </summary>
+        [Test]
+        public void InspectText_SpellsOutEveryRuleTheCardNames()
+        {
+            var text = new CardTextService(TestData.Catalog);
+
+            // a cocoon: two named rules on one card, which is the case that was reported
+            var pod = text.Full(new CardId("Sap Pod"));
+            StringAssert.Contains("Chrysalis", pod);
+            StringAssert.Contains("Cannot attack", pod, "and what a Chrysalis actually does");
+            StringAssert.Contains("Canopy Beast", pod, "and what it becomes");
+
+            // upkeep is a flag, not a keyword - it has no handler, so its sentence lives in the
+            // view next to the label that names it
+            var magmaw = text.Full(new CardId("Magmaw"));
+            StringAssert.Contains("Upkeep", magmaw);
+            StringAssert.Contains("worker", magmaw, "an upkeep number means workers held off a row");
+
+            // ...and nothing says its own name twice: the brief line is a list of the same labels
+            Assert.AreEqual(1, Occurrences(magmaw, "Upkeep"), "the label is not repeated");
+        }
+
+        static int Occurrences(string haystack, string needle)
+        {
+            int n = 0, i = 0;
+            while ((i = haystack.IndexOf(needle, i, System.StringComparison.Ordinal)) >= 0)
+            { n++; i += needle.Length; }
+            return n;
+        }
+
         // ── the card on its tile ──────────────────────────────────────────────────────────
 
         [Test]
@@ -86,6 +124,50 @@ namespace SpawnRowDuel.Rules.Tests
                 }
             }
             finally { Object.DestroyImmediate(go); }
+        }
+
+        /// <summary>
+        /// ...and "the front" is the end of the tile the PLAYER is at, which is not the same world
+        /// direction for the two of them.
+        ///
+        /// This is the guest's half of "structures and monsters appear far above the cards". The
+        /// board never mirrors - the camera yaws 180 instead - so a feet offset written as a bare
+        /// world -Z plants the guest's figures at the FAR edge of every tile, leaning a billboard
+        /// a tile and a half tall off the back of its own card and onto the row behind it. It is
+        /// invisible in solo, where Seat.Local is always You, and it is every unit on the board
+        /// the moment somebody joins.
+        /// </summary>
+        [Test]
+        public void StandeeFront_TurnsRoundWithTheSeat()
+        {
+            var go = new GameObject("BoardUnderTest");
+            var was = Seat.Local;
+            try
+            {
+                var board = go.AddComponent<BoardView>();
+
+                Seat.Take(Side.You);
+                Assert.AreEqual(-1f, Seat.TowardCamera, "the host looks up the board from -Z");
+                float host = StandeeLayer.FeetShift(board, false).z;
+                Assert.Less(host, 0f, "the host's figures stand at the -Z edge of their tiles");
+
+                Seat.Take(Side.Foe);
+                Assert.AreEqual(1f, Seat.TowardCamera, "the guest's camera is yawed a half turn");
+                float guest = StandeeLayer.FeetShift(board, false).z;
+                Assert.Greater(guest, 0f, "so the guest's figures stand at the +Z edge instead");
+
+                Assert.AreEqual(-host, guest, 0.0001f, "same offset, opposite ends");
+
+                foreach (bool structure in new[] { false, true })
+                    Assert.AreEqual(StandeeLayer.FeetOffset(board, structure),
+                        Mathf.Abs(StandeeLayer.FeetShift(board, structure).z), 0.0001f,
+                        "the seat decides the direction and nothing else");
+            }
+            finally
+            {
+                Seat.Take(was);                    // never leave a seat behind for the next test
+                Object.DestroyImmediate(go);
+            }
         }
 
         // ── taps that must not reach the board ────────────────────────────────────────────

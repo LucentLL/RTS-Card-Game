@@ -412,5 +412,64 @@ namespace SpawnRowDuel.Rules.Tests
             StringAssert.Contains("250", text);
             StringAssert.Contains("200", text);
         }
+
+        /// <summary>
+        /// Every keyword says what it DOES for a card nobody has played yet.
+        ///
+        /// The sentences were written against an instance and had no caller outside the tests, so
+        /// a card in hand printed "First Strike Chrysalis" - two rules named and neither explained
+        /// - which is what the playtesters could not look up. The inspector reads them through
+        /// this overload, and a keyword that answers it with an empty string is a card that goes
+        /// back to naming a rule it never states.
+        /// </summary>
+        [Test]
+        public void EveryKeyword_ExplainsItselfOnAnUnplayedCard()
+        {
+            var names = new Dictionary<Keyword, string>
+            {
+                { Keyword.Detonate, "Emberfly" },
+                { Keyword.Undertow, "Undertow" },
+                { Keyword.Entrench, "Mosshide" },
+                { Keyword.Ward, "Gleamward" },
+                { Keyword.Reap, "Grimfang" },
+                { Keyword.Chrysalis, "Sap Pod" },
+                { Keyword.Scour, "Zephyr" },
+                { Keyword.Overcharge, "Volt" },
+            };
+
+            foreach (var kv in names)
+            {
+                var card = TestData.Catalog.Creature(new CardId(kv.Value));
+                Assert.AreEqual(kv.Key, card.Keyword, kv.Value + " should carry " + kv.Key);
+
+                var printed = KeywordEngine.TextOf(card, TestData.Catalog);
+                Assert.IsNotEmpty(printed, kv.Value + " explains its keyword before it is played");
+                StringAssert.Contains(".", printed, "it is a sentence, not a label");
+            }
+
+            // ...and the cocoon still names what it becomes, which is the one thing about it that
+            // cannot be read off the board at all
+            var pod = KeywordEngine.TextOf(TestData.Catalog.Creature(new CardId("Sap Pod")),
+                                           TestData.Catalog);
+            StringAssert.Contains("Canopy Beast", pod);
+            StringAssert.Contains("Chrysalis 0/3", pod, "an unplayed cocoon has swelled nothing");
+
+            Assert.IsEmpty(KeywordEngine.TextOf((CreatureCard)null, TestData.Catalog));
+        }
+
+        /// <summary>A printed instance is for TEXT only - it has no id, so it can never be
+        /// mistaken for something standing on the board.</summary>
+        [Test]
+        public void PrintedInstance_HasNoUnitId()
+        {
+            var card = TestData.Catalog.Creature(new CardId("Sap Pod"));
+            var printed = UnitFactory.Printed(card);
+
+            Assert.AreEqual(0, printed.Id, "GameState.NewUid never hands out 0");
+            Assert.AreEqual(card.Name, printed.Name);
+            Assert.AreEqual(card.Attack, printed.Attack);
+            Assert.AreEqual(card.Health, printed.MaxHp);
+            Assert.AreEqual(card.Keyword, printed.Keyword);
+        }
     }
 }

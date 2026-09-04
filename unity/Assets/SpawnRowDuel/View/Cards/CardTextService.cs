@@ -135,19 +135,75 @@ namespace SpawnRowDuel.View.Cards
         {
             CreatureCard creature;
             if (_catalog.TryCreature(id, out creature))
-            {
-                var brief = CreatureBrief(creature);
-                if (creature.Into != null)
-                    brief += (brief.Length > 0 ? " · " : "")
-                        + "<b>Chrysalis</b> — hatches into " + creature.Into.Name
-                        + " (" + Stat.Line(creature.Into.Attack, creature.Into.Health) + ")";
-                return brief;
-            }
+                return CreatureFull(creature, KeywordEngine.TextOf(creature, _catalog));
 
             SpellCard spell;
             if (_catalog.TrySpell(id, out spell)) return SpellText(spell);
 
             return "";
+        }
+
+        /// <summary>
+        /// The inspector's paragraph for a creature: the ability line it prints on the card, and
+        /// then a SENTENCE for every named thing on that line.
+        ///
+        /// This is "there was no way to see what the effect did". A card that says <i>First Strike
+        /// Chrysalis</i> and nothing else has named two rules the player has never been shown, and
+        /// the hand card's three-word brief is the only text most cards ever get. The sentences
+        /// were not missing - each keyword handler has carried its own since M10 (kwText) - they
+        /// simply had no reader; <see cref="KeywordEngine.TextOf(CreatureCard, ICardCatalog)"/> is
+        /// the door to them, so the wording stays with the rule that implements it and cannot
+        /// drift from it.
+        ///
+        /// First Strike, Entrench and upkeep are NOT keywords - they are flags with no handler -
+        /// so their sentences are written here, next to the labels that name them.
+        ///
+        /// <paramref name="keywordText"/> is passed in rather than looked up so the board can hand
+        /// over the LIVE unit's sentence, where a cocoon's swell count is a real number instead of
+        /// the printed zero.
+        /// </summary>
+        public string CreatureFull(CreatureCard c, string keywordText)
+        {
+            if (c == null) return "";
+
+            // NOT the brief line as well. The brief is a list of LABELS - "Upkeep ⚒-3 · First
+            // Strike · Chrysalis" - and every one of those labels is the opening of a sentence
+            // below it, so printing both says each name twice and spends half a small paper box
+            // saying nothing new.
+            var lines = new List<string>();
+
+            if (c.Upkeep > 0)
+                lines.Add("<b>Upkeep ⚒-" + c.Upkeep + ".</b> Holds " + c.Upkeep
+                    + " worker" + (c.Upkeep == 1 ? "" : "s") + " off the harvest in its row — "
+                    + "move it, pay, or sacrifice it when the row cannot support it.");
+
+            if (c.FirstStrike)
+                lines.Add("<b>First Strike.</b> Strikes in its own tier, before ordinary blows "
+                    + "land — anything it kills there never hits back.");
+
+            // The bool and the keyword are two different things wearing one name; a creature with
+            // the KEYWORD gets the handler's sentence below instead of this one.
+            if (c.Entrench && c.Keyword != Keyword.Entrench)
+                lines.Add("<b>Entrench.</b> Immovable — cannot be bounced or pushed.");
+
+            if (!string.IsNullOrEmpty(keywordText)) lines.Add(Emphasise(keywordText));
+
+            return string.Join("\n", lines);
+        }
+
+        /// <summary>
+        /// Bold the leading clause of a rules sentence - "Detonate 1500." - so a paragraph of them
+        /// scans as a list of named rules rather than as prose.
+        ///
+        /// The rules core writes plain sentences on purpose: it has no business knowing about rich
+        /// text. The markup is the view's, and it goes on here.
+        /// </summary>
+        static string Emphasise(string sentence)
+        {
+            if (string.IsNullOrEmpty(sentence)) return "";
+            int stop = sentence.IndexOf('.');
+            if (stop < 0 || stop + 1 >= sentence.Length) return "<b>" + sentence + "</b>";
+            return "<b>" + sentence.Substring(0, stop + 1) + "</b>" + sentence.Substring(stop + 1);
         }
     }
 }

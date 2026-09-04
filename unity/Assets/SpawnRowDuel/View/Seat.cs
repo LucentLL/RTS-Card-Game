@@ -43,6 +43,23 @@ namespace SpawnRowDuel.View
         /// <summary>Half a turn of yaw for the far seat, in degrees.</summary>
         public static float CameraYaw { get { return Flipped ? 180f : 0f; } }
 
+        /// <summary>
+        /// Which way along world +Z is TOWARD the person holding this screen: -1 at the near
+        /// seat, +1 at the far one.
+        ///
+        /// The board is one absolute grid and the CAMERA is what turns round, so a painter asking
+        /// for "the near edge of this tile" or "just in front of that card" is asking about the
+        /// SEAT, not about the world. Written as a bare -Z the answer is right for exactly one of
+        /// the two players: a figure planted at -Z of its cell stands at the front of its tile for
+        /// the host and at the BACK of it for the guest - a billboard a tile and a half tall
+        /// leaning off its own card onto the row behind. That is "structures and monsters appear
+        /// far above the cards", and it is every card on the board, theirs and yours alike,
+        /// because what flipped was the whole camera.
+        ///
+        /// Multiply any depth offset that means "towards me" by this.
+        /// </summary>
+        public static float TowardCamera { get { return Flipped ? 1f : -1f; } }
+
         public static void Take(Side local) { Local = local; }
 
         /// <summary>Is this side me?</summary>

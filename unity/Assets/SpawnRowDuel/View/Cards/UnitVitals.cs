@@ -126,8 +126,12 @@ namespace SpawnRowDuel.View.Cards
             // states that change and appear on no card. Those are decisions rather than identity,
             // they are tiny, and they sit on the ground in front of the card where they cross
             // nothing.
+            // The tile's near edge is the one nearest THIS player - the guest's camera is yawed a
+            // half turn, so a bare -Z anchor hangs their chips off the far edge and lays them
+            // across the card instead of on the ground in front of it.
             float depth = _match.Board.CellSize * _match.Board.RowStretch;
-            var anchor = _match.Board.WorldOf(cell) - new Vector3(0f, 0f, depth * 0.5f);
+            var anchor = _match.Board.WorldOf(cell)
+                       + new Vector3(0f, 0f, depth * 0.5f * Seat.TowardCamera);
 
             Vector2 p, side;
             if (!_hand.TryProject(cam, anchor, out p)

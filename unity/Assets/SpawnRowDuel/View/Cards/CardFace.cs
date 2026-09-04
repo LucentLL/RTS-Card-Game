@@ -62,6 +62,8 @@ namespace SpawnRowDuel.View.Cards
         float _width;
         float _nameSize;      // the size the name WANTS, before it is shrunk to fit its column
         string _fittedFor;    // the (name, size, column width) the current fit was measured for
+        float _rulesSize;     // ...and the same pair for the ability box, which wraps
+        string _rulesFittedFor;
 
         public CardFace()
         {
@@ -201,6 +203,10 @@ namespace SpawnRowDuel.View.Cards
             SetRadius(_rulesBox, 6f);
             Add(_rulesBox);
 
+            // Same reason the name is fitted from geometry: the box's height is a flex share of a
+            // card whose width is not known until it is laid out.
+            _rulesBox.RegisterCallback<GeometryChangedEvent>(_ => FitRules());
+
             _rules = Text("", UiFont.BodyRegular);
             _rules.style.color = new Color(0.13f, 0.11f, 0.08f);
             _rules.style.whiteSpace = WhiteSpace.Normal;
@@ -327,8 +333,10 @@ namespace SpawnRowDuel.View.Cards
 
             // rules
             _rules.text = m.Rules;
-            _rules.style.fontSize = Mathf.Clamp(width * RulesSize, 7f * px, 13f * px);
+            _rulesSize = Mathf.Clamp(width * RulesSize, 7f * px, 13f * px);
+            if (_rulesFittedFor == null) _rules.style.fontSize = _rulesSize;
             _rulesBox.style.display = string.IsNullOrEmpty(m.Rules) ? DisplayStyle.None : DisplayStyle.Flex;
+            FitRules();
 
             // stats
             _stats.style.display = m.ShowStats ? DisplayStyle.Flex : DisplayStyle.None;
@@ -402,6 +410,56 @@ namespace SpawnRowDuel.View.Cards
             float target = want > avail ? Mathf.Max(6f, _nameSize * (avail / want)) : _nameSize;
 
             if (Mathf.Abs(target - cur) > 0.25f) _name.style.fontSize = target;
+        }
+
+        /// <summary>
+        /// Shrink the rules text until the whole of it fits its paper box.
+        ///
+        /// The box is `overflow: Hidden` at a fixed share of the card, so text that does not fit
+        /// is not shortened - it is CUT, mid-sentence, with no sign that anything is missing. A
+        /// hand card's three-word brief never noticed; the inspect card's full paragraph, which is
+        /// the only place the game explains what a keyword does, would have shown its first line
+        /// and silently swallowed the rest. Half an explanation looks exactly like the whole of a
+        /// short one, which is the worst way for this to fail.
+        ///
+        /// Same shape as <see cref="FitName"/>: the laid-out size is a MAXIMUM, the fit is
+        /// measured once per (text, size, box) and memoised, and there is a floor so a very long
+        /// card does not become a grey smear. Height, not width, because the text wraps.
+        /// </summary>
+        void FitRules()
+        {
+            if (_rulesBox == null || _rules == null || _rulesSize <= 0f) return;
+            if (string.IsNullOrEmpty(_rules.text) || _rules.panel == null) return;
+
+            float availW = _rulesBox.resolvedStyle.width
+                         - _rulesBox.resolvedStyle.paddingLeft - _rulesBox.resolvedStyle.paddingRight;
+            float availH = _rulesBox.resolvedStyle.height
+                         - _rulesBox.resolvedStyle.paddingTop - _rulesBox.resolvedStyle.paddingBottom;
+            float cur = _rules.resolvedStyle.fontSize;
+            if (availW <= 1f || availH <= 1f || cur <= 0f) return;
+
+            string key = _rules.text + "|" + _rulesSize.ToString("F2")
+                       + "|" + availW.ToString("F1") + "|" + availH.ToString("F1");
+            if (key == _rulesFittedFor) return;
+            _rulesFittedFor = key;
+
+            // ONE measurement, solved rather than stepped. MeasureTextSize reads the element's
+            // RESOLVED font size, and a style set this frame has not resolved yet - so a loop that
+            // assigns a smaller size and measures again measures the same number every time and
+            // shrinks nothing. (It looked like it worked, because the answer was already clipped.)
+            //
+            // Wrapped text in a fixed-width box scales as the SQUARE of the font size: at half the
+            // size a line holds twice the words and the lines are half as tall. So the size that
+            // just fills the box is cur * sqrt(availH / measured), and a little under that.
+            var size = _rules.MeasureTextSize(_rules.text, availW, MeasureMode.AtMost,
+                                                           0f, MeasureMode.Undefined);
+            if (size.y <= 0.01f) return;
+
+            float target = _rulesSize;
+            float at = size.y * (_rulesSize / cur) * (_rulesSize / cur);   // height at the wanted size
+            if (at > availH) target = Mathf.Max(6f, _rulesSize * Mathf.Sqrt(availH / at) * 0.94f);
+
+            if (Mathf.Abs(target - cur) > 0.05f) _rules.style.fontSize = target;
         }
 
         /// <summary>Sick / tapped / moved / banked, as small chips over the art (spec 09 §3.7).</summary>

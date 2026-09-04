@@ -475,6 +475,23 @@ namespace SpawnRowDuel.Rules
             return h == null ? "" : h.Text(c, cat);
         }
 
+        /// <summary>
+        /// The same sentence for a card that is not on the board: in hand, in the deck builder,
+        /// or under the inspect cursor as a foe's unplayed card.
+        ///
+        /// A card printed "First Strike Chrysalis" and nothing else tells a player the name of
+        /// something they have never seen the rules for, which is worse than printing nothing.
+        /// The sentences already existed - one per handler, written off an instance - and had no
+        /// caller in the view; this is the door to them for the half of the game that has no
+        /// instance yet (<see cref="UnitFactory.Printed"/>).
+        /// </summary>
+        public static string TextOf(CreatureCard card, ICardCatalog cat)
+        {
+            if (card == null) return "";
+            var h = Of(card.Keyword);
+            return h == null ? "" : h.Text(UnitFactory.Printed(card), cat);
+        }
+
         /// <summary>Short ability-box label, "" when the creature has no keyword.</summary>
         public static string LabelOf(CreatureUnit c)
         {

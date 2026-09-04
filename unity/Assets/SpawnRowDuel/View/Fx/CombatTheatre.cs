@@ -84,6 +84,23 @@ namespace SpawnRowDuel.View.Fx
         readonly Dictionary<int, Snap> _snaps = new Dictionary<int, Snap>(64);
         readonly List<int> _snapDead = new List<int>();
 
+        /// <summary>
+        /// What is UNDER each face-down card, by cell - kept but never drawn until the card turns
+        /// over.
+        ///
+        /// A flip mints a new unit and the fight that provoked it usually kills that unit inside
+        /// the same command, so by the time the events are drained there is nothing on the board
+        /// to read a face off and nothing in <see cref="_snaps"/> either: the card was a secret
+        /// last frame, and secrets are exactly what Resnap refuses to record. This is the one
+        /// thing that can still name it.
+        ///
+        /// Holding it costs no secrecy. Both peers run the same engine, so each already knows
+        /// what its own opponent set - the secret is enforced by never PAINTING it, and the only
+        /// reader here is OnFlipped, which runs after the card is public.
+        /// </summary>
+        readonly Dictionary<CellRef, Snap> _hidden = new Dictionary<CellRef, Snap>(16);
+        readonly List<CellRef> _hiddenGone = new List<CellRef>();
+
         // ── the fight being told ───────────────────────────────────────────────────────────
 
         sealed class Fight
@@ -96,6 +113,12 @@ namespace SpawnRowDuel.View.Fx
             public int DamageToDefender, DamageToAttacker;
             public bool AttackerDied, DefenderDied;
             public bool DirectHit;                // the wall, not a unit
+
+            /// <summary>The cell a UNIT declaration was aimed at, and whether the thing standing
+            /// there was still a secret when it was declared at. A face-down has no card to hold
+            /// up, so the fight waits for the flip to give it one - see OnFlipped.</summary>
+            public CellRef TargetCell;
+            public bool AwaitingFlip;
         }
 
         /// <summary>This combat's declarations, in declaration order - which is the order the
@@ -180,7 +203,18 @@ namespace SpawnRowDuel.View.Fx
                 if (!TrySnap(declared.AttackerId, out f.Attacker)) return;
 
                 var unit = declared.Target as UnitTarget;
-                if (unit != null) f.HasDefender = TrySnap(unit.UnitId, out f.Defender);
+                if (unit != null)
+                {
+                    f.TargetCell = unit.Cell;
+                    f.HasDefender = TrySnap(unit.UnitId, out f.Defender);
+
+                    // A FACE-DOWN cannot be snapped - it has no name, no statline and no art to
+                    // draw, and that is a rule rather than a gap. Striking one either flips it up
+                    // and fights what was under it, or destroys it unfinished; the first of those
+                    // is a real battle and had no cut-in at all, because the fight was recorded
+                    // with no defender and Show() drops a fight with nothing to hold up.
+                    f.AwaitingFlip = !f.HasDefender;
+                }
 
                 var wall = declared.Target as WallTarget;
                 if (wall != null)
@@ -210,11 +244,20 @@ namespace SpawnRowDuel.View.Fx
                 return;
             }
 
+            // The face-down turning over: it is a card now, so the fight it is in gets one.
+            var flipped = ev as CardFlipped;
+            if (flipped != null) { OnFlipped(flipped); return; }
+
             var dmg = ev as DamageApplied;
             if (dmg != null)
             {
+                // TrySnap reads the live board or the last frame's, and a creature that was flipped
+                // face-up and killed inside one command is in neither - the fight it belongs to is
+                // the only thing holding its face. The floating number is the witness for damage
+                // that gets no cut-in, so it must not be the one hit that quietly has none.
                 Snap s;
-                if (TrySnap(dmg.TargetId, out s)) Pop(s.At, "-" + Stat.Show(dmg.Amount), Hurt);
+                if (TrySnap(dmg.TargetId, out s) || TryFightSnap(dmg.TargetId, out s))
+                    Pop(s.At, "-" + Stat.Show(dmg.Amount), Hurt);
                 Record(dmg.TargetId, dmg.Amount);
                 return;
             }
@@ -251,6 +294,38 @@ namespace SpawnRowDuel.View.Fx
                     { f.DefenderDied = true; Resolved(f); }
                 }
                 return;
+            }
+        }
+
+        /// <summary>
+        /// A set card provoked into the open. Every attack aimed at that cell that has been
+        /// waiting for a face to draw gets one now.
+        ///
+        /// The flip mints a NEW unit id - the ChargeUnit is replaced, not converted - so the
+        /// declaration's stored target id can never find it, and the cell is the only thing the
+        /// two have in common. This runs BEFORE the damage in the same batch (ProvokeFaceDown
+        /// flips and then fights), so by the time Record is called the fight has a defender and
+        /// the numbers land on it.
+        /// </summary>
+        void OnFlipped(CardFlipped flipped)
+        {
+            for (int i = 0; i < _fights.Count; i++)
+            {
+                var f = _fights[i];
+                if (!f.AwaitingFlip || f.TargetCell != flipped.At) continue;
+
+                // Live first - a flip that survives its fight is on the board and can be read
+                // straight off it. A flip that does NOT survive is the ordinary case, and the
+                // only version of it left is the face remembered while it was still a secret.
+                Snap revealed;
+                if (!TrySnap(flipped.UnitId, out revealed)
+                    && !_hidden.TryGetValue(flipped.At, out revealed)) continue;
+                revealed.Id = flipped.UnitId;      // so Record can find the fight by the new id
+
+                f.Defender = revealed;
+                f.HasDefender = true;
+                f.DirectHit = false;
+                f.AwaitingFlip = false;
             }
         }
 
@@ -324,12 +399,21 @@ namespace SpawnRowDuel.View.Fx
             _snapDead.Clear();
             foreach (var kv in _snaps) _snapDead.Add(kv.Key);
 
+            _hiddenGone.Clear();
+            foreach (var kv in _hidden) _hiddenGone.Add(kv.Key);
+
             foreach (var kv in s.Objects())
             {
                 var o = kv.Value;
                 var cre = o as CreatureUnit;
                 var bld = o as StructureUnit;
-                if (cre == null && bld == null) continue;         // a face-down card keeps its secret
+                if (cre == null && bld == null)
+                {
+                    // a face-down card keeps its secret - it is remembered, never drawn
+                    var ch = o as ChargeUnit;
+                    if (ch != null) { _hidden[kv.Key] = HiddenSnap(ch, kv.Key); _hiddenGone.Remove(kv.Key); }
+                    continue;
+                }
 
                 var def = _match.DefOfObject(o);
                 var snap = new Snap
@@ -365,6 +449,43 @@ namespace SpawnRowDuel.View.Fx
                     && Time.unscaledTime - gone.SeenAt < GraveMemory) continue;
                 _snaps.Remove(id);
             }
+
+            // A cell that no longer holds a face-down keeps its remembered face for a moment, for
+            // the same reason a dead unit does: the cut-in for the flip may not have played yet.
+            for (int i = 0; i < _hiddenGone.Count; i++)
+            {
+                Snap gone;
+                if (_hidden.TryGetValue(_hiddenGone[i], out gone)
+                    && Time.unscaledTime - gone.SeenAt < GraveMemory) continue;
+                _hidden.Remove(_hiddenGone[i]);
+            }
+        }
+
+        /// <summary>The card lying face-down in this cell, as it would look face-up. A bounced
+        /// creature that was set again carries its LIVE statline (ChargeUnit.Snap); anything else
+        /// is the printed card.</summary>
+        Snap HiddenSnap(ChargeUnit ch, CellRef at)
+        {
+            int atk = ch.Snap.HasValue ? ch.Snap.Attack : ch.Card.Attack;
+            int hp = ch.Snap.HasValue ? ch.Snap.Health : ch.Card.Health;
+            string name = ch.Snap.HasValue ? ch.Snap.Name : ch.Card.Name;
+            var def = _match.DefOf(name) ?? _match.DefOf(ch.Card.Id.Value);
+
+            return new Snap
+            {
+                Id = ch.Id,
+                Name = name,
+                Color = ch.Color,
+                Attack = ch.IsStructure ? 0 : atk,
+                Hp = hp,
+                MaxHp = Mathf.Max(hp, 1),
+                Structure = ch.IsStructure,
+                At = at,
+                Owner = ch.Owner,
+                Art = def != null ? def.CardArt : null,
+                Lead = ch.IsStructure ? "⌂" : Stat.Atk(atk),
+                SeenAt = Time.unscaledTime,
+            };
         }
 
         bool InFlight(int unitId)
@@ -418,6 +539,20 @@ namespace SpawnRowDuel.View.Fx
                 Lead = cre != null ? Stat.Atk(cre.EffectiveAttack) : StructureLead(bld),
             };
             return true;
+        }
+
+        /// <summary>A card already bound into a fight, for anything that can no longer be read off
+        /// the board at all.</summary>
+        bool TryFightSnap(int unitId, out Snap snap)
+        {
+            for (int i = 0; i < _fights.Count; i++)
+            {
+                var f = _fights[i];
+                if (f.Attacker.Id == unitId) { snap = f.Attacker; return true; }
+                if (f.HasDefender && f.Defender.Id == unitId) { snap = f.Defender; return true; }
+            }
+            snap = default(Snap);
+            return false;
         }
 
         Snap WallSnap(Side defender)

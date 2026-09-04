@@ -174,6 +174,7 @@ namespace SpawnRowDuel.View
         void TakeSeat(Side local)
         {
             Seat.Take(local);
+            _names.Clear();                    // last match's dead are not this one's
             if (Board != null) Board.ApplySeat();
         }
 
@@ -377,7 +378,7 @@ namespace SpawnRowDuel.View
             {
                 if (kv.Value.Owner == Seat.Local) continue;
                 var cmd = new DeclareAttackCommand(Seat.Local, from, u.Id,
-                    new UnitTarget(kv.Key, kv.Value.Id));
+                    new UnitTarget(kv.Key, kv.Value.Id), true);
                 if (Probe(cmd) == Rejection.None) targets.Add(kv.Key);
             }
             return targets;
@@ -420,13 +421,28 @@ namespace SpawnRowDuel.View
         /// Every attack the PLAYER declares goes through here - the board's taps, the wall button,
         /// the worker-stack buttons - so the assault is set in one place instead of in three of
         /// the four paths that can declare one.
+        ///
+        /// BLOCKERS ARE DEFERRED, always (the spec 03 s12 cadence the AI already attacked with).
+        /// A declaration used to park a BlockerRequest on the defender there and then, which puts
+        /// the defender inside the attacker's own decision: against a human that reads as "the
+        /// opponent gets to respond before I have even said whether this is a single attack or a
+        /// group", and every further tap meets ChoicePending while they think about it. The whole
+        /// assault is now declared first and answered afterwards, one declaration at a time, with
+        /// the defender seeing the complete attack - which is the order this was always meant to
+        /// happen in, and the order two people at a table would do it in:
+        ///
+        ///     attacker: pick the attackers, pick the target, CONFIRM
+        ///     defender: pick the blockers, COMMIT - once per declaration
+        ///     then the pairing choices alternate, attacker, defender, until nothing is unassigned
+        ///
+        /// <see cref="ConfirmAssault"/> is the confirm. Nothing reaches the other seat until it.
         /// </summary>
         public Rejection Declare(CellRef from, AttackTarget target, string label)
         {
             var u = Engine.State.At(from) as CreatureUnit;
             if (u == null) return Rejection.NoSuchUnit;
 
-            var why = TryHuman(new DeclareAttackCommand(Seat.Local, from, u.Id, target));
+            var why = TryHuman(new DeclareAttackCommand(Seat.Local, from, u.Id, target, true));
             if (why != Rejection.None) return why;
 
             Assault = target;
@@ -434,8 +450,26 @@ namespace SpawnRowDuel.View
             var ut = target as UnitTarget;
             AssaultCell = ut != null ? ut.Cell : (CellRef?)null;
 
-            SettleDefenderChoice();
             Touch();
+            return Rejection.None;
+        }
+
+        /// <summary>
+        /// The attacker's CONFIRM: the group is closed, and combat resolves.
+        ///
+        /// This is the moment the defender is first asked anything. Resolution collects the
+        /// deferred blocker answers in declaration order before a single blow lands, so the
+        /// defender answers each attack knowing the whole shape of the assault.
+        /// </summary>
+        public Rejection ConfirmAssault()
+        {
+            if (Engine == null || !Engine.State.Combat.HasDeclarations)
+                return Rejection.NothingDeclared;
+
+            var why = TryHuman(new ResolveCombatCommand(Seat.Local));
+            if (why != Rejection.None) return why;
+
+            EndAssault();
             return Rejection.None;
         }
 
@@ -460,7 +494,7 @@ namespace SpawnRowDuel.View
             if (Assault == null || Engine == null) return false;
             var u = Engine.State.At(from) as CreatureUnit;
             if (u == null || u.Owner != Seat.Local) return false;
-            return Probe(new DeclareAttackCommand(Seat.Local, from, u.Id, Assault))
+            return Probe(new DeclareAttackCommand(Seat.Local, from, u.Id, Assault, true))
                    == Rejection.None;
         }
 
@@ -480,30 +514,12 @@ namespace SpawnRowDuel.View
             Touch();
         }
 
-        /// <summary>
-        /// Answer the blocker choice your own declaration just parked, NOW.
-        ///
-        /// A declaration parks a BlockerRequest on the defender, and the AI answers it on its next
-        /// 0.35 s beat - during which EVERY command is rejected as ChoicePending, the next
-        /// declaration included. That is invisible while a declaration is the end of an
-        /// interaction and fatal once it is the middle of one: tapping three creatures into one
-        /// attack puts two of the taps inside a pending window. The defender's answer is part of
-        /// resolving your command, so it does not wait for a beat.
-        ///
-        /// Narrow on purpose - blocker requests only, and only ones parked on the foe. Nothing
-        /// here resolves combat, so the cut-in's presentation hold is untouched; a choice parked
-        /// mid-RESOLUTION still runs on the beat, where the theatre can pace it.
-        /// </summary>
-        void SettleDefenderChoice()
-        {
-            for (int i = 0; i < 8; i++)
-            {
-                var pending = Engine.State.Pending;
-                if (!(pending is BlockerRequest) || pending.Responder != Seat.Remote) return;
-                if (_ai == null || !_ai.Step(null)) return;
-                PumpEvents();
-            }
-        }
+        // The old SettleDefenderChoice lived here: a pump that made the AI answer the
+        // BlockerRequest your declaration had just parked, before your next tap could meet it as
+        // ChoicePending. Deferring the blockers removes the request it existed to drain - nothing
+        // is parked on the defender until CONFIRM - and against a human there was never an AI to
+        // pump anyway. The answers now arrive during resolution, on the autopilot's own beat,
+        // where the theatre can pace them.
 
         /// <summary>What to call a thing that has just been attacked.</summary>
         static string NameOf(BoardObject o)
@@ -588,6 +604,9 @@ namespace SpawnRowDuel.View
                 case Rejection.RowLacksWorkers: return "That row has no workers to spare";
                 case Rejection.MoveAlreadySpent: return "Its move is spent";
                 case Rejection.ChargeUnderfunded: return "Pour more ◆ before flipping";
+                case Rejection.DeclarationsPending: return "Confirm the attack first — ⚔ ATTACK";
+                case Rejection.NothingDeclared: return "Nothing has been declared";
+                case Rejection.ChoicePending: return "Waiting on a choice";
                 default: return why.ToString();
             }
         }
@@ -714,6 +733,32 @@ namespace SpawnRowDuel.View
                 if (Observed != null) Observed(ev);
                 Touch();
             }
+            RememberNames();                   // LAST - see the field's own doc comment
+        }
+
+        /// <summary>
+        /// Who was standing where, as of the end of this batch of events.
+        ///
+        /// A whole combat resolves inside one Apply, so by the time its events are described the
+        /// loser is already off the board and there is nothing left to read a name off - which is
+        /// why the log has always said "a creature falls" and could not say who took what. The
+        /// board at the END of one pump is the board BEFORE the next one, so remembering it here
+        /// is enough to name the dead exactly once, when it matters.
+        ///
+        /// It only ever grows by the units a single match creates - a few dozen - and is cleared
+        /// when a seat is taken, which every match start does.
+        /// </summary>
+        readonly Dictionary<int, string> _names = new Dictionary<int, string>();
+
+        void RememberNames()
+        {
+            foreach (var kv in Engine.State.Objects())
+            {
+                var c = kv.Value as CreatureUnit;
+                if (c != null && !c.IsWorker) { _names[c.Id] = c.Name; continue; }
+                var b = kv.Value as StructureUnit;
+                if (b != null) _names[b.Id] = string.IsNullOrEmpty(b.Name) ? b.DefId.Value : b.Name;
+            }
         }
 
         /// <summary>
@@ -809,9 +854,31 @@ namespace SpawnRowDuel.View
             var revived = ev as CreatureRevived;
             if (revived != null) return "The Reliquary returns " + revived.Card.Value;
 
+            // What a blow actually did - the number that floats over the card and then, until
+            // now, existed nowhere else. The main combat path sums a whole gang's damage into one
+            // batch before applying it, so it carries no single source; the trigger sites (a
+            // tower, a trap, a Detonate) do, and say so.
+            var hit = ev as DamageApplied;
+            if (hit != null && hit.Amount > 0)
+            {
+                string blow = "⚔" + Stat.Show(hit.Amount)
+                            + (hit.Tier == DamageTier.FirstStrike ? " (first strike)" : "");
+                string left = Remaining(hit.TargetId);
+                return (hit.SourceId != 0
+                        ? NameOf(hit.SourceId) + " hits " + NameOf(hit.TargetId) + " for " + blow
+                        : NameOf(hit.TargetId) + " takes " + blow) + left;
+            }
+
             var destroyed = ev as UnitDestroyed;
-            if (destroyed != null && destroyed.OnBoard) return "A " +
-                (destroyed.Kind == UnitKind.Building ? "structure is razed" : "creature falls");
+            if (destroyed != null && destroyed.OnBoard)
+            {
+                // a card that died face-down keeps its secret: it never had a name to print
+                if (destroyed.Kind == UnitKind.Charge)
+                    return "An unfinished face-down card is destroyed";
+                if (destroyed.Kind == UnitKind.Trap) return "A set trap is destroyed";
+                return NameOf(destroyed.UnitId)
+                     + (destroyed.Kind == UnitKind.Building ? " is razed" : " falls");
+            }
 
             var declared = ev as AttackDeclared;
             if (declared != null) return "⚔ " + NameOf(declared.AttackerId) + " declares an attack";
@@ -869,7 +936,26 @@ namespace SpawnRowDuel.View
                 var b = kv.Value as StructureUnit;
                 if (b != null) return b.DefId.Value;
             }
-            return "A unit";
+
+            // off the board already - the events being described are what took it off
+            string remembered;
+            return _names.TryGetValue(unitId, out remembered) ? remembered : "A unit";
+        }
+
+        /// <summary>" — ♥120 left", or nothing at all for something that did not survive the blow
+        /// being described. The state has already moved, so this is the hp AFTER the damage.</summary>
+        string Remaining(int unitId)
+        {
+            CellRef at;
+            bool onBoard;
+            var o = Engine.State.FindById(unitId, out at, out onBoard);
+            if (o == null || !onBoard) return "";
+
+            var c = o as CreatureUnit;
+            if (c != null) return c.Hp > 0 ? " — ♥" + Stat.Show(c.Hp) + " left" : "";
+            var b = o as StructureUnit;
+            if (b != null) return b.Hp > 0 ? " — ♥" + Stat.Show(b.Hp) + " left" : "";
+            return "";
         }
 
         // ---- worker pawns -------------------------------------------------------------------
