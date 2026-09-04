@@ -117,16 +117,53 @@ namespace SpawnRowDuel.Rules
             if (MoveRules.MoveSpent(s, u)) return Rejection.MoveAlreadySpent;
 
             if (!Board.IsRealSlot(m.To.Row, m.To.Col)) return Rejection.CellNotReal;
-            if (s.At(m.To) != null) return Rejection.CellOccupied;
-            if (!Board.Adjacent(m.From, m.To)) return Rejection.NotAdjacent;
+            if (!Board.InStepRange(m.From, m.To)) return Rejection.NotAdjacent;
+
+            // A CARD OF YOUR OWN IN THE WAY IS NOT A WALL - but only once there is no way round
+            // it. A move crosses a whole row now, so the only thing that can stop a march is your
+            // own board being in front of it, and "I cannot advance because my Forge is there" is
+            // a rule about furniture rather than about the enemy. So: if the destination row is
+            // FULL, a creature may take one of your cards' places, destroying it.
+            //
+            // The full-row condition is not only the stated rule, it is what keeps the board
+            // tappable: without it every one of your own cards would be a move destination as
+            // well as a thing to select, and selecting your own units is the commonest tap there
+            // is. With it, the two only collide in a row with no space left in it.
+            //
+            // An ENEMY card is still a wall: walking through one would be combat without a fight.
+            var occ = s.At(m.To);
+            if (occ != null)
+            {
+                if (occ.Owner != m.Actor) return Rejection.CellOccupied;
+                if (HasRoomIn(s, m.To.Row)) return Rejection.CellOccupied;
+            }
 
             return Rejection.None;
+        }
+
+        /// <summary>Is any cell of this row still empty? A move that razes is a last resort.</summary>
+        static bool HasRoomIn(GameState s, RowKey row)
+        {
+            for (int c = 0; c < Board.Columns; c++)
+                if (s.At(new CellRef(row, c)) == null) return true;
+            return false;
         }
 
         public void Execute(GameState s, ICommand cmd, ICardCatalog cat, EventSink ev)
         {
             var m = (MoveUnitCommand)cmd;
             var u = (CreatureUnit)s.At(m.From);
+
+            // whatever of ours was standing there is razed to make room, and any mana banked on
+            // it rides on with the creature that displaced it rather than evaporating
+            var occ = s.At(m.To);
+            if (occ != null)
+            {
+                s.Put(m.To, null);
+                DeathSweep.ToGrave(s, m.Actor, occ);
+                ev.Add(new UnitDestroyed(occ.Id, m.To, true, m.Actor, occ.Kind));
+                u.Bank += Mana.OnCard(occ);        // a face-down banks in Invested, not Bank
+            }
 
             s.Put(m.From, null);                            // vacate FIRST (spec 04 s6)
             if (u.Moved) { u.MovedTwice = true; u.Tapped = true; }   // the second move taps

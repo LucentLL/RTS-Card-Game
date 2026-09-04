@@ -131,7 +131,7 @@ namespace SpawnRowDuel.Rules.Tests
         {
             var s = engine.State;
             var cat = engine.Catalog;
-            System.Span<CellRef> around = stackalloc CellRef[8];   // outside the loop, once
+            System.Span<CellRef> around = stackalloc CellRef[Board.MaxStepTargets];  // once
 
             foreach (var kv in s.ObjectsOf(me))
             {
@@ -142,7 +142,7 @@ namespace SpawnRowDuel.Rules.Tests
                     Offer(engine, KPay, new UpkeepPayCommand(me, cell, cre.Id));
                     Offer(engine, KSacrifice, new UpkeepSacrificeCommand(me, cell, cre.Id));
 
-                    int n = Board.Neighbours(cell, around);
+                    int n = Board.StepTargets(cell, around);
                     for (int i = 0; i < n; i++)
                         Offer(engine, KMove, new MoveUnitCommand(me, cell, around[i], cre.Id));
 

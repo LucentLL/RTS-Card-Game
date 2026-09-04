@@ -30,5 +30,20 @@ namespace SpawnRowDuel.Rules
             p.Mana -= amount;
             return true;
         }
+
+        /// <summary>
+        /// How much mana is sitting ON this card - which is not the same field for every card.
+        ///
+        /// A unit banks in <c>Bank</c>; a FACE-DOWN banks in <c>Invested</c>, because a charge's
+        /// pot is the thing it is being paid for with. Anything that razes a card of yours and
+        /// carries its mana over has to ask this rather than read Bank, or setting a card
+        /// face-down and then building over it quietly burns everything poured into it.
+        /// </summary>
+        public static int OnCard(BoardObject o)
+        {
+            if (o == null) return 0;
+            var ch = o as ChargeUnit;
+            return ch != null ? Math.Max(0, ch.Invested) : Math.Max(0, o.Bank);
+        }
     }
 }

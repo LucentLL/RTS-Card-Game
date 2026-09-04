@@ -302,8 +302,17 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual("The Foundry", s.P(Side.You).Grave[0].Name);
         }
 
+        /// <summary>
+        /// A card may be played over ANY card of your own - including a structure, and including
+        /// one with nothing banked on it. The covered card is razed to make room.
+        ///
+        /// It used to need a bank, because the line existed to spend one. That made your own
+        /// board able to lock you out of your own deploy rows, which is the fault this widening
+        /// answers; what it must NOT widen to is covering an enemy card, which would hand every
+        /// creature in the deck a free removal spell.
+        /// </summary>
         [Test]
-        public void PlayOnTop_OnlyOverYourOwnBankedCards()
+        public void PlayOnTop_OverAnyCardOfYourOwn_ButNeverATheirs()
         {
             GameState s;
             var e = Engine(out s);
@@ -314,8 +323,19 @@ namespace SpawnRowDuel.Rules.Tests
             var bankless = UnitFactory.MakeCreature(s, Side.You,
                 TestData.Catalog.Creature(new CardId("Cinderling")), Element.None);
             s.Put(new CellRef(RowKey.YouBack, 1), bankless);
-            Assert.AreEqual(Rejection.CoveredCardHasNoBank,
-                e.CanApply(new PlayCardCommand(Side.You, idx, PlayMode.Summon, new CellRef(RowKey.YouBack, 1))));
+            Assert.AreEqual(Rejection.None,
+                e.CanApply(new PlayCardCommand(Side.You, idx, PlayMode.Summon, new CellRef(RowKey.YouBack, 1))),
+                "a card of yours with no bank is still yours to build over");
+
+            var yourForge = UnitFactory.MakeStructure(s, Side.You,
+                TestData.Catalog.Structure(new StructId("foundry"), Element.None));
+            s.Put(new CellRef(RowKey.YouBack, 2), yourForge);
+            Assert.AreEqual(Rejection.None,
+                e.CanApply(new PlayCardCommand(Side.You, idx, PlayMode.Summon, new CellRef(RowKey.YouBack, 2))),
+                "and so is a structure");
+            Assert.AreEqual(Rejection.None,
+                e.CanApply(new PlayCardCommand(Side.You, idx, PlayMode.Set, new CellRef(RowKey.YouBack, 2))),
+                "setting face-down covers it too, not just summoning");
 
             var foes = UnitFactory.MakeCreature(s, Side.Foe,
                 TestData.Catalog.Creature(new CardId("Mistling")), Element.None);
@@ -323,6 +343,68 @@ namespace SpawnRowDuel.Rules.Tests
             s.Put(new CellRef(RowKey.YouFront, 6), foes);   // a raider standing in YOUR row
             Assert.AreEqual(Rejection.CoveredCardNotYours,
                 e.CanApply(new PlayCardCommand(Side.You, idx, PlayMode.Summon, new CellRef(RowKey.YouFront, 6))));
+        }
+
+        /// <summary>
+        /// A FACE-DOWN's pot carries over too.
+        ///
+        /// A charge banks in Invested, not in Bank - the pot is the thing it is being paid for
+        /// with - so a covering play that reads Bank finds zero and silently burns every point
+        /// poured into it. Cheap to get wrong, and it looks exactly like mana going missing.
+        /// </summary>
+        [Test]
+        public void PlayOnTop_OfAFaceDown_InheritsWhatWasPouredIntoIt()
+        {
+            GameState s;
+            var e = Engine(out s);
+            ToAction(e, s);
+            s.P(Side.You).Mana = 8;
+
+            int setIdx = GiveCard(s, "Cinderling", Element.Fire);
+            var at = new CellRef(RowKey.YouBack, 4);
+            Assert.IsTrue(e.Apply(new PlayCardCommand(Side.You, setIdx, PlayMode.Set, at)).Applied);
+            var ch = (ChargeUnit)s.At(at);
+            Assert.IsTrue(e.Apply(new PourIntoChargeCommand(Side.You, at, ch.Id, 5)).Applied);
+            Assert.AreEqual(6, ch.Invested, "◆1 for the set plus 5 poured");
+
+            int cost = TestData.Catalog.Creature(new CardId("Sparkimp")).Cost;
+            int idx = GiveCard(s, "Sparkimp", Element.Fire);
+            int pool = s.P(Side.You).Mana;
+
+            Assert.IsTrue(e.Apply(new PlayCardCommand(Side.You, idx, PlayMode.Summon, at)).Applied);
+
+            var now = s.At(at) as CreatureUnit;
+            Assert.IsNotNull(now);
+            Assert.AreEqual(6 - cost, now.Bank, "the rest of the pot rides on");
+            Assert.AreEqual(pool, s.P(Side.You).Mana, "and the pot paid for all of it");
+        }
+
+        /// <summary>The covered card goes to the grave and its bank pays for what replaces it -
+        /// the half of the play-on-top line that did not change.</summary>
+        [Test]
+        public void PlayOnTop_RazesTheCoveredCard_AndInheritsItsBank()
+        {
+            GameState s;
+            var e = Engine(out s);
+            ToAction(e, s);
+            s.P(Side.You).Mana = 0;                 // the bank pays for ALL of it
+            int idx = GiveCard(s, "Sparkimp", Element.Fire);
+            int cost = TestData.Catalog.Creature(new CardId("Sparkimp")).Cost;
+
+            var forge = UnitFactory.MakeStructure(s, Side.You,
+                TestData.Catalog.Structure(new StructId("foundry"), Element.None));
+            forge.Bank = cost + 3;
+            var at = new CellRef(RowKey.YouBack, 1);
+            s.Put(at, forge);
+
+            Assert.IsTrue(e.Apply(new PlayCardCommand(Side.You, idx, PlayMode.Summon, at)).Applied);
+
+            var now = s.At(at) as CreatureUnit;
+            Assert.IsNotNull(now, "the newcomer is standing there");
+            Assert.AreEqual("Sparkimp", now.Name);
+            Assert.AreEqual(3, now.Bank, "the surplus rides on");
+            Assert.AreEqual(0, s.P(Side.You).Mana, "and no pool mana was touched");
+            Assert.AreEqual(1, s.P(Side.You).Grave.Count, "the forge was razed");
         }
 
         [Test]

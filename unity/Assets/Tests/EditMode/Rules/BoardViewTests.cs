@@ -31,11 +31,12 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
-        public void BuildsEveryCenterLaneAndFlank_AndNothingElse()
+        public void BuildsAllThirtyFiveCells_EveryOneOfThemStandable()
         {
-            // 4 non-center rows x 7 + center's 3 lanes + center's 4 structure flanks
+            // 5 rows x 7. The centre used to give up three cells to creature-only lanes and four
+            // to structure-only flanks; it is an ordinary row now.
             Assert.AreEqual(35, _view.Cells.Count);
-            Assert.AreEqual(31, _view.CreatureSlotCount, "only lanes are creature-standable in the center");
+            Assert.AreEqual(35, _view.CreatureSlotCount, "and a creature may stand on any of them");
         }
 
         [Test]
@@ -114,18 +115,17 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
-        public void AdjacencyPreview_MatchesTheRules_ForEveryCreatureSlot()
+        public void MovePreview_MatchesTheRules_ForEveryCell()
         {
-            // What the player would see highlighted on selection must be exactly Board.Neighbours,
-            // and every highlighted cell must actually exist in the view.
+            // What the player would see highlighted on selection must be exactly
+            // Board.StepTargets, and every highlighted cell must actually exist in the view.
             foreach (var row in Board.AllRows)
             for (int c = 0; c < Board.Columns; c++)
             {
-                if (!Board.IsRealSlot(row, c)) continue;
                 var from = new CellRef(row, c);
 
-                var buf = new CellRef[8];
-                int n = Board.Neighbours(from, buf);
+                var buf = new CellRef[Board.MaxStepTargets];
+                int n = Board.StepTargets(from, buf);
 
                 for (int i = 0; i < n; i++)
                     Assert.IsTrue(_view.Cells.ContainsKey(buf[i]),
@@ -133,21 +133,19 @@ namespace SpawnRowDuel.Rules.Tests
             }
         }
 
+        /// <summary>
+        /// The view has a tile for all 35 cells - including the four centre columns that used to
+        /// be structure-only flanks, and which anything may now stand on.
+        /// </summary>
         [Test]
-        public void StructureFlanks_AreBuiltButNeverOfferedAsMoveTargets()
+        public void EveryCellHasATile_TheCentreRowIncluded()
         {
-            var flank = new CellRef(RowKey.Center, 2);
-            Assert.IsTrue(_view.Cells.ContainsKey(flank), "the flank is visible - structures stand there");
-
-            var buf = new CellRef[8];
             foreach (var row in Board.AllRows)
-            for (int c = 0; c < Board.Columns; c++)
-            {
-                if (!Board.IsRealSlot(row, c)) continue;
-                int n = Board.Neighbours(new CellRef(row, c), buf);
-                for (int i = 0; i < n; i++)
-                    Assert.AreNotEqual(flank, buf[i], "a creature must never be offered a structure flank");
-            }
+                for (int c = 0; c < Board.Columns; c++)
+                    Assert.IsTrue(_view.Cells.ContainsKey(new CellRef(row, c)),
+                        new CellRef(row, c) + " has no tile in the view");
+
+            Assert.AreEqual(Board.Cells, _view.Cells.Count);
         }
     }
 }

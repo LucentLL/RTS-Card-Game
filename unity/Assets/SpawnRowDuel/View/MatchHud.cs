@@ -245,6 +245,59 @@ namespace SpawnRowDuel.View
             else if (_upgradeMenuOpen) DrawUpgradeMenu(s, w, h);
             else DrawChargePanel(s, w, h);
             DrawChoicePanel(s, w, h);
+            DrawAskPanel(w, h);            // LAST: nothing outranks a question about destroying
+        }
+
+
+        /// <summary>
+        /// "This will destroy your own card - go ahead?"
+        ///
+        /// The only confirm in the game, and it earns its place: playing over one of your own
+        /// cards and marching into a full row both raze something you paid for, and neither is
+        /// undoable. Everything else on this board is either reversible or obviously what it
+        /// looks like, and a game that asks about everything is a game nobody reads.
+        ///
+        /// The third button is not padding. A tap on your own card in a full row could equally
+        /// mean "pick that one up instead", and that reading is the commoner of the two - so it
+        /// is offered here rather than costing the player a cancel and a second tap.
+        /// </summary>
+        void DrawAskPanel(float w, float h)
+        {
+            var ask = _match.Asking;
+            if (ask == null) return;
+
+            const float pw = 320f, rowH = 26f;
+            bool three = ask.Instead.HasValue;
+            float ph = 30f + 22f + (three ? 2f : 1f) * rowH + 10f;
+            var panel = new Rect(w / 2f - pw / 2f, h / 2f - ph / 2f, pw, ph);
+
+            Panel(panel, PanelColor);
+            HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
+                                        panel.width * _scale, panel.height * _scale);
+
+            GUI.Label(new Rect(panel.x + 8, panel.y + 5, pw - 16, 20), ask.What, _small);
+            GUI.Label(new Rect(panel.x + 8, panel.y + 24, pw - 16, 20), ask.Cost, _small);
+
+            float y = panel.y + 48;
+            float half = (pw - 20) / 2f;
+            if (Btn(new Rect(panel.x + 8, y, half, rowH - 3), "DESTROY IT", _button))
+                Try(_match.ResolveAsk(true));
+            if (Btn(new Rect(panel.x + 12 + half, y, half, rowH - 3), "CANCEL", _button))
+                _match.ResolveAsk(false);
+
+            if (!three) return;
+            y += rowH;
+            if (Btn(new Rect(panel.x + 8, y, pw - 16, rowH - 3), "SELECT IT INSTEAD", _button))
+            {
+                var cell = ask.Instead.Value;
+                _match.ResolveAsk(false);
+                if (_input != null) _input.SelectFromUi(cell);
+            }
+        }
+
+        void Try(Rejection why)
+        {
+            if (why != Rejection.None) Hint(MatchController.Hint(why));
         }
 
         /// <summary>

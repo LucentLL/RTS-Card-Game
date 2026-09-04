@@ -91,13 +91,14 @@ namespace SpawnRowDuel.Rules.Tests
             foreach (var cell in legal)
             {
                 bool ownRow = cell.Row == RowKey.YouBack || cell.Row == RowKey.YouFront;
-                bool centreFlank = cell.Row == RowKey.Center && !Board.IsLane(cell.Col);
-                Assert.IsTrue(ownRow || centreFlank,
-                    "a build lit " + cell + ", which is neither your ground nor a centre flank");
+                bool centre = cell.Row == RowKey.Center;
+                Assert.IsTrue(ownRow || centre,
+                    "a build lit " + cell + ", which is neither your ground nor the middle row");
             }
 
-            Assert.AreEqual(Board.Columns * 2 + 4, legal.Count,
-                "both of your rows, plus the four centre flanks");
+            // three whole rows now: the centre used to give up its three creature lanes
+            Assert.AreEqual(Board.Columns * 3, legal.Count,
+                "both of your rows, plus the whole of the middle one");
             foreach (var row in new[] { RowKey.FoeBack, RowKey.FoeFront })
                 Assert.AreEqual(Rejection.DestinationNotDeployable,
                     e.CanApply(new BuildStructureCommand(Side.You, new StructId("foundry"),
@@ -129,12 +130,12 @@ namespace SpawnRowDuel.Rules.Tests
 
             Assert.IsTrue(e.Apply(new BuildStructureCommand(Side.You, new StructId("foundry"),
                 Element.None, new CellRef(RowKey.Center, 2))).Applied,
-                "center FLANKS take structures");
+                "the middle row takes structures");
 
-            Assert.AreEqual(Rejection.CenterLaneForStructure,
+            Assert.AreEqual(Rejection.None,
                 e.CanApply(new BuildStructureCommand(Side.You, new StructId("encampment"),
                     Element.None, new CellRef(RowKey.Center, 3))),
-                "center LANES are creature ground");
+                "including what used to be a creature-only lane");
 
             Assert.AreEqual(Rejection.DestinationNotDeployable,
                 e.CanApply(new BuildStructureCommand(Side.You, new StructId("encampment"),

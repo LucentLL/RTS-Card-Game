@@ -24,20 +24,30 @@ namespace SpawnRowDuel.Rules
             RowKey.FoeBack, RowKey.FoeFront, RowKey.Center, RowKey.YouFront, RowKey.YouBack
         };
 
-        /// <summary>CENTER_LANES - creatures fight in the lanes, structures build on the flanks.</summary>
-        public static bool IsLane(int col) { return col == 1 || col == 3 || col == 5; }
-
-        /// <summary>A real, creature-standable cell. 31 of the 35 cells qualify.</summary>
+        /// <summary>
+        /// A real, standable cell: ALL 35 of them.
+        ///
+        /// The centre row used to be split - three CENTER_LANES at columns 1/3/5 where creatures
+        /// could stand, four flanks where only structures could build - and the contested row was
+        /// therefore three cells wide for an army and four for a builder. That split is gone: the
+        /// middle row is seven cells like every other row, and anything may occupy any of them.
+        ///
+        /// Kept as a method rather than deleted because it is the one question every placement,
+        /// movement and scan site asks, and a board that grows a hole again should have one place
+        /// to say so.
+        /// </summary>
         public static bool IsRealSlot(RowKey row, int col)
         {
-            return col >= 0 && col < Columns && (row != RowKey.Center || IsLane(col));
+            return col >= 0 && col < Columns;
         }
 
-        /// <summary>centerSlotOK - structures take center flanks, creatures take center lanes.</summary>
+        /// <summary>
+        /// Whether this cell will take this kind of card. Nothing is barred any more - it exists
+        /// so the call sites that asked keep asking, and it is where a future restriction lands.
+        /// </summary>
         public static bool CenterSlotOk(RowKey row, int col, bool isStructure)
         {
-            if (row != RowKey.Center) return true;
-            return isStructure ? !IsLane(col) : IsLane(col);
+            return IsRealSlot(row, col);
         }
 
         public static RowKey RowFor(Side owner, SlotName which)
@@ -117,24 +127,42 @@ namespace SpawnRowDuel.Rules
             return n;
         }
 
-        /// <summary>Owner-agnostic. One step in any of 8 directions into a real slot.</summary>
-        public static bool Adjacent(CellRef a, CellRef b)
+        /// <summary>
+        /// The most cells one move can ever reach: three rows of seven, less the cell it is
+        /// standing in. Every caller sizes its buffer with this.
+        /// </summary>
+        public const int MaxStepTargets = 3 * Columns - 1;
+
+        /// <summary>
+        /// May this creature's ONE move of the turn carry it from a to b?
+        ///
+        /// A move travels AT MOST ONE ROW - forward, back, or staying put - and any distance
+        /// along that row. It used to be one square in any of eight directions, which made
+        /// crossing the board a five-turn walk and made the column a creature happened to be
+        /// standing in a commitment rather than a position.
+        ///
+        /// Row and column are deliberately asymmetric, and that asymmetry is the whole rule: the
+        /// rows are the front line - who is in front of whom decides blocking, raiding and what
+        /// a wall strike can reach - so advancing is still paced at a row a turn. Columns decide
+        /// nothing but congestion, so sliding along one costs nothing to give away.
+        /// </summary>
+        public static bool InStepRange(CellRef a, CellRef b)
         {
             return IsRealSlot(a.Row, a.Col) && IsRealSlot(b.Row, b.Col) && a != b
-                && Math.Abs((int)a.Row - (int)b.Row) <= 1
-                && Math.Abs(a.Col - b.Col) <= 1;
+                && Math.Abs((int)a.Row - (int)b.Row) <= 1;
         }
 
         /// <summary>
+        /// Every cell one move could reach, ignoring who is standing there.
+        ///
         /// CANONICAL enumeration order, pinned so no future rule can be order-ambiguous
         /// (spec 04 s23 determinism note): ascending RowKey, then ascending Col.
         ///
-        /// Contract: this is a creature-movement query and is exactly the set for which
-        /// Adjacent(from, x) holds. A cell that is not itself creature-standable - the center
-        /// flanks at cols 0/2/4/6, which hold structures - has no movement neighbours, because
-        /// no creature can ever be standing there to move out of.
+        /// Contract: exactly the set for which <see cref="InStepRange"/>(from, x) holds. Size the
+        /// buffer with <see cref="MaxStepTargets"/> - a short one is filled and truncated rather
+        /// than overrun, which silently hides legal moves, so do not pass a guess.
         /// </summary>
-        public static int Neighbours(CellRef from, Span<CellRef> into)
+        public static int StepTargets(CellRef from, Span<CellRef> into)
         {
             if (!IsRealSlot(from.Row, from.Col)) return 0;
 
@@ -142,9 +170,8 @@ namespace SpawnRowDuel.Rules
             for (int r = (int)from.Row - 1; r <= (int)from.Row + 1; r++)
             {
                 if (r < 0 || r >= Rows) continue;
-                for (int c = from.Col - 1; c <= from.Col + 1; c++)
+                for (int c = 0; c < Columns; c++)
                 {
-                    if (c < 0 || c >= Columns) continue;
                     var cell = new CellRef((RowKey)r, c);
                     if (cell == from) continue;
                     if (!IsRealSlot(cell.Row, cell.Col)) continue;

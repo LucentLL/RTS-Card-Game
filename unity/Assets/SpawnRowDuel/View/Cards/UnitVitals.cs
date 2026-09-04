@@ -98,9 +98,95 @@ namespace SpawnRowDuel.View.Cards
                     _seen.Add(o.Id);
                     Place(o, cre, bld, kv.Key, cam, panel, scale);
                 }
+
+                PlaceWorkerFigures(cam, panel, scale);
             }
+            else HideWorkerFigures();
 
             Prune();
+        }
+
+        // ── the row workforce ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Each row's workforce, as a SIGNED NUMBER hung off the end of its own row.
+        ///
+        /// It used to be a file of little capsules standing beside the board, one per body in the
+        /// pool. Two things a file of pills cannot do: be read without counting, and go negative -
+        /// and the second one is the whole upkeep mechanic. A row in deficit is what locks the
+        /// harvest, and the pills simply vanished below zero, which reads as "no workers here"
+        /// rather than "this row owes two".
+        ///
+        /// Six of them: both sides, all three zones. Raid is deliberately not drawn - it is not a
+        /// row, it is the bill for standing on somebody else's.
+        ///
+        /// Positioned in SCREEN space off the row's own ends, not at a fixed world offset outside
+        /// the board. The board is framed to FILL the width, so there is no world space outside it
+        /// at the near rows - which is where the capsules went when they disappeared.
+        /// </summary>
+        readonly Chip[,] _workers = new Chip[2, 3];
+
+        static readonly Color Short = new Color(1f, 0.45f, 0.38f);
+
+        void PlaceWorkerFigures(Camera cam, Vector2 panel, float scale)
+        {
+            for (int side = 0; side < 2; side++)
+                for (int z = 0; z < 3; z++)
+                {
+                    var who = (Side)side;
+                    var zone = (WorkerZone)z;
+                    var chip = _workers[side, z] ?? (_workers[side, z] = Ensure(-1 - (side * 3 + z)));
+                    _seen.Add(-1 - (side * 3 + z));
+
+                    var row = _match.WorkerRow(who, zone);
+                    Vector2 a, b;
+                    if (!_hand.TryProject(cam, _match.Board.WorldOf(new CellRef(row, 0)), out a)
+                        || !_hand.TryProject(cam,
+                               _match.Board.WorldOf(new CellRef(row, Board.Columns - 1)), out b))
+                    {
+                        chip.Root.style.display = DisplayStyle.None;
+                        continue;
+                    }
+
+                    float y = (a.y + b.y) * 0.5f;
+                    if (y < HudLayout.TopBlockPx * scale || y > panel.y - HudLayout.BottomBlockPx * scale)
+                    {
+                        chip.Root.style.display = DisplayStyle.None;
+                        continue;
+                    }
+
+                    bool mine = who == Seat.Local;
+                    float pad = Mathf.Max(24f, Mathf.Abs(b.x - a.x) * 0.06f);
+                    float x = mine ? Mathf.Min(a.x, b.x) - pad : Mathf.Max(a.x, b.x) + pad;
+                    float half = 20f * HudLayout.Scale;
+                    x = Mathf.Clamp(x, half, panel.x - half);
+
+                    int n = _match.WorkerFigure(who, zone);
+
+                    chip.Name.style.display = DisplayStyle.None;
+                    chip.Line.text = n > 0 ? "⚒+" + n : n < 0 ? "⚒" + n : "⚒0";
+                    chip.Line.style.display = DisplayStyle.Flex;
+                    chip.Line.style.fontSize = Mathf.Clamp(11f * HudLayout.Scale, 9f, 20f);
+                    chip.Line.style.color = n < 0 ? Short : (mine ? You : Foe);
+
+                    chip.Root.style.borderTopWidth = 0; chip.Root.style.borderBottomWidth = 0;
+                    chip.Root.style.borderLeftWidth = 0; chip.Root.style.borderRightWidth = 0;
+                    chip.Root.style.backgroundColor = new Color(0.02f, 0.02f, 0.04f, 0.66f);
+                    chip.Root.style.width = half * 2f;
+                    chip.Root.style.left = x - half;
+                    chip.Root.style.top = y - 9f * HudLayout.Scale;
+                    chip.Root.style.display = DisplayStyle.Flex;
+                }
+        }
+
+        void HideWorkerFigures()
+        {
+            for (int side = 0; side < 2; side++)
+                for (int z = 0; z < 3; z++)
+                {
+                    var chip = _workers[side, z];
+                    if (chip != null) chip.Root.style.display = DisplayStyle.None;
+                }
         }
 
         /// <summary>

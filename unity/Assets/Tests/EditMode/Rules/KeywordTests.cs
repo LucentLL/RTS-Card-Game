@@ -98,8 +98,7 @@ namespace SpawnRowDuel.Rules.Tests
             var e = Engine(out s);
             Fill(s, Side.You, RowKey.YouBack);
             Fill(s, Side.You, RowKey.YouFront);
-            for (int col = 0; col < Board.Columns; col++)
-                if (Board.IsLane(col)) Place(s, Side.You, "Cinderling", RowKey.Center, col);
+            Fill(s, Side.You, RowKey.Center);        // all seven now - the lanes are gone
 
             var ev = new EventSink();
             var warder = UnitFactory.MakeCreature(s, Side.You,
@@ -209,8 +208,7 @@ namespace SpawnRowDuel.Rules.Tests
             s.Put(new CellRef(RowKey.FoeBack, 3), reaper);            // dies deep in enemy ground
             Fill(s, Side.You, RowKey.YouBack);
             Fill(s, Side.You, RowKey.YouFront);
-            for (int col = 0; col < Board.Columns; col++)
-                if (Board.IsLane(col)) Place(s, Side.You, "Cinderling", RowKey.Center, col);
+            Fill(s, Side.You, RowKey.Center);        // all seven now - the lanes are gone
 
             reaper.Hp = 0;
             DeathSweep.Cleanup(s, TestData.Catalog, new EventSink());

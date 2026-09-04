@@ -22,6 +22,24 @@ namespace SpawnRowDuel.Rules
                                          List<HandCard> youDeck, List<HandCard> foeDeck,
                                          ulong seed, RulesOptions options)
         {
+            return NewMatch(cat, you, foe, youDeck, foeDeck, seed, options, Side.You);
+        }
+
+        /// <summary>
+        /// The same, saying who moves FIRST.
+        ///
+        /// It used to be You, always, which in a duel means the HOST always opens - a real edge,
+        /// handed to whoever happened to create the room. The side is a parameter rather than a
+        /// roll taken here because the match RNG is a contract: it draws You's deck before Foe's
+        /// and every committed trace depends on it, so spending a number on a coin flip would
+        /// move every card in every existing game. The caller decides, and in a duel it decides
+        /// from the shared seed (<see cref="MatchConfig.FirstMoveFrom"/>) so both peers agree
+        /// without a word on the wire.
+        /// </summary>
+        public static GameState NewMatch(ICardCatalog cat, CommanderId you, CommanderId foe,
+                                         List<HandCard> youDeck, List<HandCard> foeDeck,
+                                         ulong seed, RulesOptions options, Side first)
+        {
             var cy = cat.Commander(you);
             var cf = cat.Commander(foe);
 
@@ -34,7 +52,7 @@ namespace SpawnRowDuel.Rules
             SetupPlayer(s.P(Side.Foe), cf);
 
             // step 4: the turn machine. Board starts empty (35 nulls) - no command centre card.
-            s.Turn = Side.You;
+            s.Turn = first;
             s.TurnNumber = 1;
             s.Phase = TurnPhase.Upkeep;
             s.IsOver = false;

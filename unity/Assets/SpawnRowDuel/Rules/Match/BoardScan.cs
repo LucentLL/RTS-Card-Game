@@ -32,8 +32,7 @@ namespace SpawnRowDuel.Rules
 
             for (int col = 0; col < Board.Columns; col++)
             {
-                if (!Board.IsLane(col)) continue;
-                var c = new CellRef(RowKey.Center, col);
+                var c = new CellRef(RowKey.Center, col);        // all seven now, not three lanes
                 if (s.At(c) == null) { cell = c; return true; }
             }
 

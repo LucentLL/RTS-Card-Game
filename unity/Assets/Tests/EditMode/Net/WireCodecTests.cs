@@ -272,6 +272,47 @@ namespace SpawnRowDuel.Net.Tests
 
         /// <summary>A whole handshake carrying two 40-card decks has to fit inside the relay's
         /// per-message allowance, with room to spare. This is the number that decided decks are
+        /// <summary>
+        /// The host does not always open.
+        ///
+        /// Side.You moved first and the host IS Side.You, so whoever pressed Host got the first
+        /// turn of every game they ever played. The flip comes off the shared seed - SHA-256 over
+        /// both peers' nonces, so neither side chose it - and both engines derive it rather than
+        /// sending it, which is why it cannot disagree.
+        /// </summary>
+        [Test]
+        public void FirstMove_IsACoinFlip_NeitherPeerTosses()
+        {
+            int you = 0, foe = 0;
+            for (ulong seed = 1; seed <= 400; seed++)
+            {
+                if (MatchConfig.FirstMoveFrom(seed) == Side.You) you++; else foe++;
+                Assert.AreEqual(MatchConfig.FirstMoveFrom(seed), MatchConfig.FirstMoveFrom(seed),
+                    "and both peers derive the same answer from the same seed");
+            }
+
+            Assert.Greater(you, 120, "the flip is not stuck on the host");
+            Assert.Greater(foe, 120, "nor on the guest");
+        }
+
+        /// <summary>And the built match actually starts on that side - the flip is not advice.</summary>
+        [Test]
+        public void FirstMove_ReachesTheOpeningState()
+        {
+            var cat = Catalog();
+            for (ulong seed = 1; seed <= 40; seed++)
+            {
+                var config = new MatchConfig();
+                config.HostCommander = cat.Commanders[0].Id;
+                config.GuestCommander = cat.Commanders[1].Id;
+                config.Seed = seed;
+                config.CatalogFingerprint = new CardRegistry(cat).Fingerprint;
+
+                Assert.AreEqual(MatchConfig.FirstMoveFrom(seed), config.Build(cat).Turn,
+                    "seed " + seed + " opened on the wrong side");
+            }
+        }
+
         /// sent as registry indices rather than as "colour|name" strings.</summary>
         [Test]
         public void StartMessage_FitsComfortablyInOneRelayMessage()

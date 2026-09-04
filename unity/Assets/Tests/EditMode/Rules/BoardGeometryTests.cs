@@ -10,20 +10,15 @@ namespace SpawnRowDuel.Rules.Tests
     /// </summary>
     public class BoardGeometryTests
     {
+        /// <summary>
+        /// The middle row is SEVEN cells, like every other row.
+        ///
+        /// It used to be three creature lanes at columns 1/3/5 and four builder flanks, so the
+        /// contested row was three wide for an army and four wide for a builder, and four of the
+        /// thirty-five cells could hold nothing at all.
+        /// </summary>
         [Test]
-        public void CenterRow_HasLanesAtOneThreeFive_Only()
-        {
-            Assert.IsTrue(Board.IsLane(1));
-            Assert.IsTrue(Board.IsLane(3));
-            Assert.IsTrue(Board.IsLane(5));
-            Assert.IsFalse(Board.IsLane(0));
-            Assert.IsFalse(Board.IsLane(2));
-            Assert.IsFalse(Board.IsLane(4));
-            Assert.IsFalse(Board.IsLane(6));
-        }
-
-        [Test]
-        public void RealSlots_Are31_Of35()
+        public void EveryCellIsReal_TheCentreRowHasNoLanes()
         {
             int real = 0;
             foreach (var row in Board.AllRows)
@@ -31,23 +26,15 @@ namespace SpawnRowDuel.Rules.Tests
                     if (Board.IsRealSlot(row, c)) real++;
 
             Assert.AreEqual(35, Board.Cells, "board is 7x5");
-            Assert.AreEqual(31, real, "center row contributes only its 3 lanes");
-        }
+            Assert.AreEqual(35, real, "and all 35 of them are standable");
 
-        [Test]
-        public void CenterSlotOk_SplitsCreaturesIntoLanes_AndStructuresOntoFlanks()
-        {
-            // creatures fight in the lanes
-            Assert.IsTrue(Board.CenterSlotOk(RowKey.Center, 3, isStructure: false));
-            Assert.IsFalse(Board.CenterSlotOk(RowKey.Center, 2, isStructure: false));
-
-            // structures build on the flanking ground
-            Assert.IsTrue(Board.CenterSlotOk(RowKey.Center, 2, isStructure: true));
-            Assert.IsFalse(Board.CenterSlotOk(RowKey.Center, 3, isStructure: true));
-
-            // outside the center the distinction does not exist
-            Assert.IsTrue(Board.CenterSlotOk(RowKey.YouFront, 2, isStructure: true));
-            Assert.IsTrue(Board.CenterSlotOk(RowKey.YouFront, 2, isStructure: false));
+            for (int c = 0; c < Board.Columns; c++)
+            {
+                Assert.IsTrue(Board.CenterSlotOk(RowKey.Center, c, isStructure: false),
+                    "a creature may stand in centre column " + c);
+                Assert.IsTrue(Board.CenterSlotOk(RowKey.Center, c, isStructure: true),
+                    "and so may a structure");
+            }
         }
 
         // ---- row-interval blocking (spec 03 s4.1) --------------------------------------------
@@ -101,24 +88,29 @@ namespace SpawnRowDuel.Rules.Tests
 
         // ---- movement -------------------------------------------------------------------------
 
+        /// <summary>
+        /// A move crosses AT MOST ONE ROW and any distance along it.
+        ///
+        /// The row limit is the front line and is kept; the column limit was a shuffle and is
+        /// gone. Both halves are asserted, because it is the ASYMMETRY that is the rule - drop
+        /// either one and the board is a different game.
+        /// </summary>
         [Test]
-        public void Adjacent_DiagonalsReachTheCenterLanes()
+        public void AStep_CrossesOneRow_AndAnyNumberOfColumns()
         {
-            var fromFlank = new CellRef(RowKey.YouFront, 0);
-            var lane = new CellRef(RowKey.Center, 1);
-            Assert.IsTrue(Board.Adjacent(fromFlank, lane), "a diagonal step reaches the lane");
+            var from = new CellRef(RowKey.YouBack, 0);
+
+            Assert.IsTrue(Board.InStepRange(from, new CellRef(RowKey.YouBack, 6)),
+                "the whole of its own row");
+            Assert.IsTrue(Board.InStepRange(from, new CellRef(RowKey.YouFront, 6)),
+                "and the whole of the next one");
+            Assert.IsFalse(Board.InStepRange(from, new CellRef(RowKey.Center, 0)),
+                "but never two rows, however short the walk");
+            Assert.IsFalse(Board.InStepRange(from, from), "and never nowhere");
         }
 
         [Test]
-        public void Adjacent_RejectsNonLaneCenterCells()
-        {
-            var from = new CellRef(RowKey.YouFront, 1);
-            var flank = new CellRef(RowKey.Center, 2);
-            Assert.IsFalse(Board.Adjacent(from, flank), "center col 2 is not a creature slot");
-        }
-
-        [Test]
-        public void Adjacent_IsSymmetric_AndOwnerAgnostic()
+        public void StepRange_IsSymmetric_AndOwnerAgnostic()
         {
             foreach (var ra in Board.AllRows)
             foreach (var rb in Board.AllRows)
@@ -127,25 +119,19 @@ namespace SpawnRowDuel.Rules.Tests
             {
                 var a = new CellRef(ra, ca);
                 var b = new CellRef(rb, cb);
-                Assert.AreEqual(Board.Adjacent(a, b), Board.Adjacent(b, a),
-                    "adjacency must be symmetric for " + a + " / " + b);
+                Assert.AreEqual(Board.InStepRange(a, b), Board.InStepRange(b, a),
+                    "step range must be symmetric for " + a + " / " + b);
             }
         }
 
         [Test]
-        public void Adjacent_IsNeverSelf()
+        public void StepTargets_AreEnumeratedInCanonicalOrder()
         {
-            var c = new CellRef(RowKey.YouFront, 3);
-            Assert.IsFalse(Board.Adjacent(c, c));
-        }
+            Span<CellRef> buf = stackalloc CellRef[Board.MaxStepTargets];
+            int n = Board.StepTargets(new CellRef(RowKey.YouFront, 3), buf);
 
-        [Test]
-        public void Neighbours_AreEnumeratedInCanonicalOrder()
-        {
-            Span<CellRef> buf = stackalloc CellRef[8];
-            int n = Board.Neighbours(new CellRef(RowKey.YouFront, 3), buf);
-
-            Assert.Greater(n, 0);
+            Assert.AreEqual(3 * Board.Columns - 1, n,
+                "three rows of seven, less the cell it is standing in");
             for (int i = 1; i < n; i++)
             {
                 bool ordered = (int)buf[i - 1].Row < (int)buf[i].Row
@@ -155,18 +141,34 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
-        public void Neighbours_AgreeWithAdjacent()
+        public void StepTargets_AgreeWithStepRange_BothWays()
         {
-            Span<CellRef> buf = stackalloc CellRef[8];
+            Span<CellRef> buf = stackalloc CellRef[Board.MaxStepTargets];
             foreach (var row in Board.AllRows)
             for (int c = 0; c < Board.Columns; c++)
             {
                 var from = new CellRef(row, c);
-                int n = Board.Neighbours(from, buf);
+                int n = Board.StepTargets(from, buf);
                 for (int i = 0; i < n; i++)
-                    Assert.IsTrue(Board.Adjacent(from, buf[i]),
-                        "Neighbours emitted " + buf[i] + " which Adjacent rejects from " + from);
+                    Assert.IsTrue(Board.InStepRange(from, buf[i]),
+                        "StepTargets emitted " + buf[i] + " which InStepRange rejects from " + from);
+
+                int expected = 0;
+                foreach (var r2 in Board.AllRows)
+                    for (int c2 = 0; c2 < Board.Columns; c2++)
+                        if (Board.InStepRange(from, new CellRef(r2, c2))) expected++;
+                Assert.AreEqual(expected, n, "and emitted every one of them, from " + from);
             }
+        }
+
+        /// <summary>A short buffer truncates rather than overruns - the contract every caller
+        /// leans on when it sizes with MaxStepTargets.</summary>
+        [Test]
+        public void StepTargets_NeverOverrunsAShortBuffer()
+        {
+            Span<CellRef> tiny = stackalloc CellRef[4];
+            int n = Board.StepTargets(new CellRef(RowKey.Center, 3), tiny);
+            Assert.AreEqual(4, n);
         }
 
         // ---- zones ----------------------------------------------------------------------------

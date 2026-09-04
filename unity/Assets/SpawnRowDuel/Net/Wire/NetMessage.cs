@@ -69,7 +69,28 @@ namespace SpawnRowDuel.Net
                 throw new WireFormatException("unknown rules flags: " + FlagBits);
 
             return MatchSetup.NewMatch(cat, HostCommander, GuestCommander,
-                                       HostDeck, GuestDeck, Seed, options);
+                                       HostDeck, GuestDeck, Seed, options, FirstMoveFrom(Seed));
+        }
+
+        /// <summary>
+        /// Who opens the duel - a coin flip neither player tosses.
+        ///
+        /// The host opened every game, because the host is Side.You and Side.You moved first.
+        /// That is a real advantage handed out by who happened to press Host.
+        ///
+        /// The seed is already the one thing both peers agreed on and neither chose: it is
+        /// SHA-256 over both nonces (NetSession.SeedFrom), so a peer that wanted to open could
+        /// only get there by grinding nonces against a hash. Mixed again here rather than read
+        /// straight off the bottom bit, because the bottom bit of the seed is also the bottom bit
+        /// of the shuffle, and two things that should be independent should not be the same coin.
+        /// </summary>
+        public static Side FirstMoveFrom(ulong seed)
+        {
+            ulong z = seed + 0x9E3779B97F4A7C15UL;          // SplitMix64's mixer, one round
+            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+            z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+            z ^= z >> 31;
+            return (z & 1UL) == 0UL ? Side.You : Side.Foe;
         }
 
         /// <summary>Which Side a role plays. Fixed, and the reason no command needs remapping.</summary>

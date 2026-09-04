@@ -47,9 +47,10 @@ namespace SpawnRowDuel.Rules
         }
 
         /// <summary>
-        /// hasPlacement, with the lane over-count fixed for planning use: a free CENTER cell
-        /// only counts when it is a flank (the JS scanned lanes too and relied on the placement
-        /// step to reject - spec 05 s6.1 note).
+        /// hasPlacement: is there anywhere this structure could legally stand?
+        ///
+        /// It used to subtract the three centre LANES, which a structure could not take. The
+        /// middle row is seven open cells now, so every empty cell of every zone counts.
         /// </summary>
         public static bool HasPlacement(GameState s, Side owner, StructureDef def, ICardCatalog cat)
         {
@@ -60,10 +61,7 @@ namespace SpawnRowDuel.Rules
                 var rows = Board.RowsOfZone(owner, zone);
                 for (int r = 0; r < rows.Length; r++)
                     for (int col = 0; col < Board.Columns; col++)
-                    {
-                        if (rows[r] == RowKey.Center && Board.IsLane(col)) continue;
                         if (s.At(new CellRef(rows[r], col)) == null) return true;
-                    }
             }
             return false;
         }

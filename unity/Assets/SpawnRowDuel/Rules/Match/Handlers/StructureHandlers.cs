@@ -20,14 +20,12 @@ namespace SpawnRowDuel.Rules
             if (!Placement.IsInBuildList(cat, s.P(m.Actor).Commander, def))
                 return Rejection.MissingPrereq;
 
-            // structures stand in your own rows, or on center FLANKS - never lanes, never
-            // enemy ground
+            // structures stand in your own rows or anywhere along the contested middle row -
+            // never on enemy ground. The middle row used to be split into three creature lanes
+            // and four builder flanks; it is seven open cells now.
             bool ownRow = Placement.IsOwnDeployRow(m.Actor, m.To.Row);
-            bool centerFlank = m.To.Row == RowKey.Center && !Board.IsLane(m.To.Col);
-            if (!ownRow && !centerFlank)
-                return m.To.Row == RowKey.Center
-                    ? Rejection.CenterLaneForStructure
-                    : Rejection.DestinationNotDeployable;
+            bool centre = m.To.Row == RowKey.Center;
+            if (!ownRow && !centre) return Rejection.DestinationNotDeployable;
             if (m.To.Col >= Board.Columns) return Rejection.CellNotReal;
             if (s.At(m.To) != null) return Rejection.CellOccupied;
 

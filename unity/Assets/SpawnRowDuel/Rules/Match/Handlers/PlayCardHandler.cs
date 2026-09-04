@@ -78,29 +78,33 @@ namespace SpawnRowDuel.Rules
 
             if (!Placement.IsOwnDeployRow(m.Actor, m.To.Row)) return Rejection.DestinationNotDeployable;
 
+            int cost = m.Mode == PlayMode.Summon ? creatureCost : 1;   // a set costs ◆1, always
+
+            // ── PLAYING OVER ONE OF YOUR OWN CARDS ──
+            //
+            // The old rule was narrower on both axes: summon only, and only over a card holding
+            // BANKED mana, because the line existed to spend that bank. Both limits went with
+            // "let a player put a card on a structure they own" - a board of your own buildings
+            // should not be able to lock you out of your own deploy rows, and which of your cards
+            // is in the way is not the interesting decision.
+            //
+            // What has not changed is whose card it may be. Covering an ENEMY card would be a
+            // removal spell that every creature has for free.
             var occ = s.At(m.To);
             if (occ != null)
             {
-                // ── play on top of a banked card - summon only, over your own bank ──
-                if (m.Mode != PlayMode.Summon) return Rejection.CellOccupied;
                 if (occ.Owner != m.Actor) return Rejection.CoveredCardNotYours;
-                if (occ.Bank <= 0) return Rejection.CoveredCardHasNoBank;
 
-                int fromBank = Math.Min(occ.Bank, creatureCost);
-                if (creatureCost - fromBank > p.Mana) return Rejection.NotEnoughMana;
+                int fromBank = Math.Min(Mana.OnCard(occ), cost);
+                if (cost - fromBank > p.Mana)
+                    return m.Mode == PlayMode.Summon ? Rejection.NotEnoughMana
+                                                     : Rejection.NeedsOneMana;
                 return Rejection.None;
             }
 
-            switch (m.Mode)
-            {
-                case PlayMode.Summon:
-                    if (p.Mana < creatureCost) return Rejection.NotEnoughMana;
-                    break;
-                case PlayMode.Set:
-                case PlayMode.SetTrap:
-                    if (p.Mana < 1) return Rejection.NeedsOneMana;   // no free hand-dumping
-                    break;
-            }
+            if (p.Mana < cost)
+                return m.Mode == PlayMode.Summon ? Rejection.NotEnoughMana
+                                                 : Rejection.NeedsOneMana;  // no free hand-dumping
 
             return Rejection.None;
         }
@@ -117,22 +121,35 @@ namespace SpawnRowDuel.Rules
                 return;
             }
 
+            // Cost, then the ground. Anything of ours already standing there is razed to make
+            // room; its bank pays for what replaces it and any surplus rides on (spec 04 s10.4,
+            // widened - see Validate).
+            int cost = m.Mode == PlayMode.Summon ? CostOf(card, cat) : 1;
             var occ = s.At(m.To);
+            int carry = 0;
+
             if (occ != null)
             {
-                PlayOnTop(s, m, card, occ, cat, ev);
-                return;
+                int banked = Mana.OnCard(occ);
+                int fromBank = Math.Min(banked, cost);
+                carry = Math.Max(0, banked - cost);
+                if (cost - fromBank > 0) Mana.TrySpend(s, m.Actor, cost - fromBank);
+
+                s.Put(m.To, null);
+                DeathSweep.ToGrave(s, m.Actor, occ);      // no death triggers - it is not killed
+                ev.Add(new UnitDestroyed(occ.Id, m.To, true, m.Actor, occ.Kind));
             }
+            else Mana.TrySpend(s, m.Actor, cost);
+
+            p.Hand.RemoveAt(m.HandIndex);
 
             switch (m.Mode)
             {
                 case PlayMode.Summon:
                     {
-                        Mana.TrySpend(s, m.Actor, CostOf(card, cat));
-                        p.Hand.RemoveAt(m.HandIndex);
-
                         var cr = Materialise(s, m.Actor, card, cat);
                         cr.Sick = true;
+                        cr.Bank = carry;
                         s.Put(m.To, cr);
                         ev.Add(new UnitSummoned(cr.Id, m.To));
 
@@ -150,9 +167,6 @@ namespace SpawnRowDuel.Rules
 
                 case PlayMode.Set:
                     {
-                        Mana.TrySpend(s, m.Actor, 1);
-                        p.Hand.RemoveAt(m.HandIndex);
-
                         var charge = new ChargeUnit();
                         charge.Id = s.NewUid();
                         charge.Owner = m.Actor;
@@ -161,7 +175,9 @@ namespace SpawnRowDuel.Rules
                         charge.IsStructure = false;
                         charge.Card = SnapshotFor(card, cat);
                         charge.Snap = card.Snapshot;       // empty for an ordinary deck card
-                        charge.Invested = 1;               // the set's own ◆1 banks toward the flip
+                        // the set's own ◆1 banks toward the flip, and so does whatever was banked
+                        // on the card it replaced - that mana was on this square already
+                        charge.Invested = 1 + carry;
                         charge.SetTurn = s.TurnNumber;
                         s.Put(m.To, charge);
                         break;
@@ -169,10 +185,7 @@ namespace SpawnRowDuel.Rules
 
                 case PlayMode.SetTrap:
                     {
-                        var t = cat.Spell(card.Id);
-                        Mana.TrySpend(s, m.Actor, 1);       // consumed - a trap banks nothing
-                        p.Hand.RemoveAt(m.HandIndex);
-
+                        var t = cat.Spell(card.Id);        // a trap banks nothing; carry is lost
                         var trap = new TrapUnit();
                         trap.Id = s.NewUid();
                         trap.Owner = m.Actor;
@@ -214,37 +227,6 @@ namespace SpawnRowDuel.Rules
             ev.Add(new SpellResolved(m.Actor, spell.Id, true, m.To));
 
             CombatResolver.CheckWin(s, ev);
-        }
-
-        /// <summary>
-        /// The play-on-top line (spec 04 s10.4): the covered card is DESTROYED - straight to the
-        /// grave, its own summon mana gone, no death triggers - its bank pays the newcomer first,
-        /// and any surplus rides onto the new unit.
-        /// </summary>
-        private void PlayOnTop(GameState s, PlayCardCommand m, HandCard card, BoardObject occ,
-                               ICardCatalog cat, EventSink ev)
-        {
-            var p = s.P(m.Actor);
-            int cost = CostOf(card, cat);
-
-            int fromBank = Math.Min(occ.Bank, cost);
-            int need = cost - fromBank;
-            int carry = Math.Max(0, occ.Bank - cost);
-
-            if (need > 0) Mana.TrySpend(s, m.Actor, need);
-            s.Put(m.To, null);
-            DeathSweep.ToGrave(s, m.Actor, occ);
-            ev.Add(new UnitDestroyed(occ.Id, m.To, true, m.Actor, occ.Kind));
-
-            p.Hand.RemoveAt(m.HandIndex);
-            var cr = Materialise(s, m.Actor, card, cat);
-            cr.Sick = true;
-            cr.Bank = carry;
-            s.Put(m.To, cr);
-            ev.Add(new UnitSummoned(cr.Id, m.To));
-
-            WorkerMath.Resync(s, m.Actor, cat);
-            Triggers.CreatureSummoned(s, cr, m.To, m.Actor, cat, ev);
         }
 
         /// <summary>The statline that governs this play: the card's own history, else the registry.</summary>

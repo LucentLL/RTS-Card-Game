@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using SpawnRowDuel.Campaign;
 using SpawnRowDuel.View;
 using SpawnRowDuel.View.Cards;
 using SpawnRowDuel.View.Campaign;
+using SpawnRowDuel.View.World;
 using UnityEngine;
 
 namespace SpawnRowDuel.Rules.Tests
@@ -44,6 +46,52 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(1, Stat.Show(1));
             Assert.AreEqual(50, Stat.Show(500), "a creature clinging on at 500 hp is not dead");
             Assert.AreEqual(0, Stat.Show(0), "and nothing is still nothing");
+        }
+
+        // ── the battlefield ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Every duel was fought in a meadow: Grass is the static default and nothing but the
+        /// settings menu ever changed it. The field is now rolled from the opening state hash,
+        /// which is the one number both peers have computed and agreed on before either has
+        /// moved - so the two of them are standing in the same place without a word on the wire.
+        ///
+        /// Pinned as a mapping rather than as a match, because "it picked a different one this
+        /// time" is not something a test can watch for.
+        /// </summary>
+        [Test]
+        public void Battlefield_IsRolled_AndReachesEveryField()
+        {
+            var seen = new HashSet<BiomeId>();
+            for (ulong h = 1; h <= 400; h++) seen.Add(MatchController.BattlefieldFor(h));
+
+            Assert.GreaterOrEqual(seen.Count, 5, "every battlefield in the list comes up");
+            Assert.IsFalse(seen.Contains(BiomeId.Shore),
+                "Shore is the tide biome - half its board spends the match under water");
+
+            for (ulong h = 1; h <= 50; h++)
+                Assert.AreEqual(MatchController.BattlefieldFor(h), MatchController.BattlefieldFor(h),
+                    "and the same match always lands in the same field");
+        }
+
+        /// <summary>
+        /// ...and REAL matches land in different ones. The mapping being well spread is not the
+        /// same claim as the hashes it is fed being well spread, and it is the second one that
+        /// was broken: every duel was a meadow.
+        /// </summary>
+        [Test]
+        public void Battlefield_DiffersBetweenMatches()
+        {
+            var seen = new HashSet<BiomeId>();
+            for (ulong seed = 1; seed <= 24; seed++)
+            {
+                var s = MatchSetup.NewMatch(TestData.Catalog, new CommanderId("fire"),
+                    new CommanderId("water"), seed, RulesOptions.JsParity);
+                seen.Add(MatchController.BattlefieldFor(new DuelEngine(s, TestData.Catalog).Hash()));
+            }
+
+            Assert.Greater(seen.Count, 1,
+                "two dozen openings all picked the same field - the roll is not reaching the hash");
         }
 
         // ── what a card says it does ──────────────────────────────────────────────────────

@@ -361,8 +361,8 @@ namespace SpawnRowDuel.View.Cards
 
         static bool HasEmptyNeighbour(CellRef at, GameState s)
         {
-            System.Span<CellRef> around = stackalloc CellRef[8];
-            int n = Board.Neighbours(at, around);
+            System.Span<CellRef> around = stackalloc CellRef[Board.MaxStepTargets];
+            int n = Board.StepTargets(at, around);
             for (int i = 0; i < n; i++) if (s.At(around[i]) == null) return true;
             return false;
         }

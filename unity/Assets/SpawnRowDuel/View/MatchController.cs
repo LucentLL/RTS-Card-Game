@@ -68,21 +68,16 @@ namespace SpawnRowDuel.View
         private AiDriver _ai;
         private bool _aiFaulted;
 
-        private readonly List<Transform>[,] _pawns = new List<Transform>[2, 3];
-        private MaterialPropertyBlock _mpb;
         private Dictionary<string, CardDefinition> _defByName;
 
-        private static readonly Color YouTint = new Color(0.85f, 0.70f, 0.25f);
-        private static readonly Color FoeTint = new Color(0.35f, 0.50f, 0.85f);
-        private static readonly Color TappedTint = new Color(0.30f, 0.30f, 0.33f);
+        /// <summary>Yours warm, theirs cold - the same pair the worker capsules were tinted with
+        /// before they became a number.</summary>
+        public static readonly Color YouTint = new Color(0.85f, 0.70f, 0.25f);
+        public static readonly Color FoeTint = new Color(0.35f, 0.50f, 0.85f);
 
         void Awake()
         {
             if (Board == null) Board = GetComponent<BoardView>();
-            _mpb = new MaterialPropertyBlock();
-            for (int s = 0; s < 2; s++)
-                for (int z = 0; z < 3; z++)
-                    _pawns[s, z] = new List<Transform>();
 
             if (Database == null)
             {
@@ -135,10 +130,43 @@ namespace SpawnRowDuel.View
             Engine = new DuelEngine(state, Catalog);
             _ai = new AiDriver(Engine, new ScriptedAiPolicy(Seat.Remote));
 
+            RollBattlefield();
+
             _log.Clear();
             Push("— " + Catalog.Commander(you).Name + " vs " + Catalog.Commander(foe).Name + " —");
             Push("— Your turn · Upkeep — ⛏ Harvest to begin —");
             Touch();
+        }
+
+        /// <summary>
+        /// Where this battle is fought. Every match was a meadow, because Grass is the static
+        /// default and nothing ever changed it outside the settings menu.
+        ///
+        /// Rolled off the OPENING STATE HASH rather than a local random, which costs nothing and
+        /// buys the thing that matters in a duel: both players are standing in the same field.
+        /// The hash is the one number both engines have computed and agreed on before either has
+        /// moved, so no message has to carry the choice and the two cannot disagree.
+        ///
+        /// Shore is left out of the roll. It is the tide biome, it is beautiful, and half its
+        /// board spends the match under water.
+        /// </summary>
+        static readonly World.BiomeId[] Battlefields =
+        {
+            World.BiomeId.Grass, World.BiomeId.Sand, World.BiomeId.Ash,
+            World.BiomeId.Snow, World.BiomeId.Earth,
+        };
+
+        void RollBattlefield()
+        {
+            if (Engine == null) return;
+            World.TerrainField.Requested = BattlefieldFor(Engine.Hash());
+        }
+
+        /// <summary>The mapping itself, pure, so it can be tested without a match.</summary>
+        public static World.BiomeId BattlefieldFor(ulong hash)
+        {
+            hash ^= hash >> 33; hash *= 0xFF51AFD7ED558CCDUL; hash ^= hash >> 33;  // murmur3 mix
+            return Battlefields[(int)(hash % (ulong)Battlefields.Length)];
         }
 
         /// <summary>
@@ -157,6 +185,8 @@ namespace SpawnRowDuel.View
             _ai = null;                        // there is a person over there
             _aiFaulted = false;
             CancelPending();
+
+            RollBattlefield();
 
             _log.Clear();
             var mine = Catalog.Commander(Engine.State.P(Seat.Local).Commander);
@@ -209,7 +239,6 @@ namespace SpawnRowDuel.View
             PumpEvents();
             ExpireAssault();
             Autopilot();
-            ReconcilePawns();
             // Board objects are NOT reconciled here any more. They were, once - a tinted plinth
             // disc with a billboarded FieldArt-or-CardArt quad standing on it - and that system
             // outlived its replacement without anyone noticing, so every unit was being drawn
@@ -347,6 +376,20 @@ namespace SpawnRowDuel.View
             ICommand cmd = Pending == Intent.PlayCard
                 ? (ICommand)new PlayCardCommand(Seat.Local, PendingHandIndex, PendingMode, cell)
                 : new BuildStructureCommand(Seat.Local, PendingBuild.Bid, PendingBuild.Element, cell);
+
+            // A drop onto a card of your own RAZES it. That is a legal play and sometimes the
+            // right one, and it is never what a mis-aimed finger meant, so it is asked first.
+            var standing = Engine.State.At(cell);
+            if (standing != null && standing.Owner == Seat.Local)
+            {
+                var no = Probe(cmd);
+                if (no != Rejection.None) { Push("· " + Hint(no)); return true; }
+                int banked = Mana.OnCard(standing);
+                AskConfirm(cmd, "Play over " + NameOf(standing),
+                           "It is destroyed to make room"
+                           + (banked > 0 ? " — its ◆" + banked + " carries over." : "."));
+                return true;
+            }
 
             // TryHuman, not Submit. This was the ONE human command path that skipped the event
             // pump - every other one goes through TryHuman - so a summon or a build left its
@@ -531,26 +574,96 @@ namespace SpawnRowDuel.View
             return "the face-down card";
         }
 
-        /// <summary>Legal one-square moves for a unit, discovered by probing the engine.</summary>
+        /// <summary>Every cell this creature may step to, discovered by probing the engine.</summary>
         public List<CellRef> LegalMovesFor(CellRef from)
         {
             var moves = new List<CellRef>();
             var u = Engine.State.At(from) as CreatureUnit;
             if (u == null || u.Owner != Seat.Local) return moves;
 
-            System.Span<CellRef> buf = stackalloc CellRef[8];
-            int n = Rules.Board.Neighbours(from, buf);
+            System.Span<CellRef> buf = stackalloc CellRef[Rules.Board.MaxStepTargets];
+            int n = Rules.Board.StepTargets(from, buf);
             for (int i = 0; i < n; i++)
                 if (Probe(new MoveUnitCommand(Seat.Local, from, buf[i], u.Id)) == Rejection.None)
                     moves.Add(buf[i]);
             return moves;
         }
 
+        /// <summary>
+        /// Which of those cells cost one of your own cards to enter. The board lights these
+        /// differently and the tap asks before it commits - a move that razes your own Citadel is
+        /// legal, is sometimes right, and must never happen because a finger landed one row over.
+        /// </summary>
+        public bool MoveRazes(CellRef to)
+        {
+            var occ = Engine.State.At(to);
+            return occ != null && occ.Owner == Seat.Local;
+        }
+
         public Rejection TryMove(CellRef from, CellRef to)
         {
             var u = Engine.State.At(from) as CreatureUnit;
             if (u == null) return Rejection.NoSuchUnit;
-            return TryHuman(new MoveUnitCommand(Seat.Local, from, to, u.Id));
+
+            var cmd = new MoveUnitCommand(Seat.Local, from, to, u.Id);
+            if (MoveRazes(to))
+            {
+                var why = Probe(cmd);
+                if (why != Rejection.None) return why;
+                AskConfirm(cmd, u.Name + " advances onto " + NameOf(Engine.State.At(to)),
+                           "The row is full — it is destroyed to make room.", to);
+                return Rejection.None;
+            }
+            return TryHuman(cmd);
+        }
+
+        // ---- the one destructive tap ---------------------------------------------------------
+
+        /// <summary>
+        /// A command the player has aimed but not yet agreed to.
+        ///
+        /// Exactly one thing needs this: a play or a move that lands on a card of your own and
+        /// razes it. Everything else on this board is either reversible or obviously what it
+        /// looks like. Held on the controller rather than in the HUD so the answer goes through
+        /// the same one door every other command does - in a duel that is the session, and a
+        /// confirmation that skipped it would be a desync.
+        /// </summary>
+        public sealed class Ask
+        {
+            public ICommand Command;
+            public string What;      // "Magmaw advances onto The Foundry"
+            public string Cost;      // "It is destroyed to make room."
+
+            /// <summary>The cell to SELECT instead, when the tap that raised this could just as
+            /// well have meant "pick that card up". A move onto your own card is the one place
+            /// the two readings of a tap collide.</summary>
+            public CellRef? Instead;
+        }
+
+        public Ask Asking { get; private set; }
+
+        void AskConfirm(ICommand cmd, string what, string cost)
+        {
+            AskConfirm(cmd, what, cost, null);
+        }
+
+        void AskConfirm(ICommand cmd, string what, string cost, CellRef? instead)
+        {
+            Asking = new Ask { Command = cmd, What = what, Cost = cost, Instead = instead };
+            Touch();
+        }
+
+        /// <summary>Answer it. false simply drops the command - nothing was submitted.</summary>
+        public Rejection ResolveAsk(bool yes)
+        {
+            var ask = Asking;
+            Asking = null;
+            if (ask == null || !yes) { Touch(); return Rejection.None; }
+
+            var why = TryHuman(ask.Command);
+            if (why == Rejection.None) CancelPending();
+            Touch();
+            return why;
         }
 
         public CardDefinition DefOf(string displayName)
@@ -598,7 +711,6 @@ namespace SpawnRowDuel.View
                 case Rejection.NotEnoughMana: return "Not enough ◆";
                 case Rejection.NeedsOneMana: return "Setting costs ◆1";
                 case Rejection.DestinationNotDeployable: return "Deploy to your own rows";
-                case Rejection.CenterLaneForStructure: return "Structures take the dark flanks";
                 case Rejection.CellOccupied: return "That spot is taken";
                 case Rejection.MissingPrereq: return "Missing a prerequisite structure";
                 case Rejection.RowLacksWorkers: return "That row has no workers to spare";
@@ -960,72 +1072,28 @@ namespace SpawnRowDuel.View
 
         // ---- worker pawns -------------------------------------------------------------------
 
-        void ReconcilePawns()
+        /// <summary>
+        /// THE NUMBER, not the pills.
+        ///
+        /// Each row's workforce used to be a file of little capsules standing off the side of the
+        /// board - one per body in the pool, five abreast, growing outward. They were pills: you
+        /// could see there were some and you could not see how many without counting, and the one
+        /// thing the figure has to say is a SIGNED number, because a row in deficit is the whole
+        /// upkeep mechanic and a row of capsules cannot show a minus.
+        ///
+        /// The row it belongs to. MatchHud projects this and hangs the number off the row's own
+        /// end on screen, which is where the capsules used to stand.
+        /// </summary>
+        public RowKey WorkerRow(Side side, WorkerZone zone)
         {
-            var s = Engine.State;
-            for (int side = 0; side < 2; side++)
-                for (int z = 0; z < 3; z++)
-                {
-                    var pool = s.Players[side].Workers[z].Members;
-                    var pawns = _pawns[side, z];
-
-                    while (pawns.Count < pool.Count) pawns.Add(MakePawn((Side)side, (WorkerZone)z, pawns.Count));
-                    while (pawns.Count > pool.Count)
-                    {
-                        Destroy(pawns[pawns.Count - 1].gameObject);
-                        pawns.RemoveAt(pawns.Count - 1);
-                    }
-
-                    for (int i = 0; i < pawns.Count; i++)
-                        Tint(pawns[i], (Side)side, pool[i].Tapped, pool[i].Sick);
-                }
+            return Rules.Board.RowFor(side, (SlotName)zone);
         }
 
-        Transform MakePawn(Side side, WorkerZone zone, int index)
+        /// <summary>The signed workforce of one row: structures minus upkeep, plus the homeland's
+        /// own hands in the back row. Negative IS the shortfall - that is what upkeep settles.</summary>
+        public int WorkerFigure(Side side, WorkerZone zone)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = side + "_" + zone + "_worker" + index;
-            Destroy(go.GetComponent<Collider>());
-            go.transform.SetParent(transform, false);
-
-            var row = Board.WorldOf(new CellRef(Rules.Board.RowFor(side, (SlotName)zone), 0));
-
-            // Each pool stands off the side of the ROW it works, yours to the left and theirs to
-            // the right - which is where they were, and where they read as belonging to a row.
-            //
-            // What changed is that they are no longer BUDGETED for. The camera's width fit is
-            // decided at the board's near corners, where perspective magnifies most, and the files
-            // sit far enough back along their own rows that they clear that constraint for free -
-            // so the board gets its full width and the pools still get their strip. The clamp is
-            // what keeps a thirty-worker economy from marching off the side of the screen.
-            // Five abreast ALONG the row, then a second file INWARD. The board now runs to the
-            // screen edge, so a file that grows outward grows off the screen - and the deeper
-            // rows are stretched (BoardView.RowStretch), which is where the room for five is.
-            const int Abreast = 5;
-            float half = Rules.Board.Columns * Board.ColPitch * 0.5f;
-            // never INSIDE the board's own edge: a deep file piles up in place rather than
-            // wandering onto the outer column and reading as a unit standing there
-            float edgeX = Mathf.Max(half + 0.32f - (index / Abreast) * 0.26f, half + 0.10f);
-            float x = side == Seat.Local ? -edgeX : edgeX;
-            float z = row.z + ((index % Abreast) - (Abreast - 1) * 0.5f) * Board.RowPitch * 0.18f;
-
-            go.transform.localPosition = new Vector3(x, 0.22f, z);
-            go.transform.localScale = new Vector3(0.14f, 0.20f, 0.14f);
-
-            // a baked material so the shader variant survives build stripping (magenta fix)
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                Board.PawnMaterial != null ? Board.PawnMaterial : Board.CellMaterial;
-            return go.transform;
-        }
-
-        void Tint(Transform t, Side side, bool tapped, bool sick)
-        {
-            var r = t.GetComponent<MeshRenderer>();
-            if (r == null) return;
-            var tint = tapped ? TappedTint : (side == Seat.Local ? YouTint : FoeTint);
-            if (sick) tint *= 0.55f;
-            _mpb.SetColor("_BaseColor", tint);
-            r.SetPropertyBlock(_mpb);
+            return WorkerMath.RowWorkers(Engine.State, side, zone, Catalog);
         }
     }
 }
