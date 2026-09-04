@@ -37,4 +37,16 @@ DST="$ROOT/play"
 rm -rf "$DST/Build"
 cp -r "$SRC/Build" "$DST/Build"
 cp "$SRC/index.html" "$DST/index.html"
-echo "staged -> play/ ($(du -sh "$DST/Build" | cut -f1))"
+
+# THE BUILD'S OWN NAME. Pages serves every Build file with its own max-age=600 and the edges
+# expire independently, so for a window after each deploy a returning player can be handed a NEW
+# .wasm beside an OLD .data. Unity indexes that data blob by byte offset, so the pair is not
+# "out of date", it is garbage - and it presents as a loading bar that never finishes.
+#
+# index.html reads this before it loads anything and stamps it onto all four URLs, so a build's
+# URLs have never been requested before and nothing stale can answer them. Committed with the
+# build it names.
+STAMP="$(date -u +%Y%m%d%H%M%S)-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo local)"
+printf '%s' "$STAMP" > "$DST/Build/version.txt"
+
+echo "staged -> play/ ($(du -sh "$DST/Build" | cut -f1)) version=$STAMP"

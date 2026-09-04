@@ -115,9 +115,37 @@
 
       document.querySelector("#unity-loading-bar").style.display = "block";
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
+      // ── ONE BUILD, NOT FOUR ────────────────────────────────────────────────────────────────
+      //
+      // The four files this player is about to download have FIXED names, and GitHub Pages serves
+      // each of them with its own `Cache-Control: max-age=600`. The edges expire independently -
+      // caught in the act with Age: 376 on the framework and Age: 0 on the data - so for a window
+      // after every deploy a client can be handed a NEW .wasm and an OLD .data.
+      //
+      // Unity cannot survive that for an instant. The data file is a flat blob the code indexes by
+      // byte offset, so a mismatched pair is not a version error, it is garbage: buffer sizes that
+      // read past their own allocation (GfxDevice::CopyBufferRanges out of bounds), an index out
+      // of range inside the render graph, then "memory access out of bounds" and a halted program.
+      // From the outside that is a loading bar that never finishes - "the game is not loading" -
+      // and it clears on a reload, which is what makes it look intermittent and unreportable.
+      //
+      // So the version is fetched FIRST, uncacheably, and stamped onto all four URLs. Two things
+      // follow: a new build's URLs have never been requested before, so nothing stale can answer
+      // them; and a player still holding a cached index.html reads the CURRENT stamp anyway, so
+      // even the old page loads a consistent set.
+      //
+      // version.txt is written by tools/deploy-webgl.sh when it stages. Without it - the raw
+      // player, a local run - the stamp is empty and the URLs are exactly what they always were.
+      function boot(stamp) {
+        var q = stamp ? "?v=" + encodeURIComponent(stamp) : "";
+        config.dataUrl += q;
+        config.frameworkUrl += q;
+        if (config.codeUrl) config.codeUrl += q;
+        if (config.symbolsUrl) config.symbolsUrl += q;
+
+        var script = document.createElement("script");
+        script.src = loaderUrl + q;
+        script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
           document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
         }).then((unityInstance) => {
@@ -150,8 +178,14 @@
         }).catch((message) => {
           unityShowBanner(message, 'error');
         });
-      };
-      document.body.appendChild(script);
+        };
+        document.body.appendChild(script);
+      }
+
+      fetch(buildUrl + "/version.txt?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.text() : ""; })
+        .then(function (t) { boot((t || "").trim()); })
+        .catch(function () { boot(""); });
     </script>
   </body>
 </html>
