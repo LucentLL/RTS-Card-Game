@@ -150,6 +150,30 @@ namespace SpawnRowDuel.View.Shell
             }
             if (!string.IsNullOrEmpty(placeholder)) t.textEdition.placeholder = placeholder;
             if (onChange != null) t.RegisterValueChangedCallback(e => onChange(e.newValue));
+
+            // A FOCUS RING. The rest state and the focused state were the same box, so the only
+            // way to find out which field the keyboard was talking to was to type into it.
+            if (input != null)
+            {
+                var rest = new Color(0.10f, 0.11f, 0.15f, 1f);
+                var lit = new Color(0.13f, 0.14f, 0.19f, 1f);
+                var restEdge = new Color(0.42f, 0.40f, 0.30f, 0.7f);
+                t.RegisterCallback<FocusInEvent>(delegate
+                {
+                    Border(input, Gold, 1f);
+                    input.style.backgroundColor = lit;
+                });
+                t.RegisterCallback<FocusOutEvent>(delegate
+                {
+                    Border(input, restEdge, 1f);
+                    input.style.backgroundColor = rest;
+                });
+            }
+
+            // ...and on a phone, a browser input of its own, because the player cannot open a
+            // keyboard and a field nobody can type into is not a field.
+            WebTextEntry.Attach(t, input, onChange, placeholder, 13f * S);
+
             if (parent != null) parent.Add(t);
             return t;
         }

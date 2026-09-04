@@ -31,7 +31,16 @@ namespace SpawnRowDuel.View.Cards
         public const float ArtH = 0.479f;
         public const float RulesH = 0.211f;
         public const float StatsH = 0.155f;
-        public const float ArtInsetX = 0.035f;     // fraction of the WIDTH
+        /// <summary>
+        /// How far the art window is inset from each edge, as a fraction of the WIDTH.
+        ///
+        /// 0.168, which is what makes the window SQUARE: ArtH * H = 0.479 * 133 = 63.7 texels
+        /// tall, and (1 - 2 * 0.168) * 96 = 63.7 wide. Every card illustration in this project is
+        /// square, and at 0.035 the window was 89 x 64 - a third of every picture cropped away to
+        /// fill a letterbox nothing was drawn for. A real trading card insets its art box and
+        /// shows frame either side for exactly this reason.
+        /// </summary>
+        public const float ArtInsetX = 0.168f;
 
         static readonly Dictionary<string, Texture2D> _fronts = new Dictionary<string, Texture2D>();
         static readonly Dictionary<int, Texture2D> _backs = new Dictionary<int, Texture2D>();

@@ -56,6 +56,12 @@ public static class WebGLBuild
         {
             Debug.LogError("[build] FAILED");
             EditorApplication.Exit(1);
+            return;
         }
+
+        // ...and quit EXPLICITLY, because the shell no longer passes -quit. With -quit the editor
+        // was free to shut down while Bee was still linking, which cancelled the build at a
+        // different step every time it happened.
+        EditorApplication.Exit(0);
     }
 }

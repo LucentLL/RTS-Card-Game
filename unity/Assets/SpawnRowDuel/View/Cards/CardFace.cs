@@ -27,6 +27,11 @@ namespace SpawnRowDuel.View.Cards
 
         // fractions of card width, from src/styles/03_cards.css via spec 09 §6.1
         const float BannerH = 0.215f;
+
+        /// <summary>The art box, as a fraction of the card WIDTH - and its height too, because it
+        /// is square. 0.68 is close to a real card's 0.695 and leaves the ability box its share
+        /// of what is left.</summary>
+        const float ArtSide = 0.68f;
         const float CostSize = 0.185f;
         const float GemSize = 0.145f;
         const float NameSize = 0.108f;
@@ -108,8 +113,14 @@ namespace SpawnRowDuel.View.Cards
 
             // ── art window ─────────────────────────────────────────────────────────────────
             _artWin = new VisualElement { pickingMode = PickingMode.Ignore };
-            _artWin.style.flexGrow = 3.3f;                  // the DOMINANT panel - DM proportions
-            _artWin.style.flexShrink = 1;
+            // SQUARE, and inset, and sized in Bind rather than flexed. Every card illustration in
+            // this project is square, and a window that flexed to whatever height was left came
+            // out at three to two - so a third of every picture was cropped away to fill it. A
+            // real trading card insets its art box and shows frame either side, which is the same
+            // answer arrived at for the same reason.
+            _artWin.style.flexGrow = 0;
+            _artWin.style.flexShrink = 0;
+            _artWin.style.alignSelf = Align.Center;
             _artWin.style.overflow = Overflow.Hidden;
             SetBorder(_artWin, 1f, new Color(0f, 0f, 0f, 0.9f));
             Add(_artWin);
@@ -119,7 +130,7 @@ namespace SpawnRowDuel.View.Cards
             _art.style.left = 0; _art.style.right = 0; _art.style.top = 0; _art.style.bottom = 0;
             _art.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Center);
             _art.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Center);
-            _art.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+            _art.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
             _artWin.Add(_art);
 
             _vignette = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -211,6 +222,11 @@ namespace SpawnRowDuel.View.Cards
 
             // banner
             _banner.style.height = width * BannerH;
+
+            // the art box: square, so a square illustration lands in it whole
+            float art = width * ArtSide;
+            _artWin.style.width = art;
+            _artWin.style.height = art;
             _banner.style.borderBottomColor = ec;
 
             float cost = width * CostSize;

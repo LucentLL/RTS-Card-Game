@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Build the WebGL player headlessly and stage it into play/ for GitHub Pages.
+#
+# NO -quit, for the same reason run-unity-tests.sh does not use it: with -quit the editor
+# quits as soon as its main loop goes idle, and BuildPipeline.BuildPlayer hands the heavy half
+# of the work - il2cpp, the wasm link, brotli - to the Bee backend, which the editor then pumps.
+# Quit during that and the task is cancelled mid-flight: "Tundra build interrupted" and a
+# TaskCanceledException, at a different step each run. It only started biting when debug symbols
+# made the link slow enough to cross the line. WebGLBuild.Build exits explicitly instead.
 # Usage: bash tools/deploy-webgl.sh          (build + stage; commit and push separately)
 set -uo pipefail
 
@@ -10,7 +17,7 @@ LOG="$ROOT/unity/Logs/webgl-build.log"
 mkdir -p "$ROOT/unity/Logs"
 
 "$UNITY" \
-  -batchmode -nographics -quit \
+  -batchmode -nographics \
   -projectPath "$ROOT/unity" \
   -executeMethod WebGLBuild.Build \
   -logFile "$LOG" \

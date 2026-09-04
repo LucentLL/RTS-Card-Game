@@ -489,11 +489,15 @@ namespace SpawnRowDuel.View.Shell
             }
         }
 
+        /// <summary>A pool tile's width, and therefore its art box's side - the art is square,
+        /// so the two are one number and cannot drift apart.</summary>
+        const float TileW = 112f;
+
         VisualElement Tile(string key, CardFaceModel m, bool disambiguate)
         {
             var colour = GlobeView.ElementColour(m.Element);
             var tile = UiKit.Box(null);
-            tile.style.width = 112f * UiKit.S;
+            tile.style.width = TileW * UiKit.S;
             tile.style.marginRight = 5f * UiKit.S;
             tile.style.marginBottom = 5f * UiKit.S;
             tile.style.backgroundColor = new Color(colour.r * 0.16f, colour.g * 0.16f, colour.b * 0.16f, 0.95f);
@@ -502,10 +506,13 @@ namespace SpawnRowDuel.View.Shell
 
             if (m.Art != null)
             {
+                // SQUARE, because the art is. It was a 52-tall strip with Cover, which takes a
+                // square illustration and throws away everything above and below a letterbox band
+                // - and the tile is the only place in the builder you see the picture at all.
                 var art = new VisualElement { pickingMode = PickingMode.Ignore };
-                art.style.height = 52f * UiKit.S;
+                art.style.height = TileW * UiKit.S;
                 art.style.backgroundImage = new StyleBackground(m.Art);
-                art.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                art.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
                 tile.Add(art);
             }
 
