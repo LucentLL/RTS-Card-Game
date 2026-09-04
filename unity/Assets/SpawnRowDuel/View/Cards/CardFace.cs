@@ -26,12 +26,25 @@ namespace SpawnRowDuel.View.Cards
         public const float Aspect = 1033f / 744f;      // the physical card proportion
 
         // fractions of card width, from src/styles/03_cards.css via spec 09 §6.1
-        const float BannerH = 0.215f;
-
-        /// <summary>The art box, as a fraction of the card WIDTH - and its height too, because it
-        /// is square. 0.68 is close to a real card's 0.695 and leaves the ability box its share
-        /// of what is left.</summary>
-        const float ArtSide = 0.68f;
+        /// <summary>
+        /// The card's bands, as fractions of its WIDTH, and they are a budget rather than four
+        /// independent numbers: banner + art + rules + stats has to come to Aspect, 1.388.
+        ///
+        ///   0.135 + 0.944 + 0.194 + 0.115 = 1.388
+        ///
+        /// The art is the one that is fixed. It runs the full width of the card less a hair of
+        /// frame either side, and it is SQUARE because every illustration in this project is - so
+        /// its height follows from its width and the other three take what is left. That is the
+        /// reference card's own arrangement: a thin name banner with the cost badge hanging off
+        /// it into the picture, a picture that dominates, a modest ability box, a stat strip.
+        ///
+        /// The art box was 0.68 for a moment - square, but INSET, with frame showing either side.
+        /// It fitted, and it wasted a fifth of the card's width on nothing.
+        /// </summary>
+        const float BannerH = 0.135f;
+        const float ArtInset = 0.028f;
+        const float ArtSide = 1f - 2f * ArtInset;
+        const float StatsH = 0.115f;
         const float CostSize = 0.185f;
         const float GemSize = 0.145f;
         const float NameSize = 0.108f;
@@ -65,24 +78,29 @@ namespace SpawnRowDuel.View.Cards
             _banner.style.borderBottomWidth = 1.5f;
             Add(_banner);
 
+            // The cost badge HANGS OFF the banner into the picture, which is what lets the banner
+            // be a third of its old height without the badge shrinking with it. It is the
+            // reference card's arrangement and it is the only way the numbers add up: a banner
+            // tall enough to contain a 0.185 badge is a banner that costs the art its width.
             _costCircle = new VisualElement { pickingMode = PickingMode.Ignore };
+            _costCircle.style.position = Position.Absolute;
             _costCircle.style.backgroundImage = Background.FromTexture2D(CardTextures.Radial);
             _costCircle.style.alignItems = Align.Center;
             _costCircle.style.justifyContent = Justify.Center;
             _costCircle.style.flexShrink = 0;
-            _banner.Add(_costCircle);
+            Add(_costCircle);
 
             _cost = Text("", UiFont.DisplayBlack);
             _cost.style.color = new Color(0.08f, 0.06f, 0.04f);
             _costCircle.Add(_cost);
 
             _gem = new VisualElement { pickingMode = PickingMode.Ignore };
+            _gem.style.position = Position.Absolute;
             _gem.style.backgroundImage = Background.FromTexture2D(CardTextures.Gem);
             _gem.style.alignItems = Align.Center;
             _gem.style.justifyContent = Justify.Center;
             _gem.style.flexShrink = 0;
-            _gem.style.marginLeft = 2;
-            _banner.Add(_gem);
+            Add(_gem);
 
             _gemGlyph = Text("", UiFont.Cjk);      // kanji-only: the static face is its PRIMARY font
             _gemGlyph.style.color = Color.white;
@@ -121,6 +139,7 @@ namespace SpawnRowDuel.View.Cards
             _artWin.style.flexGrow = 0;
             _artWin.style.flexShrink = 0;
             _artWin.style.alignSelf = Align.Center;
+            _artWin.style.marginTop = 0;
             _artWin.style.overflow = Overflow.Hidden;
             SetBorder(_artWin, 1f, new Color(0f, 0f, 0f, 0.9f));
             Add(_artWin);
@@ -223,14 +242,19 @@ namespace SpawnRowDuel.View.Cards
             // banner
             _banner.style.height = width * BannerH;
 
-            // the art box: square, so a square illustration lands in it whole
+            // the art box: full width less a hair of frame, and SQUARE, so a square illustration
+            // lands in it whole and fills the card across
             float art = width * ArtSide;
             _artWin.style.width = art;
             _artWin.style.height = art;
             _banner.style.borderBottomColor = ec;
 
+            // The badge straddles the banner's lower edge. Two thirds of it sits in the banner
+            // and the last third hangs into the picture, which is where the reference puts it.
             float cost = width * CostSize;
             _costCircle.style.width = cost; _costCircle.style.height = cost;
+            _costCircle.style.left = width * 0.022f;
+            _costCircle.style.top = width * BannerH - cost * 0.62f;
             SetRadius(_costCircle, cost * 0.5f);
             _costCircle.style.unityBackgroundImageTintColor = ElementPalette.Mix(ec, Color.white, 0.72f);
             _cost.text = m.Cost.ToString();
@@ -238,10 +262,16 @@ namespace SpawnRowDuel.View.Cards
 
             float gem = width * GemSize;
             _gem.style.width = gem; _gem.style.height = gem;
+            _gem.style.left = width * 0.022f + cost + width * 0.012f;
+            _gem.style.top = width * BannerH - gem * 0.58f;
             _gem.style.unityBackgroundImageTintColor = sw.Accent;
             _gemGlyph.text = sw.Glyph;
             _gemGlyph.style.fontSize = gem * 0.62f;
             _gem.style.display = m.Element == Rules.Element.None ? DisplayStyle.None : DisplayStyle.Flex;
+
+            // The name column starts CLEAR of the badge and the gem, which are absolute and no
+            // longer take part in the banner's row layout.
+            _banner.style.paddingLeft = width * 0.022f + cost + gem + width * 0.03f;
 
             _name.text = m.Name;
             _name.style.fontSize = Mathf.Clamp(width * NameSize, 8f, 14f);
@@ -274,7 +304,7 @@ namespace SpawnRowDuel.View.Cards
 
             // stats
             _stats.style.display = m.ShowStats ? DisplayStyle.Flex : DisplayStyle.None;
-            _stats.style.height = width * 0.215f;
+            _stats.style.height = width * StatsH;
             _power.text = m.Attack > 0 ? Stat.Num(m.Attack) : "";
             _power.style.fontSize = Mathf.Clamp(width * PowerSize, 11f, 26f);
             _hp.text = Stat.Hp(m.Hp);

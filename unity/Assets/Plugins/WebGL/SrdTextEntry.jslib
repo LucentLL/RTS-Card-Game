@@ -65,8 +65,23 @@ var SrdTextEntryLibrary = {
       s.background = 'rgb(26,28,38)';
     });
 
-    // Enter should dismiss the phone keyboard rather than submit anything - there is no form
-    // here, and a keyboard that will not go away hides the thing you were typing into.
+    // KEEP THE KEYS. Unity listens for keydown/keypress/keyup on the DOCUMENT and calls
+    // preventDefault() on almost all of them, so the game can have WASD and the arrows without
+    // the page scrolling. That is fatal to a real input: preventDefault on a keydown is exactly
+    // what stops the character being inserted, so the field took focus, showed a caret, and then
+    // silently dropped every keystroke into the game instead - typing scrolled the deck list.
+    //
+    // Stopping propagation AT THE INPUT settles it. Unity listens on an ancestor, so an event
+    // that never leaves the input never reaches it, and the browser is left to do the ordinary
+    // thing with a key pressed in a focused text box.
+    ['keydown', 'keypress', 'keyup', 'input', 'paste', 'cut',
+     'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend',
+     'click', 'wheel'].forEach(function (name) {
+      el.addEventListener(name, function (ev) { ev.stopPropagation(); });
+    });
+
+    // Enter dismisses the phone keyboard rather than submitting anything - there is no form here,
+    // and a keyboard that will not go away hides the thing you were typing into.
     el.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter' || ev.key === 'Escape') el.blur();
     });
