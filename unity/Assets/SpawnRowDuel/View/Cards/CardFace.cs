@@ -61,6 +61,7 @@ namespace SpawnRowDuel.View.Cards
 
         float _width;
         float _nameSize;      // the size the name WANTS, before it is shrunk to fit its column
+        string _fittedFor;    // the (name, size, column width) the current fit was measured for
 
         public CardFace()
         {
@@ -297,7 +298,10 @@ namespace SpawnRowDuel.View.Cards
 
             _name.text = m.Name;
             _nameSize = Mathf.Clamp(width * NameSize, 8f * px, 14f * px);
-            _name.style.fontSize = _nameSize;
+            // Only seed the size before the first fit; after that FitName owns it, or re-binding
+            // the same card would reset it to the unfitted size on every rebuild and the memo
+            // below would decline to put it back.
+            if (_fittedFor == null) _name.style.fontSize = _nameSize;
             FitName();
             _type.text = string.IsNullOrEmpty(m.TypeLine) ? "" : m.TypeLine.ToUpperInvariant();
             _type.style.fontSize = Mathf.Clamp(width * TypeSize, 6f * px, 10f * px);
@@ -378,6 +382,15 @@ namespace SpawnRowDuel.View.Cards
             float avail = _names.resolvedStyle.width;
             float cur = _name.resolvedStyle.fontSize;
             if (avail <= 1f || cur <= 0f) return;
+
+            // Measure ONLY when the answer could have changed. This is called from
+            // GeometryChangedEvent, and measuring text re-enters the text generator from inside
+            // the layout pass - the same pass whose repaint is generating meshes. Doing that on
+            // every layout of every card, for an answer that is the same as last time, is work
+            // asking for trouble as well as work for nothing.
+            string key = _name.text + "|" + _nameSize.ToString("F2") + "|" + avail.ToString("F1");
+            if (key == _fittedFor) return;
+            _fittedFor = key;
 
             var size = _name.MeasureTextSize(_name.text, 0f, MeasureMode.Undefined,
                                                           0f, MeasureMode.Undefined);

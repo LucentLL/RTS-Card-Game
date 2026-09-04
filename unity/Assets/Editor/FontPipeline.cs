@@ -40,6 +40,24 @@ namespace SpawnRowDuel.EditorPipeline
         const int AtlasSize = 1024;
         const int FallbackAtlasSize = 512;
 
+        /// <summary>
+        /// ASCII printable - which is what a card name, a rules line and a log entry are made of,
+        /// and which the six primary faces used to ship WITHOUT.
+        ///
+        /// They were built with no baked characters at all and left to rasterise on demand in the
+        /// player. Every new letter then ran FontAsset.UpdateGlyphAdjustmentRecordsForNewGlyphs ->
+        /// FontEngine.PopulateOpenTypeLayoutTables -> PairAdjustmentTable.Clear_Deallocate, inside
+        /// the UI Toolkit repaint that asked for the text. That free() is where the WebGL build
+        /// died with "RuntimeError: index out of bounds", and it is why the crash always arrived
+        /// just after something new appeared on screen - a card played, a line added to the log.
+        ///
+        /// Baked here, the atlas is already full and the runtime population path is never entered.
+        /// </summary>
+        const string AsciiPrintable =
+            " !\"#$%&'()*+,-./0123456789:;<=>?@" +
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`" +
+            "abcdefghijklmnopqrstuvwxyz{|}~";
+
         public struct FontSpec
         {
             public string Ttf;          // file name inside SourceDir
@@ -148,12 +166,12 @@ namespace SpawnRowDuel.EditorPipeline
             // all - Cinzel has ’, ×, § and the rest of the Latin-1 punctuation.
             var faces = new[]
             {
-                Build("Cinzel-Regular.ttf", "SRD-Display-Regular", true, null),
-                Build("Cinzel-Bold.ttf", "SRD-Display-Bold", true, null),
-                Build("Cinzel-Black.ttf", "SRD-Display-Black", true, null),
-                Build("EBGaramond-Regular.ttf", "SRD-Body-Regular", true, null),
-                Build("EBGaramond-Bold.ttf", "SRD-Body-Bold", true, null),
-                Build("EBGaramond-Italic.ttf", "SRD-Body-Italic", true, null),
+                Build("Cinzel-Regular.ttf", "SRD-Display-Regular", true, AsciiPrintable),
+                Build("Cinzel-Bold.ttf", "SRD-Display-Bold", true, AsciiPrintable),
+                Build("Cinzel-Black.ttf", "SRD-Display-Black", true, AsciiPrintable),
+                Build("EBGaramond-Regular.ttf", "SRD-Body-Regular", true, AsciiPrintable),
+                Build("EBGaramond-Bold.ttf", "SRD-Body-Bold", true, AsciiPrintable),
+                Build("EBGaramond-Italic.ttf", "SRD-Body-Italic", true, AsciiPrintable),
             };
 
             // Probe assets are throwaway: built dynamic so HasCharacter can consult the real face,
@@ -331,12 +349,14 @@ namespace SpawnRowDuel.EditorPipeline
             if (font == null) throw new FileNotFoundException("missing source font", ttfPath);
 
             // A baked fallback holds a dozen glyphs; a 1024 atlas for those is two megabytes of
-            // empty texture per asset. The faces get the big page because they rasterise every
-            // card name in the game at runtime.
+            // empty texture per asset. The faces get the big page because they carry the whole of
+            // ASCII - see AsciiPrintable - rather than rasterising it a letter at a time in the
+            // player, which is what used to kill the WebGL build.
             int atlas = dynamic ? AtlasSize : FallbackAtlasSize;
             var asset = FontAsset.CreateFontAsset(font, PointSize, Padding, GlyphRenderMode.SDFAA,
                 atlas, atlas, AtlasPopulationMode.Dynamic, true);
             asset.name = assetName;
+
 
             if (!string.IsNullOrEmpty(characters))
             {
@@ -363,6 +383,25 @@ namespace SpawnRowDuel.EditorPipeline
                 asset.material.name = assetName + " Material";
                 AssetDatabase.AddObjectToAsset(asset.material, asset);
             }
+
+            // KEEP THE BAKE. m_ClearDynamicDataOnBuild defaults to TRUE, and true means "throw the
+            // atlas away when a player is built" - so every TryAddCharacters above was undone by
+            // every build, the fallbacks' routed symbols included. The player then started with
+            // empty atlases and rasterised the whole game's text a glyph at a time, each one
+            // running PopulateOpenTypeLayoutTables -> PairAdjustmentTable::Clear_Deallocate inside
+            // the repaint that asked for it. That free() is where WebGL died.
+            //
+            // There is no public setter for it on FontAsset, so the serialized field is the way
+            // in - the same door m_SourceFontFile uses below. Population mode stays Dynamic: it is
+            // the safety net for a character nobody predicted, and with a full atlas it is a net
+            // that never has to catch anything.
+            var keep = new SerializedObject(asset);
+            var keepProp = keep.FindProperty("m_ClearDynamicDataOnBuild");
+            if (keepProp == null)
+                throw new Exception("m_ClearDynamicDataOnBuild is gone - the atlas would be "
+                                  + "cleared on build again and the WebGL text crash would return");
+            keepProp.boolValue = false;
+            keep.ApplyModifiedProperties();
 
             if (!dynamic)
             {
