@@ -869,6 +869,16 @@ namespace SpawnRowDuel.View.Fx
             if (_cutIn != null && _builtFor == _hand.PanelGeneration) return;
             _builtFor = _hand.PanelGeneration;
             _cutIn = null; _inner = null; _left = null; _right = null; _floatLayer = null;
+            _clash = null; _rightCard = null;
+
+            // THE POOLS GO TOO, and they are the half that would have been missed. Both are
+            // RECYCLED rather than rebuilt - SpawnPopped hands back the first floater that is not
+            // live, and Card(i) grows _leftCards only when it runs out - so a pool that survives
+            // the teardown goes on writing damage numbers and battle cards into elements parented
+            // to a layer that is no longer attached to anything. The hand would come back and the
+            // numbers would not.
+            _floaters.Clear();
+            _leftCards.Clear();
 
             _floatLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _floatLayer.style.position = Position.Absolute;

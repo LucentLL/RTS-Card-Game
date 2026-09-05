@@ -175,6 +175,11 @@ namespace SpawnRowDuel.View
         private Rect _rail;               // where DrawSideRail put itself, so the log can hang off it
         private readonly HashSet<int> _chosenBlockers = new HashSet<int>();
         private PendingRequest _seenPending;
+
+        /// <summary>The engine these panel flags belong to. A different one is a different duel,
+        /// and this HUD's OnGUI is not running while the player is in a menu - so "the engine
+        /// changed" is the only signal it can see that reaches every way into a match.</summary>
+        private Rules.DuelEngine _seenEngine;
         private bool _upgradeMenuOpen;
         private int _chargeAmount;
         private int _chargeCellId = -1;
@@ -262,12 +267,23 @@ namespace SpawnRowDuel.View
             if (_match == null) return;
             EnsureStyles();
 
-            if (!_match.MatchStarted)
+            // A DIFFERENT ENGINE IS A DIFFERENT DUEL, and that is the test rather than "no match".
+            //
+            // This lives on the board object, which the shell switches off for every screen except
+            // Battle and Skirmish - so OnGUI never runs while the player is in a menu, and the
+            // moment they enter a campaign duel, a deck-builder skirmish or a multiplayer game the
+            // shell shows the board and starts the match in the SAME call. The first OnGUI that
+            // runs already has a match in front of it. Keyed on "no match" this reset was reachable
+            // on exactly one of the four ways into a duel; keyed on identity it is reachable on all
+            // of them, and on the way out as well.
+            if (!ReferenceEquals(_match.Engine, _seenEngine))
             {
-                // Nothing here belongs to the next duel. `_upkeepPromptedTurn` is the one that
-                // bites without looking like it would: it is compared against the TURN NUMBER, and
-                // both matches start at one - so a shortfall prompt already spent in the last duel
-                // would be silently skipped in the first upkeep of the new one.
+                _seenEngine = _match.Engine;
+
+                // `_upkeepPromptedTurn` is the one that bites without looking like it would: it is
+                // compared against the TURN NUMBER, and every match starts at one - so a shortfall
+                // prompt already spent in the last duel is silently skipped in the first upkeep of
+                // the next one.
                 _selectedHandIndex = -1;
                 _buildMenuOpen = _upgradeMenuOpen = _settingsOpen = _logOpen = false;
                 _upkeepPromptedTurn = -1;
@@ -277,7 +293,10 @@ namespace SpawnRowDuel.View
                 _guiFaulted = false;
                 _seenPending = null;
                 _chosenBlockers.Clear();
+            }
 
+            if (!_match.MatchStarted)
+            {
                 if (!ShellSuppressed) DrawCommanderSelect();
                 return;
             }

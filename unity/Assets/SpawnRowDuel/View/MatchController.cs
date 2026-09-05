@@ -123,7 +123,7 @@ namespace SpawnRowDuel.View
         public void StartMatch(CommanderId you, CommanderId foe, ulong seed,
                                List<HandCard> youDeck, List<HandCard> foeDeck)
         {
-            Net = null;
+            DropNet("started a solo duel");    // never merely dropped: the sockets need closing
             TakeSeat(Side.You);                // solo always sits at the near edge
             HoldUntil = 0f;                    // static: a new match must not inherit a stale hold
             var state = MatchSetup.NewMatch(Catalog, you, foe, youDeck, foeDeck, seed, RulesOptions.JsParity);
@@ -152,13 +152,26 @@ namespace SpawnRowDuel.View
         /// things the next one would inherit, and the AI driver holds a reference to the engine
         /// that is going away.
         /// </summary>
+        /// <summary>
+        /// Let go of a live duel's session, and CLOSE IT.
+        ///
+        /// `Dispose` is the only path to the transport's own Dispose, and the transport is up to
+        /// three MQTT websockets. `MultiplayerUi` hands ownership over on purpose (it nulls its own
+        /// references the moment the session is adopted) precisely so the session has one owner -
+        /// and that owner never closed it, so every Duel-a-Friend leaked its sockets for the rest
+        /// of the process.
+        /// </summary>
+        void DropNet(string why)
+        {
+            if (Net == null) return;
+            Net.Leave(why);                    // the other player is owed the news...
+            Net.Dispose();                     // ...and the sockets are owed closing
+            Net = null;
+        }
+
         public void EndMatch(string why = "left the match")
         {
-            if (Net != null)
-            {
-                Net.Leave(why);                // the other player is owed the news
-                Net = null;
-            }
+            DropNet(why);
 
             Engine = null;
             _ai = null;

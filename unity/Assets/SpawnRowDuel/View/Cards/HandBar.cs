@@ -402,8 +402,13 @@ namespace SpawnRowDuel.View.Cards
                 _doc.panelSettings = _panel;
             }
 
+            // ATTACHED, not merely present. The rebuild test below is `_row.panel != null`, so
+            // building into a root that is not on a panel yet would leave _row.panel null and the
+            // whole tree would be thrown away and rebuilt again on the very next frame - forever,
+            // with PanelGeneration running away and every layer keyed to it rebuilding too. A
+            // UIDocument added this frame is attached on the next; waiting one frame costs nothing.
             var root = _doc.rootVisualElement;
-            if (root == null) return;               // not attached yet; try again next frame
+            if (root == null || root.panel == null) return;
 
             // Whatever survived the teardown is not ours any more.
             root.Clear();
