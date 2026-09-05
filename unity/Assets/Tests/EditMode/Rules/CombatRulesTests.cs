@@ -549,5 +549,85 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.IsNull(s.At(chargeAt),
                 "and it shattered the back row anyway - from its owner's hand");
         }
+
+        // ---- withdrawing an unanswered assault --------------------------------------------
+
+        [Test]
+        public void Withdraw_UntapsEveryDeclaredAttacker_AndClearsTheCombat()
+        {
+            GameState s;
+            var e = Engine(out s);
+            var one = Place(s, Side.You, "Cinderling", RowKey.YouFront, 2);
+            var two = Place(s, Side.You, "Cinderling", RowKey.YouFront, 4);
+            var mark = Place(s, Side.Foe, "Mistling", RowKey.FoeFront, 3);
+            var target = new UnitTarget(new CellRef(RowKey.FoeFront, 3), mark.Id);
+            int markHp = mark.Hp;
+
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You,
+                new CellRef(RowKey.YouFront, 2), one.Id, target, true)).Applied);
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You,
+                new CellRef(RowKey.YouFront, 4), two.Id, target, true)).Applied);
+            Assert.IsTrue(one.Tapped && two.Tapped, "a declaration taps at declaration time");
+            Assert.AreEqual(2, s.Combat.Declarations.Count);
+
+            Assert.IsTrue(e.Apply(new WithdrawAttackCommand(Side.You)).Applied);
+
+            Assert.IsFalse(s.Combat.HasDeclarations, "the whole assault is gone");
+            Assert.IsFalse(one.Tapped, "and both attackers are standing again");
+            Assert.IsFalse(two.Tapped);
+            Assert.AreEqual(markHp, mark.Hp, "nothing was struck");
+
+            // ...and the board is back where it started: they may declare all over again
+            Assert.AreEqual(Rejection.None, e.CanApply(new DeclareAttackCommand(Side.You,
+                new CellRef(RowKey.YouFront, 2), one.Id, target, true)));
+        }
+
+        [Test]
+        public void Withdraw_GatesOnTurnPhaseAndSomethingToWithdraw()
+        {
+            GameState s;
+            var e = Engine(out s);
+            var a = Place(s, Side.You, "Cinderling", RowKey.YouFront, 2);
+            var mark = Place(s, Side.Foe, "Mistling", RowKey.FoeFront, 3);
+
+            Assert.AreEqual(Rejection.NothingDeclared,
+                e.CanApply(new WithdrawAttackCommand(Side.You)),
+                "nothing aimed, nothing to take back");
+
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You,
+                new CellRef(RowKey.YouFront, 2), a.Id,
+                new UnitTarget(new CellRef(RowKey.FoeFront, 3), mark.Id), true)).Applied);
+
+            Assert.AreEqual(Rejection.NotYourTurn,
+                e.CanApply(new WithdrawAttackCommand(Side.Foe)),
+                "the defender cannot stand your attack down for you");
+        }
+
+        [Test]
+        public void Withdraw_RefusedOnceTheDefenderHasCommittedABlocker()
+        {
+            // The immediate cadence: no DeferBlockers, so the defender is asked there and then and
+            // their answer is spent. From that moment the attack has been ANSWERED and taking it
+            // back would un-ask a question they have already paid for.
+            GameState s;
+            var e = Engine(out s);
+            var a = Place(s, Side.You, "Cinderling", RowKey.YouFront, 2);
+            var mark = Place(s, Side.Foe, "Mistling", RowKey.FoeFront, 3);
+            Place(s, Side.Foe, "Mistling", RowKey.FoeFront, 2);
+
+            Assert.IsTrue(e.Apply(new DeclareAttackCommand(Side.You,
+                new CellRef(RowKey.YouFront, 2), a.Id,
+                new UnitTarget(new CellRef(RowKey.FoeFront, 3), mark.Id))).Applied);
+
+            var req = s.Pending as BlockerRequest;
+            Assert.IsNotNull(req, "the immediate cadence parks the choice on the defender");
+            Assert.Greater(req.Eligible.Length, 0, "somebody may block it");
+            Assert.IsTrue(e.Apply(new RespondCommand(req.Responder,
+                new BlockersChosen(new[] { req.Eligible[0] }))).Applied);
+
+            Assert.AreEqual(Rejection.BlockersCommitted,
+                e.CanApply(new WithdrawAttackCommand(Side.You)));
+            Assert.IsTrue(a.Tapped, "and the attacker stays spent");
+        }
     }
 }

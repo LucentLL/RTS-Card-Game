@@ -34,6 +34,45 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-05 — combat controls, the defender's light, the shell overlap (360 -> 363 tests)
+
+Four reports off the Pages build, all of them one bug each and one of them a rules addition.
+
+* **Closing the match log abandoned the match** (D48). The shell's `↩ abandon` (UI Toolkit) and the
+  log's CLOSE (IMGUI) are both anchored to the top right in units of `HudLayout.Scale`, so CLOSE sat
+  ~94% inside the exit button at every resolution, and the two input paths never see each other's
+  handled events. CLOSE moved to the left of the header; more usefully, `HudLayout.ShellPx` is now
+  published from the shell's own `GeometryChangedEvent` (converted to device pixels through the
+  panel ratio, the same trap `BoardProjection` exists to hold), every IMGUI panel that can reach the
+  top of the screen starts below it, and `Blocks()` refuses board taps there — which closed the
+  reverse bug nobody had reported: tapping ↩ abandon also tapped the cell behind it. Two more fell
+  out of giving that rect a lifetime: every `_root.Clear()` now zeroes it, and the shell remembers
+  how to rebuild the bar, because it relays itself on every resize and `Show`'s switch had no case
+  for a battle — rotating a phone mid-duel deleted the campaign's only way out for the rest of it.
+* **LATER is now ✕ CANCEL, and it really cancels** (D49). `WithdrawAttackCommand` (tag 17,
+  `NetProtocol.Version` 1 → 2) drops every declaration and untaps every attacker it tapped, by unit
+  id, refusing only once a defender has committed a blocker (`Rejection.BlockersCommitted`). Sound
+  because the s12 deferred cadence means nothing has reached the defender before ⚔ ATTACK.
+* **The rail no longer attacks** (D50). The `⚔ N` button is gone; the under-board row is the only
+  place an attack is confirmed or dropped, and it is driven by the engine's declarations rather than
+  the view's aim so a reconnect cannot strand them. `OnGUI`'s fault fallback draws it too.
+* **The defender's blockers light up** (D51), in green, on the card and the figure — the attacker's
+  amber had no counterpart, and the only light a blocker had was a leak into the attacker's
+  selection group. Pool-worker blockers still cannot be lit (`UnitRef.AsCell` throws for one), so
+  the checkbox panel stays the complete list.
+
+Two blockers in the in-flight drag-select work went out with them, both found by review rather than
+by play. `UpdatePointer` returned out of its press branch, so a frame that reports press AND release
+together — a 50 ms click at 30 fps, or any long frame — threw the release away with no later frame
+able to recover it: a fast click on your own creature deselected and selected nothing, and the band
+marquee was left following a cursor with no button held. And `CommitBand` read `BandRect` *after*
+`_dragging` was cleared, and `BandRect` answers null unless a drag is live — so the mouse band had
+never selected anything at all.
+
+`bash tools/run-unity-tests.sh` → total=363 passed=358 failed=0. `node tools/diffjs/replay.mjs`
+still diverges on all three goldens — that is the uncommitted `src/js/` balance work noted below,
+not this change: the harness replays a RECORDED C# trace against the living JS and never runs C#.
+
 ### 2026-08-30 — M17: multiplayer (284 -> 346 tests)
 
 Two people share a password and duel. No account, no server of ours, nothing to deploy.

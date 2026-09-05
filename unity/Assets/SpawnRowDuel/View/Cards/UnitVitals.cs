@@ -38,6 +38,7 @@ namespace SpawnRowDuel.View.Cards
 
         MatchController _match;
         BoardInput _input;
+        MatchHud _hud;
         HandBar _hand;
 
         VisualElement _layer;
@@ -50,6 +51,10 @@ namespace SpawnRowDuel.View.Cards
         static readonly Color TargetRed = new Color(1f, 0.36f, 0.30f);
         static readonly Color JoinGold = new Color(1f, 0.80f, 0.36f);
 
+        /// <summary>Committed to the block. The same green the card frame and the standee use, so
+        /// the ring, the card and the figure are one light rather than three.</summary>
+        static readonly Color BlockGreen = new Color(0.38f, 0.95f, 0.55f);
+
         sealed class Chip
         {
             public VisualElement Root;
@@ -61,6 +66,7 @@ namespace SpawnRowDuel.View.Cards
         {
             _match = GetComponent<MatchController>();
             _input = GetComponent<BoardInput>();
+            _hud = GetComponent<MatchHud>();
             _hand = GetComponent<HandBar>();
         }
 
@@ -248,15 +254,22 @@ namespace SpawnRowDuel.View.Cards
             // is the only one anybody sees.
             bool joining = !target && Has(_input != null ? _input.Joiners : null, cell);
 
+            // ...and, on the other side of the exchange, who YOU have put in front of the blow.
+            // It outranks both: while a blocker choice is parked nothing else on the board is
+            // being asked about, and the ring is the only mark a card standing behind its own
+            // figure can carry.
+            bool defending = _hud != null && _hud.IsDefending(cell);
+
             // the floor and ceiling scale, or they become the dominant term on a big display
             float px = HudLayout.Scale;
             float font = Mathf.Clamp(cellW * 0.19f, 8f * px, 15f * px);
 
             // The chip is a STATUS marker now, not a nameplate. It draws at all only when it has
             // something to say that no card carries: a ring for what your attacker may hit or
-            // join, and a keyword state that is mid-change.
+            // join or what you are blocking with, and a keyword state that is mid-change.
             string extra = cre != null ? Extra(cre) : "";
-            if (!target && !joining && extra.Length == 0)
+            if (defending) extra = "BLOCK";                 // plain ASCII: no glyph gate to clear
+            if (!target && !joining && !defending && extra.Length == 0)
             {
                 chip.Root.style.display = DisplayStyle.None;
                 return;
@@ -267,17 +280,21 @@ namespace SpawnRowDuel.View.Cards
             chip.Line.text = extra;
             chip.Line.style.display = extra.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             chip.Line.style.fontSize = font;
-            chip.Line.style.color = target ? TargetRed : joining ? JoinGold : (mine ? You : Foe);
+            chip.Line.style.color = defending ? BlockGreen
+                                  : target ? TargetRed
+                                  : joining ? JoinGold : (mine ? You : Foe);
 
-            // a target wears the red ring and a creature that may join it a gold one; nothing
-            // else draws a border, so neither can be mistaken for anything
-            float border = target || joining ? 1.5f : 0f;
-            var ring = target ? TargetRed : JoinGold;
+            // a target wears the red ring, a creature that may join it a gold one and a committed
+            // blocker a green one; nothing else draws a border, so none can be mistaken for
+            // anything
+            float border = target || joining || defending ? 1.5f : 0f;
+            var ring = defending ? BlockGreen : target ? TargetRed : JoinGold;
             chip.Root.style.borderTopWidth = border; chip.Root.style.borderBottomWidth = border;
             chip.Root.style.borderLeftWidth = border; chip.Root.style.borderRightWidth = border;
             chip.Root.style.borderTopColor = ring; chip.Root.style.borderBottomColor = ring;
             chip.Root.style.borderLeftColor = ring; chip.Root.style.borderRightColor = ring;
-            chip.Root.style.backgroundColor = target ? new Color(0.28f, 0.04f, 0.04f, 0.82f)
+            chip.Root.style.backgroundColor = defending ? new Color(0.03f, 0.20f, 0.09f, 0.86f)
+                                            : target ? new Color(0.28f, 0.04f, 0.04f, 0.82f)
                                             : joining ? new Color(0.24f, 0.16f, 0.02f, 0.82f)
                                                       : new Color(0.02f, 0.02f, 0.04f, 0.62f);
 

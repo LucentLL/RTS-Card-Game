@@ -80,12 +80,26 @@ namespace SpawnRowDuel.View.Cards
 
         MatchController _match;
         BoardInput _input;
+        MatchHud _hud;
         ElementPalette _palette;
 
         /// <summary>The card you have selected, and the cards already committed to the attack.
         /// Bright enough to pick out at a glance in a row of identical creatures.</summary>
         static readonly Color Picked = new Color(0.45f, 0.95f, 1f);
         static readonly Color Swinging = new Color(1f, 0.66f, 0.28f);
+
+        /// <summary>
+        /// The DEFENDER's half of the same light: green for a card you have committed to the
+        /// block, and a dim green for one that is merely offered it.
+        ///
+        /// Attacking had a colour and defending did not, which made the two halves of a fight
+        /// unequal to read: the attacker could see their group and the defender was ticking names
+        /// in a list. Green because the other three are spoken for - cyan is the selection, amber
+        /// is the attack, red is the target - and because holding a line is the one thing on this
+        /// board that is not aggression.
+        /// </summary>
+        static readonly Color Defending = new Color(0.38f, 0.95f, 0.55f);
+        static readonly Color Offered = new Color(0.44f, 0.66f, 0.50f);
 
         readonly Dictionary<Sprite, Sprite> _cropped = new Dictionary<Sprite, Sprite>();
         readonly Dictionary<int, Plate> _live = new Dictionary<int, Plate>();
@@ -128,6 +142,7 @@ namespace SpawnRowDuel.View.Cards
         {
             _match = GetComponent<MatchController>();
             _input = GetComponent<BoardInput>();
+            _hud = GetComponent<MatchHud>();       // who you have put in front of the blow
         }
 
         void LateUpdate()
@@ -253,13 +268,22 @@ namespace SpawnRowDuel.View.Cards
             // ...and the FRAME carries the one thing a card cannot say for itself: whether it is a
             // card you are acting WITH. The tile underneath is painted for exactly this and the
             // card covers the tile, so the light has to be on the card. Cyan for the one under the
-            // cursor, amber for every creature already declared into the attack - which is the
-            // thing that was being carried entirely by the player's memory, and could not be
-            // carried at all between two copies of one card with different health left.
-            bool picked = _input != null && _input.Selected.HasValue && _input.Selected.Value == cell;
+            // cursor, amber for every creature already declared into the attack, green for every
+            // one you have committed to a block - which is the thing that was being carried
+            // entirely by the player's memory, and could not be carried at all between two copies
+            // of one card with different health left.
+            bool picked = _input != null && _input.IsPicked(cell);
             bool swinging = o.Owner == Seat.Local && _match.IsAttacking(cell);
+            bool defending = _hud != null && _hud.IsDefending(cell);
+            bool offered = !defending && _hud != null && _hud.IsOfferedBlocker(cell);
 
-            p.Frame.color = picked ? Picked : swinging ? Swinging : tint;
+            // Defending outranks the selection: while a blocker choice is parked, the ticks ARE
+            // what the board is being asked about, and a stale cyan from before the attack landed
+            // would be the loudest thing on the screen saying nothing.
+            p.Frame.color = defending ? Defending
+                          : offered ? Offered
+                          : picked ? Picked
+                          : swinging ? Swinging : tint;
 
             PlaceName(p, def, faceDown, plateW, plateH);
             PlaceBank(p, o, s, plateW, plateH, faceDown);

@@ -26,8 +26,71 @@ namespace SpawnRowDuel.View
         private readonly List<CellRef> _joiners = new List<CellRef>();
         private int _seenVersion = -1;
 
+        // ── the drag-selection ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The creatures picked up by a drag, in the order they were crossed - which becomes the
+        /// order they declare in.
+        ///
+        /// <c>_selected</c> is NOT repurposed for this. Six controls act on exactly one cell -
+        /// ⚔ WALL, the three worker stacks, ◆ SEND, ⬆ UPGRADE, the charge readout and the upkeep
+        /// PAY/SACRIFICE row - and quietly making it plural would change all of them. Instead the
+        /// group's first member IS the anchor and <c>_selected</c> keeps pointing at it, so every
+        /// one of those controls goes on meaning what it meant.
+        /// </summary>
+        private readonly List<CellRef> _group = new List<CellRef>();
+        private readonly List<CellRef> _groupScratch = new List<CellRef>();
+
+        /// <summary>
+        /// The BLOCK sweep's own ledger, kept apart from <c>_group</c> on purpose.
+        ///
+        /// A block drag and an attack drag are the same gesture pointed at opposite halves of a
+        /// fight, and they used to share the list - so sweeping across your defenders left them in
+        /// the group, which is what every "am I acting with this card" question reads (IsPicked).
+        /// Your blockers came out lit as though they were selected attackers, on the opponent's
+        /// turn, and stayed that way until some later command happened to prune the group. The
+        /// ledger is only here to make the sweep a SET rather than a toggle; the answer itself
+        /// lives on the request, in MatchHud.
+        /// </summary>
+        private readonly HashSet<int> _blockSwept = new HashSet<int>();
+
+        enum DragKind { None, Sweep, Band, Block }
+
+        private DragKind _dragKind;
+        private bool _dragging, _dragAllowed, _dragMoved, _dragTouch;
+        private int _dragFinger = -1;
+        private Vector2 _pressPanel, _nowPanel, _lastSamplePanel;
+        private CellRef? _pressCell;
+        private Cards.HandBar _hand;
+        private MatchHud _hud;
+
         public CellRef? Hover { get { return _hover; } }
         public CellRef? Selected { get { return _selected; } }
+
+        /// <summary>Everything the current drag has picked up. Empty when nothing is grouped.</summary>
+        public IReadOnlyList<CellRef> Group { get { return _group; } }
+
+        /// <summary>Is this cell one the player is acting WITH - the single selection, the group's
+        /// anchor, or any member of it? The card layers tint from this.</summary>
+        public bool IsPicked(CellRef cell)
+        {
+            if (_selected.HasValue && _selected.Value == cell) return true;
+            for (int i = 0; i < _group.Count; i++) if (_group[i] == cell) return true;
+            return false;
+        }
+
+        /// <summary>The band rectangle to draw, in PANEL units, or null when no band is being
+        /// dragged. A sweep draws none - the cards lighting up under the finger are the feedback.</summary>
+        public Rect? BandRect
+        {
+            get
+            {
+                if (!_dragging || _dragKind != DragKind.Band || !_dragMoved) return null;
+                float x0 = Mathf.Min(_pressPanel.x, _nowPanel.x), x1 = Mathf.Max(_pressPanel.x, _nowPanel.x);
+                float y0 = Mathf.Min(_pressPanel.y, _nowPanel.y), y1 = Mathf.Max(_pressPanel.y, _nowPanel.y);
+                return new Rect(x0, y0, x1 - x0, y1 - y0);
+            }
+        }
 
         /// <summary>What the selected unit may attack right now - the engine's own answer, lit on
         /// the board and read by the vitals layer so a target says what it has left.</summary>
@@ -77,6 +140,8 @@ namespace SpawnRowDuel.View
         {
             _board = GetComponent<BoardView>();
             _match = GetComponent<MatchController>();
+            _hand = GetComponent<Cards.HandBar>();
+            _hud = GetComponent<MatchHud>();
             if (Cam == null) Cam = Camera.main;
         }
 
@@ -103,9 +168,356 @@ namespace SpawnRowDuel.View
                 RepaintHighlights();
             }
 
-            if (Input.GetMouseButtonDown(0) && !overUi) Tap(_hover);
+            UpdatePointer(overUi);
             if (Input.GetMouseButtonDown(1)) ClearSelection();
+            if (Input.GetKeyDown(KeyCode.Escape) && _group.Count > 0) ClearSelection();
             if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.Space)) _tilted = !_tilted;
+        }
+
+        // ── the pointer machine ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Press, drag, release - and the reason a board tap now happens on RELEASE.
+        ///
+        /// A card fills its whole tile (CardPlateLayer.Fill = 1), so the cards tile the board edge
+        /// to edge and a drag that selects creatures has to be allowed to START on one. That means
+        /// the press cannot commit anything. Three things keep that safe: the tap uses the cell the
+        /// PRESS landed on rather than the one under the release, so a slipped finger cannot
+        /// retarget it; a drag shorter than the slop is still a tap; and an armed hand card still
+        /// consumes the tap whole, because TryCellTap returns true for every tap while a play is
+        /// armed.
+        ///
+        /// The gesture's legality is decided ONCE, at press, and latched. WallBands treats a held
+        /// pointer inside a tower span as "looking" and opens that wall under the drag, which
+        /// republishes the blocked bands - re-reading them mid-drag would cancel the gesture the
+        /// player is in the middle of making.
+        /// </summary>
+        void UpdatePointer(bool overUi)
+        {
+            var panel = _hand != null && _hand.PanelReady ? _hand.PanelSize()
+                                                          : new Vector2(Screen.width, Screen.height);
+
+            bool touch = Input.touchCount > 0;
+            bool down, held, up;
+            Vector2 devicePx;
+
+            if (touch)
+            {
+                // ONE finger owns the gesture: a second landing mid-drag must not move it.
+                var t = Input.GetTouch(0);
+                for (int i = 0; i < Input.touchCount; i++)
+                    if (Input.GetTouch(i).fingerId == _dragFinger) { t = Input.GetTouch(i); break; }
+
+                devicePx = t.position;
+                down = t.phase == TouchPhase.Began;
+                held = t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary;
+                up = t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled;
+                if (down) _dragFinger = t.fingerId;
+                else if (_dragging && t.fingerId != _dragFinger) return;
+            }
+            else
+            {
+                devicePx = Input.mousePosition;
+                down = Input.GetMouseButtonDown(0);
+                held = Input.GetMouseButton(0);
+                up = Input.GetMouseButtonUp(0);
+            }
+
+            var pt = BoardProjection.ScreenToPanel(devicePx, panel);
+
+            if (down)
+            {
+                _dragging = true;
+                _dragMoved = false;
+                _dragTouch = touch;
+                _pressPanel = _nowPanel = _lastSamplePanel = pt;
+                _pressCell = _hover;
+                _dragKind = DragKind.None;
+
+                _dragAllowed = !overUi && _match != null && _match.MatchStarted
+                            && _match.Asking == null
+                            && _match.Pending == MatchController.Intent.None
+                            && !_match.SendFrom.HasValue;
+
+                if (_dragAllowed) _dragKind = ClassifyPress();
+
+                // FALL THROUGH IF THE BUTTON IS ALREADY BACK UP.
+                //
+                // Legacy Input reports GetMouseButtonDown and GetMouseButtonUp on the SAME frame
+                // whenever the press and the release both land between two polls - a 50 ms click
+                // on a 30 fps WebGL build, and a certainty across any long frame (a GC spike, a
+                // wall opening, the AI's turn - exactly when an impatient player clicks). A bare
+                // `return` here threw that release away, and no later frame could recover it:
+                // `up` is true for one frame only, so every frame after walked into `if (!up)
+                // return` below. The tap simply never happened - and for a press on one of your
+                // own ready creatures, ClassifyPress had already run BeginGroup and cleared the
+                // selection, so a fast click DESELECTED and selected nothing. `_dragging` also
+                // stayed true, which left the band marquee following a cursor with no button
+                // held. Falling through hands this frame to the release path, where a gesture
+                // that never travelled is already a tap on the cell it started from.
+                if (!up) return;
+            }
+
+            if (!_dragging) return;
+            _nowPanel = pt;
+
+            float slop = (_dragTouch ? 16f : 8f) * HudLayout.Scale;
+            if (!_dragMoved && (pt - _pressPanel).sqrMagnitude > slop * slop) _dragMoved = true;
+
+            if (held && _dragMoved && _dragAllowed
+                && (_dragKind == DragKind.Sweep || _dragKind == DragKind.Block))
+                SweepTo(pt, panel);
+
+            if (!up) return;
+
+            // THE RECTANGLE IS READ BEFORE THE DRAG IS TORN DOWN. BandRect answers null unless
+            // `_dragging` is still true (it is a "what is being dragged right now" question), so
+            // clearing the flag first and calling CommitBand second made the band select nothing,
+            // ever: the marquee drew under the finger and vanished on release with an empty group.
+            var band = BandRect;
+
+            _dragging = false;
+            _dragFinger = -1;
+
+            // A gesture that never travelled - or one that was never allowed to be a gesture - is
+            // a TAP, on the cell it started from.
+            if (!_dragMoved || !_dragAllowed || _dragKind == DragKind.None)
+            {
+                if (!overUi) Tap(_pressCell);
+                _dragKind = DragKind.None;
+                return;
+            }
+
+            if (_dragKind == DragKind.Band && band.HasValue) CommitBand(band.Value, panel);
+            _dragKind = DragKind.None;
+        }
+
+        /// <summary>What kind of drag a press begins, decided by what is under it.</summary>
+        DragKind ClassifyPress()
+        {
+            var s = _match.Engine != null ? _match.Engine.State : null;
+            if (s == null) return DragKind.None;
+
+            // a parked blocker choice turns the whole board into the answer to it
+            if (_hud != null && _hud.AwaitingBlockers)
+            {
+                _blockSwept.Clear();
+                return DragKind.Block;
+            }
+
+            if (_pressCell.HasValue && MatchController.IsReadyAttacker(s, _pressCell.Value))
+            {
+                BeginGroup();
+                return DragKind.Sweep;
+            }
+
+            // A band needs somewhere to start that is not a unit - and a finger cannot see through
+            // itself, so the rectangle is the mouse's alone.
+            return _dragTouch ? DragKind.None : DragKind.Band;
+        }
+
+        void BeginGroup()
+        {
+            ClearSelection();
+            _group.Clear();
+        }
+
+        // ── sweep ─────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Add everything the pointer crossed since the last sample.
+        ///
+        /// SAMPLED ALONG THE SEGMENT rather than tested where it stopped: a finger moving quickly
+        /// covers half a row in a frame, and a gesture that only looked at its endpoints would skip
+        /// the units in between - which are exactly the ones it was swept through to collect.
+        /// </summary>
+        void SweepTo(Vector2 pt, Vector2 panel)
+        {
+            float step = Mathf.Max(6f, 10f * HudLayout.Scale);
+            float dist = Vector2.Distance(_lastSamplePanel, pt);
+            int steps = Mathf.Clamp(Mathf.CeilToInt(dist / step), 1, 32);
+
+            for (int i = 1; i <= steps; i++)
+                SweepAdd(Vector2.Lerp(_lastSamplePanel, pt, i / (float)steps), panel);
+
+            _lastSamplePanel = pt;
+        }
+
+        void SweepAdd(Vector2 pt, Vector2 panel)
+        {
+            if (BoardProjection.HiddenByWalls(pt.y, panel)) return;
+
+            CellRef hit;
+            if (!CellUnder(pt, panel, out hit)) return;
+            if (!Eligible(hit)) return;
+
+            // SETS, never toggles: sweeping back over a unit must not drop it, so two strokes and
+            // a hand-ticked row compose instead of undoing each other.
+            if (_dragKind == DragKind.Block)
+            {
+                if (!_blockSwept.Add(hit.Index)) return;
+                int b = _hud != null ? _hud.BlockerIndexOf(hit) : -1;
+                if (b >= 0) _hud.SetBlockerPick(b, true);
+                return;
+            }
+
+            for (int i = 0; i < _group.Count; i++) if (_group[i] == hit) return;
+
+            _group.Add(hit);
+            AfterGroupChanged();
+        }
+
+        /// <summary>
+        /// Which cell a panel point is over: the unit's own box first, then the nearest projected
+        /// cell centre inside a forgiving radius.
+        ///
+        /// The box first because the player aims at the FIGURE, which stands toward the camera of
+        /// its tile and rises well above it - hit-testing the tile alone misses the thing they are
+        /// looking at by most of its height. The radius second because a tilted board's far rows
+        /// are only a few pixels deep and a finger is not.
+        /// </summary>
+        bool CellUnder(Vector2 pt, Vector2 panel, out CellRef hit)
+        {
+            hit = default(CellRef);
+            if (_hand == null || Cam == null || !_hand.PanelReady) return false;
+
+            var s = _match.Engine != null ? _match.Engine.State : null;
+            float snap = 22f * HudLayout.Scale;
+            float best = snap * snap;
+            bool found = false;
+
+            foreach (var kv in _board.Cells)
+            {
+                bool structure = s != null && s.At(kv.Key) is StructureUnit;
+
+                Rect box;
+                if (BoardProjection.TryUnitBox(_hand, Cam, _board, kv.Key, structure, out box)
+                    && box.Contains(pt))
+                {
+                    hit = kv.Key;
+                    return true;
+                }
+
+                Vector2 centre;
+                if (!_hand.TryProject(Cam, _board.WorldOf(kv.Key), out centre)) continue;
+                float d = (centre - pt).sqrMagnitude;
+                if (d < best) { best = d; hit = kv.Key; found = true; }
+            }
+            return found;
+        }
+
+        /// <summary>May this cell join the gesture in progress?</summary>
+        bool Eligible(CellRef cell)
+        {
+            var s = _match.Engine != null ? _match.Engine.State : null;
+            if (s == null) return false;
+
+            if (_dragKind == DragKind.Block)
+                return _hud != null && _hud.BlockerIndexOf(cell) >= 0;
+
+            return MatchController.IsReadyAttacker(s, cell);
+        }
+
+        void AfterGroupChanged()
+        {
+            _selected = _group[0];
+            RepaintHighlights();
+        }
+
+        // ── band ──────────────────────────────────────────────────────────────────────────
+
+        void CommitBand(Rect r, Vector2 panel)
+        {
+            BeginGroup();
+            foreach (var kv in _board.Cells)
+            {
+                Vector2 centre;
+                if (!_hand.TryProject(Cam, _board.WorldOf(kv.Key), out centre)) continue;
+                if (!r.Contains(centre)) continue;
+                if (BoardProjection.HiddenByWalls(centre.y, panel)) continue;
+                if (!Eligible(kv.Key)) continue;
+                _group.Add(kv.Key);
+            }
+
+            if (_group.Count == 0) { ClearSelection(); return; }
+            _selected = _group[0];
+            RepaintHighlights();
+        }
+
+        // ── declaring as a group ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Declare the whole group at one target, in the order it was picked up.
+        ///
+        /// A joint attack IS N declarations sharing a target, so this is a loop over the same door
+        /// a single attack goes through - every member via Declare/JoinAssault, so in a duel each
+        /// is its own wire frame, applied in the same order on both seats.
+        ///
+        /// The assault opens on the first member that SUCCEEDS, not on the first member: Declare
+        /// records the assault only after a successful submit, so opening it on a failure would
+        /// make every JoinAssault after it answer NothingDeclared.
+        ///
+        /// A refused member is SKIPPED rather than aborting the rest - the declarations already
+        /// made stand, and ✕ CANCEL under the board takes the whole assault back if the group that
+        /// arrived was not the one the player wanted. The exception is a gate flipping underneath
+        /// us: a parked choice, the turn ending, the match ending. Every remaining member would
+        /// fail identically, so it stops there.
+        /// </summary>
+        public void DeclareGroup(AttackTarget target, string label)
+        {
+            _groupScratch.Clear();
+            _groupScratch.AddRange(_group);
+            ClearSelection();
+
+            int joined = 0, refused = 0;
+            for (int i = 0; i < _groupScratch.Count; i++)
+            {
+                var from = _groupScratch[i];
+                Rejection why;
+
+                if (_match.Assault == null) why = _match.Declare(from, target, label);
+                else if (!_match.CanJoinAssault(from)) { refused++; continue; }
+                else why = _match.JoinAssault(from);
+
+                if (why == Rejection.None) { joined++; continue; }
+                if (why == Rejection.ChoicePending || why == Rejection.GameOver
+                 || why == Rejection.NotYourTurn || why == Rejection.WrongPhase) break;
+                refused++;
+            }
+
+            if (_groupScratch.Count > 1)
+                _match.Note("- " + joined + " of " + _groupScratch.Count + " joined the attack"
+                            + (refused > 0 ? " (" + refused + " could not)" : ""));
+        }
+
+        /// <summary>The group when there is one, nothing otherwise. Every button that declares an
+        /// attack asks here first, so the wall and the worker stacks became group attacks without
+        /// having to know that groups exist.</summary>
+        public bool DeclareGroupOrSingle(AttackTarget target, string label)
+        {
+            if (_group.Count == 0) return false;
+            DeclareGroup(target, label);
+            return true;
+        }
+
+        /// <summary>Drop members the engine would no longer accept. Runs on every repaint, so a
+        /// creature that dies, moves, taps or has its turn ended leaves the group by itself.</summary>
+        void PruneGroup()
+        {
+            if (_group.Count == 0) return;
+            var s = _match.Engine != null ? _match.Engine.State : null;
+
+            for (int i = _group.Count - 1; i >= 0; i--)
+                if (s == null || !MatchController.IsReadyAttacker(s, _group[i])) _group.RemoveAt(i);
+        }
+
+        void PaintGroup()
+        {
+            for (int i = 0; i < _group.Count; i++)
+            {
+                _highlighted.Add(_group[i]);
+                _board.Paint(_group[i], _board.SelectMaterial);
+            }
         }
 
         void Tap(CellRef? cell)
@@ -116,6 +528,21 @@ namespace SpawnRowDuel.View
             // else would queue a second command behind an answer that has not been given - and
             // the held command would then commit against a board that had moved.
             if (_match.Asking != null) return;
+
+            // A PARKED CHOICE owns the board. Every branch below submits a command, and while a
+            // choice is parked the engine refuses all of them with ChoicePending - so without this
+            // the whole ladder ran against a frozen engine and answered nothing. A tap during YOUR
+            // blocker choice toggles that defender instead.
+            var parked = _match.Engine != null ? _match.Engine.State.Pending : null;
+            if (parked != null)
+            {
+                if (cell.HasValue && _hud != null && _hud.AwaitingBlockers)
+                {
+                    int i = _hud.BlockerIndexOf(cell.Value);
+                    if (i >= 0) _hud.SetBlockerPick(i, !_hud.BlockerPicked(i));
+                }
+                return;
+            }
 
             if (!cell.HasValue) { ClearSelection(); return; }
 
@@ -138,7 +565,22 @@ namespace SpawnRowDuel.View
                 return;
             }
 
-            // 3. a lit enemy object declares an attack - aim, then tap the target
+            // 3. a lit enemy object declares an attack - aim, then tap the target.
+            //
+            // A GROUP goes first: the whole selection swings at the one target, in the order it
+            // was picked up. The group's legal targets are the anchor's, which is exact rather
+            // than convenient - DeclareAttackHandler has no reach or column gate, so every
+            // rejection left is attacker-side and the ready filter has already excluded it.
+            if (_group.Count > 0 && _legalAttacks.Contains(cell.Value))
+            {
+                var t = _match.Engine.State.At(cell.Value);
+                if (t != null)
+                {
+                    DeclareGroup(new UnitTarget(cell.Value, t.Id), MatchController.NameOfObject(t));
+                    return;
+                }
+            }
+
             if (_selected.HasValue && _legalAttacks.Contains(cell.Value))
             {
                 _match.TryAttack(_selected.Value, cell.Value);
@@ -167,7 +609,12 @@ namespace SpawnRowDuel.View
         {
             if (_match == null) return;
             _legalMoves.Clear();
-            _legalMoves.AddRange(_match.LegalMovesFor(from));
+
+            // A MULTI-SELECTION HAS NO MOVE. There is no group move command, and lighting the
+            // anchor's move cells for a group of five would offer a march that walks exactly one
+            // of them - worse than offering nothing.
+            if (_group.Count <= 1) _legalMoves.AddRange(_match.LegalMovesFor(from));
+
             _legalAttacks.Clear();
             _legalAttacks.AddRange(_match.LegalAttacksFor(from));
             foreach (var c in _legalMoves)
@@ -189,6 +636,8 @@ namespace SpawnRowDuel.View
             _legalMoves.Clear();
             _legalAttacks.Clear();
             _joiners.Clear();
+            for (int i = 0; i < _group.Count; i++) _board.Restore(_group[i]);
+            _group.Clear();
             if (_selected.HasValue) _board.Restore(_selected.Value);
             _selected = null;
         }
@@ -200,16 +649,27 @@ namespace SpawnRowDuel.View
             _highlighted.Clear();
             _joiners.Clear();          // the vitals ring these, and an ended assault has none
 
+            // The group is re-checked against the engine on EVERY repaint, not merely when it is
+            // built: a member that dies, is bounced, taps, or simply has the turn end under it is
+            // no longer a legal attacker, and a stale group would declare into a rejection.
+            PruneGroup();
+
             if (_match.Pending != MatchController.Intent.None || _match.SendFrom.HasValue)
             {
-                if (_selected.HasValue) { _board.Restore(_selected.Value); _selected = null; }
-                _legalMoves.Clear();
-                _legalAttacks.Clear();
+                // arming a hand card DESTROYS the group rather than orphaning it: the lit cells
+                // now mean "where may this card go", which is a different question entirely
+                ClearSelection();
                 foreach (var c in _match.LegalCells)
                 {
                     _highlighted.Add(c);
                     _board.Paint(c, _board.HoverMaterial);
                 }
+            }
+            else if (_group.Count > 0)
+            {
+                _selected = _group[0];          // the anchor: every single-cell control still works
+                PaintGroup();
+                LightLegal(_group[0]);
             }
             else if (_selected.HasValue)
             {

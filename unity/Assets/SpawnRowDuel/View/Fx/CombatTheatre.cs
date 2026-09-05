@@ -17,8 +17,9 @@ namespace SpawnRowDuel.View.Fx
     /// right, ⚔ lands between them, and each card shows what it hit for and what it has left.
     ///
     /// It fires on the RESOLUTION, not the declaration. Combat v3 declares first and resolves
-    /// later - the attacker taps, the defender may interpose, and nothing is decided until the
-    /// rail's Rocket button runs ResolveCombatCommand - so a cut-in at declaration time is a
+    /// later - the attacker taps, the defender may interpose, and nothing is decided until
+    /// ⚔ ATTACK under the board runs ResolveCombatCommand (and until then ✕ CANCEL can take the
+    /// whole assault back again) - so a cut-in at declaration time is a
     /// picture of two cards that have not fought yet, and the fight itself would then happen off
     /// screen. Each declaration is recorded as it is made and TOLD when its damage lands, one
     /// after another, which is also the order the resolver applies them in.
@@ -192,6 +193,17 @@ namespace SpawnRowDuel.View.Fx
 
         void Observe(GameEvent ev)
         {
+            // AN ASSAULT TAKEN BACK takes its recordings with it.
+            //
+            // The list is otherwise cleared by declaration 0 arriving, on the argument that the
+            // resolver empties the combat when it finishes so a restarting index is the only
+            // signal a new one has begun. ✕ CANCEL breaks that argument: it clears the combat
+            // WITHOUT the resolver ever running, so the withdrawn fights would sit here waiting,
+            // and Record matches a later DamageApplied by attacker-or-defender id alone - bolt the
+            // creature you nearly attacked and you would get a full cut-in of an attack you took
+            // back. It would also quietly eat the next combat's cut-in budget.
+            if (ev is AttackWithdrawn) { _fights.Clear(); _told = 0; return; }
+
             var declared = ev as AttackDeclared;
             if (declared != null)
             {

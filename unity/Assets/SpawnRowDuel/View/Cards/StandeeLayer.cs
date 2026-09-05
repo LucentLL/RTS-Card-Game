@@ -124,7 +124,7 @@ namespace SpawnRowDuel.View.Cards
         /// Six projections per figure per frame, which is nothing next to twenty units, and the
         /// alternative is a constant that is only right in the middle of the board.
         /// </summary>
-        static bool Measure(Camera cam, Vector3 ground, float tileW, float tileD,
+        public static bool MeasureTile(Camera cam, Vector3 ground, float tileW, float tileD,
                             out float screenH, out float screenW,
                             out float upPerWorld, out float rightPerWorld)
         {
@@ -158,6 +158,7 @@ namespace SpawnRowDuel.View.Cards
 
         MatchController _match;
         BoardInput _input;
+        MatchHud _hud;
 
         readonly Dictionary<int, Standee> _live = new Dictionary<int, Standee>();
         readonly List<int> _seen = new List<int>();
@@ -177,6 +178,7 @@ namespace SpawnRowDuel.View.Cards
         {
             _match = GetComponent<MatchController>();
             _input = GetComponent<BoardInput>();
+            _hud = GetComponent<MatchHud>();
         }
 
         void LateUpdate()
@@ -279,7 +281,7 @@ namespace SpawnRowDuel.View.Cards
             // board than one world unit of tile is.
             float upPerWorld, rightPerWorld;
             float tileScreenH, tileScreenW;
-            if (!Measure(cam, ground, tileW, tileD,
+            if (!MeasureTile(cam, ground, tileW, tileD,
                          out tileScreenH, out tileScreenW, out upPerWorld, out rightPerWorld))
             {
                 tileScreenH = tileD; tileScreenW = tileW; upPerWorld = 1f; rightPerWorld = 1f;
@@ -335,13 +337,16 @@ namespace SpawnRowDuel.View.Cards
             var tint = o.Owner == Seat.Local ? Color.white : new Color(0.86f, 0.88f, 1f);
 
             // ...and the figure lights with its card. CardPlateLayer tints the FRAME for the
-            // selected card and for everything declared into the attack, and the standee stands
-            // ON the frame - so on any unit with a cut-out the light would be hidden behind the
-            // very thing it is about. Lerped rather than replaced: a creature washed cyan is a
-            // creature you can no longer recognise, and recognising them is the point.
-            bool picked = _input != null && _input.Selected.HasValue && _input.Selected.Value == cell;
+            // selected card, for everything declared into the attack and for everything committed
+            // to the block, and the standee stands ON the frame - so on any unit with a cut-out
+            // the light would be hidden behind the very thing it is about. Lerped rather than
+            // replaced: a creature washed cyan is a creature you can no longer recognise, and
+            // recognising them is the point.
+            bool picked = _input != null && _input.IsPicked(cell);
             bool swinging = o.Owner == Seat.Local && _match.IsAttacking(cell);
-            if (picked) tint = Color.Lerp(tint, new Color(0.45f, 0.95f, 1f), 0.55f);
+            bool defending = _hud != null && _hud.IsDefending(cell);
+            if (defending) tint = Color.Lerp(tint, new Color(0.38f, 0.95f, 0.55f), 0.5f);
+            else if (picked) tint = Color.Lerp(tint, new Color(0.45f, 0.95f, 1f), 0.55f);
             else if (swinging) tint = Color.Lerp(tint, new Color(1f, 0.66f, 0.28f), 0.5f);
 
             tint.a = show;                                 // fades away as the view goes top-down

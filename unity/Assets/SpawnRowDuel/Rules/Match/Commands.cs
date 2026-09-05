@@ -226,6 +226,32 @@ namespace SpawnRowDuel.Rules
         public ResolveCombatCommand(Side actor) : base(actor) { }
     }
 
+    /// <summary>
+    /// Take the whole assault back: every declaration is dropped and every attacker it tapped
+    /// stands up again, as though the attacker had never pointed at anything.
+    ///
+    /// This is only sound because of the s12 deferred cadence. Until ResolveCombat a declaration
+    /// asks the defender NOTHING - no BlockerRequest is parked, no blocker is spent, no damage is
+    /// staged - so while the attacker is still choosing, the assault is an unanswered intent and
+    /// withdrawing it costs the defender nothing they have paid for. The moment they have
+    /// committed a blocker to one of them that stops being true, and the handler refuses.
+    ///
+    /// Note what this does NOT claim. In a duel the declaration is on the wire the instant it is
+    /// made (the session applies and sends in one call), so the defender has seen it: their log
+    /// carries the line and the attacker's figure lies down and stands back up again. That is a
+    /// tell, and it is the accepted one - this game's multiplayer already holds both hands on both
+    /// peers by design, and an attack that cannot be taken back is worse than a feint that can be
+    /// read. What matters here is that nothing the defender has ANSWERED is undone.
+    ///
+    /// Everything else on this board is either reversible or obviously what it looks like, and
+    /// picking an attacker was the one tap that silently spent a creature for the turn with no way
+    /// back. Confirming an attack must be a decision; opening one must not be.
+    /// </summary>
+    public sealed class WithdrawAttackCommand : CommandBase
+    {
+        public WithdrawAttackCommand(Side actor) : base(actor) { }
+    }
+
     // ---- the suspended-choice answer ------------------------------------------------------
 
     public sealed class RespondCommand : CommandBase

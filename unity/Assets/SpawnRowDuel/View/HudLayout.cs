@@ -102,6 +102,19 @@ namespace SpawnRowDuel.View
         public static Rect RailPx;    // the right-edge turn controls
 
         /// <summary>
+        /// What the SHELL is holding over the battle - today the ↩ abandon / ↩ menu row it hangs
+        /// off the top right corner. Rect zero when there is nothing there.
+        ///
+        /// It is published for the same reason the three above are, plus one more. Those are IMGUI
+        /// panels that legacy Input cannot see; this is a UI TOOLKIT button that IMGUI cannot see
+        /// either - the two are separate input paths and neither learns about the other's handled
+        /// events. So an IMGUI control drawn under it runs on the same tap that presses it, which
+        /// is exactly how closing the match log also abandoned the match. MatchHud keeps its own
+        /// panels clear of this rect, and Blocks() stops the board taking the tap as well.
+        /// </summary>
+        public static Rect ShellPx;
+
+        /// <summary>
         /// Every IMGUI CONTROL drawn over the field this frame, in real pixels.
         ///
         /// The three rects above cover PANELS, and a panel is easy to remember. A loose button is
@@ -145,6 +158,7 @@ namespace SpawnRowDuel.View
             var p = new Vector2(mousePos.x, Screen.height - mousePos.y);
             if (p.y <= TopBlockPx || p.y >= Screen.height - BottomBlockPx) return true;
             if (MenuPx.Contains(p) || LogPx.Contains(p) || RailPx.Contains(p)) return true;
+            if (ShellPx.width > 0f && ShellPx.Contains(p)) return true;
             for (int i = 0; i < Controls.Count; i++) if (Controls[i].Contains(p)) return true;
             return false;
         }

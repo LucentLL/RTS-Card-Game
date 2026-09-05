@@ -27,7 +27,8 @@ namespace SpawnRowDuel.Net
             PlayCard = 8, BuildStructure = 9, UpgradeStructure = 10,
             PourIntoCharge = 11, FlipCharge = 12, SendBankedMana = 13,
             DeclareAttack = 14, ResolveCombat = 15, Respond = 16,
-            Max = 17,
+            WithdrawAttack = 17,
+            Max = 18,
         }
 
         enum TargetTag : byte { Unit = 1, Wall = 2, WorkerStack = 3, Max = 4 }
@@ -135,6 +136,9 @@ namespace SpawnRowDuel.Net
 
             var resolve = cmd as ResolveCombatCommand;
             if (resolve != null) { Head(w, Tag.ResolveCombat, cmd); return; }
+
+            var withdraw = cmd as WithdrawAttackCommand;
+            if (withdraw != null) { Head(w, Tag.WithdrawAttack, cmd); return; }
 
             var respond = cmd as RespondCommand;
             if (respond != null)
@@ -244,6 +248,7 @@ namespace SpawnRowDuel.Net
                 case Tag.DrawForTurn: return new DrawForTurnCommand(actor);
                 case Tag.EndTurn: return new EndTurnCommand(actor);
                 case Tag.ResolveCombat: return new ResolveCombatCommand(actor);
+                case Tag.WithdrawAttack: return new WithdrawAttackCommand(actor);
 
                 case Tag.UpkeepPay:
                 {

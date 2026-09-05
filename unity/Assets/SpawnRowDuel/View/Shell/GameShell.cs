@@ -120,7 +120,8 @@ namespace SpawnRowDuel.View.Shell
             _map = null;
             _challenge = null;
             if (screen != ShellScreen.Multiplayer) _multiplayer = null;
-            if (_root != null) _root.Clear();
+            ClearRoot();
+            if (screen != ShellScreen.Battle) _battleExit = null;
 
             // BEFORE anything is built. Start() shows the menu, and Start() runs before the first
             // Update - so the boot menu was laid out against HudLayout.Scale's default of 1 and
@@ -154,6 +155,12 @@ namespace SpawnRowDuel.View.Shell
                 case ShellScreen.WorldMap: BuildWorldMap(); break;
                 case ShellScreen.DeckBuilder: BuildDeckBuilder(); break;
                 case ShellScreen.Multiplayer: BuildMultiplayer(); break;
+
+                // A duel has nothing for the shell to lay out except the way out of it - which is
+                // exactly why it has to be put BACK here. This branch runs on every resize.
+                case ShellScreen.Battle:
+                    if (_battleExit != null) _battleExit();
+                    break;
             }
         }
 
@@ -428,7 +435,8 @@ namespace SpawnRowDuel.View.Shell
 
             Screen = ShellScreen.Challenge;
             _map = null;
-            _root.Clear();
+            _battleExit = null;
+            ClearRoot();
 
             _challenge = new ChallengeUi(_root, Catalog, s.Faction, defender, ownCapital,
                                          () => StartCampaignBattle(request));
@@ -438,6 +446,7 @@ namespace SpawnRowDuel.View.Shell
         void StartCampaignBattle(BattleLaunchRequest request)
         {
             _resolvedFor = -1;
+            _battleExit = null;
             Show(ShellScreen.Battle);
             Match.StartMatch(request.PlayerCommander, request.EnemyCommander, request.DeckSeed);
             BuildBattleOverlay(request.TerritoryId);
@@ -449,17 +458,83 @@ namespace SpawnRowDuel.View.Shell
         /// </summary>
         void BuildBattleOverlay(int territoryId)
         {
-            _root.Clear();
+            ClearRoot();
+            _battleExit = () => ExitBar("↩ abandon", () =>
+            {
+                Campaign.Resolve(BattleOutcome.Abandoned);
+                Show(ShellScreen.WorldMap);
+            });
+            _battleExit();
+        }
+
+        /// <summary>
+        /// How to rebuild the way out of the match in progress, or null when there is none.
+        ///
+        /// The shell REBUILDS ITSELF whenever the screen changes shape (every size here is a
+        /// multiple of `HudLayout.Scale`), and the rebuild runs `Show`, whose switch has no case
+        /// for a battle - there is nothing to lay out but this. So rotating a phone mid-duel
+        /// cleared the exit button and never put it back, and the campaign's only "get me out of
+        /// here" was gone for the rest of the match. It is remembered rather than reconstructed
+        /// from the screen, because what the button DOES differs by how the duel was started.
+        /// </summary>
+        System.Action _battleExit;
+
+        /// <summary>Empty the shell's layer, and forget what it was holding over the battle. Every
+        /// `_root.Clear()` goes through here: a rect that outlives the button it describes would go
+        /// on reserving a band of HUD and refusing board taps under a control that is not there.</summary>
+        void ClearRoot()
+        {
+            if (_root != null) _root.Clear();
+            HudLayout.ShellPx = new Rect();
+        }
+
+        /// <summary>
+        /// The way out of a duel, hung off the top right corner - and PUBLISHED.
+        ///
+        /// This one button is the shell's whole footprint on a match in progress, and it sits on
+        /// top of a HUD drawn by a different UI system. IMGUI and UI Toolkit are separate input
+        /// paths that never see each other's handled events, so anything MatchHud draws under this
+        /// runs on the same tap that presses it: the match log's CLOSE was pinned to the same
+        /// corner and closing the log therefore abandoned the match. Reporting where the button
+        /// ACTUALLY landed - after layout, in real pixels - is what lets MatchHud keep its panels
+        /// clear of it and BoardInput refuse the tap, instead of both guessing at a magic number.
+        /// </summary>
+        void ExitBar(string label, System.Action onClick)
+        {
             var bar = UiKit.Row(_root);
             bar.style.position = Position.Absolute;
             bar.style.right = 8f * UiKit.S;
             bar.style.top = HudLayout.TopPx + 6f * UiKit.S;
 
-            UiKit.Btn(bar, "↩ abandon", () =>
+            UiKit.Btn(bar, label, onClick, 12f, UiKit.Dim);
+
+            // worldBound is only meaningful once the layout pass has run, so it is read from the
+            // event that says it has - and again on every reflow, because the shell rebuilds
+            // itself at a new scale whenever the screen changes shape.
+            bar.RegisterCallback<GeometryChangedEvent>(e => PublishExitBar(bar));
+        }
+
+        /// <summary>
+        /// The exit button's rect, in DEVICE PIXELS.
+        ///
+        /// UI Toolkit answers in PANEL units and everything that reads HudLayout works in device
+        /// pixels; on WebGL with a devicePixelRatio those are not the same scale (the same trap
+        /// BoardProjection exists to hold in one place). Converting here, at the one place that
+        /// has both the panel and the element, is what keeps the rect honest on a phone.
+        /// </summary>
+        void PublishExitBar(VisualElement bar)
+        {
+            var panel = _root != null ? _root.worldBound : new Rect();
+            var b = bar.worldBound;
+            if (panel.width <= 1f || panel.height <= 1f || b.width <= 0f || b.height <= 0f)
             {
-                Campaign.Resolve(BattleOutcome.Abandoned);
-                Show(ShellScreen.WorldMap);
-            }, 12f, UiKit.Dim);
+                HudLayout.ShellPx = new Rect();
+                return;
+            }
+
+            float kx = UnityEngine.Screen.width / panel.width;
+            float ky = UnityEngine.Screen.height / panel.height;
+            HudLayout.ShellPx = new Rect(b.x * kx, b.y * ky, b.width * kx, b.height * ky);
         }
 
         void WatchBattle()
@@ -477,7 +552,8 @@ namespace SpawnRowDuel.View.Shell
 
         void ShowResult(bool won, IReadOnlyList<CampaignEvent> log)
         {
-            _root.Clear();
+            _battleExit = null;              // the duel is over; there is nothing to abandon
+            ClearRoot();
             var scrim = UiKit.Scrim(_root);
 
             var box = UiKit.Glass(scrim, 20f);
@@ -513,14 +589,12 @@ namespace SpawnRowDuel.View.Shell
         /// <summary>Start a plain skirmish from the deck builder or the menu.</summary>
         public void StartSkirmish(CommanderId you, CommanderId foe, List<HandCard> youDeck)
         {
+            _battleExit = null;
             Show(ShellScreen.Battle);
             Match.StartMatch(you, foe, (ulong)Random.Range(1, int.MaxValue), youDeck, null);
-            _root.Clear();
-            var bar = UiKit.Row(_root);
-            bar.style.position = Position.Absolute;
-            bar.style.right = 8f * UiKit.S;
-            bar.style.top = HudLayout.TopPx + 6f * UiKit.S;
-            UiKit.Btn(bar, "↩ menu", () => Show(ShellScreen.MainMenu), 12f, UiKit.Dim);
+            ClearRoot();
+            _battleExit = () => ExitBar("↩ menu", () => Show(ShellScreen.MainMenu));
+            _battleExit();
         }
     }
 }

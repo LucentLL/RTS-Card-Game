@@ -53,6 +53,8 @@ namespace SpawnRowDuel.Net.Tests
             yield return new FlipChargeCommand(Side.You, cell, 5);
             yield return new SendBankedManaCommand(Side.Foe, cell, other);
             yield return new ResolveCombatCommand(Side.You);
+            yield return new WithdrawAttackCommand(Side.You);
+            yield return new WithdrawAttackCommand(Side.Foe);
 
             yield return new DeclareAttackCommand(Side.You, cell, 3,
                 new UnitTarget(new CellRef(RowKey.FoeFront, 6), 88));
@@ -85,7 +87,7 @@ namespace SpawnRowDuel.Net.Tests
                 Assert.AreEqual(cmd.Actor, back.Actor, "actor survives");
                 n++;
             }
-            Assert.GreaterOrEqual(n, 24, "the table should cover every command type");
+            Assert.GreaterOrEqual(n, 26, "the table should cover every command type");
         }
 
         /// <summary>The affordability claim in design 04 s1 is a number, so it is a test. If a

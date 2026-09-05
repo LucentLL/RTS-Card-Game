@@ -42,6 +42,10 @@ namespace SpawnRowDuel.Rules
 
         // upkeep settlement
         NothingToPay,
+
+        /// <summary>An assault cannot be taken back once the defender has answered it - a blocker
+        /// they have already spent on one declaration is information they cannot un-see.</summary>
+        BlockersCommitted,
     }
 
     public enum CommandStatus : byte

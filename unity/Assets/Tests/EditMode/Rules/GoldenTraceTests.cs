@@ -110,7 +110,7 @@ namespace SpawnRowDuel.Rules.Tests
             {
                 new BeginTurnCommand(Side.You), new HarvestCommand(Side.You),
                 new DrawForTurnCommand(Side.You), new EndTurnCommand(Side.You),
-                new ResolveCombatCommand(Side.You),
+                new ResolveCombatCommand(Side.You), new WithdrawAttackCommand(Side.You),
                 new UpkeepPayCommand(Side.You, cell, 1), new UpkeepSacrificeCommand(Side.You, cell, 1),
                 new MoveUnitCommand(Side.You, cell, cell, 1),
                 new PlayCardCommand(Side.You, 0, PlayMode.Summon, cell),

@@ -41,6 +41,25 @@ namespace SpawnRowDuel.View
         const float ModeH = HudLayout.ModeH;
         const float BottomH = HudLayout.HandH;
 
+        /// <summary>
+        /// How far past the top band the SHELL's own button reaches, in logical units - the
+        /// ↩ abandon / ↩ menu row GameShell hangs over a match in progress.
+        ///
+        /// Every panel here that can reach the top of the screen starts below it. Not for looks:
+        /// that button is UI Toolkit and these panels are IMGUI, the two are separate input paths,
+        /// and a tap where they overlap runs BOTH of them. The match log's CLOSE was drawn inside
+        /// it, so closing the log also abandoned the match.
+        /// </summary>
+        float ShellBarH
+        {
+            get
+            {
+                var bar = HudLayout.ShellPx;
+                if (bar.width <= 0f || _scale <= 0f) return 0f;
+                return Mathf.Clamp(bar.yMax / _scale - TopH, 0f, 80f);
+            }
+        }
+
         private MatchController _match;
         private BoardInput _input;
         private string _hint = "";
@@ -56,6 +75,93 @@ namespace SpawnRowDuel.View
             _selectedHandIndex = (_selectedHandIndex == index) ? -1 : index;
             _buildMenuOpen = false;
             _match.CancelPending();
+        }
+
+        // ── the blocker choice, reachable from the board ──────────────────────────────────
+        //
+        // The checkbox panel STAYS. It is the only way to reach a pool worker - BlockerRequest
+        // offers those as UnitRef.Pool, which names no cell and can therefore never be swept - and
+        // it is the numeric readout for what is committed. What the board adds is a second way to
+        // fill the same set, for the blockers that are standing somewhere.
+
+        /// <summary>
+        /// Drop the ticks the moment the QUESTION changes.
+        ///
+        /// The reset used to live inside DrawChoicePanel, which is an OnGUI pass - and everything
+        /// that READS this set now runs in LateUpdate, a frame earlier. So between a new request
+        /// parking and the next OnGUI, the indices of the request just answered were still in the
+        /// set and were being drawn against a different request's eligible list. Syncing at every
+        /// door into the set costs one reference compare and cannot be a frame late.
+        /// </summary>
+        void SyncChoice()
+        {
+            var pending = _match != null && _match.Engine != null
+                ? _match.Engine.State.Pending : null;
+            if (ReferenceEquals(pending, _seenPending)) return;
+            _seenPending = pending;
+            _chosenBlockers.Clear();
+        }
+
+        /// <summary>Is a blocker choice parked on THIS player right now?</summary>
+        public bool AwaitingBlockers
+        {
+            get
+            {
+                if (_match == null || _match.Engine == null) return false;
+                SyncChoice();
+                var p = _match.Engine.State.Pending as BlockerRequest;
+                return p != null && p.Responder == Seat.Local;
+            }
+        }
+
+        /// <summary>Which offered blocker stands on this cell, or -1. Pool workers are skipped by
+        /// construction: UnitRef.AsCell THROWS for one, and a throw here is eaten by the HUD guard
+        /// and takes every control on the screen with it.</summary>
+        public int BlockerIndexOf(CellRef cell)
+        {
+            if (!AwaitingBlockers) return -1;
+            var req = (BlockerRequest)_match.Engine.State.Pending;
+
+            for (int i = 0; i < req.Eligible.Length; i++)
+            {
+                if (!req.Eligible[i].IsCell) continue;
+                if (req.Eligible[i].AsCell == cell) return i;
+            }
+            return -1;
+        }
+
+        public bool BlockerPicked(int index) { SyncChoice(); return _chosenBlockers.Contains(index); }
+
+        public void SetBlockerPick(int index, bool on)
+        {
+            if (index < 0) return;
+            SyncChoice();
+            if (on) _chosenBlockers.Add(index); else _chosenBlockers.Remove(index);
+        }
+
+        /// <summary>
+        /// Is the card on this cell one you have COMMITTED to the block?
+        ///
+        /// The other half of the light the attacker already had. A declared attacker is tinted on
+        /// its card and on its standee (MatchController.IsAttacking); a chosen defender was
+        /// nowhere but a tick in a list, so on a board where two copies of one card differ only by
+        /// the health left on them there was no way to see who you had put in front of the blow.
+        /// Read every LateUpdate by the card layers, so it must stay allocation-free.
+        /// </summary>
+        public bool IsDefending(CellRef cell)
+        {
+            SyncChoice();                                      // never answer for a stale question
+            if (_chosenBlockers.Count == 0) return false;      // the common case, second
+            int i = BlockerIndexOf(cell);
+            return i >= 0 && _chosenBlockers.Contains(i);
+        }
+
+        /// <summary>Offered the block and not yet in it - lit more faintly, because "who may
+        /// stand here" is the question the panel is asking.</summary>
+        public bool IsOfferedBlocker(CellRef cell)
+        {
+            int i = BlockerIndexOf(cell);
+            return i >= 0 && !_chosenBlockers.Contains(i);
         }
         private bool _buildMenuOpen;
         private Vector2 _buildScroll;
@@ -226,7 +332,18 @@ namespace SpawnRowDuel.View
                     Debug.LogException(e);
                     _match.Note("· HUD error: " + e.GetType().Name + " - " + e.Message);
                 }
-                DrawSideRail(s, w, h);      // whatever else fails, keep a way to end the turn
+
+                // whatever else fails, keep a way to end the turn - and, since the rail stopped
+                // being able to resolve combat, a way to finish or drop an attack. EndTurnHandler
+                // refuses while declarations stand, so without this pair a fault mid-assault is a
+                // turn that can never end: exactly the dead board this guard exists to prevent.
+                try
+                {
+                    DrawSideRail(s, w, h);
+                    if (s.Turn == Seat.Local && _match.AttackStanding)
+                        DrawAttackRow(s, w, h - BottomH - ModeH + 2);
+                }
+                catch (System.Exception) { /* the fallback itself must never throw */ }
             }
 
             if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
@@ -244,9 +361,42 @@ namespace SpawnRowDuel.View
             if (_buildMenuOpen) DrawBuildMenu(s, w, h);
             else if (_upgradeMenuOpen) DrawUpgradeMenu(s, w, h);
             else DrawChargePanel(s, w, h);
+            DrawBandRect(w, h);
             DrawChoicePanel(s, w, h);
             DrawAskPanel(w, h);            // LAST: nothing outranks a question about destroying
         }
+
+        /// <summary>
+        /// The mouse's selection rectangle.
+        ///
+        /// Drawn with plain fills and NEVER through Btn or HudLayout.Control: registering it as a
+        /// control would make BoardInput refuse taps inside it, which is precisely the region the
+        /// gesture is about. It is inside DrawPanels' try, so a throw here is logged once and
+        /// survivable rather than taking the whole HUD down.
+        ///
+        /// The sweep draws no rectangle at all - the cards lighting up under the finger are its
+        /// feedback, and on a phone the finger covers a rectangle anyway.
+        /// </summary>
+        void DrawBandRect(float w, float h)
+        {
+            if (_input == null) return;
+            var band = _input.BandRect;
+            if (!band.HasValue) return;
+
+            // panel units are the same units OnGUI draws in once GUI.matrix is scaled
+            float k = _scale <= 0f ? 1f : 1f;
+            var r = band.Value;
+            var box = new Rect(r.x / _scale * k, r.y / _scale * k, r.width / _scale, r.height / _scale);
+
+            float t = Mathf.Max(1f, 1.5f);
+            Panel(box, new Color(0.45f, 0.95f, 1f, 0.12f));
+            Panel(new Rect(box.x, box.y, box.width, t), BandEdge);
+            Panel(new Rect(box.x, box.yMax - t, box.width, t), BandEdge);
+            Panel(new Rect(box.x, box.y, t, box.height), BandEdge);
+            Panel(new Rect(box.xMax - t, box.y, t, box.height), BandEdge);
+        }
+
+        static readonly Color BandEdge = new Color(0.55f, 0.98f, 1f, 0.85f);
 
 
         /// <summary>
@@ -493,7 +643,8 @@ namespace SpawnRowDuel.View
             // Walking BACKWARDS from the newest also settles what to drop when four wrapped lines
             // will not fit above the rail: the oldest ones. The newest is always drawn, whatever
             // its height, because a panel that appears and says nothing is worse than a tall one.
-            float room = Mathf.Max(Row(_wrap) + 6f, _rail.y - 6f - (TopH + 4f));
+            float ceiling = TopH + 4f + ShellBarH;      // clear of the shell's ↩ abandon row
+            float room = Mathf.Max(Row(_wrap) + 6f, _rail.y - 6f - ceiling);
             float height = 6f;
             int start = log.Count;
             while (start > 0 && log.Count - start < lines)
@@ -504,7 +655,7 @@ namespace SpawnRowDuel.View
                 start--;
             }
 
-            float top = Mathf.Max(TopH + 4f, _rail.y - height - 6f);
+            float top = Mathf.Max(ceiling, _rail.y - height - 6f);
             var panel = new Rect(w - panelW - 6f, top, panelW, height);
 
             Panel(panel, PanelSoft);
@@ -521,23 +672,38 @@ namespace SpawnRowDuel.View
         {
             var log = _match.Log;
             const float panelW = 210f;
-            var panel = new Rect(w - panelW - 6f, TopH + 4f, panelW, h - TopH - HandH - ModeH - 12f);
+
+            // CLEAR OF THE SHELL'S OWN BUTTON, and its CLOSE moved to the far side of the header.
+            //
+            // This is what "closing the log quits the match" was. GameShell hangs ↩ abandon (or
+            // ↩ menu) off the TOP RIGHT of the screen in UI Toolkit, at right: 8, top: TopPx + 6 -
+            // and CLOSE was drawn at the top right of a panel pinned to the same corner, inside
+            // it. IMGUI and UI Toolkit are separate input paths that never learn about each
+            // other's handled events (the same reason the mode row had to be lifted off the hand),
+            // so one tap ran BOTH: the log closed and the match was abandoned underneath it.
+            //
+            // Two changes, either of which would do and both of which are cheap: the panel starts
+            // below the shell's row, and CLOSE sits on the LEFT of the header where nothing else
+            // in this game has ever put a control.
+            float top = TopH + 4f + ShellBarH;
+            var panel = new Rect(w - panelW - 6f, top, panelW, h - top - HandH - ModeH - 8f);
 
             Panel(panel, PanelColor);
             HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
                                         panel.width * _scale, panel.height * _scale);
 
             float head = Row(_label);
-            GUI.Label(new Rect(panel.x + 8, panel.y + 4, panel.width - 62, head), "MATCH LOG", _label);
-            if (Btn(new Rect(panel.xMax - 52, panel.y + 4, 46, head), "CLOSE", _small))
+            if (Btn(new Rect(panel.x + 6, panel.y + 4, 50, head), "CLOSE", _small))
                 _logOpen = false;
+            GUI.Label(new Rect(panel.x + 62, panel.y + 4, panel.width - 70, head),
+                      "MATCH LOG", _label);
 
             // Every line is measured and WRAPPED. A log line is a sentence of unknown length -
             // "Mistling enters at FoeFront[3]" is already wider than this column on a phone - and
             // a fixed row height silently sliced the bottom off every one of them.
             var body = _wrap;
-            float top = panel.y + 8f + head;
-            var view = new Rect(panel.x + 6, top, panel.width - 12, panel.yMax - top - 6f);
+            float bodyTop = panel.y + 8f + head;
+            var view = new Rect(panel.x + 6, bodyTop, panel.width - 12, panel.yMax - bodyTop - 6f);
 
             float total = 4f;
             float lineW = view.width - 18f;
@@ -625,38 +791,29 @@ namespace SpawnRowDuel.View
             var hand = s.P(Seat.Local).Hand;
             bool myTurn = s.Turn == Seat.Local;
 
+            // A STANDING ATTACK gets a LINE OF ITS OWN, above everything else, and does not
+            // consume the row.
+            //
+            // It used to be one of the mutually exclusive branches below, which was survivable
+            // only while the rail could also resolve combat. It cannot any more, and
+            // EndTurnHandler refuses the turn while declarations stand - so every branch that
+            // outranked it (an armed play, a picked hand card) became a way to hold an attack you
+            // could neither swing nor drop on a turn you could not end. Its own line costs 26
+            // logical units of a corner the board is not using and removes the whole class.
+            //
+            // Driven by the ENGINE's declarations rather than by the view's aim. They are the same
+            // thing almost always, and the exception is the one that matters: a reconnect hands
+            // the match back with its combat intact and the aim gone.
+            if (myTurn && _match.AttackStanding)
+            {
+                DrawAttackRow(s, w, by - ModeH);
+            }
+
             // an armed play: guidance only
             if (_match.Pending != MatchController.Intent.None)
             {
                 GUI.Label(new Rect(0, by, w, 24),
                     "tap a lit cell to place — tap the card again to cancel", _center);
-                return;
-            }
-
-            // An aimed attack: who is in it, what it is on, and how to stop adding to it.
-            // A PICKED CARD still outranks it - declaring an attack must not take the summon
-            // button away from the hand, and the board tap that plays a card is checked before
-            // the one that joins an attack for the same reason.
-            if (myTurn && _selectedHandIndex < 0 && _match.Assault != null)
-            {
-                // The attacker's half of the exchange, spelled out: how many are in, what they
-                // are on, and the one button that ENDS the choosing. Nothing has been shown to
-                // the defender yet - the declarations are deferred, so ⚔ ATTACK is the moment
-                // they are first asked anything, and until then the group can still grow.
-                //
-                // A row that fits: laid out from a centred band rather than from fixed offsets
-                // either side of the middle, which ran off the left edge of a portrait phone.
-                float rowW = Mathf.Min(w - 16f, 500f);
-                float rx = (w - rowW) / 2f;
-
-                GUI.Label(new Rect(rx, by, rowW - 190f, 24),
-                    "⚔" + _match.AssaultSize + " on " + _match.AssaultLabel
-                    + " — tap more to join", _center);
-
-                if (Btn(new Rect(rx + rowW - 186f, by, 118f, 24), "⚔ ATTACK", _button))
-                    Confirm();
-                if (Btn(new Rect(rx + rowW - 64f, by, 64f, 24), "LATER", _button))
-                    _match.EndAssault();
                 return;
             }
 
@@ -700,6 +857,19 @@ namespace SpawnRowDuel.View
                     GUI.Label(new Rect(0, by, w, 24),
                         "tap one of your cards to store the ◆ there — or tap this one to cancel",
                         _center);
+                    return;
+                }
+
+                // A GROUP outranks every per-cell control below: those all act on one card, and
+                // with five selected the player is not asking about one card.
+                if (_input != null && _input.Group.Count > 1)
+                {
+                    float gw = Mathf.Min(w - 16f, 440f);
+                    float gx = (w - gw) / 2f;
+                    GUI.Label(new Rect(gx, by, gw - 40f, 24),
+                        "⚔" + _input.Group.Count + " selected — tap a target, or ⚔ WALL", _center);
+                    if (Btn(new Rect(gx + gw - 34f, by, 34f, 24), "✕", _button))
+                        _input.ClearSelectionFromUi();
                     return;
                 }
 
@@ -818,6 +988,58 @@ namespace SpawnRowDuel.View
         }
 
         /// <summary>
+        /// The attacker's half of the exchange, spelled out: how many are in, what they are on,
+        /// and the two buttons that END the choosing.
+        ///
+        /// The defender has not been ASKED anything yet - the declarations are deferred, so
+        /// ⚔ ATTACK is the moment they are first asked, and until then the group can still grow
+        /// and the whole thing can still be taken back. (In a duel they can SEE it forming: the
+        /// declaration crosses the wire immediately and the attackers lie down on their board too.
+        /// The tell is accepted; see WithdrawAttackCommand.)
+        ///
+        /// A row that fits: laid out from a centred band rather than from fixed offsets either
+        /// side of the middle, which ran off the left edge of a portrait phone.
+        ///
+        /// Its own method, on its own line, because it is drawn from TWO places and must never be
+        /// crowded out of either. It is the only way to confirm or cancel an attack now, and
+        /// EndTurnHandler refuses the turn while declarations stand - so anything that took this
+        /// row off the screen would leave a player holding an attack they can neither swing nor
+        /// drop, on a turn they cannot end. The HUD's fault path draws it for the same reason.
+        /// </summary>
+        void DrawAttackRow(GameState s, float w, float by)
+        {
+            float rowW = Mathf.Min(w - 16f, 520f);
+            float rx = (w - rowW) / 2f;
+
+            GUI.Label(new Rect(rx, by, rowW - 216f, 24),
+                "⚔" + _match.AssaultSize + " on " + _match.StandingAttackLabel
+                + (_match.Assault != null ? " — tap more to join" : ""), _center);
+
+            // GREYED while a choice is parked, the way the rail already is. The engine refuses
+            // every command but the answer to a parked request (CommandProcessor: ChoicePending),
+            // so a lit button there is a button that fails - and a player whose taps stop working
+            // reports that the game froze, which is the same complaint the rail's own guard and
+            // its "waiting on foe" label exist to answer.
+            GUI.enabled = s.Pending == null;
+
+            if (Btn(new Rect(rx + rowW - 212f, by, 118f, 24), "⚔ ATTACK", _button))
+                Confirm();
+
+            // CANCEL, not LATER. It used to mean "stop talking about it": the declarations stood,
+            // the attackers stayed spent for the turn, and the only way to spend them on anything
+            // was to attack after all. It takes the attack back now, and the creatures stand up
+            // again. A refusal is SAID - a defender who has already committed a blocker is the one
+            // case that can refuse, and a button that silently does nothing reads as broken.
+            if (Btn(new Rect(rx + rowW - 90f, by, 90f, 24), "✕ CANCEL", _button))
+            {
+                var no = _match.WithdrawAssault();
+                if (no != Rejection.None) Hint(MatchController.Hint(no));
+            }
+
+            GUI.enabled = true;
+        }
+
+        /// <summary>
         /// The turn controls, hugging the RIGHT EDGE at mid-height - `#boardBtns` in the reference
         /// stylesheet, which calls it the Master Duel coin position.
         ///
@@ -836,7 +1058,6 @@ namespace SpawnRowDuel.View
             float x = w - railW - 6f;
 
             bool mine = s.Turn == Seat.Local;
-            bool resolving = s.Phase == TurnPhase.Action && s.Combat.HasDeclarations;
             bool acting = mine && s.Phase != TurnPhase.End;
 
             // measure first, so the rail can be centred vertically and its blocker rect published
@@ -876,6 +1097,13 @@ namespace SpawnRowDuel.View
                               "waiting on foe " + Mathf.FloorToInt(held) + "s", wait);
                 }
             }
+            else if (AwaitingBlockers)
+            {
+                _pendingSince = 0f;
+                var howto = new GUIStyle(_tiny) { wordWrap = true };
+                howto.normal.textColor = Gold;
+                GUI.Label(new Rect(x + 4, y, railW - 8, 30), "drag across your defenders", howto);
+            }
             else _pendingSince = 0f;
 
             float footY = rail.yMax - 22f;
@@ -897,9 +1125,20 @@ namespace SpawnRowDuel.View
 
             if (!acting) { _buildMenuOpen = false; return; }
 
+            // THE RAIL DOES NOT ATTACK.
+            //
+            // It used to: with declarations standing, this button became "⚔ N" and resolved the
+            // combat. So the same corner of the screen that says "end my turn" also said "swing",
+            // the count that meant "N creatures are committed" looked like part of the phase
+            // track it sits under, and the attack could be confirmed from two places at once while
+            // it could be called off from only one. Confirming and cancelling an attack are the
+            // same decision and they belong together, under the board, next to the creatures the
+            // decision is about (DrawModeRow).
+            //
+            // END TURN still refuses while an attack stands - EndTurnHandler answers
+            // DeclarationsPending - and the hint for that rejection points back down at the row.
             string caption = s.Phase == TurnPhase.Upkeep ? "HARVEST"
                 : s.Phase == TurnPhase.Draw ? "DRAW"
-                : resolving ? "⚔ " + s.Combat.Declarations.Count
                 : "END TURN";
 
             GUI.enabled = s.Pending == null;
@@ -910,7 +1149,6 @@ namespace SpawnRowDuel.View
                 _match.CancelPending();
                 Try(s.Phase == TurnPhase.Upkeep ? new HarvestCommand(Seat.Local)
                     : s.Phase == TurnPhase.Draw ? (ICommand)new DrawForTurnCommand(Seat.Local)
-                    : resolving ? new ResolveCombatCommand(Seat.Local)
                     : new EndTurnCommand(Seat.Local));
             }
             GUI.enabled = true;
@@ -960,7 +1198,7 @@ namespace SpawnRowDuel.View
             const float rowH = 26f;
             const float pw = 280f;
             float contentH = list.Count * rowH;
-            float regionTop = TopH + 6;
+            float regionTop = TopH + 6 + ShellBarH;
             float regionBottom = h - BottomH - 6;
             float ph = Mathf.Min(contentH + 12, regionBottom - regionTop);
             float py = regionTop + (regionBottom - regionTop - ph) / 2f;
@@ -1024,7 +1262,7 @@ namespace SpawnRowDuel.View
 
             const float pw = 300f, rowH = 28f;
             float ph = 152f;
-            float regionTop = TopH + 6;
+            float regionTop = TopH + 6 + ShellBarH;
             float regionBottom = h - BottomH - 6;
             ph = Mathf.Min(ph, regionBottom - regionTop);
             var panel = new Rect(w / 2f - pw / 2f, regionBottom - ph, pw, ph);
@@ -1099,7 +1337,7 @@ namespace SpawnRowDuel.View
 
             const float rowH = 28f, pw = 300f;
             float ph = targets.Count * rowH + 34;
-            float regionTop = TopH + 6;
+            float regionTop = TopH + 6 + ShellBarH;
             float regionBottom = h - BottomH - 6;
             ph = Mathf.Min(ph, regionBottom - regionTop);
             var panel = new Rect(w / 2f - pw / 2f, regionBottom - ph, pw, ph);
@@ -1169,14 +1407,9 @@ namespace SpawnRowDuel.View
         /// </summary>
         void DrawChoicePanel(GameState s, float w, float h)
         {
+            SyncChoice();
             var pending = s.Pending;
             if (pending == null || pending.Responder != Seat.Local) return;
-
-            if (!ReferenceEquals(pending, _seenPending))
-            {
-                _seenPending = pending;
-                _chosenBlockers.Clear();
-            }
 
             const float rowH = 26f;
             const float pw = 300f;
@@ -1226,7 +1459,7 @@ namespace SpawnRowDuel.View
 
             int extraRows = blocker != null ? 2 : 1;           // commit/pass rows
             float contentH = (options.Length + extraRows) * rowH + 48;
-            float regionTop = TopH + 6;
+            float regionTop = TopH + 6 + ShellBarH;
             float regionBottom = h - BottomH - 6;
             float ph = Mathf.Min(contentH, regionBottom - regionTop);
             float py = regionTop + (regionBottom - regionTop - ph) / 2f;
@@ -1296,7 +1529,7 @@ namespace SpawnRowDuel.View
                     ? " — " + UnitLabel(s, req.Subject.UnitId) + " defends" : "");
 
             float contentH = req.ArmedTraps.Length * (rowH + 20) + rowH + 46;
-            float regionTop = TopH + 6;
+            float regionTop = TopH + 6 + ShellBarH;
             float regionBottom = h - BottomH - 6;
             float ph = Mathf.Min(contentH, regionBottom - regionTop);
             float py = regionTop + (regionBottom - regionTop - ph) / 2f;
@@ -1441,8 +1674,16 @@ namespace SpawnRowDuel.View
         /// <summary>An attack declared from a BUTTON rather than from a board tap. It goes through
         /// the controller's one declaration funnel, so the wall and the worker stacks open an
         /// attack group exactly as tapping a unit does.</summary>
+        /// <summary>
+        /// Every attack declared from a BUTTON goes through here - ⚔ WALL and the three worker
+        /// stacks. Asking the input layer for a group first is what makes those group attacks
+        /// too, without either button knowing that groups exist; and the wall is where the
+        /// playtest says matches are actually won.
+        /// </summary>
         void Declare(CellRef from, AttackTarget target, string label)
         {
+            if (_input != null && _input.DeclareGroupOrSingle(target, label)) return;
+
             var why = _match.Declare(from, target, label);
             if (why != Rejection.None) Hint(MatchController.Hint(why));
         }

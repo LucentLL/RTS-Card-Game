@@ -126,6 +126,54 @@ namespace SpawnRowDuel.Rules
     }
 
     /// <summary>
+    /// Stand the whole assault down. The mirror of DeclareAttackHandler: every declaration goes,
+    /// and every attacker one of them tapped is untapped.
+    ///
+    /// It is exact rather than approximate. Validate refuses an attacker whose Tapped flag is not
+    /// this handler's to clear, so the ONLY thing untapped here is a creature this turn's
+    /// declarations tapped - a creature that spent its second move (MoveUnitHandler taps that one
+    /// too) could never have declared in the first place, and one that had already blocked is not
+    /// in this list at all.
+    /// </summary>
+    public sealed class WithdrawAttackHandler : ICommandHandler
+    {
+        public Rejection Validate(GameState s, ICommand cmd, ICardCatalog cat)
+        {
+            if (s.Turn != cmd.Actor) return Rejection.NotYourTurn;
+            if (s.Phase != TurnPhase.Action) return Rejection.WrongPhase;
+            if (!s.Combat.HasDeclarations) return Rejection.NothingDeclared;
+            if (s.Combat.Resolving) return Rejection.ChoicePending;
+
+            // Once the defender has spent a blocker on one of these, the attack has been answered
+            // and taking it back would un-ask a question they have already paid for.
+            var decls = s.Combat.Declarations;
+            for (int i = 0; i < decls.Count; i++)
+                if (decls[i].Blockers.Count > 0) return Rejection.BlockersCommitted;
+
+            return Rejection.None;
+        }
+
+        public void Execute(GameState s, ICommand cmd, ICardCatalog cat, EventSink ev)
+        {
+            var decls = s.Combat.Declarations;
+            for (int i = 0; i < decls.Count; i++)
+            {
+                bool onBoard;
+                var a = s.FindById(decls[i].AttackerUnitId, out _, out onBoard) as CreatureUnit;
+
+                // by ID, and only if it is still standing on the board: an attacker that has been
+                // bounced or destroyed since it declared has no Tapped flag left to clear, and the
+                // cell it declared from may hold somebody else by now (the s17 risk-2 rule).
+                if (a != null && onBoard && a.Owner == cmd.Actor) a.Tapped = false;
+            }
+
+            int n = decls.Count;
+            s.Combat.Clear();
+            ev.Add(new AttackWithdrawn(cmd.Actor, n));
+        }
+    }
+
+    /// <summary>
     /// The one door through a parked choice. The response SHAPE is validated against the
     /// outstanding request, and blocker refs are re-validated by id against a FRESHLY
     /// recomputed eligibility list - what a host must do against a malicious guest.

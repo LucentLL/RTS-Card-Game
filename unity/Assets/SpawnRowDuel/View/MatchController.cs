@@ -420,6 +420,28 @@ namespace SpawnRowDuel.View
             return true;
         }
 
+        /// <summary>
+        /// May this cell's creature declare an attack RIGHT NOW?
+        ///
+        /// DeclareAttackHandler's attacker ladder (CombatHandlers.cs), lifted so the view can ask
+        /// the same question of many cells at once without building a command per cell. It is the
+        /// membership test for a drag-selection: a gesture must never pick up a creature the
+        /// engine would refuse, or the group silently loses members at declare time.
+        ///
+        /// Deliberately attacker-side ONLY. There is no reach or column gate in Validate, so a
+        /// creature that passes this may attack anything the anchor may - which is what lets a
+        /// group share one target set instead of intersecting N of them.
+        /// </summary>
+        public static bool IsReadyAttacker(GameState s, CellRef cell)
+        {
+            if (s == null) return false;
+            if (s.Turn != Seat.Local || s.Phase != TurnPhase.Action) return false;
+
+            var c = s.At(cell) as CreatureUnit;
+            return c != null && c.Owner == Seat.Local
+                && !c.IsWorker && !c.Sick && !c.Tapped && c.Hp > 0;
+        }
+
         /// <summary>Enemy cells this creature may legally declare an attack on right now.</summary>
         public List<CellRef> LegalAttacksFor(CellRef from)
         {
@@ -451,9 +473,9 @@ namespace SpawnRowDuel.View
         /// one of your ready creatures JOINS it.
         ///
         /// It is live only as long as the declarations it belongs to: a resolved combat, the end
-        /// of your action phase, or DONE on the mode row clears it. So a tap on your own creature
-        /// means "select" again the moment the attack is over, and can never quietly become a
-        /// declaration on some later turn.
+        /// of your action phase, or ✕ CANCEL under the board clears it. So a tap on your own
+        /// creature means "select" again the moment the attack is over, and can never quietly
+        /// become a declaration on some later turn.
         /// </summary>
         public AttackTarget Assault { get; private set; }
 
@@ -507,7 +529,11 @@ namespace SpawnRowDuel.View
         ///     defender: pick the blockers, COMMIT - once per declaration
         ///     then the pairing choices alternate, attacker, defender, until nothing is unassigned
         ///
-        /// <see cref="ConfirmAssault"/> is the confirm. Nothing reaches the other seat until it.
+        /// <see cref="ConfirmAssault"/> is the confirm, and no CHOICE is put to the other seat
+        /// before it. (Each declaration itself does cross the wire as it is made - lockstep sends
+        /// every command as it applies it - so a duelling defender watches the assault form. They
+        /// are not asked to answer it, and until the confirm <see cref="WithdrawAssault"/> can
+        /// still take the whole thing back.)
         /// </summary>
         public Rejection Declare(CellRef from, AttackTarget target, string label)
         {
@@ -576,7 +602,9 @@ namespace SpawnRowDuel.View
             return Declare(from, Assault, AssaultLabel);
         }
 
-        /// <summary>Stand down: the declarations stand, the board goes back to selecting.</summary>
+        /// <summary>Forget the AIM. The declarations themselves are untouched - this is the view
+        /// letting go of an assault the engine has already resolved or expired, never a cancel.
+        /// <see cref="WithdrawAssault"/> is the cancel.</summary>
         public void EndAssault()
         {
             if (Assault == null) return;
@@ -584,6 +612,90 @@ namespace SpawnRowDuel.View
             AssaultCell = null;
             AssaultLabel = null;
             Touch();
+        }
+
+        /// <summary>
+        /// CANCEL: take the whole assault back, and stand its attackers up again.
+        ///
+        /// Aiming used to be one-way. Tapping a target DECLARED, and a declaration taps the
+        /// attacker - so a misaimed group, or simply a change of mind, cost those creatures their
+        /// whole turn with no way back, and the button that looked like the way out ("LATER") only
+        /// stopped the view from talking about an attack that was still standing in the engine.
+        /// The engine has a real retract now (WithdrawAttackCommand); this is its one caller.
+        /// </summary>
+        public Rejection WithdrawAssault()
+        {
+            if (Engine == null) return Rejection.NothingDeclared;
+            if (!Engine.State.Combat.HasDeclarations) { EndAssault(); return Rejection.None; }
+
+            var why = TryHuman(new WithdrawAttackCommand(Seat.Local));
+            if (why != Rejection.None) return why;
+
+            EndAssault();
+            return Rejection.None;
+        }
+
+        /// <summary>
+        /// Is there an attack of yours standing on the board right now, waiting to be confirmed?
+        ///
+        /// The ENGINE's answer, not the view's. <see cref="Assault"/> is the aim - what a further
+        /// tap would join - and it is dropped in places the declarations survive: a reconnect
+        /// hands the match back with its combat intact and the aim gone. The row under the board
+        /// is the only way to confirm or cancel now, so it has to appear for the declarations
+        /// rather than for the aim, or a reconnect mid-assault would strand them.
+        /// </summary>
+        public bool AttackStanding
+        {
+            get
+            {
+                if (Engine == null) return false;
+                var s = Engine.State;
+                return s.Combat.HasDeclarations && !s.Combat.Resolving
+                    && s.Turn == Seat.Local && s.Phase == TurnPhase.Action;
+            }
+        }
+
+        /// <summary>
+        /// What the standing attack is aimed at, in words.
+        ///
+        /// Read off the DECLARATIONS, not off <see cref="AssaultLabel"/>, and only when they agree.
+        /// Nothing stops declarations with different targets coexisting - DeclareAttackHandler
+        /// simply appends, and after a reconnect a fresh declaration lands beside the ones that
+        /// survived - and the aim's label names only the newest of them. "⚔3 on Brinekin" for an
+        /// attack where one of the three is on Brinekin is a lie the player would resolve on.
+        /// </summary>
+        public string StandingAttackLabel
+        {
+            get
+            {
+                if (Engine == null || !Engine.State.Combat.HasDeclarations)
+                    return AssaultLabel ?? "their line";
+
+                var s = Engine.State;
+                var decls = s.Combat.Declarations;
+                var d = decls[0];
+                for (int i = 1; i < decls.Count; i++)
+                    if (!SameTarget(d, decls[i])) return "several targets";
+
+                if (d.Kind == DeclarationKind.Wall) return "the wall";
+                if (d.Kind == DeclarationKind.WorkerStack)
+                    return "their " + (d.TargetZone == WorkerZone.Back ? "back"
+                                     : d.TargetZone == WorkerZone.Front ? "front" : "centre")
+                         + " workers";
+
+                CellRef at;
+                bool onBoard;
+                var t = s.FindById(d.TargetUnitId, out at, out onBoard);
+                return t != null ? NameOf(t) : "their line";
+            }
+        }
+
+        static bool SameTarget(AttackDeclaration a, AttackDeclaration b)
+        {
+            if (a.Kind != b.Kind) return false;
+            if (a.Kind == DeclarationKind.Unit) return a.TargetUnitId == b.TargetUnitId;
+            if (a.Kind == DeclarationKind.Wall) return a.TargetSide == b.TargetSide;
+            return a.TargetSide == b.TargetSide && a.TargetZone == b.TargetZone;
         }
 
         // The old SettleDefenderChoice lived here: a pump that made the AI answer the
@@ -594,6 +706,10 @@ namespace SpawnRowDuel.View
         // where the theatre can pace them.
 
         /// <summary>What to call a thing that has just been attacked.</summary>
+        /// <summary>What to call a thing that has just been attacked. Public because the group
+        /// declare in BoardInput labels its assault the same way a single one does.</summary>
+        public static string NameOfObject(BoardObject o) { return NameOf(o); }
+
         static string NameOf(BoardObject o)
         {
             var c = o as CreatureUnit;
@@ -745,8 +861,11 @@ namespace SpawnRowDuel.View
                 case Rejection.RowLacksWorkers: return "That row has no workers to spare";
                 case Rejection.MoveAlreadySpent: return "Its move is spent";
                 case Rejection.ChargeUnderfunded: return "Pour more ◆ before flipping";
-                case Rejection.DeclarationsPending: return "Confirm the attack first — ⚔ ATTACK";
+                case Rejection.DeclarationsPending:
+                    return "Confirm the attack below — ⚔ ATTACK, or ✕ CANCEL it";
                 case Rejection.NothingDeclared: return "Nothing has been declared";
+                case Rejection.BlockersCommitted:
+                    return "Too late to call it off — the defenders are already in";
                 case Rejection.ChoicePending: return "Waiting on a choice";
                 default: return why.ToString();
             }
@@ -1023,6 +1142,13 @@ namespace SpawnRowDuel.View
 
             var declared = ev as AttackDeclared;
             if (declared != null) return "⚔ " + NameOf(declared.AttackerId) + " declares an attack";
+
+            var withdrawn = ev as AttackWithdrawn;
+            if (withdrawn != null)
+                return (withdrawn.Attacker == Seat.Local ? "You call off " : "They call off ")
+                     + (withdrawn.DeclarationCount == 1 ? "the attack"
+                                                        : "the attack — " + withdrawn.DeclarationCount
+                                                          + " stand down");
 
             var blocks = ev as BlockersAssigned;
             if (blocks != null)

@@ -277,6 +277,14 @@ namespace SpawnRowDuel.Rules.Tests
                            Str("target", TargetOf(declare.Target)),
                            Str("defer", declare.DeferBlockers ? "1" : "0"));
 
+            // The JS has no retract, so a trace containing one cannot be replayed against it -
+            // which is exactly why it is spelled rather than left to fall through to UNKNOWN. A
+            // named op halts `replay.mjs` at that ply with a reason; UNKNOWN would look like a
+            // silent coverage hole. Nothing emits it into a trace today (FuzzPolicy does not offer
+            // it and ScriptedAiPolicy never withdraws), so no golden carries one.
+            var withdraw = cmd as WithdrawAttackCommand;
+            if (withdraw != null) return Obj("withdraw", a);
+
             var respond = cmd as RespondCommand;
             if (respond != null) return Obj("respond", a, Str("answer", AnswerOf(respond.Response)));
 

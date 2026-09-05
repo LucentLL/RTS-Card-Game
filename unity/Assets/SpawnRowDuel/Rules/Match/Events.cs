@@ -203,6 +203,16 @@ namespace SpawnRowDuel.Rules
         { AttackerId = attackerId; Target = target; DeclarationIndex = declarationIndex; }
     }
 
+    /// <summary>The assault was taken back before it was confirmed - nothing was struck and every
+    /// attacker stood up again.</summary>
+    public sealed class AttackWithdrawn : GameEvent
+    {
+        public readonly Side Attacker;
+        public readonly int DeclarationCount;
+        public AttackWithdrawn(Side attacker, int declarationCount)
+        { Attacker = attacker; DeclarationCount = declarationCount; }
+    }
+
     public sealed class BlockersAssigned : GameEvent
     {
         public readonly int DeclarationIndex;

@@ -14,7 +14,10 @@ namespace SpawnRowDuel.Net
         /// It leads every framed message OUTSIDE the sealed blob, so a peer from a future build
         /// can be named in an error rather than looking like noise - but it is also folded into
         /// the AEAD's associated data, so it cannot be forged.
-        public const byte Version = 1;
+        /// <remarks>2: WithdrawAttack joined the command set (tag 17). A build that has never
+        /// heard of the tag would meet it as a WireFormatException mid-match instead of as a
+        /// refusal in the lobby, which is exactly what this constant exists to prevent.</remarks>
+        public const byte Version = 2;
     }
 
     public enum NetMessageKind : byte

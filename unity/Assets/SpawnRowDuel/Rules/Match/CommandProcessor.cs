@@ -100,6 +100,7 @@ namespace SpawnRowDuel.Rules
             // M8 - combat v3
             p.Register(typeof(DeclareAttackCommand), new DeclareAttackHandler());
             p.Register(typeof(ResolveCombatCommand), new ResolveCombatHandler());
+            p.Register(typeof(WithdrawAttackCommand), new WithdrawAttackHandler());
             p.Register(typeof(RespondCommand), new RespondHandler());
 
             return p;
