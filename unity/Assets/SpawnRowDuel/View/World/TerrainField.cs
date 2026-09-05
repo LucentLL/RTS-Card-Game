@@ -298,9 +298,17 @@ namespace SpawnRowDuel.View.World
             // lawn: every blade over the playing surface cut to a third of its height, in a
             // rectangle, in the middle of a meadow. The one field runs straight under the board
             // now and the only thing that flattens it is a card lying on it.
-            if (_match == null || _match.Board == null || _pressLevel == null) return;
-
-            for (int i = 0; i < _pressLevel.Length; i++)
+            //
+            // THE UPLOAD IS UNCONDITIONAL. It used to return here when there was no match, having
+            // cleared the CPU array and left the GPU texture alone - and a freshly created
+            // Texture2D holds UNINITIALISED memory, so with no match the shader was reading
+            // garbage out of G. G is the flag that says "a card is lying on this cell", read at
+            // each cell centre and drawn from _CellPitch, so garbage in it stamps a card-shaped
+            // impression on cell after cell, to the horizon, over hills no board has ever been
+            // near. That is the lattice of tiles on the title screen: not a pattern anybody drew,
+            // just whatever was in that memory.
+            bool playing = _match != null && _match.Board != null && _pressLevel != null;
+            for (int i = 0; playing && i < _pressLevel.Length; i++)
             {
                 float level = _pressLevel[i];
                 if (level <= 0.004f) continue;

@@ -84,6 +84,13 @@ namespace SpawnRowDuel.View.Shell
         Vector2Int _builtAt;
         float _biomeAt;
         int _biomeIndex;
+        bool _swapped;
+        VisualElement _scrim;
+
+        /// <summary>How dark the title screen's wash sits when it is not mid-change. Barely: the
+        /// text carries its own outline, the buttons carry their own panel, and the point of
+        /// putting a battlefield back there was to be able to see it.</summary>
+        const float ScrimBase = 0.16f;
 
         void Update()
         {
@@ -156,37 +163,63 @@ namespace SpawnRowDuel.View.Shell
             v.style.unityTextOutlineColor = new Color(0f, 0f, 0f, 0.85f);
         }
 
-        void Backdrop() { Backdrop(1f); }
+        void Backdrop() { _scrim = null; Backdrop(1f); }
 
         /// <summary>The wash the shell screens sit on. Opaque everywhere except the title screen,
-        /// which is a SCRIM over the live battlefield - dark enough to read gold text against,
-        /// thin enough that the ground still moves behind it.</summary>
-        void Backdrop(float alpha)
+        /// which is a SCRIM over the live battlefield - thin enough to see the ground through,
+        /// and the thing that closes to black while the field is changed under it.</summary>
+        VisualElement Backdrop(float alpha)
         {
             var bg = new VisualElement();
             UiKit.Fill(bg);
-            bg.style.backgroundColor = new Color(0.035f, 0.04f, 0.06f, alpha);
+            bg.style.backgroundColor = new Color(0.02f, 0.022f, 0.03f, alpha);
             _root.Add(bg);
+            return bg;
         }
 
         /// <summary>
-        /// Walk the battlefields behind the title, one every few seconds.
+        /// Walk the battlefields behind the title.
         ///
         /// The user's own idea, and it answers "too blank" better than any amount of chrome would:
-        /// the menu's backdrop becomes the thing the game is about. It uses the SAME roll list a
-        /// duel draws from (MatchController.Battlefields), so what scrolls past the title is
-        /// exactly what a match can put you on.
+        /// the menu's backdrop becomes the thing the game is about.
         ///
-        /// Slow on purpose. Applying a biome rebuilds the ground, the blades, the scatter and the
-        /// settle sheet, so this is a several-second dissolve rather than a slideshow.
+        /// EVERY field, not the duel's roll list. A match skips Shore and Deep Water because half
+        /// their board spends the game under water - which is a rule about playing on them, not
+        /// about looking at them, and they are the two best-looking fields in the set.
+        ///
+        /// The change is a DIP, not a cut. Applying a biome rebuilds the ground, the blades, the
+        /// scatter and the settle sheet in one frame, so the swap can only ever be instant; what
+        /// can be gradual is the light on it. The scrim closes to black over a second, the field
+        /// changes while nothing can be seen, and it opens again over two. Long dwell between -
+        /// this is a backdrop, and a backdrop that changes while you are reading the menu is a
+        /// distraction rather than a view.
         /// </summary>
+        const float Dwell = 17f, FadeOut = 1.0f, FadeIn = 2.0f;
+
         void CycleBattlefield()
         {
-            const float Dwell = 9f;
-            if (Time.unscaledTime < _biomeAt + Dwell) return;
-            _biomeAt = Time.unscaledTime;
+            if (_scrim == null) return;
 
-            var fields = MatchController.Battlefields;
+            float since = Time.unscaledTime - _biomeAt;
+            float a;
+
+            if (since < Dwell) a = 0f;                                  // settled: show the field
+            else if (since < Dwell + FadeOut) a = (since - Dwell) / FadeOut;
+            else if (since < Dwell + FadeOut + FadeIn)
+            {
+                if (!_swapped) { NextBattlefield(); _swapped = true; }  // at full black
+                a = 1f - (since - Dwell - FadeOut) / FadeIn;
+            }
+            else { _biomeAt = Time.unscaledTime; _swapped = false; a = 0f; }
+
+            float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(a));
+            _scrim.style.backgroundColor = new Color(0.02f, 0.022f, 0.03f,
+                                                     Mathf.Lerp(ScrimBase, 1f, k));
+        }
+
+        void NextBattlefield()
+        {
+            var fields = World.Biomes.All;
             if (fields == null || fields.Length == 0) return;
             _biomeIndex = (_biomeIndex + 1) % fields.Length;
             World.TerrainField.Requested = fields[_biomeIndex];
@@ -196,7 +229,9 @@ namespace SpawnRowDuel.View.Shell
 
         void BuildMainMenu()
         {
-            Backdrop(0.62f);
+            _scrim = Backdrop(ScrimBase);
+            _biomeAt = Time.unscaledTime;
+            _swapped = false;
 
             var col = UiKit.Box(_root);
             UiKit.Fill(col);
@@ -222,8 +257,11 @@ namespace SpawnRowDuel.View.Shell
             // The words now sit on GROUND, not on a flat wash, and the ground changes colour every
             // few seconds - so they carry their own contrast rather than borrowing it from the
             // backdrop. Dim grey on sand was almost gone.
-            Outline(head, 0.22f);
-            Outline(tag, 0.30f);
+            // 0.10 and 0.12, not 0.22 and 0.30. The width is a fraction of the glyph's own
+            // weight, so what read as "a bit bolder" on the 60px title CLOSED UP the 16px
+            // subtitle and swallowed it whole. CardFace's range (0.08-0.12) is the honest one.
+            Outline(head, 0.10f);
+            Outline(tag, 0.12f);
 
             var menu = UiKit.Box(col);
             menu.style.width = menuW;
