@@ -118,8 +118,16 @@ namespace SpawnRowDuel.View
         /// Static, like the figures toggle and the biome: every cell reads it and threading it
         /// through would buy nothing. It is a PRESENTATION choice and never a rule - the cells,
         /// their colliders and every legality probe are identical in all five modes.
+        ///
+        /// OFF by default. The wash was the loudest thing on the screen and it is telling the
+        /// player something they can read off the board anyway: their own cards face them, the
+        /// figures are tinted by owner, and the walls at each edge carry the two life pools. A
+        /// painted grid over a field is a board game drawn on grass, and the point of the terrain
+        /// is that it is ground. Nothing is lost that a player needs, because a LIT cell still
+        /// lights in every mode - Paint re-enables the renderer it paints - and the lit cells are
+        /// the engine's own answer to "where may this go".
         /// </summary>
-        public static BoardOverlay Overlay = BoardOverlay.Colour;
+        public static BoardOverlay Overlay = BoardOverlay.Off;
 
         public static string OverlayName(BoardOverlay o)
         {

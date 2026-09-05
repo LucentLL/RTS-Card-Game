@@ -175,6 +175,11 @@ namespace SpawnRowDuel.View.World
         bool[] _cellStands, _cellIsStruct;
 
         // how crushed each square is, 1 under a card and easing back to 0 once it leaves
+        /// <summary>Which duel the press and settle fields belong to. Nothing here is scenery: a
+        /// dent is a card that was lying on that square, and it belongs to the match that put it
+        /// there.</summary>
+        int _seenMatch = -1;
+
         float[] _pressLevel;
         float _pressAt;
         bool _pressDirty = true;
@@ -215,6 +220,25 @@ namespace SpawnRowDuel.View.World
         void LateUpdate()
         {
             if (!_built.HasValue || _built.Value != Requested) Apply(Requested);
+
+            // A DIFFERENT DUEL GETS CLEAN GROUND.
+            //
+            // Both fields here are per-match and neither was ever cleared between two. The press
+            // field is the visible one: StepPress pins a cell to 1 while _cellNow says something is
+            // standing on it, and _cellNow is only refreshed by SyncOccupancy, which needs a LIVE
+            // engine - so the moment a match ends the occupancy freezes and the dents stop even
+            // fading. A new duel then began with the last one's cards pressed into the field, and
+            // the main menu - which stands on this terrain on purpose - showed the board of the
+            // match the player had just walked away from.
+            //
+            // The settled layer is the quiet one: ResetSettle is reached only from the biome-apply
+            // chain, and a rematch on the same arena never changes biome, so a second duel on the
+            // same ground opened with the first one's snow already lying on it.
+            if (_match != null && _seenMatch != _match.MatchSerial)
+            {
+                _seenMatch = _match.MatchSerial;
+                ForgetTheLastMatch();
+            }
 
             // The press field only changes when the BOARD does - a few times a turn - so it is
             // repainted off the controller's version stamp rather than every frame.
@@ -947,6 +971,33 @@ namespace SpawnRowDuel.View.World
             _settleDirty = true;
             _settleTex.SetPixels32(_settlePixels);
             _settleTex.Apply(false);
+        }
+
+        /// <summary>
+        /// Wipe everything this field remembers about a duel: what was pressed into it, what had
+        /// settled on it, and what was blowing across it.
+        ///
+        /// Repainted IMMEDIATELY rather than left to the 0.2 s clock, because the frame this runs
+        /// on is usually the frame the player is looking at a fresh board - or at the menu, whose
+        /// whole point is that it stands on a battlefield rather than in front of one.
+        /// </summary>
+        void ForgetTheLastMatch()
+        {
+            if (_pressLevel != null) System.Array.Clear(_pressLevel, 0, _pressLevel.Length);
+            if (_cellNow != null) System.Array.Clear(_cellNow, 0, _cellNow.Length);
+            if (_cellStands != null) System.Array.Clear(_cellStands, 0, _cellStands.Length);
+            if (_cellIsStruct != null) System.Array.Clear(_cellIsStruct, 0, _cellIsStruct.Length);
+
+            ResetSettle();          // ...which also clears _cellOwner, _settleOwed and _settleTurn
+
+            // The gust ring is STATIC and shared, so a card landing in the last duel could still
+            // have a wave travelling outward in this one. Zeroed rather than aged out: a strength
+            // of zero is a gust nothing reads.
+            for (int i = 0; i < _gusts.Length; i++) _gusts[i] = default(GustPulse);
+
+            _seenVersion = -1;      // the next occupancy sync must not be skipped as "unchanged"
+            _pressDirty = false;
+            RepaintDisplacement();  // the settled field rides ResetSettle's own dirty flag
         }
 
         /// <summary>Clean ground: a new biome does not inherit the last one's weather.</summary>

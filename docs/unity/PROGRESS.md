@@ -100,6 +100,21 @@ And two that only show up when you LEAVE a duel:
   cut-in layer with it, while the 3D board and IMGUI carried on. It rebuilds now, and
   `PanelGeneration` tells `UnitVitals` and `CombatTheatre` their elements were thrown away.
 
+And the ground itself had been keeping the last duel (D57). `StepPress` pins a cell's dent to full
+while `_cellNow` says something stands there, and `_cellNow` is refreshed only by `SyncOccupancy`,
+which needs a live engine — so a match ending FROZE the occupancy and the impressions stopped even
+fading. The next duel opened with the previous one's cards pressed into the field, and the main
+menu, which stands on this terrain deliberately, showed the board the player had just left. (The
+grid and the cards were hidden all along with `BattleRoot`; it was the GROUND carrying the match.)
+The settled layer had the quiet version — `ResetSettle` is reached only when the biome changes, so a
+rematch on the same arena inherited its snow — and the static gust ring could still be blowing a
+wave from a card that landed in the last duel. All three clear on `MatchSerial`.
+
+The battlefield overlay now defaults to OFF (D58), asked for twice. It costs nothing load-bearing:
+`Paint` enables a cell's renderer unconditionally, so every LIT cell — legal moves, legal attacks,
+hover, selection, the assault target, the blocker highlight — still shows in every mode. Only the
+resting wash goes, and the five-step cycle in SETTINGS brings it back.
+
 `bash tools/run-unity-tests.sh` → total=363 passed=358 failed=0. `node tools/diffjs/replay.mjs`
 still diverges on all three goldens — that is the uncommitted `src/js/` balance work noted below,
 not this change: the harness replays a RECORDED C# trace against the living JS and never runs C#.
