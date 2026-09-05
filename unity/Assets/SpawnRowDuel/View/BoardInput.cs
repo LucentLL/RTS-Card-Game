@@ -154,7 +154,16 @@ namespace SpawnRowDuel.View
             // (or the log) would ALSO tap the board cell behind it, and a tap on the opaque
             // bands would raycast through an extrapolated ray. Taps and hover exist only inside
             // the camera viewport and outside the published HUD panels.
-            if (_match != null && !_match.MatchStarted) { UpdateHover(true); return; }
+            // NO MATCH, NO SELECTION. A cell picked in the duel you just walked away from would
+            // otherwise still be held here, and the next duel puts different cards on those
+            // squares - so the first thing the new board did was act on a choice made in the old
+            // one. Restoring the tile materials needs no engine, which is why it is safe here.
+            if (_match != null && !_match.MatchStarted)
+            {
+                if (_selected.HasValue || _group.Count > 0 || _highlighted.Count > 0) ClearSelection();
+                UpdateHover(true);
+                return;
+            }
 
             bool overUi = Cam == null
                 || !Cam.pixelRect.Contains((Vector2)Input.mousePosition)

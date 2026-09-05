@@ -53,6 +53,18 @@ namespace SpawnRowDuel.View.Cards
         /// <summary>The panel is built lazily; nothing may draw into it before this is true.</summary>
         public bool PanelReady { get { return _doc != null && BoardLayer != null; } }
 
+        /// <summary>
+        /// Bumped every time the tree behind <see cref="BoardLayer"/> and
+        /// <see cref="OverlayLayer"/> is rebuilt, so the surfaces that hang off them know their
+        /// elements have been thrown away.
+        ///
+        /// They are thrown away more often than "once at startup": GameShell deactivates the whole
+        /// board object whenever the screen is not a duel, a disabled UIDocument tears its root
+        /// down, and everything parented into it goes with it. A layer holding a reference to an
+        /// orphaned element looks perfectly alive and draws nothing at all.
+        /// </summary>
+        public int PanelGeneration { get; private set; }
+
         /// <summary>The two castle walls, their vitals, and the foe's hand - built into this
         /// panel, under the cards, because the cards are held in FRONT of your wall.</summary>
         readonly WallBands _walls = new WallBands();
@@ -346,28 +358,59 @@ namespace SpawnRowDuel.View.Cards
             _inspect.style.top = HudLayout.TopPx + 12f * px;
         }
 
+        /// <summary>
+        /// Build the panel - and REBUILD it, which is the half that was missing.
+        ///
+        /// This used to be `if (_doc != null) return;`, on the reasonable-sounding assumption that
+        /// a document is built once. It is not: GameShell switches the whole board object off
+        /// whenever the screen is not a duel (`BattleRoot.SetActive`), a disabled UIDocument tears
+        /// its `rootVisualElement` down, and every element built into it - the hand, both castle
+        /// walls with the life and mana on them, the board layer the unit vitals live in, the
+        /// overlay layer the battle cut-in needs - goes with it. Coming back from the menu to a
+        /// match therefore gave a board with no cards, no walls, no numbers and no cut-in, while
+        /// the 3D scene and the IMGUI rail carried on as if nothing had happened.
+        ///
+        /// `_row.panel` is the test. An element has a panel only while it is attached to a live
+        /// one, which is precisely the question being asked; a cached root reference can survive
+        /// the teardown that emptied it, and childCount cannot tell "not built yet" from "built
+        /// and cleared".
+        /// </summary>
         void EnsurePanel()
         {
-            if (_doc != null) return;
+            if (_doc != null && _row != null && _row.panel != null) return;
 
-            _palette = new ElementPalette(_match.Engine.Catalog);
-            _text = new CardTextService(_match.Engine.Catalog);
-            _art = new CardArtIndex(_match.Database);
-
-            // A Resources ASSET, not CreateInstance: a runtime-built PanelSettings finds its UI
-            // shaders by name, and the WebGL stripper deletes shaders nothing serialized points at.
-            _panel = Resources.Load<PanelSettings>(PanelResource);
-            if (_panel == null)
+            if (_palette == null)
             {
-                Debug.LogError("HudPanelSettings is missing - run tools/regen-fonts.sh");
-                enabled = false;
-                return;
+                _palette = new ElementPalette(_match.Engine.Catalog);
+                _text = new CardTextService(_match.Engine.Catalog);
+                _art = new CardArtIndex(_match.Database);
             }
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = _panel;
+            if (_doc == null)
+            {
+                // A Resources ASSET, not CreateInstance: a runtime-built PanelSettings finds its UI
+                // shaders by name, and the WebGL stripper deletes shaders nothing serialized points at.
+                _panel = Resources.Load<PanelSettings>(PanelResource);
+                if (_panel == null)
+                {
+                    Debug.LogError("HudPanelSettings is missing - run tools/regen-fonts.sh");
+                    enabled = false;
+                    return;
+                }
+
+                _doc = gameObject.AddComponent<UIDocument>();
+                _doc.panelSettings = _panel;
+            }
 
             var root = _doc.rootVisualElement;
+            if (root == null) return;               // not attached yet; try again next frame
+
+            // Whatever survived the teardown is not ours any more.
+            root.Clear();
+            _signature = "";                        // the memos that decide "nothing has changed"
+            _inspectKey = "";                       // would otherwise decline to draw it all again
+            PanelGeneration++;
+
             root.style.position = Position.Absolute;
             root.style.left = 0; root.style.right = 0; root.style.top = 0; root.style.bottom = 0;
             root.pickingMode = PickingMode.Ignore;

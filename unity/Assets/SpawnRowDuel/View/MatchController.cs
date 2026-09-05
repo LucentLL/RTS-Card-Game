@@ -139,6 +139,47 @@ namespace SpawnRowDuel.View
         }
 
         /// <summary>
+        /// PUT THE MATCH DOWN. There is no duel after this until somebody starts one.
+        ///
+        /// Nothing used to do this, and `MatchStarted` is simply `Engine != null` - so quitting a
+        /// duel left the whole match sitting in the controller, and "start a new duel" walked back
+        /// into it. The commander select is drawn only while no match exists (MatchHud.OnGUI), so
+        /// the select never appeared either: the player pressed Duel and was handed the board they
+        /// had just walked away from, mid-turn.
+        ///
+        /// Everything that is ABOUT a match goes with it, not just the engine. A stale aim, a
+        /// half-armed play, a confirm waiting on an answer or a log from the last duel are all
+        /// things the next one would inherit, and the AI driver holds a reference to the engine
+        /// that is going away.
+        /// </summary>
+        public void EndMatch(string why = "left the match")
+        {
+            if (Net != null)
+            {
+                Net.Leave(why);                // the other player is owed the news
+                Net = null;
+            }
+
+            Engine = null;
+            _ai = null;
+            _aiFaulted = false;
+
+            Pending = Intent.None;
+            PendingBuild = null;
+            SendFrom = null;
+            LegalCells.Clear();
+
+            Assault = null;
+            AssaultCell = null;
+            AssaultLabel = null;
+            Asking = null;
+
+            HoldUntil = 0f;                    // static: a presentation hold outlives nothing
+            _log.Clear();
+            Touch();                           // every painter re-reads and finds nothing to draw
+        }
+
+        /// <summary>
         /// Where this battle is fought. Every match was a meadow, because Grass is the static
         /// default and nothing ever changed it outside the settings menu.
         ///

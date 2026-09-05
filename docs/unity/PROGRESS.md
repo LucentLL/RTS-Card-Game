@@ -84,6 +84,22 @@ Three more off the same build, all presentation:
   top edge to make room. The creature's RACE, the one line that was not redundant, moved onto the
   lozenge. Checked by rendering the sheet before and after with `tools/view-probe.sh`.
 
+And two that only show up when you LEAVE a duel:
+
+* **Quitting a duel did not end it** (D55). `MatchStarted` is `Engine != null` and nothing ever
+  wrote null back, so the match sat in the controller and "start a new duel" walked straight back
+  into it — mid-turn, pieces where they were. The commander select is only drawn while no match
+  exists, so the player never got the chance to pick. `MatchController.EndMatch` puts the whole
+  thing down (engine, AI driver, aim, armed play, parked confirm, log, and the net session, whose
+  peer is told), called from `GameShell.Show` when the screen CHANGES to anything but `Battle` —
+  the change test matters, because `Show(Screen)` re-runs on every resize and a skirmish keeps the
+  screen at `Skirmish` while it is played.
+* **Coming back gave a match with no UI on it** (D56). `HandBar.EnsurePanel` built its UIDocument
+  once; the shell switches the board object off whenever the screen is not a duel, and a disabled
+  UIDocument tears its root down — taking the hand, both castle walls, the vitals layer and the
+  cut-in layer with it, while the 3D board and IMGUI carried on. It rebuilds now, and
+  `PanelGeneration` tells `UnitVitals` and `CombatTheatre` their elements were thrown away.
+
 `bash tools/run-unity-tests.sh` → total=363 passed=358 failed=0. `node tools/diffjs/replay.mjs`
 still diverges on all three goldens — that is the uncommitted `src/js/` balance work noted below,
 not this change: the harness replays a RECORDED C# trace against the living JS and never runs C#.

@@ -78,6 +78,12 @@ namespace SpawnRowDuel.View.Cards
 
         public void Attach(VisualElement root)
         {
+            // A FRESH root holds nothing, so the memos that skip redundant work have to forget
+            // what they think is already drawn. Attach runs again whenever HandBar's panel is
+            // rebuilt - which happens every time the board object is switched off and on.
+            _handSig = "";
+            _stoneSig = "";
+
             _foeStone = Stone(root);
             _youStone = Stone(root);
 

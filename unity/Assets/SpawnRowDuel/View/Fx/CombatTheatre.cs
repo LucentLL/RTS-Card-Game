@@ -162,6 +162,7 @@ namespace SpawnRowDuel.View.Fx
         readonly List<BattleCard> _leftCards = new List<BattleCard>();
 
         VisualElement _floatLayer;
+        int _builtFor = -1;           // the HandBar panel generation these surfaces belong to
         readonly List<Floater> _floaters = new List<Floater>();
 
         sealed class Floater
@@ -859,7 +860,15 @@ namespace SpawnRowDuel.View.Fx
 
         void EnsureSurfaces()
         {
-            if (_cutIn != null || _hand == null || !_hand.PanelReady) return;
+            if (_hand == null || !_hand.PanelReady) return;
+
+            // REBUILT WITH THE PANEL, for the same reason UnitVitals is: the cut-in and the
+            // floating damage numbers are parented into HandBar's layers, and those are remade
+            // every time the board object is switched off and on. A non-null `_cutIn` pointing at
+            // an orphan is a battle theatre that runs its whole animation into nothing.
+            if (_cutIn != null && _builtFor == _hand.PanelGeneration) return;
+            _builtFor = _hand.PanelGeneration;
+            _cutIn = null; _inner = null; _left = null; _right = null; _floatLayer = null;
 
             _floatLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _floatLayer.style.position = Position.Absolute;

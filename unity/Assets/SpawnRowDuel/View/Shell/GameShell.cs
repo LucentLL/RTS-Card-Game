@@ -116,6 +116,22 @@ namespace SpawnRowDuel.View.Shell
 
         public void Show(ShellScreen screen)
         {
+            // LEAVING A DUEL ENDS IT.
+            //
+            // Nothing used to put the match down, and `MatchController.MatchStarted` is just
+            // `Engine != null` - so quitting to the menu left the whole duel sitting there, and
+            // pressing Duel again handed it straight back, mid-turn, with the pieces still where
+            // they were. The commander select is only drawn while no match exists, so the player
+            // never even got the chance to pick.
+            //
+            // Gated on the screen actually CHANGING, which is not fussiness: `Show(Screen)` is
+            // re-run on every resize (Update, above), and a skirmish started from MatchHud's own
+            // select keeps the screen at Skirmish while it is played - so a bare "not Battle" test
+            // would end that match the first time the phone was rotated. Battle itself is exempt
+            // because every path into it starts its own match a moment later.
+            if (screen != Screen && screen != ShellScreen.Battle && Match != null)
+                Match.EndMatch();
+
             Screen = screen;
             _map = null;
             _challenge = null;

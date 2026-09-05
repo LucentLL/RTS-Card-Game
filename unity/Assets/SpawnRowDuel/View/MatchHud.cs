@@ -264,6 +264,20 @@ namespace SpawnRowDuel.View
 
             if (!_match.MatchStarted)
             {
+                // Nothing here belongs to the next duel. `_upkeepPromptedTurn` is the one that
+                // bites without looking like it would: it is compared against the TURN NUMBER, and
+                // both matches start at one - so a shortfall prompt already spent in the last duel
+                // would be silently skipped in the first upkeep of the new one.
+                _selectedHandIndex = -1;
+                _buildMenuOpen = _upgradeMenuOpen = _settingsOpen = _logOpen = false;
+                _upkeepPromptedTurn = -1;
+                _chargeCellId = -1;
+                _chargeAmount = 0;
+                _lastLogCount = 0;
+                _guiFaulted = false;
+                _seenPending = null;
+                _chosenBlockers.Clear();
+
                 if (!ShellSuppressed) DrawCommanderSelect();
                 return;
             }

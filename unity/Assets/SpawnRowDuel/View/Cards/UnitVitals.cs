@@ -42,6 +42,7 @@ namespace SpawnRowDuel.View.Cards
         HandBar _hand;
 
         VisualElement _layer;
+        int _builtFor = -1;           // the HandBar panel generation these chips belong to
         readonly Dictionary<int, Chip> _live = new Dictionary<int, Chip>();
         readonly HashSet<int> _seen = new HashSet<int>();
         readonly List<int> _dead = new List<int>();
@@ -75,8 +76,17 @@ namespace SpawnRowDuel.View.Cards
             if (_match == null || _match.Engine == null || _match.Board == null) return;
             if (_hand == null || !_hand.PanelReady) return;
 
-            if (_layer == null)
+            // REBUILT WITH THE PANEL. These chips hang off HandBar's board layer, and that layer is
+            // thrown away and remade every time the board object is switched off and on again -
+            // which the shell does whenever the screen is not a duel. The old elements survive as
+            // references in these dictionaries, orphaned, drawing nothing: a match returned to
+            // from the menu had no health bars, no target rings and no keyword chips on it.
+            if (_layer == null || _builtFor != _hand.PanelGeneration)
             {
+                _builtFor = _hand.PanelGeneration;
+                _live.Clear();
+                System.Array.Clear(_workers, 0, _workers.Length);
+
                 _layer = new VisualElement { pickingMode = PickingMode.Ignore };
                 _layer.style.position = Position.Absolute;
                 _layer.style.left = 0; _layer.style.right = 0;
