@@ -32,6 +32,11 @@ Shader "SpawnRowDuel/Settle"
         _CellPitch   ("Cell pitch (xz)", Vector) = (1.08, 1.566, 0, 0)
         _CellHalf    ("Cell half (xz)", Vector) = (0.5, 0.725, 0, 0)
         _Groove      ("Seam gathering", Range(0,1)) = 0.6
+
+        // BLACK, and that default is the safety net rather than a formality. G is the "a card is
+        // standing here" flag that gates the seam gathering below; an unbound texture binds white,
+        // and white G is "every square is occupied" - which is the graph paper this exists to stop.
+        _DispTex     ("Displacement", 2D) = "black" {}
         _BoardHalf   ("Board half (xz)", Vector) = (3.8, 3.9, 0, 0)
 
         _Extent      ("Sheet half-size (xz)", Vector) = (9, 9, 0, 0)
