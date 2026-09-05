@@ -81,11 +81,24 @@ namespace SpawnRowDuel.View.Shell
             _root.style.backgroundColor = Color.clear;
         }
 
+        Vector2Int _builtAt;
+        float _biomeAt;
+        int _biomeIndex;
+
         void Update()
         {
             if (_root == null) return;
             HudLayout.Recompute();
 
+            // REBUILT ON RESIZE. Every size in this shell is a multiple of HudLayout.Scale, which
+            // is decided by the screen's short edge - so a screen that changes shape after the
+            // menu was built leaves it laid out for a screen that is not there any more. That is
+            // not an edge case on the platform this ships to: a phone rotates, and the first tap
+            // anywhere takes the build fullscreen.
+            var now = new Vector2Int(UnityEngine.Screen.width, UnityEngine.Screen.height);
+            if (now != _builtAt && now.x > 0 && now.y > 0) Show(Screen);
+
+            if (Screen == ShellScreen.MainMenu) CycleBattlefield();
             if (Screen == ShellScreen.WorldMap && _map != null) _map.Tick();
             if (Screen == ShellScreen.Challenge && _challenge != null) _challenge.Tick();
             if (Screen == ShellScreen.Multiplayer && _multiplayer != null) _multiplayer.Tick();
@@ -102,12 +115,24 @@ namespace SpawnRowDuel.View.Shell
             if (screen != ShellScreen.Multiplayer) _multiplayer = null;
             if (_root != null) _root.Clear();
 
+            // BEFORE anything is built. Start() shows the menu, and Start() runs before the first
+            // Update - so the boot menu was laid out against HudLayout.Scale's default of 1 and
+            // then never rebuilt. On a big screen that is a postage stamp in the middle of a
+            // black field, which is exactly what it looked like.
+            HudLayout.Recompute();
+            _builtAt = new Vector2Int(UnityEngine.Screen.width, UnityEngine.Screen.height);
+
             bool battleWorld = screen == ShellScreen.Battle || screen == ShellScreen.Skirmish;
             bool globeWorld = screen == ShellScreen.WorldMap || screen == ShellScreen.Challenge;
 
+            // The menu stands on a REAL BATTLEFIELD - terrain and sky, no board. It is the same
+            // world the duel is fought on, minus the one root that carries the cards, so it costs
+            // nothing to build and the title screen stops being a black rectangle.
+            bool scenery = screen == ShellScreen.MainMenu;
+
             if (BattleRoot != null) BattleRoot.SetActive(battleWorld);
-            if (TerrainRoot != null) TerrainRoot.SetActive(battleWorld);
-            if (BattleCamera != null) BattleCamera.enabled = battleWorld;
+            if (TerrainRoot != null) TerrainRoot.SetActive(battleWorld || scenery);
+            if (BattleCamera != null) BattleCamera.enabled = battleWorld || scenery;
             if (GlobeCamera != null) GlobeCamera.enabled = globeWorld;
             if (Globe != null) Globe.gameObject.SetActive(globeWorld);
 
@@ -125,41 +150,93 @@ namespace SpawnRowDuel.View.Shell
             }
         }
 
-        void Backdrop()
+        static void Outline(VisualElement v, float width)
+        {
+            v.style.unityTextOutlineWidth = width;
+            v.style.unityTextOutlineColor = new Color(0f, 0f, 0f, 0.85f);
+        }
+
+        void Backdrop() { Backdrop(1f); }
+
+        /// <summary>The wash the shell screens sit on. Opaque everywhere except the title screen,
+        /// which is a SCRIM over the live battlefield - dark enough to read gold text against,
+        /// thin enough that the ground still moves behind it.</summary>
+        void Backdrop(float alpha)
         {
             var bg = new VisualElement();
             UiKit.Fill(bg);
-            bg.style.backgroundColor = new Color(0.035f, 0.04f, 0.06f, 1f);
+            bg.style.backgroundColor = new Color(0.035f, 0.04f, 0.06f, alpha);
             _root.Add(bg);
+        }
+
+        /// <summary>
+        /// Walk the battlefields behind the title, one every few seconds.
+        ///
+        /// The user's own idea, and it answers "too blank" better than any amount of chrome would:
+        /// the menu's backdrop becomes the thing the game is about. It uses the SAME roll list a
+        /// duel draws from (MatchController.Battlefields), so what scrolls past the title is
+        /// exactly what a match can put you on.
+        ///
+        /// Slow on purpose. Applying a biome rebuilds the ground, the blades, the scatter and the
+        /// settle sheet, so this is a several-second dissolve rather than a slideshow.
+        /// </summary>
+        void CycleBattlefield()
+        {
+            const float Dwell = 9f;
+            if (Time.unscaledTime < _biomeAt + Dwell) return;
+            _biomeAt = Time.unscaledTime;
+
+            var fields = MatchController.Battlefields;
+            if (fields == null || fields.Length == 0) return;
+            _biomeIndex = (_biomeIndex + 1) % fields.Length;
+            World.TerrainField.Requested = fields[_biomeIndex];
         }
 
         // ── main menu ───────────────────────────────────────────────────────────────────
 
         void BuildMainMenu()
         {
-            Backdrop();
+            Backdrop(0.62f);
 
             var col = UiKit.Box(_root);
             UiKit.Fill(col);
             col.style.alignItems = Align.Center;
             col.style.justifyContent = Justify.Center;
 
-            var title = UiKit.Text(col, "SPAWN ROW DUEL", 34f, UiFont.DisplayBlack, UiKit.Gold);
-            title.style.marginBottom = 4f * UiKit.S;
-            UiKit.Text(col, "a card duel fought on ground you have to hold", 13f, UiFont.BodyItalic, UiKit.Dim)
-                .style.marginBottom = 22f * UiKit.S;
+            // SIZED TO THE SCREEN, not to a constant. UiKit.S is keyed on the short edge and
+            // bottoms out at 1, which on a landscape phone leaves a 300px menu adrift in an
+            // 850px screen. The title screen is four buttons and a name: it can afford to take
+            // a real share of the display, and on a phone it has to.
+            float wide = Mathf.Min(UnityEngine.Screen.width, UnityEngine.Screen.height * 1.9f);
+            float menuW = Mathf.Clamp(wide * 0.46f, 280f, 620f * UiKit.S);
+            float title = Mathf.Clamp(menuW * 0.115f, 26f, 64f);
+
+            var head = UiKit.Text(col, "SPAWN ROW DUEL", title / UiKit.S, UiFont.DisplayBlack, UiKit.Gold);
+            head.style.marginBottom = 4f * UiKit.S;
+
+            var tag = UiKit.Text(col, "a card duel fought on ground you have to hold",
+                                 Mathf.Clamp(title * 0.34f, 11f, 22f) / UiKit.S,
+                                 UiFont.BodyItalic, UiKit.Ink);
+            tag.style.marginBottom = 22f * UiKit.S;
+
+            // The words now sit on GROUND, not on a flat wash, and the ground changes colour every
+            // few seconds - so they carry their own contrast rather than borrowing it from the
+            // backdrop. Dim grey on sand was almost gone.
+            Outline(head, 0.22f);
+            Outline(tag, 0.30f);
 
             var menu = UiKit.Box(col);
-            menu.style.width = 300f * UiKit.S;
+            menu.style.width = menuW;
 
-            UiKit.Btn(menu, "Duel", () => Show(ShellScreen.Skirmish), 17f);
+            float btn = Mathf.Clamp(menuW * 0.062f, 16f, 30f) / UiKit.S;
+            UiKit.Btn(menu, "Duel", () => Show(ShellScreen.Skirmish), btn);
             UiKit.Btn(menu, Campaign.HasRunnableCampaign ? "Campaign — continue" : "Campaign", () =>
             {
                 if (Campaign.HasRunnableCampaign) Show(ShellScreen.WorldMap);
                 else Show(ShellScreen.FactionSelect);
-            }, 17f);
-            UiKit.Btn(menu, "Duel a Friend", () => Show(ShellScreen.Multiplayer), 17f);
-            UiKit.Btn(menu, "Deck Builder", () => Show(ShellScreen.DeckBuilder), 17f);
+            }, btn);
+            UiKit.Btn(menu, "Duel a Friend", () => Show(ShellScreen.Multiplayer), btn);
+            UiKit.Btn(menu, "Deck Builder", () => Show(ShellScreen.DeckBuilder), btn);
 
             if (Campaign.State != null && Campaign.State.Lost)
                 UiKit.Text(menu, "your last banner fell — a new world awaits", 11f, UiFont.BodyItalic, UiKit.Danger)

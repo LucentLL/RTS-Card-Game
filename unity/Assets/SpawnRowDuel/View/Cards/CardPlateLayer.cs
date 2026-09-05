@@ -213,8 +213,12 @@ namespace SpawnRowDuel.View.Cards
             var frame = faceDown ? CardPlateTextures.Back(Sleeve(s, o.Owner))
                                  : CardPlateTextures.Front(_palette.Of(o.Color));
 
+            // A renderer is never left ENABLED holding nothing. A null sprite here means a
+            // texture build that failed, and an enabled SpriteRenderer with no sprite is one
+            // more thing for the render-node prep to walk (see CardPlateTextures.SpriteOf).
             p.Frame.sprite = frame;
-            p.Frame.transform.localScale = FillScale(frame, plateW, plateH);
+            p.Frame.enabled = frame != null;
+            if (frame != null) p.Frame.transform.localScale = FillScale(frame, plateW, plateH);
 
             // the illustration, filling the art window
             float winW = plateW * (1f - 2f * CardPlateTextures.ArtInsetX) - 0.01f;
@@ -338,7 +342,7 @@ namespace SpawnRowDuel.View.Cards
             float boxW = plateW * (1f - 8f / CardPlateTextures.W);      // inside inset + outline
             float boxH = plateH * CardPlateTextures.RulesH * 0.98f;
             p.Stats.sprite = line;
-            p.Stats.enabled = true;
+            p.Stats.enabled = line != null;
             p.Stats.transform.localScale = FillScale(line, boxW, boxH);
             p.Stats.transform.localPosition =
                 new Vector3(0f, BandY(rulesTop, CardPlateTextures.RulesH, plateH), -0.003f);
@@ -351,7 +355,7 @@ namespace SpawnRowDuel.View.Cards
 
             float troughH = barH * 0.82f;
             p.Trough.sprite = solid;
-            p.Trough.enabled = true;
+            p.Trough.enabled = solid != null;
             p.Trough.color = CardPlateTextures.MeterTrough;
             p.Trough.transform.localScale = new Vector3(barW, troughH, 1f);
             p.Trough.transform.localPosition = new Vector3(0f, y, -0.003f);
@@ -365,7 +369,7 @@ namespace SpawnRowDuel.View.Cards
             float dir = foe ? -1f : 1f;
 
             p.Fill.sprite = solid;
-            p.Fill.enabled = fillW > 0.0001f;
+            p.Fill.enabled = solid != null && fillW > 0.0001f;
             p.Fill.color = CardPlateTextures.HealthTint(frac);
             p.Fill.transform.localScale = new Vector3(fillW, troughH - 2f * m, 1f);
             p.Fill.transform.localPosition =
@@ -376,7 +380,7 @@ namespace SpawnRowDuel.View.Cards
             float k = Mathf.Min(barH * 0.76f / Mathf.Max(0.0001f, size.y),
                                 barW * 0.62f / Mathf.Max(0.0001f, size.x));
             p.Hp.sprite = num;
-            p.Hp.enabled = true;
+            p.Hp.enabled = num != null;
             p.Hp.transform.localScale = new Vector3(k, k, k);
             p.Hp.transform.localPosition = new Vector3(0f, y, -0.005f);
         }
@@ -416,7 +420,7 @@ namespace SpawnRowDuel.View.Cards
             var sleeve = faceDown ? Sleeve(s, o.Owner) : _palette.Of(o.Color).Color;
             var badge = CardPlateTextures.Bank(bank, sleeve);
             p.Bank.sprite = badge;
-            p.Bank.enabled = true;
+            p.Bank.enabled = badge != null;
 
             // A flat card is foreshortened by sin(42°) at the tilted angle, so a badge sized to
             // look right on the texture reads at two thirds of that on screen. Face-down it is
@@ -447,7 +451,7 @@ namespace SpawnRowDuel.View.Cards
             if (src == null) return null;
 
             Sprite got;
-            if (_cropped.TryGetValue(src, out got)) return got;
+            if (_cropped.TryGetValue(src, out got) && got != null) return got;   // never a corpse
 
             var r = src.textureRect;
             float w = r.width, h = r.height;

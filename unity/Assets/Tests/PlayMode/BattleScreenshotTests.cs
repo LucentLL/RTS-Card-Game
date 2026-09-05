@@ -682,6 +682,35 @@ namespace SpawnRowDuel.PlayTests
             }
         }
 
+        /// <summary>
+        /// The title screen at a LANDSCAPE PHONE size - the shape the build is actually played
+        /// at, and the one the menu was wrong for.
+        ///
+        /// It was laid out against HudLayout.Scale's default of 1, because Start() shows the menu
+        /// before the first Update ever recomputes it, and nothing rebuilt it afterwards. On any
+        /// screen bigger than 480 short-edge that is a postage stamp in a black field. This shot
+        /// is the one that can fail if it comes back.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureMenuOnAPhone()
+        {
+#if UNITY_EDITOR
+            UnityEditor.PlayModeWindow.SetCustomRenderingResolution(880, 400, "SRD phone");
+#endif
+            var op = SceneManager.LoadSceneAsync("Battle", LoadSceneMode.Single);
+            while (!op.isDone) yield return null;
+            yield return Frames(6);
+
+            var shell = Object.FindFirstObjectByType<GameShell>();
+            Assert.IsNotNull(shell);
+            shell.Show(ShellScreen.MainMenu);
+            yield return Frames(6);
+
+            yield return Shoot("shell-menu-phone.png");
+            Reshape();                      // never leave the probe in a phone shape
+            yield return Frames(2);
+        }
+
         static IEnumerator LoadBattle()
         {
             Reshape();

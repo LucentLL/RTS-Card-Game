@@ -150,7 +150,7 @@ namespace SpawnRowDuel.View
         /// Shore is left out of the roll. It is the tide biome, it is beautiful, and half its
         /// board spends the match under water.
         /// </summary>
-        static readonly World.BiomeId[] Battlefields =
+        public static readonly World.BiomeId[] Battlefields =
         {
             World.BiomeId.Grass, World.BiomeId.Sand, World.BiomeId.Ash,
             World.BiomeId.Snow, World.BiomeId.Earth,

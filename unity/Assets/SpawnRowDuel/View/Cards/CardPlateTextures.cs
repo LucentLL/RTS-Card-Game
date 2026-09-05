@@ -49,7 +49,7 @@ namespace SpawnRowDuel.View.Cards
         public static Sprite Front(ElementPalette.Swatch sw)
         {
             Texture2D tex;
-            if (!_fronts.TryGetValue(sw.Name, out tex))
+            if (!_fronts.TryGetValue(sw.Name, out tex) || tex == null)
             {
                 tex = BuildFront(sw);
                 _fronts[sw.Name] = tex;
@@ -61,7 +61,7 @@ namespace SpawnRowDuel.View.Cards
         {
             int key = ((Color32)sleeve).GetHashCode();
             Texture2D tex;
-            if (!_backs.TryGetValue(key, out tex))
+            if (!_backs.TryGetValue(key, out tex) || tex == null)
             {
                 tex = BuildBack(sleeve);
                 _backs[key] = tex;
@@ -69,10 +69,33 @@ namespace SpawnRowDuel.View.Cards
             return SpriteOf(tex);
         }
 
+        /// <summary>
+        /// The sprite over a cached texture - and the reason every lookup above ends in
+        /// `|| tex == null`.
+        ///
+        /// These caches hand the SAME Sprite object to a SpriteRenderer over and over, for the
+        /// life of the session. A destroyed entry is therefore not a cache miss that costs a
+        /// rebuild, it is a live SpriteRenderer pointing at freed native memory - and the thing
+        /// that walks those is Unity's own render-node preparation, in a job, during culling.
+        /// It does not fault where the mistake was made; on WebGL it comes back as
+        ///
+        ///     RuntimeError: index out of bounds
+        ///       at PrepareSpriteRenderNodes&lt;true&gt;(RenderNodeQueuePrepareThreadContext&amp;)
+        ///
+        /// which is a wasm TABLE index - a call through a vtable that is no longer there - and
+        /// reads like a bug in the renderer rather than in a dictionary.
+        ///
+        /// WallTextures.Band already learned this exact lesson (see its `_bands` comment: a freed
+        /// band left UI Toolkit sampling a stale texture slot and put white shards through the
+        /// hand). Same family, different renderer. A Unity Object compares == null once destroyed,
+        /// so rebuilding on that is the whole fix; nothing here ever hands back a corpse.
+        /// </summary>
         static Sprite SpriteOf(Texture2D tex)
         {
+            if (tex == null) return null;          // a build that failed is not a sprite
+
             Sprite s;
-            if (_sprites.TryGetValue(tex, out s)) return s;
+            if (_sprites.TryGetValue(tex, out s) && s != null) return s;
             s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), H);
             s.name = tex.name;
             s.hideFlags = HideFlags.HideAndDontSave;
@@ -481,7 +504,7 @@ namespace SpawnRowDuel.View.Cards
         {
             string key = n + "/" + ((Color32)tint).GetHashCode();
             Texture2D tex;
-            if (!_banks.TryGetValue(key, out tex))
+            if (!_banks.TryGetValue(key, out tex) || tex == null)
             {
                 tex = BuildBank(n, tint);
                 _banks[key] = tex;
@@ -555,7 +578,7 @@ namespace SpawnRowDuel.View.Cards
             if (string.IsNullOrEmpty(text)) return null;
 
             Texture2D tex;
-            if (!_names.TryGetValue(text, out tex))
+            if (!_names.TryGetValue(text, out tex) || tex == null)
             {
                 tex = BuildName(text);
                 _names[text] = tex;
@@ -628,7 +651,7 @@ namespace SpawnRowDuel.View.Cards
         public static Sprite Num(int value)
         {
             Texture2D tex;
-            if (!_nums.TryGetValue(value, out tex))
+            if (!_nums.TryGetValue(value, out tex) || tex == null)
             {
                 tex = BuildNum(value);
                 _nums[value] = tex;
@@ -683,7 +706,7 @@ namespace SpawnRowDuel.View.Cards
             string key = (hasAttack ? attack.ToString() : "-") + "|"
                        + (hasWorker ? worker.ToString() : "-") + "|" + baseHp;
             Texture2D tex;
-            if (!_lines.TryGetValue(key, out tex))
+            if (!_lines.TryGetValue(key, out tex) || tex == null)
             {
                 tex = BuildStatLine(attack, worker, baseHp, hasAttack, hasWorker);
                 _lines[key] = tex;
