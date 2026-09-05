@@ -17,8 +17,12 @@ namespace SpawnRowDuel.View.Cards
     public struct CardFaceModel
     {
         public string Name;
-        public string TypeLine;        // "Human Wizard" / "Structure" / ""
-        public string Ribbon;          // CREATURE / STRUCTURE / ✦ SPELL / ⚠ TRAP
+
+        /// <summary>Retired: the second line under the name. It repeated the lozenge and took the
+        /// height the name needed to do it. Kept as a field so nothing that sets it breaks; the
+        /// frame no longer draws it.</summary>
+        public string TypeLine;
+        public string Ribbon;          // HUMAN WIZARD / STRUCTURE / ✦ SPELL / ⚠ TRAP
         public string Rules;           // generated, rich text
         public int Cost;
         public Element Element;
@@ -41,8 +45,17 @@ namespace SpawnRowDuel.View.Cards
             var m = new CardFaceModel
             {
                 Name = c.Name,
-                TypeLine = text.TypeLine(c),
-                Ribbon = "CREATURE",
+                // THE LOZENGE CARRIES THE RACE, and the banner carries only the name.
+                //
+                // There used to be a second line under the name saying the same thing the lozenge
+                // said two centimetres lower - "TRAP" over a card whose lozenge reads ⚠ TRAP - and
+                // it cost the name the height it needed, so long names shrank or clipped to make
+                // room for a word already on the card. A creature is the one kind whose type line
+                // was not redundant, because it named the RACE rather than the kind; that moves
+                // here, where the kind was being repeated for free. Nothing else on this board has
+                // an attack and a health meter, so "CREATURE" was never the thing telling anyone.
+                TypeLine = "",
+                Ribbon = Up(text.TypeLine(c), "CREATURE"),
                 Rules = text.CreatureBrief(c),
                 Cost = c.Cost,
                 Element = c.Element,
@@ -63,7 +76,7 @@ namespace SpawnRowDuel.View.Cards
             return new CardFaceModel
             {
                 Name = s.Name,
-                TypeLine = s.IsTrap ? "Trap" : "Spell",
+                TypeLine = "",
                 Ribbon = s.IsTrap ? "⚠ TRAP" : "✦ SPELL",
                 Rules = text.SpellText(s),
                 Cost = s.Cost,
@@ -79,7 +92,7 @@ namespace SpawnRowDuel.View.Cards
             return new CardFaceModel
             {
                 Name = d.Name,
-                TypeLine = "Structure",
+                TypeLine = "",
                 Ribbon = "STRUCTURE",
                 Rules = text.StructureBrief(d),
                 Cost = d.Cost,
@@ -93,6 +106,13 @@ namespace SpawnRowDuel.View.Cards
                 HasWorkerChip = d.Support != 0,
                 Art = art.CardArt(d.Name),
             };
+        }
+
+        /// <summary>The lozenge's word: the race when a creature has one, the kind when it does
+        /// not. A creature with neither tribe nor subtype still has to say something.</summary>
+        static string Up(string race, string fallback)
+        {
+            return string.IsNullOrEmpty(race) ? fallback : race.ToUpperInvariant();
         }
 
         /// <summary>A hand card, resolving through whichever registry knows the id.</summary>

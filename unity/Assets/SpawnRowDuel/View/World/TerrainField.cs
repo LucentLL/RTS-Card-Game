@@ -100,8 +100,12 @@ namespace SpawnRowDuel.View.World
 
         [Header("Settling")]
         /// <summary>How proud of the ground the rim around a card stands. Shading, not geometry -
-        /// see the impression block in SRD_Terrain for why the EDGE cannot be geometry.</summary>
-        public float RimRelief = 0.11f;
+        /// see the impression block in SRD_Terrain for why the EDGE cannot be geometry.
+        ///
+        /// 0.11 was measured against grass, where the crushed blades carry most of the read. On
+        /// bare ground - snow, sand, ash - the blades are not there to do it and the rim was the
+        /// only channel left, at a weight chosen for a job it was sharing.</summary>
+        public float RimRelief = 0.20f;
         /// <summary>How far out of the card's own outline that rim reaches, in X units.
         ///
         /// The shader CAPS this at the tile's own half-gap whatever it is set to, because only the
@@ -120,8 +124,13 @@ namespace SpawnRowDuel.View.World
         /// across is three or four vertices, which the grid carries without a stagger, and at a
         /// 42-degree camera real relief is what says the ground gave way rather than got painted.
         /// So the two halves are split - the dish moves vertices, the rim is shaded on top of it.
+        ///
+        /// It is the honest answer to "is the ground displaced at all?", so it is worth the
+        /// vertices: 0.075 is a twentieth of a cell and reads as a shading trick at a 42-degree
+        /// camera. The dish is feathered over 0.55 units, four or five of the ground's own
+        /// vertices, so this is what those vertices are for.
         /// </summary>
-        public float PressDepth = 0.075f;
+        public float PressDepth = 0.15f;
         public float GustSpeed = 5f;             // world units per second the ring travels
         public float GustLife = 1.8f;
 
@@ -1463,6 +1472,15 @@ namespace SpawnRowDuel.View.World
                 _settleMat.SetVector("_CellPitch", new Vector4(col, row, 0f, 0f));
                 _settleMat.SetVector("_CellHalf",
                     new Vector4(_pressHalf.x, _pressHalf.y, 0f, 0f));
+
+                // The press field, for its occupancy flag. The seam gathering is a per-CELL effect
+                // and cells tile the plane, so it needs the same "is anything standing here"
+                // answer the ground's card impression reads - or it draws a grid over the field.
+                _settleMat.SetTexture("_DispTex", _disp);
+                _settleMat.SetVector("_DispOrigin",
+                    new Vector4(_dispOrigin.x, _dispOrigin.y, 0f, 0f));
+                _settleMat.SetVector("_DispSize",
+                    new Vector4(_dispSize.x, _dispSize.y, 0f, 0f));
             }
 
             if (_bushMat != null)

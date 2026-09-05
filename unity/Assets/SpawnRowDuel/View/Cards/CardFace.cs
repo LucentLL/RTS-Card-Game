@@ -8,7 +8,7 @@ namespace SpawnRowDuel.View.Cards
     /// The DM_Template card frame - ONE authoring source, reused at every scale (spec 09 §6.1).
     ///
     /// Anatomy, top to bottom, exactly as the reference stylesheet builds it:
-    ///   ivory name banner (cost circle · element gem · name · race line)
+    ///   ivory name banner (cost circle · element gem · name)
     ///   → dominant art window → type lozenge riding the seam → white ability box
     ///   → footer stat bar (power · ⚒ chip · ♥ health)
     ///
@@ -48,7 +48,6 @@ namespace SpawnRowDuel.View.Cards
         const float CostSize = 0.185f;
         const float GemSize = 0.145f;
         const float NameSize = 0.108f;
-        const float TypeSize = 0.062f;
         const float RibbonSize = 0.072f;
         const float RulesSize = 0.100f;
         const float PowerSize = 0.200f;
@@ -56,14 +55,12 @@ namespace SpawnRowDuel.View.Cards
         const float ChipSize = 0.070f;
 
         readonly VisualElement _banner, _costCircle, _gem, _artWin, _art, _vignette, _ribbon, _rulesBox, _stats;
-        readonly Label _cost, _gemGlyph, _name, _type, _ribbonText, _rules, _power, _hp, _chip;
+        readonly Label _cost, _gemGlyph, _name, _ribbonText, _rules, _power, _hp, _chip;
         readonly VisualElement _stateChips, _names;
 
         float _width;
         float _nameSize;      // the size the name WANTS, before it is shrunk to fit its column
         string _fittedFor;    // the (name, size, column width) the current fit was measured for
-        float _typeSize;      // ...and the race/type line under it, which clipped just as happily
-        string _typeFittedFor;
         float _rulesSize;     // ...and the same pair for the ability box, which wraps
         string _rulesFittedFor;
 
@@ -136,7 +133,6 @@ namespace SpawnRowDuel.View.Cards
             // the gem that set its left padding are absolute. So the name is fitted when the
             // column's geometry actually resolves, and again whenever the card is resized.
             names.RegisterCallback<GeometryChangedEvent>(_ => FitName());
-            names.RegisterCallback<GeometryChangedEvent>(_ => FitType());
 
             // alignSelf CENTER, not the column's default stretch. It keeps them centred AND makes
             // each label size to its own content - which is how Fit() reads the TRUE rendered
@@ -148,12 +144,12 @@ namespace SpawnRowDuel.View.Cards
             _name.style.whiteSpace = WhiteSpace.NoWrap;
             names.Add(_name);
 
-            _type = Text("", UiFont.DisplayRegular);
-            _type.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _type.style.letterSpacing = 1.4f;
-            _type.style.alignSelf = Align.Center;
-            _type.style.whiteSpace = WhiteSpace.NoWrap;
-            names.Add(_type);
+            // THE SECOND LINE IS GONE. It sat under the name saying "TRAP" over a card whose
+            // lozenge, two centimetres lower, said ⚠ TRAP - and it charged the name half the
+            // banner's height to do it, which is what made a long name shrink or clip. The one
+            // kind whose line was NOT redundant was the creature, because it named the race rather
+            // than the kind, and the race has moved onto the lozenge (CardFaceModel.OfCreature)
+            // where the kind was being repeated for free. The name now has the banner to itself.
 
             // ── art window ─────────────────────────────────────────────────────────────────
             _artWin = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -330,11 +326,6 @@ namespace SpawnRowDuel.View.Cards
             // below would decline to put it back.
             if (_fittedFor == null) _name.style.fontSize = _nameSize;
             FitName();
-            _type.text = string.IsNullOrEmpty(m.TypeLine) ? "" : m.TypeLine.ToUpperInvariant();
-            _typeSize = Mathf.Clamp(width * TypeSize, 6f * px, 10f * px);
-            if (_typeFittedFor == null) _type.style.fontSize = _typeSize;
-            FitType();
-            _type.style.color = ElementPalette.Mix(ec, Color.black, 0.72f);
 
             // art
             _art.style.backgroundImage = m.Art != null
@@ -399,10 +390,6 @@ namespace SpawnRowDuel.View.Cards
         /// between two sizes would relayout every frame forever.
         /// </summary>
         void FitName() { Fit(_name, _nameSize, 6f, ref _fittedFor); }
-
-        /// <summary>The race/type line under the name, which was never fitted at all - so
-        /// "STRUCTURE" under "The Foundry" printed as "STRUCTU".</summary>
-        void FitType() { Fit(_type, _typeSize, 5f, ref _typeFittedFor); }
 
         /// <summary>
         /// Shrink one NoWrap line until it fits the name column, the way a real card does it.

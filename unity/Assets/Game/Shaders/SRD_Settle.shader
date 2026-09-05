@@ -63,6 +63,12 @@ Shader "SpawnRowDuel/Settle"
             TEXTURE2D(_SettleTex);
             SAMPLER(sampler_SettleTex);
 
+            // The PRESS field, for one channel of it: G, the flag that says a card is lying on
+            // this square. The seam gathering below is drawn per CELL and the cells tile the whole
+            // plane, so without an occupancy test it rules a grid across the ground.
+            TEXTURE2D(_DispTex);
+            SAMPLER(sampler_DispTex);
+
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings
             {
@@ -75,6 +81,7 @@ Shader "SpawnRowDuel/Settle"
                 float4 _SettleColor, _ShadeColor;
                 float _Amount, _Grain, _Sparkle;
                 float4 _CellPitch, _CellHalf, _BoardHalf, _Extent;
+                float4 _DispOrigin, _DispSize;
                 float _Groove, _Fade;
             CBUFFER_END
 
@@ -114,15 +121,31 @@ Shader "SpawnRowDuel/Settle"
                 float cover = smoothstep(thresh - 0.16, thresh + 0.07, level);
 
                 // ── the seams ──────────────────────────────────────────────────────────────
-                // Drift gathers against anything standing proud, and on this board the only edges
-                // are the tile rims. Filling the grid lines first is what makes a covered board
-                // read as a covered board and not as a dirty texture.
+                //
+                // Drift gathers against anything standing proud - AND ONLY AGAINST SOMETHING THAT
+                // IS THERE. The seam is drawn per cell out of the pitch, and cells tile the whole
+                // plane, so this used to rule a grid over every square the sheet reached whether
+                // or not a card had ever been played on it. The only bound on it was `onBoard`,
+                // which is handed the PLATEAU's half-size rather than the board's - the plateau is
+                // the flat ground the board sits in the middle of, so "on the board" was true well
+                // past both back rows. What a player saw was graph paper.
+                //
+                // So the occupancy flag decides it, exactly as the ground's own card impression
+                // does: round to the nearest cell centre, read G there, and gather nothing where
+                // nothing is standing. Snow banking up along the edge of a card that is lying on
+                // it is the effect this was always for.
+                // Sampled UNCONDITIONALLY and masked afterwards. A texture fetch inside a branch
+                // has no well-defined derivatives, and the clamp-to-border sample outside the
+                // field is meaningless rather than expensive - the mask is what makes it zero.
+                float2 cell = round(w / _CellPitch.xy) * _CellPitch.xy;
+                float2 duv = saturate((cell - _DispOrigin.xy) / max(_DispSize.xy, 0.0001));
+                float inField = all(duv > 0.0) && all(duv < 1.0) ? 1.0 : 0.0;
+                float here = SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, duv, 0).g * inField;
+
                 float2 q = abs(frac(w / _CellPitch.xy + 0.5) - 0.5) * _CellPitch.xy;
                 float2 toEdge = _CellHalf.xy - q;
                 float edge = min(toEdge.x, toEdge.y);
-                float onBoard = 1.0 - saturate((max(abs(w.x) - _BoardHalf.x,
-                                                    abs(w.y) - _BoardHalf.y)) / 0.6);
-                float groove = smoothstep(0.10, -0.02, edge) * onBoard * _Groove;
+                float groove = smoothstep(0.10, -0.02, edge) * saturate(here) * _Groove;
                 cover = saturate(cover + groove * smoothstep(0.03, 0.40, level) * (1.0 - cover));
 
                 // ── how it looks ───────────────────────────────────────────────────────────

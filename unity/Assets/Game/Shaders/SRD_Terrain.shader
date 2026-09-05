@@ -298,7 +298,10 @@ Shader "SpawnRowDuel/Terrain"
                 // and darker. At 0.16 that read as a faint tint and the honest answer to "is the
                 // ground displaced at all?" was no.
                 float3 pressW = SrdPress(w, _DispOrigin, _DispSize);
-                albedo *= 1.0 - pressW.r * 0.34;
+                // 0.34 on a field of grass is most of what says "trodden", because the blades over
+                // it are lying flat as well. On bare ground - snow, sand, ash - there are no
+                // blades, and the packed earth under the card is the whole of the read.
+                albedo *= 1.0 - pressW.r * 0.46;
 
                 // ...and the DISH gets a normal. The vertices moved for it, but a moved vertex on
                 // a 0.19-unit grid barely tilts the face it belongs to - sampling B either side

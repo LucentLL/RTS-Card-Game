@@ -69,6 +69,21 @@ marquee was left following a cursor with no button held. And `CommitBand` read `
 `_dragging` was cleared, and `BandRect` answers null unless a drag is live — so the mouse band had
 never selected anything at all.
 
+Three more off the same build, all presentation:
+
+* **The terrain was ruled like graph paper** (D52). The settled layer gathers drift along tile
+  edges, a per-CELL effect drawn out of the board's pitch — and cells tile the plane, so the only
+  bound on it was an `onBoard` test handed the PLATEAU's half-size instead of the board's. It reads
+  the same occupancy flag the ground's card impression does now: nothing gathers where nothing is
+  standing. Only settling biomes ever showed it, which is why the grass arenas looked clean.
+* **The ground gives way further under a card** (D53): `PressDepth` 0.075 → 0.15 and the
+  trodden-earth darkening 0.34 → 0.46, both tuned originally against grass, where the crushed
+  blades carried the read that snow and sand have nothing to carry.
+* **The card name has the banner to itself** (D54). The line under it said TRAP over a card whose
+  lozenge said ⚠ TRAP and charged the name half a band to do it — "EMBER BOLT" was cut across its
+  top edge to make room. The creature's RACE, the one line that was not redundant, moved onto the
+  lozenge. Checked by rendering the sheet before and after with `tools/view-probe.sh`.
+
 `bash tools/run-unity-tests.sh` → total=363 passed=358 failed=0. `node tools/diffjs/replay.mjs`
 still diverges on all three goldens — that is the uncommitted `src/js/` balance work noted below,
 not this change: the harness replays a RECORDED C# trace against the living JS and never runs C#.

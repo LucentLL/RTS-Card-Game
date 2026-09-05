@@ -580,7 +580,9 @@ namespace SpawnRowDuel.View.Shell
 
             if (_query.Length > 0)
             {
-                var hay = m.Name + " " + m.TypeLine + " " + CampaignRules(m.Element) + " "
+                // The lozenge, not the retired type line: it carries the kind for a spell, a trap
+                // or a structure and the RACE for a creature, which is where that word lives now.
+                var hay = m.Name + " " + m.Ribbon + " " + CampaignRules(m.Element) + " "
                           + (c != null ? c.Keyword + " " + c.Tribe + " " + c.Subtype
                                          + (c.FirstStrike ? " first strike" : "") : "spell trap");
                 if (hay.ToLowerInvariant().IndexOf(_query, System.StringComparison.Ordinal) < 0) return false;
