@@ -461,6 +461,25 @@ namespace SpawnRowDuel.View
         /// the target even with no attacker selected.</summary>
         public CellRef? AssaultCell { get; private set; }
 
+        /// <summary>
+        /// Is the card on this cell one of the creatures currently declared into the attack?
+        ///
+        /// Reported so the board can LIGHT THEM. A declaration taps the attacker and otherwise
+        /// leaves it standing where it was, so a group of three attacking creatures looked exactly
+        /// like a group of three creatures - and two copies of the same card with different health
+        /// are indistinguishable in a hand-sized picture. Which ones are swinging is the single
+        /// most important thing on the board while an attack is being built, and it was being
+        /// carried entirely by the player's memory.
+        /// </summary>
+        public bool IsAttacking(CellRef cell)
+        {
+            if (Engine == null) return false;
+            var decls = Engine.State.Combat.Declarations;
+            for (int i = 0; i < decls.Count; i++)
+                if (decls[i].Attacker == cell) return true;
+            return false;
+        }
+
         /// <summary>What it is aimed at, in words, for the mode row.</summary>
         public string AssaultLabel { get; private set; }
 

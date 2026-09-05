@@ -561,9 +561,11 @@ namespace SpawnRowDuel.View.World
             b.VeilSpeed = 1.0f; b.VeilScale = 6f; b.VeilHeight = 0.9f;
             b.GrainAmount = 0.5f; b.GrainColor = Hex("#fff4dd");
 
-            // Marram above the tideline, and DARKER than the sand rather than lighter: on a pale
-            // beach the contrast has to run the other way or the grass disappears into it.
-            b.BladeDensity = 5f;
+            // NO MARRAM. There was a band of it above the tideline - dark against the pale sand so
+            // it would not disappear - and the shore reads better without: sand and water and the
+            // line where they meet is the whole of the picture, and a fringe of weed across the
+            // near half is one thing too many in it.
+            b.BladeDensity = 0f;
             b.BladeA = Hex("#6f8a3e"); b.BladeB = Hex("#a8bd6a"); b.BladeRoot = Hex("#4a5530");
             b.BladeHeight = 0.42f; b.BladeWidth = 0.15f; b.Sway = 0.115f;
 

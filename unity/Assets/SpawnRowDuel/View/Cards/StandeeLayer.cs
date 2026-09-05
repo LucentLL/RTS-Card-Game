@@ -333,6 +333,17 @@ namespace SpawnRowDuel.View.Cards
 
             // the owner reads at a glance even before the stat overlay: a cold rim for the foe
             var tint = o.Owner == Seat.Local ? Color.white : new Color(0.86f, 0.88f, 1f);
+
+            // ...and the figure lights with its card. CardPlateLayer tints the FRAME for the
+            // selected card and for everything declared into the attack, and the standee stands
+            // ON the frame - so on any unit with a cut-out the light would be hidden behind the
+            // very thing it is about. Lerped rather than replaced: a creature washed cyan is a
+            // creature you can no longer recognise, and recognising them is the point.
+            bool picked = _input != null && _input.Selected.HasValue && _input.Selected.Value == cell;
+            bool swinging = o.Owner == Seat.Local && _match.IsAttacking(cell);
+            if (picked) tint = Color.Lerp(tint, new Color(0.45f, 0.95f, 1f), 0.55f);
+            else if (swinging) tint = Color.Lerp(tint, new Color(1f, 0.66f, 0.28f), 0.5f);
+
             tint.a = show;                                 // fades away as the view goes top-down
             st.Figure.color = tint;
         }

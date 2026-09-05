@@ -56,6 +56,20 @@ namespace SpawnRowDuel.View.World
         /// </summary>
         public float FarExtent = 54f;
 
+        /// <summary>
+        /// How far past the island ground cover is scattered, as a multiple of it.
+        ///
+        /// Cover used to stop dead at IslandExtent while the GROUND ran on to FarExtent, so every
+        /// field was a green island in the middle of a bare plain - and at this camera the plain
+        /// is the top third of the screen. "Grass should extend throughout the full terrain."
+        ///
+        /// It is not paid for with ten times the blades. Density falls with distance and blade
+        /// SIZE grows to match, which keeps the density even where it is actually measured - on
+        /// SCREEN - because a patch three times further away covers a ninth of the pixels. The
+        /// far field costs about half again as many quads as the island alone used to.
+        /// </summary>
+        public float CoverReach = 3.2f;
+
         public float EdgeFade = 3.0f;
         public float GroundY = -0.020f;                       // just under the 0.02-thick tile markings
         public int BladeSeed = 20260822;
@@ -538,11 +552,16 @@ namespace SpawnRowDuel.View.World
         /// card exactly as a blade does. Splitting them into two systems would have meant two
         /// answers to "what happens when something lands on this".
         /// </summary>
+        Vector2 CoverExtent { get { return IslandExtent * Mathf.Max(1f, CoverReach); } }
+
         Mesh BuildCover(MeshRenderer target, Mesh reuse, BiomeLook look, float density,
                         int seed, int cap)
         {
+            // Counted off the ISLAND still - the density that matters is the one under the board,
+            // and the far field is thinned to match it on screen rather than in world units. The
+            // boost is what pays for spreading the same look over ten times the ground.
             float area = IslandExtent.x * IslandExtent.y * 4f;
-            int count = Mathf.Clamp(Mathf.RoundToInt(area * density), 0, cap);
+            int count = Mathf.Clamp(Mathf.RoundToInt(area * density * 1.6f), 0, cap);
             target.enabled = count > 0;
             if (count == 0) return reuse;
 
@@ -566,16 +585,23 @@ namespace SpawnRowDuel.View.World
             int n = 0;
             for (int guard = 0; guard < count * 8 && n < count; guard++)
             {
-                float x = (float)(rng.NextDouble() * 2.0 - 1.0) * IslandExtent.x;
-                float z = (float)(rng.NextDouble() * 2.0 - 1.0) * IslandExtent.y;
+                var cover = CoverExtent;
+                float x = (float)(rng.NextDouble() * 2.0 - 1.0) * cover.x;
+                float z = (float)(rng.NextDouble() * 2.0 - 1.0) * cover.y;
 
                 // Grass grows EVERYWHERE, the board included. It used to be kept off the board so
                 // it could not compete with the game state; the board is a translucent marking
                 // rather than a slab now, so the cards sit ON the field and the press field is
-                // what keeps the playing surface readable. Thin out toward the rim regardless, so
-                // the island has a soft edge rather than a mown line.
+                // what keeps the playing surface readable.
+                //
+                // ...and everywhere means to the far edge of the ground, not to the island's rim.
+                // The rim used to thin cover out as rim^2 and stop, which drew a green island on
+                // a bare plain. Distance now buys THINNER AND BIGGER instead: world density falls
+                // off, blade size grows to compensate, and what stays constant is how much of the
+                // screen is grass - which is the only place anyone measures it.
                 float rim = Mathf.Max(Mathf.Abs(x) / IslandExtent.x, Mathf.Abs(z) / IslandExtent.y);
-                if (rng.NextDouble() < rim * rim * 0.9) continue;
+                float far = Mathf.Max(0f, rim - 1f);
+                if (rng.NextDouble() > 1.0 / (1.0 + far * far * 0.75)) continue;
 
                 // Nothing grows in the sea. On a tidal biome the cover stops short of the water's
                 // reach and thins out approaching it - marram is a DUNE plant. This is not a
@@ -598,6 +624,13 @@ namespace SpawnRowDuel.View.World
                 float hScale = (float)rng.NextDouble();
                 float wScale = (float)rng.NextDouble();
                 float curve = (float)rng.NextDouble();
+
+                // ...and the far field grows into its own thinness. Fewer blades per square metre
+                // out there (above), each of them at the big end of the range, so the two cancel
+                // and the horizon carries the same weight of green as the ground by your feet.
+                float grow = Mathf.Clamp01(far * 0.45f);
+                hScale = Mathf.Lerp(hScale, 1f, grow);
+                wScale = Mathf.Lerp(wScale, 1f, grow);
 
                 int v = n * 4;
                 // ON the ground, not on the plane the ground used to be. The height field is the
@@ -641,8 +674,8 @@ namespace SpawnRowDuel.View.World
             // the mesh's. Without a padded bounds the whole field pops out of view at a glance
             // angle, because Unity culls against geometry that never gets drawn where it says.
             mesh.bounds = new Bounds(Vector3.zero,
-                new Vector3(IslandExtent.x * 2f + 4f, 6f + look.Terrain.Amplitude * 4f,
-                            IslandExtent.y * 2f + 4f));
+                new Vector3(CoverExtent.x * 2f + 4f, 6f + look.Terrain.Amplitude * 4f,
+                            CoverExtent.y * 2f + 4f));
 
             target.GetComponent<MeshFilter>().sharedMesh = mesh;
             return mesh;

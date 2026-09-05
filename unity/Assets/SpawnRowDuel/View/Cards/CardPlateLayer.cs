@@ -79,7 +79,13 @@ namespace SpawnRowDuel.View.Cards
         static readonly Color FoeSleeve = ElementPalette.Hex("#9a5cc6");
 
         MatchController _match;
+        BoardInput _input;
         ElementPalette _palette;
+
+        /// <summary>The card you have selected, and the cards already committed to the attack.
+        /// Bright enough to pick out at a glance in a row of identical creatures.</summary>
+        static readonly Color Picked = new Color(0.45f, 0.95f, 1f);
+        static readonly Color Swinging = new Color(1f, 0.66f, 0.28f);
 
         readonly Dictionary<Sprite, Sprite> _cropped = new Dictionary<Sprite, Sprite>();
         readonly Dictionary<int, Plate> _live = new Dictionary<int, Plate>();
@@ -121,6 +127,7 @@ namespace SpawnRowDuel.View.Cards
         void Awake()
         {
             _match = GetComponent<MatchController>();
+            _input = GetComponent<BoardInput>();
         }
 
         void LateUpdate()
@@ -241,8 +248,18 @@ namespace SpawnRowDuel.View.Cards
 
             // the foe's half already reads cold from its row tint; the plate keeps the same rule
             var tint = o.Owner == Seat.Local ? Color.white : new Color(0.86f, 0.88f, 1f);
-            p.Frame.color = tint;
             p.Art.color = tint;
+
+            // ...and the FRAME carries the one thing a card cannot say for itself: whether it is a
+            // card you are acting WITH. The tile underneath is painted for exactly this and the
+            // card covers the tile, so the light has to be on the card. Cyan for the one under the
+            // cursor, amber for every creature already declared into the attack - which is the
+            // thing that was being carried entirely by the player's memory, and could not be
+            // carried at all between two copies of one card with different health left.
+            bool picked = _input != null && _input.Selected.HasValue && _input.Selected.Value == cell;
+            bool swinging = o.Owner == Seat.Local && _match.IsAttacking(cell);
+
+            p.Frame.color = picked ? Picked : swinging ? Swinging : tint;
 
             PlaceName(p, def, faceDown, plateW, plateH);
             PlaceBank(p, o, s, plateW, plateH, faceDown);

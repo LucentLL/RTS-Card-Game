@@ -62,6 +62,8 @@ namespace SpawnRowDuel.View.Cards
         float _width;
         float _nameSize;      // the size the name WANTS, before it is shrunk to fit its column
         string _fittedFor;    // the (name, size, column width) the current fit was measured for
+        float _typeSize;      // ...and the race/type line under it, which clipped just as happily
+        string _typeFittedFor;
         float _rulesSize;     // ...and the same pair for the ability box, which wraps
         string _rulesFittedFor;
 
@@ -115,6 +117,16 @@ namespace SpawnRowDuel.View.Cards
             var names = new VisualElement { pickingMode = PickingMode.Ignore };
             names.style.flexGrow = 1;
             names.style.flexShrink = 1;
+
+            // minWidth 0 and flexBasis 0, and they are the whole of "THE FOUNDRY" printing as
+            // "THE FOUN". A flex item defaults to min-width:auto, which refuses to shrink below
+            // its CONTENT - so a long name did not squeeze the column, it widened it past the
+            // banner and got clipped by the card's own overflow. Worse, it took FitName with it:
+            // that measures against this column's resolved width to decide how far to shrink, and
+            // the width it was reading had already grown to fit the text, so the answer was
+            // always "it fits".
+            names.style.minWidth = 0;
+            names.style.flexBasis = 0;
             names.style.overflow = Overflow.Hidden;
             names.style.marginLeft = 3;
             _banner.Add(names);
@@ -124,19 +136,23 @@ namespace SpawnRowDuel.View.Cards
             // the gem that set its left padding are absolute. So the name is fitted when the
             // column's geometry actually resolves, and again whenever the card is resized.
             names.RegisterCallback<GeometryChangedEvent>(_ => FitName());
+            names.RegisterCallback<GeometryChangedEvent>(_ => FitType());
 
+            // alignSelf CENTER, not the column's default stretch. It keeps them centred AND makes
+            // each label size to its own content - which is how Fit() reads the TRUE rendered
+            // width off resolvedStyle instead of trusting MeasureTextSize, which lies about these.
             _name = Text("", UiFont.DisplayBlack);
             _name.style.color = new Color(0.10f, 0.078f, 0.04f);        // #1a140a
             _name.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _name.style.alignSelf = Align.Center;
             _name.style.whiteSpace = WhiteSpace.NoWrap;
-            _name.style.overflow = Overflow.Hidden;
             names.Add(_name);
 
             _type = Text("", UiFont.DisplayRegular);
             _type.style.unityTextAlign = TextAnchor.MiddleCenter;
             _type.style.letterSpacing = 1.4f;
+            _type.style.alignSelf = Align.Center;
             _type.style.whiteSpace = WhiteSpace.NoWrap;
-            _type.style.overflow = Overflow.Hidden;
             names.Add(_type);
 
             // ── art window ─────────────────────────────────────────────────────────────────
@@ -289,6 +305,11 @@ namespace SpawnRowDuel.View.Cards
             _cost.text = m.Cost.ToString();
             _cost.style.fontSize = cost * 0.62f;
 
+            // A card with NO element draws no gem, and must not be charged for one either - that
+            // was a seventh of the card's width held empty on every spell and every neutral
+            // structure, taken straight off the name.
+            bool hasGem = m.Element != Rules.Element.None;
+
             float gem = width * GemSize;
             _gem.style.width = gem; _gem.style.height = gem;
             _gem.style.left = width * 0.022f + cost + width * 0.012f;
@@ -296,11 +317,11 @@ namespace SpawnRowDuel.View.Cards
             _gem.style.unityBackgroundImageTintColor = sw.Accent;
             _gemGlyph.text = sw.Glyph;
             _gemGlyph.style.fontSize = gem * 0.62f;
-            _gem.style.display = m.Element == Rules.Element.None ? DisplayStyle.None : DisplayStyle.Flex;
+            _gem.style.display = hasGem ? DisplayStyle.Flex : DisplayStyle.None;
 
             // The name column starts CLEAR of the badge and the gem, which are absolute and no
             // longer take part in the banner's row layout.
-            _banner.style.paddingLeft = width * 0.022f + cost + gem + width * 0.03f;
+            _banner.style.paddingLeft = width * 0.022f + cost + (hasGem ? gem : 0f) + width * 0.03f;
 
             _name.text = m.Name;
             _nameSize = Mathf.Clamp(width * NameSize, 8f * px, 14f * px);
@@ -310,7 +331,9 @@ namespace SpawnRowDuel.View.Cards
             if (_fittedFor == null) _name.style.fontSize = _nameSize;
             FitName();
             _type.text = string.IsNullOrEmpty(m.TypeLine) ? "" : m.TypeLine.ToUpperInvariant();
-            _type.style.fontSize = Mathf.Clamp(width * TypeSize, 6f * px, 10f * px);
+            _typeSize = Mathf.Clamp(width * TypeSize, 6f * px, 10f * px);
+            if (_typeFittedFor == null) _type.style.fontSize = _typeSize;
+            FitType();
             _type.style.color = ElementPalette.Mix(ec, Color.black, 0.72f);
 
             // art
@@ -375,41 +398,54 @@ namespace SpawnRowDuel.View.Cards
         /// changing a font size is itself a geometry change - without it, a card whose fit lands
         /// between two sizes would relayout every frame forever.
         /// </summary>
-        void FitName()
-        {
-            if (_names == null || _name == null || _nameSize <= 0f) return;
-            if (string.IsNullOrEmpty(_name.text)) return;
+        void FitName() { Fit(_name, _nameSize, 6f, ref _fittedFor); }
 
-            // MeasureTextSize reads the panel's DPI, and HandBar binds a face BEFORE it adds it -
-            // so measuring here off-panel warned once per card per rebuild (135 of them in one
-            // probe run) and measured against a DPI it had to invent. Nothing is lost by waiting:
-            // the GeometryChangedEvent below fires when the card is attached and laid out, which
-            // is the first moment the answer can be right anyway.
-            if (_name.panel == null) return;
+        /// <summary>The race/type line under the name, which was never fitted at all - so
+        /// "STRUCTURE" under "The Foundry" printed as "STRUCTU".</summary>
+        void FitType() { Fit(_type, _typeSize, 5f, ref _typeFittedFor); }
+
+        /// <summary>
+        /// Shrink one NoWrap line until it fits the name column, the way a real card does it.
+        ///
+        /// It used to ask <c>MeasureTextSize</c> how wide the text was, and for these labels that
+        /// number is a LIE: caught in the act reporting 101 for a string the same element then
+        /// rendered about 128 wide, against a 105-wide column. So the fit concluded "it fits" and
+        /// "The Foundry" printed as "THE FOUND". The measuring path does not reproduce the SDF
+        /// font asset these labels actually draw through.
+        ///
+        /// So nothing is measured. The labels are <c>alignSelf: Center</c>, which in this column
+        /// makes each size to its OWN CONTENT rather than stretch to the column - so
+        /// <c>resolvedStyle.width</c> IS the rendered width, straight from the layout engine that
+        /// is about to draw it. Text width is linear in font size, so one step lands it, and the
+        /// GeometryChangedEvent the size change causes re-enters here and confirms.
+        ///
+        /// The memo is what stops that re-entry becoming a loop: keyed on the text, the size the
+        /// layout asked for and the column - none of which the fit itself changes.
+        /// </summary>
+        void Fit(Label label, float wanted, float floor, ref string memo)
+        {
+            if (_names == null || label == null || wanted <= 0f) return;
+            if (string.IsNullOrEmpty(label.text)) return;
+
+            // HandBar binds a face BEFORE it adds it, so there is no panel and no layout yet.
+            // Nothing is lost by waiting: the GeometryChangedEvent fires when the card is
+            // attached and laid out, which is the first moment the answer can be right anyway.
+            if (label.panel == null) return;
 
             float avail = _names.resolvedStyle.width;
-            float cur = _name.resolvedStyle.fontSize;
-            if (avail <= 1f || cur <= 0f) return;
+            float actual = label.resolvedStyle.width;
+            float cur = label.resolvedStyle.fontSize;
+            if (avail <= 1f || actual <= 1f || cur <= 0f) return;
 
-            // Measure ONLY when the answer could have changed. This is called from
-            // GeometryChangedEvent, and measuring text re-enters the text generator from inside
-            // the layout pass - the same pass whose repaint is generating meshes. Doing that on
-            // every layout of every card, for an answer that is the same as last time, is work
-            // asking for trouble as well as work for nothing.
-            string key = _name.text + "|" + _nameSize.ToString("F2") + "|" + avail.ToString("F1");
-            if (key == _fittedFor) return;
-            _fittedFor = key;
+            string key = label.text + "|" + wanted.ToString("F2") + "|" + avail.ToString("F1");
+            if (key == memo) return;
+            memo = key;
 
-            var size = _name.MeasureTextSize(_name.text, 0f, MeasureMode.Undefined,
-                                                          0f, MeasureMode.Undefined);
-            if (size.x <= 0f) return;
+            // 0.98 of the column, not all of it: the last glyph should not sit on the clip edge.
+            float target = Mathf.Min(wanted, cur * (avail * 0.98f) / actual);
+            target = Mathf.Max(floor, target);
 
-            // measured at whatever size it is drawing now; text width is linear in font size, so
-            // this is how wide it would be at the size the layout wanted
-            float want = size.x * (_nameSize / cur);
-            float target = want > avail ? Mathf.Max(6f, _nameSize * (avail / want)) : _nameSize;
-
-            if (Mathf.Abs(target - cur) > 0.25f) _name.style.fontSize = target;
+            if (Mathf.Abs(target - cur) > 0.15f) label.style.fontSize = target;
         }
 
         /// <summary>
