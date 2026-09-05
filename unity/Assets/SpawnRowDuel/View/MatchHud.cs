@@ -176,10 +176,28 @@ namespace SpawnRowDuel.View
         private readonly HashSet<int> _chosenBlockers = new HashSet<int>();
         private PendingRequest _seenPending;
 
-        /// <summary>The engine these panel flags belong to. A different one is a different duel,
-        /// and this HUD's OnGUI is not running while the player is in a menu - so "the engine
-        /// changed" is the only signal it can see that reaches every way into a match.</summary>
-        private Rules.DuelEngine _seenEngine;
+        /// <summary>
+        /// Which duel these panel flags belong to.
+        ///
+        /// A COUNTER rather than the engine itself, for two reasons. Holding the engine would pin
+        /// the whole retired match - its state, both decks, every unit - alive for as long as the
+        /// player sat in the menu, which is the one thing putting the match down was for. And the
+        /// engine reference is swapped mid-match by a reconnect, which is the same duel continuing
+        /// and has no business closing the player's menus.
+        /// </summary>
+        private int _seenMatch = -1;
+
+        /// <summary>Leaving is REQUESTED here and acted on at the end of the pass - see the
+        /// bottom of OnGUI.</summary>
+        private bool _quitRequested;
+
+        private Shell.GameShell _shell;
+
+        Shell.GameShell FindShell()
+        {
+            if (_shell == null) _shell = FindFirstObjectByType<Shell.GameShell>();
+            return _shell;
+        }
         private bool _upgradeMenuOpen;
         private int _chargeAmount;
         private int _chargeCellId = -1;
@@ -276,9 +294,9 @@ namespace SpawnRowDuel.View
             // runs already has a match in front of it. Keyed on "no match" this reset was reachable
             // on exactly one of the four ways into a duel; keyed on identity it is reachable on all
             // of them, and on the way out as well.
-            if (!ReferenceEquals(_match.Engine, _seenEngine))
+            if (_seenMatch != _match.MatchSerial)
             {
-                _seenEngine = _match.Engine;
+                _seenMatch = _match.MatchSerial;
 
                 // `_upkeepPromptedTurn` is the one that bites without looking like it would: it is
                 // compared against the TURN NUMBER, and every match starts at one - so a shortfall
@@ -330,6 +348,23 @@ namespace SpawnRowDuel.View
             {
                 var over = new GUIStyle(_label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
                 GUI.Label(new Rect(0, h / 2f - 20, w, 40), "MATCH OVER — " + s.Outcome, over);
+
+                // ...AND A WAY OUT OF IT.
+                //
+                // This branch returns before the rail is drawn, so the SETTINGS gear - and the
+                // QUIT MATCH behind it, the only exit a duel launched from the main menu has -
+                // vanished at the exact moment the match ended. A finished skirmish, and a
+                // finished duel against a friend, were dead ends with no controls on them at all:
+                // the engine was never put down and, over the wire, the sockets stayed open.
+                //
+                // Only when nothing ELSE is offering one. A campaign duel already ends on the
+                // shell's own result panel, with its own way back to the map.
+                var shell = FindShell();
+                if (shell == null || !shell.OffersExit)
+                {
+                    if (Btn(new Rect(w / 2f - 70, h / 2f + 28, 140, 30), "↩ LEAVE", _button))
+                        _quitRequested = true;
+                }
                 return;
             }
 
@@ -381,6 +416,15 @@ namespace SpawnRowDuel.View
 
             if (Time.unscaledTime < _hintUntil && _hint.Length > 0 && !_buildMenuOpen)
                 GUI.Label(new Rect(0, h - BottomH - 22, w, 20), _hint, _center);
+
+            // LAST, and outside the guard: leaving tears the match down, and every panel above
+            // holds a reference to it.
+            if (_quitRequested)
+            {
+                _quitRequested = false;
+                var shell = FindShell();
+                if (shell != null) shell.Show(Shell.ShellScreen.MainMenu);
+            }
         }
 
         void DrawPanels(GameState s, float w, float h)
@@ -797,11 +841,15 @@ namespace SpawnRowDuel.View
             y += 30;
 
             // The one destructive control on the screen, so it is the one that says what it does.
+            //
+            // It ASKS rather than acts. Leaving ends the match, and this button is drawn from the
+            // middle of OnGUI - so quitting here nulled the engine and then let the rest of the
+            // pass carry on drawing panels against it, which throws the moment one of them is a
+            // choice panel reaching for the catalog. The request is honoured after the pass.
             if (Btn(new Rect(x, y, cw, 24), "QUIT MATCH", _button))
             {
                 _settingsOpen = false;
-                var shell = FindFirstObjectByType<Shell.GameShell>();
-                if (shell != null) shell.Show(Shell.ShellScreen.MainMenu);
+                _quitRequested = true;
             }
         }
 

@@ -92,8 +92,40 @@ namespace SpawnRowDuel.View.Shell
         /// putting a battlefield back there was to be able to see it.</summary>
         const float ScrimBase = 0.16f;
 
+        // ── closing a duel's session ────────────────────────────────────────────────────
+        //
+        // The board object is switched off the moment a duel is left, so nothing on it can pump
+        // the socket that still has an unsent goodbye in it. This shell is always running, so it
+        // takes the retiring session, keeps pumping it for a beat, and only then closes it.
+        SpawnRowDuel.Net.NetSession _closing;
+        float _closeAt;
+
+        void PumpClosing()
+        {
+            if (Match != null && Match.Retiring != null)
+            {
+                if (_closing != null) _closing.Dispose();      // an older one still draining
+                _closing = Match.TakeRetiring();
+                _closeAt = Time.unscaledTime + 1.5f;
+            }
+
+            if (_closing == null) return;
+
+            _closing.Pump(Time.unscaledDeltaTime);
+            if (Time.unscaledTime < _closeAt) return;
+
+            _closing.Dispose();
+            _closing = null;
+        }
+
+        void OnDestroy()
+        {
+            if (_closing != null) { _closing.Dispose(); _closing = null; }
+        }
+
         void Update()
         {
+            PumpClosing();
             if (_root == null) return;
             HudLayout.Recompute();
 
@@ -137,6 +169,7 @@ namespace SpawnRowDuel.View.Shell
             _challenge = null;
             if (screen != ShellScreen.Multiplayer) _multiplayer = null;
             ClearRoot();
+            _resultShowing = false;
             if (screen != ShellScreen.Battle) _battleExit = null;
 
             // BEFORE anything is built. Start() shows the menu, and Start() runs before the first
@@ -495,6 +528,13 @@ namespace SpawnRowDuel.View.Shell
         /// </summary>
         System.Action _battleExit;
 
+        /// <summary>Is the SHELL already showing the player a way out of this duel - its exit bar,
+        /// or the campaign's result panel? MatchHud draws a fallback when nothing is, because its
+        /// own rail (and the QUIT MATCH behind it) is not drawn once a match is over.</summary>
+        public bool OffersExit { get { return _battleExit != null || _resultShowing; } }
+
+        bool _resultShowing;
+
         /// <summary>Empty the shell's layer, and forget what it was holding over the battle. Every
         /// `_root.Clear()` goes through here: a rect that outlives the button it describes would go
         /// on reserving a band of HUD and refusing board taps under a control that is not there.</summary>
@@ -569,6 +609,7 @@ namespace SpawnRowDuel.View.Shell
         void ShowResult(bool won, IReadOnlyList<CampaignEvent> log)
         {
             _battleExit = null;              // the duel is over; there is nothing to abandon
+            _resultShowing = true;           // ...and this panel is the way out from here
             ClearRoot();
             var scrim = UiKit.Scrim(_root);
 

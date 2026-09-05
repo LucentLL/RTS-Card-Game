@@ -102,6 +102,17 @@ namespace SpawnRowDuel.View
         public bool MatchStarted { get { return Engine != null; } }
 
         /// <summary>
+        /// Which duel this is, counting from the first. Bumped when one starts and when one is put
+        /// down - and deliberately NOT when a reconnect swaps the engine underneath us, because
+        /// that is the same duel continuing.
+        ///
+        /// The view's per-match scratch keys off this rather than off the engine reference: a
+        /// surface that remembered the engine would pin the retired match's whole state alive for
+        /// as long as the player sat in a menu.
+        /// </summary>
+        public int MatchSerial { get; private set; }
+
+        /// <summary>
         /// The live multiplayer session, or null in solo. When it is set it owns the engine, the
         /// AI is off, and every command the player makes goes out on the wire as well as into
         /// the board.
@@ -128,6 +139,7 @@ namespace SpawnRowDuel.View
             HoldUntil = 0f;                    // static: a new match must not inherit a stale hold
             var state = MatchSetup.NewMatch(Catalog, you, foe, youDeck, foeDeck, seed, RulesOptions.JsParity);
             Engine = new DuelEngine(state, Catalog);
+            MatchSerial++;
             _ai = new AiDriver(Engine, new ScriptedAiPolicy(Seat.Remote));
 
             RollBattlefield(true);
@@ -161,11 +173,35 @@ namespace SpawnRowDuel.View
         /// and that owner never closed it, so every Duel-a-Friend leaked its sockets for the rest
         /// of the process.
         /// </summary>
+        /// <summary>
+        /// A session this controller has let go of but which has NOT been closed yet, waiting for
+        /// somebody still running to drain it. Taken by the shell (see <see cref="TakeRetiring"/>).
+        /// </summary>
+        public NetSession Retiring { get; private set; }
+
+        public NetSession TakeRetiring()
+        {
+            var s = Retiring;
+            Retiring = null;
+            return s;
+        }
+
         void DropNet(string why)
         {
             if (Net == null) return;
-            Net.Leave(why);                    // the other player is owed the news...
-            Net.Dispose();                     // ...and the sockets are owed closing
+
+            // SAY GOODBYE, THEN HAND IT ON - never close it here.
+            //
+            // Leave publishes a Bye, and publishing only ENQUEUES: the bytes are drained by a
+            // background loop awaiting a semaphore, and Dispose cancels that loop and aborts the
+            // socket. Disposing in the same breath therefore threw away the very message Leave
+            // exists to send, and the opponent sat waiting for a timeout instead of being told.
+            // Nothing here can drain it either - this component lives on the board object, which
+            // the shell switches off on the way out - so the session goes to somebody who is
+            // still running, and they close it once it has been flushed.
+            Net.Leave(why);
+            if (Retiring != null) Retiring.Dispose();     // a second quit before the first drained
+            Retiring = Net;
             Net = null;
         }
 
@@ -174,6 +210,7 @@ namespace SpawnRowDuel.View
             DropNet(why);
 
             Engine = null;
+            MatchSerial++;
             _ai = null;
             _aiFaulted = false;
 
@@ -244,6 +281,7 @@ namespace SpawnRowDuel.View
             TakeSeat(session.LocalSide);
             HoldUntil = 0f;
             Engine = session.Engine;
+            MatchSerial++;
             _ai = null;                        // there is a person over there
             _aiFaulted = false;
             CancelPending();
