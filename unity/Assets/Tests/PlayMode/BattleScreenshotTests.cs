@@ -711,6 +711,29 @@ namespace SpawnRowDuel.PlayTests
             yield return Frames(2);
         }
 
+        /// <summary>
+        /// The battlefield overlay, all five steps.
+        ///
+        /// They are ordered - each shows strictly less than the one before - so the sheet is the
+        /// only way to check that ROWS really draws the row boundaries and not the column ones,
+        /// which is a UV-axis question no amount of reading the shader settles.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureBoardOverlayModes()
+        {
+            yield return PlayToMidGame();
+
+            foreach (BoardView.BoardOverlay mode in System.Enum.GetValues(typeof(BoardView.BoardOverlay)))
+            {
+                BoardView.Overlay = mode;
+                yield return Frames(4);
+                yield return Shoot("overlay-" + BoardView.OverlayName(mode).ToLowerInvariant() + ".png");
+            }
+
+            BoardView.Overlay = BoardView.BoardOverlay.Colour;   // static: do not leak a mode
+            yield return Frames(2);
+        }
+
         static IEnumerator LoadBattle()
         {
             Reshape();

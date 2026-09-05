@@ -560,25 +560,45 @@ namespace SpawnRowDuel.View
         /// </summary>
         void DrawSettings(float w, float h)
         {
-            const float panelW = 176f;
-            var panel = new Rect(w * 0.5f - panelW * 0.5f, h * 0.5f - 74f, panelW, 148f);
+            const float panelW = 190f, panelH = 218f;
+            var panel = new Rect(w * 0.5f - panelW * 0.5f, h * 0.5f - panelH * 0.5f, panelW, panelH);
             Panel(panel, PanelColor);
             HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
                                         panel.width * _scale, panel.height * _scale);
 
-            GUI.Label(new Rect(panel.x + 10, panel.y + 8, panel.width - 20, 18), "SETTINGS", _label);
+            float x = panel.x + 10, cw = panel.width - 20, y = panel.y + 8;
+            GUI.Label(new Rect(x, y, cw, 18), "SETTINGS", _label);
+            y += 24;
 
-            GUI.Label(new Rect(panel.x + 10, panel.y + 32, panel.width - 20, 14), "Camera", _small);
+            GUI.Label(new Rect(x, y, cw, 14), "Camera", _small);
+            y += 16;
             bool tilted = _input == null || _input.Tilted;
-            if (Btn(new Rect(panel.x + 10, panel.y + 48, panel.width - 20, 24),
-                    tilted ? "TILTED" : "TOP-DOWN", _button) && _input != null)
+            if (Btn(new Rect(x, y, cw, 24), tilted ? "TILTED" : "TOP-DOWN", _button) && _input != null)
                 _input.Tilted = !tilted;
+            y += 30;
 
-            if (Btn(new Rect(panel.x + 10, panel.y + 80, panel.width - 20, 24), "RESUME", _button))
+            // THE BOARD'S OWN MARKING, in five steps from the full colour wash down to nothing.
+            //
+            // It cycles rather than listing five buttons: the modes are ordered - each shows
+            // strictly less than the one before - so "press until it looks right" is the whole
+            // interaction, and it costs one line instead of five.
+            //
+            // Nothing here touches a rule. The cells, their colliders and every legality probe are
+            // identical in all five; even at OFF a lit cell still lights, because those lights are
+            // the engine talking rather than decoration.
+            GUI.Label(new Rect(x, y, cw, 14), "Battlefield overlay", _small);
+            y += 16;
+            if (Btn(new Rect(x, y, cw, 24), BoardView.OverlayName(BoardView.Overlay), _button))
+                BoardView.Overlay = (BoardView.BoardOverlay)
+                    (((int)BoardView.Overlay + 1) % 5);
+            y += 30;
+
+            if (Btn(new Rect(x, y, cw, 24), "RESUME", _button))
                 _settingsOpen = false;
+            y += 30;
 
             // The one destructive control on the screen, so it is the one that says what it does.
-            if (Btn(new Rect(panel.x + 10, panel.y + 110, panel.width - 20, 24), "QUIT MATCH", _button))
+            if (Btn(new Rect(x, y, cw, 24), "QUIT MATCH", _button))
             {
                 _settingsOpen = false;
                 var shell = FindFirstObjectByType<Shell.GameShell>();

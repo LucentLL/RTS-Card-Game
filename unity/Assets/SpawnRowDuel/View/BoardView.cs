@@ -91,13 +91,145 @@ namespace SpawnRowDuel.View
                 var cell = kv.Key;
                 if (cell.Row == RowKey.Center) continue;
 
-                var m = RowMaterial(cell.Row);
+                var m = Runtime(RowMaterial(cell.Row));
                 if (m == null) continue;
 
                 _restMaterials[cell] = m;
                 var mr = kv.Value.GetComponent<MeshRenderer>();
                 if (mr != null) mr.sharedMaterial = m;
             }
+
+            ApplyOverlay();
+        }
+
+        // ── the board overlay ─────────────────────────────────────────────────────────────
+
+        /// <summary>How much of the board's own marking is drawn.</summary>
+        public enum BoardOverlay
+        {
+            Colour = 0,     // warm your half, cold theirs, amber centre - the full wash
+            DarkTint = 1,   // one neutral shade, no lines: the board as a shadow on the field
+            Grid = 2,       // no fill, both sets of lines
+            RowLines = 3,   // no fill, and only the lines that divide one ROW from the next
+            Off = 4,        // nothing at rest
+        }
+
+        /// <summary>
+        /// Static, like the figures toggle and the biome: every cell reads it and threading it
+        /// through would buy nothing. It is a PRESENTATION choice and never a rule - the cells,
+        /// their colliders and every legality probe are identical in all five modes.
+        /// </summary>
+        public static BoardOverlay Overlay = BoardOverlay.Colour;
+
+        public static string OverlayName(BoardOverlay o)
+        {
+            switch (o)
+            {
+                case BoardOverlay.DarkTint: return "DARK";
+                case BoardOverlay.Grid: return "GRID";
+                case BoardOverlay.RowLines: return "ROWS";
+                case BoardOverlay.Off: return "OFF";
+                default: return "COLOUR";
+            }
+        }
+
+        static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        static readonly int EdgeColorId = Shader.PropertyToID("_EdgeColor");
+        static readonly int EdgeAxisId = Shader.PropertyToID("_EdgeAxis");
+
+        BoardOverlay _appliedOverlay = (BoardOverlay)(-1);
+
+        /// <summary>
+        /// The materials the cells actually wear.
+        ///
+        /// Runtime COPIES of the assigned assets, because the overlay is applied by writing colours
+        /// onto them: mutating the assigned material would edit the project asset itself, and in
+        /// the editor that is a change to a file nobody asked to change. The originals are kept so
+        /// COLOUR can be restored exactly rather than approximately.
+        /// </summary>
+        readonly Dictionary<Material, Material> _runtime = new Dictionary<Material, Material>();
+        readonly Dictionary<Material, Color> _baseOf = new Dictionary<Material, Color>();
+        readonly Dictionary<Material, Color> _edgeOf = new Dictionary<Material, Color>();
+
+        Material Runtime(Material src)
+        {
+            if (src == null) return null;
+
+            Material copy;
+            if (_runtime.TryGetValue(src, out copy) && copy != null) return copy;
+
+            copy = new Material(src) { name = src.name + " (board)", hideFlags = HideFlags.DontSave };
+            _runtime[src] = copy;
+            if (copy.HasProperty(BaseColorId)) _baseOf[copy] = copy.GetColor(BaseColorId);
+            if (copy.HasProperty(EdgeColorId)) _edgeOf[copy] = copy.GetColor(EdgeColorId);
+            return copy;
+        }
+
+        /// <summary>
+        /// Write the current overlay onto every cell material, and switch the renderers off
+        /// entirely for Off.
+        ///
+        /// A HIGHLIGHT still draws in every mode, Off included - Paint() re-enables the renderer it
+        /// paints. That is not an exception to the setting, it is the point of it: the wash is
+        /// decoration and can go, but the lit cells ARE the engine's answer to "where may this go",
+        /// and a player who cannot see them cannot play.
+        /// </summary>
+        public void ApplyOverlay()
+        {
+            _appliedOverlay = Overlay;
+
+            foreach (var kv in _runtime)
+            {
+                var m = kv.Value;
+                if (m == null) continue;
+
+                Color fill = _baseOf.ContainsKey(m) ? _baseOf[m] : Color.clear;
+                Color edge = _edgeOf.ContainsKey(m) ? _edgeOf[m] : Color.clear;
+                var axis = new Vector4(1f, 1f, 0f, 0f);
+
+                switch (Overlay)
+                {
+                    case BoardOverlay.DarkTint:
+                        // one shade for every row, at the wash's own weight, and no rim
+                        fill = new Color(0.02f, 0.025f, 0.04f, fill.a * 0.9f);
+                        edge.a = 0f;
+                        break;
+
+                    case BoardOverlay.Grid:
+                        fill.a = 0f;
+                        break;
+
+                    case BoardOverlay.RowLines:
+                        fill.a = 0f;
+                        // v runs along the row's DEPTH, so its edges are the row boundaries
+                        axis = new Vector4(0f, 1f, 0f, 0f);
+                        break;
+
+                    case BoardOverlay.Off:
+                        break;                      // handled by the renderers, below
+                }
+
+                if (m.HasProperty(BaseColorId)) m.SetColor(BaseColorId, fill);
+                if (m.HasProperty(EdgeColorId)) m.SetColor(EdgeColorId, edge);
+                if (m.HasProperty(EdgeAxisId)) m.SetVector(EdgeAxisId, axis);
+            }
+
+            bool draw = Overlay != BoardOverlay.Off;
+            foreach (var kv in _cells)
+            {
+                var mr = kv.Value.GetComponent<MeshRenderer>();
+                if (mr == null) continue;
+                // a cell wearing a highlight keeps drawing; only the RESTING wash is switched off
+                Material rest;
+                bool resting = _restMaterials.TryGetValue(kv.Key, out rest)
+                            && ReferenceEquals(mr.sharedMaterial, rest);
+                mr.enabled = draw || !resting;
+            }
+        }
+
+        void Update()
+        {
+            if (Overlay != _appliedOverlay) ApplyOverlay();
         }
 
         private readonly Dictionary<CellRef, Transform> _cells = new Dictionary<CellRef, Transform>();
@@ -154,9 +286,9 @@ namespace SpawnRowDuel.View
                     // cold, yours warm, the contested centre amber. Colour is doing real work
                     // here - "whose ground is this" decides where you may deploy and what a raid
                     // means, and a uniform grey board makes a player count rows to find out.
-                    Material m = structureSlot ? StructureSlotMaterial
+                    Material m = Runtime(structureSlot ? StructureSlotMaterial
                                : (row == RowKey.Center ? LaneMaterial
-                               : (RowMaterial(row) != null ? RowMaterial(row) : CellMaterial));
+                               : (RowMaterial(row) != null ? RowMaterial(row) : CellMaterial)));
 
                     go.GetComponent<MeshRenderer>().sharedMaterial = m;
 
@@ -186,17 +318,34 @@ namespace SpawnRowDuel.View
             return false;
         }
 
+        /// <summary>
+        /// Light a cell. The renderer is switched back ON whatever the overlay setting is: the lit
+        /// cells are the engine's own answer to "where may this go", and OFF is a choice about
+        /// DECORATION, not about being able to see the game.
+        /// </summary>
         public void Paint(CellRef cell, Material m)
         {
             Transform t;
-            if (_cells.TryGetValue(cell, out t))
-                t.GetComponent<MeshRenderer>().sharedMaterial = m;
+            if (!_cells.TryGetValue(cell, out t)) return;
+
+            var mr = t.GetComponent<MeshRenderer>();
+            if (mr == null) return;
+            mr.sharedMaterial = m;
+            mr.enabled = true;
         }
 
         public void Restore(CellRef cell)
         {
             Material m;
-            if (_restMaterials.TryGetValue(cell, out m)) Paint(cell, m);
+            if (!_restMaterials.TryGetValue(cell, out m)) return;
+
+            Transform t;
+            if (!_cells.TryGetValue(cell, out t)) return;
+
+            var mr = t.GetComponent<MeshRenderer>();
+            if (mr == null) return;
+            mr.sharedMaterial = m;
+            mr.enabled = Overlay != BoardOverlay.Off;      // back to whatever the setting says
         }
     }
 }

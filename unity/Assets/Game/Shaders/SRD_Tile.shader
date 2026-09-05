@@ -15,6 +15,11 @@ Shader "SpawnRowDuel/Tile"
         _EdgeColor ("Edge", Color) = (1, 1, 1, 0.55)
         _EdgeWidth ("Edge width", Range(0, 0.5)) = 0.055
         _Fresnel   ("Grazing lift", Range(0, 1)) = 0.25
+
+        // WHICH edges are drawn, per UV axis. (1,1) rims the whole cell; (0,1) draws only the
+        // boundaries between ROWS and leaves the columns open. It exists so the board overlay can
+        // be turned down to row lines - or off - without a second shader (BoardView.Overlay).
+        _EdgeAxis  ("Edge axes (u,v)", Vector) = (1, 1, 0, 0)
     }
 
     SubShader
@@ -40,7 +45,7 @@ Shader "SpawnRowDuel/Tile"
             struct Varyings   { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
 
             CBUFFER_START(UnityPerMaterial)
-                float4 _BaseColor, _EdgeColor;
+                float4 _BaseColor, _EdgeColor, _EdgeAxis;
                 float _EdgeWidth, _Fresnel;
             CBUFFER_END
 
@@ -54,9 +59,12 @@ Shader "SpawnRowDuel/Tile"
 
             half4 frag(Varyings i) : SV_Target
             {
-                // distance to the nearest edge, in UV
+                // distance to the nearest edge, in UV - per AXIS, so one of them can be switched
+                // off and leave the other standing (row lines without column lines).
                 float2 d = min(i.uv, 1.0 - i.uv);
-                float edge = 1.0 - smoothstep(0.0, _EdgeWidth, min(d.x, d.y));
+                float eu = (1.0 - smoothstep(0.0, _EdgeWidth, d.x)) * saturate(_EdgeAxis.x);
+                float ev = (1.0 - smoothstep(0.0, _EdgeWidth, d.y)) * saturate(_EdgeAxis.y);
+                float edge = max(eu, ev);
 
                 float3 col = lerp(_BaseColor.rgb, _EdgeColor.rgb, edge);
                 float a = lerp(_BaseColor.a, _EdgeColor.a, edge);
