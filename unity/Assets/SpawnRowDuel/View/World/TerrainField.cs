@@ -206,10 +206,28 @@ namespace SpawnRowDuel.View.World
         static int _nextGust;
         readonly Vector4[] _gustUniform = new Vector4[4];
 
+        /// <summary>
+        /// The controller, found once and KEPT - but found again if the first look came up empty.
+        ///
+        /// The default overload skips inactive objects, and the controller lives on the board
+        /// object, which the shell deactivates on its very first frame when it shows the menu.
+        /// Nothing orders those two Start() calls, so losing that race left this field null for
+        /// the life of the process - and Start does not run again, because re-activating an object
+        /// re-runs OnEnable and not Start. Every gate in here gives up on a null controller, so
+        /// the whole press field, the settled layer and the per-match reset would have been
+        /// silently dead. Re-asking costs one search on frames where there is nothing to find.
+        /// </summary>
+        MatchController TheMatch()
+        {
+            if (_match == null)
+                _match = FindFirstObjectByType<MatchController>(FindObjectsInactive.Include);
+            return _match;
+        }
+
         void Start()
         {
             _cam = Camera.main;
-            _match = FindFirstObjectByType<MatchController>();
+            _match = FindFirstObjectByType<MatchController>(FindObjectsInactive.Include);
             BuildDisplacement();
             BuildSettleField();
             BuildGround();
@@ -234,9 +252,10 @@ namespace SpawnRowDuel.View.World
             // The settled layer is the quiet one: ResetSettle is reached only from the biome-apply
             // chain, and a rematch on the same arena never changes biome, so a second duel on the
             // same ground opened with the first one's snow already lying on it.
-            if (_match != null && _seenMatch != _match.MatchSerial)
+            var match = TheMatch();
+            if (match != null && _seenMatch != match.MatchSerial)
             {
-                _seenMatch = _match.MatchSerial;
+                _seenMatch = match.MatchSerial;
                 ForgetTheLastMatch();
             }
 
@@ -997,6 +1016,8 @@ namespace SpawnRowDuel.View.World
 
             _seenVersion = -1;      // the next occupancy sync must not be skipped as "unchanged"
             _pressDirty = false;
+            _pressAt = Time.time;   // ...and the throttle is spent, so the occupancy sync landing
+                                    // in this same frame does not repaint the field a second time
             RepaintDisplacement();  // the settled field rides ResetSettle's own dirty flag
         }
 

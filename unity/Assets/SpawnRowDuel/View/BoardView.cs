@@ -314,6 +314,17 @@ namespace SpawnRowDuel.View
             // world you are fighting in front of. So it moved to the screen edge: the retracted
             // battlements are the HUD bands themselves (WallBands), and the field now runs from
             // one of them to the other.
+
+            // ...AND THE OVERLAY IS APPLIED BEFORE THE FIRST FRAME.
+            //
+            // The cells above are built wearing their full colour with their renderers on, and
+            // nothing here used to switch that to the current setting: the wash was removed only
+            // when Update next polled Overlay against _appliedOverlay, or when ApplySeat ran at
+            // the start of a match. That was invisible while the default WAS Colour, because the
+            // un-applied state and the applied one were byte-identical. With the default at Off it
+            // is a frame of fully painted board every time the board object is switched back on
+            // with no match behind it - which is exactly what the commander select is.
+            ApplyOverlay();
         }
 
         public bool TryCellOf(Transform t, out CellRef cell)

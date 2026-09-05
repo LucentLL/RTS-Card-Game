@@ -183,7 +183,17 @@ namespace SpawnRowDuel.View.Cards
 
         void LateUpdate()
         {
-            if (_match == null || _match.Engine == null || _match.Board == null) return;
+            if (_match == null || _match.Board == null) return;
+
+            // NO MATCH, NO FIGURES - the same sweep the plates need, for the same reason. Prune is
+            // the only thing that destroys a standee, and returning early meant it never ran, so
+            // the last duel's army was still standing on the board when the commander select
+            // (a battle screen) switched the board object back on.
+            if (_match.Engine == null)
+            {
+                if (_live.Count > 0) { _seen.Clear(); Prune(); }
+                return;
+            }
 
             var cam = _input != null && _input.Cam != null ? _input.Cam : Camera.main;
             if (cam == null) return;

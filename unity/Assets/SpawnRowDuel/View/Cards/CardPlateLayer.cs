@@ -147,7 +147,20 @@ namespace SpawnRowDuel.View.Cards
 
         void LateUpdate()
         {
-            if (_match == null || _match.Engine == null || _match.Board == null) return;
+            if (_match == null || _match.Board == null) return;
+
+            // NO MATCH, NO CARDS. Returning outright left every plate from the duel just ended
+            // standing on the board - Prune is the only thing that destroys one, and it never ran.
+            // The shell hides them by switching the board object off, but the COMMANDER SELECT is
+            // a battle screen too, so pressing Duel switched them straight back on and the new
+            // duel's setup screen was laid over the last duel's cards. An empty seen-set is
+            // exactly the sweep this needs.
+            if (_match.Engine == null)
+            {
+                if (_live.Count > 0) { _seen.Clear(); Prune(); }
+                return;
+            }
+
             if (_palette == null) _palette = new ElementPalette(_match.Engine.Catalog);
 
             var s = _match.Engine.State;
