@@ -34,6 +34,54 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-06 (later still) — the build menu becomes a tech tree, and says why not
+
+The menu was a flat scrolling list of ten rows: name, cost, worker figure, and `GUI.enabled` set
+from `Placement.CanBuild`. Everything you could not afford went the same grey as everything you
+had not unlocked, and neither said which it was. The two relations that actually shape the
+economy — `prereq` (what must be standing first) and `upgradesTo` (what a standing thing can
+become) — were both invisible, so nothing in the menu told you that an Outpost branches, or that
+a Longhouse is the only route to a Reliquary.
+
+**`View/BuildTree.cs`** (new) derives the layout from the catalog rather than drawing a diagram
+someone typed. Rows are seeded from the commander build list, bucketed by prerequisite in
+first-seen order, and each row walks its own `upgradesTo` chain; a target that is itself in the
+build list is skipped as a continuation and gets its own row. Seven node states, each carrying
+its reason as text: `costs 6 mana`, `no room`, `needs 2 spare workers` (the Cannon Tower crew
+gate, which is a ROW worker figure and not a full board), `needs a Forge`, `from an Outpost`,
+`upgrade on the board`.
+
+Two consequences worth naming, both of them the data speaking rather than the layout:
+
+* **Cannon Tower and Grand Forge come out as ROOTS, not continuations** — because both sit in
+  every commander build list. The Grand Forge leak (open question 6, spec 02 §949) is now visible
+  in the UI instead of only in the JSON.
+* **Upgrade tiers are drawn but never clickable.** Keep, Citadel, Barracks, Bastion and Grand
+  Vault are taken from the board through `DrawUpgradeMenu`, so a node that offered to build one
+  would be lying. They show their tier and whether the line to them is open.
+
+**Two taps to build**, and that is for touch. There is no hover on a phone, so a menu that built
+on first tap built blind; the first tap highlights and the node changes to `tap again to place`.
+
+**The left inspect card now answers for the menu too.** `MatchHud` publishes `InspectStructure`
+and `HandBar.UpdateInspect` takes it ahead of the hand and the board, with `StructureFull` — the
+paragraph, not the one-line brief. The panel already existed and was already top-left; it simply
+had no way to hear about a thing that was not on the board yet.
+
+**IMGUI cannot draw the game's symbols, and never could.** The old menu emitted
+`"◆" + cost + "   ⚒" + sup` and the player screenshot reads "The Foundry   2   +2" — both glyphs
+blank, no tofu, no warning. Same for the em dash in the placement prompt. The 76-glyph chain
+`FontPipeline` builds is bound to the TextCore font assets, which only UI Toolkit consults;
+`GUI.skin`'s font is ASCII and silently drops the rest. Every string added here is ASCII
+(`2 mana`, `+2 workers`, `>`). **The IMGUI strings still carrying symbols elsewhere in `MatchHud`
+are drawing blanks today and want a sweep.**
+
+Tier labels sit in a left gutter rather than on rows of their own: as rows they pushed the
+ten-row tree past the board band, so the one thing that has to be read whole arrived scrolling.
+The tree is 434 wide inside a band about a thousand wide — the room was there the entire time.
+
+365 tests green, no rules change. Staged to `play/`.
+
 ### 2026-09-06 (later) — their wall gets a hand, the ground gets a shape, the turn gets said
 
 Three more reports off the same Pages build. One was a mirror that was never built, one was the

@@ -249,11 +249,26 @@ namespace SpawnRowDuel.View.Cards
             CardFaceModel model;
             bool has = false;
 
-            int sel = _hud != null ? _hud.SelectedHandIndex : -1;
-            if (sel >= 0 && sel < hand.Count)
-                has = TryHandModel(hand[sel].Id, out model);
+            // The build menu speaks first. While it is open the player is reading the TREE, not
+            // the board behind it, and the structure they highlighted is the only thing the
+            // question "what is that" can mean.
+            var menuPick = _hud != null ? _hud.InspectStructure : null;
+            if (menuPick != null)
+            {
+                model = CardFaceModel.OfStructure(menuPick, _text, _art);
+                // OfStructure carries the RAW max HP; every other number on screen is scaled.
+                model.Hp = model.MaxHp = Stat.Show(menuPick.MaxHp);
+                model.Rules = _text.StructureFull(menuPick.Effect, menuPick.Value, menuPick.Support);
+                has = true;
+            }
             else
-                has = TryBoardModel(out model);
+            {
+                int sel = _hud != null ? _hud.SelectedHandIndex : -1;
+                if (sel >= 0 && sel < hand.Count)
+                    has = TryHandModel(hand[sel].Id, out model);
+                else
+                    has = TryBoardModel(out model);
+            }
 
             if (!has)
             {

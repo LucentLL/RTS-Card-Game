@@ -164,6 +164,11 @@ namespace SpawnRowDuel.View
             return i >= 0 && !_chosenBlockers.Contains(i);
         }
         private bool _buildMenuOpen;
+
+        /// <summary>The build-tree node the player last tapped, and the one the pointer is over.
+        /// Catalog defs are immutable singletons, so holding the reference across frames is safe
+        /// while the rebuilt BuildNode structs are not.</summary>
+        private StructureDef _buildPickDef, _buildHover;
         private Vector2 _buildScroll;
         private Vector2 _handScroll;
         private float _scale = 1f;
@@ -207,6 +212,7 @@ namespace SpawnRowDuel.View
         private Vector2 _selectScrollYou, _selectScrollFoe;
 
         private GUIStyle _label, _small, _tiny, _button, _bigButton, _cardName, _center, _wrap;
+        private GUIStyle _group, _arrow, _nodeReady, _nodeCost, _nodeLocked, _nodeUp, _nodeUpOpen;
 
         private static readonly Color PanelColor = new Color(0.055f, 0.06f, 0.085f, 1f);
 
@@ -248,6 +254,44 @@ namespace SpawnRowDuel.View
             // every frame, so `new GUIStyle(_small)` inside the draw was a per-frame allocation
             // for a style that never changes.
             _wrap = new GUIStyle(_small) { wordWrap = true };
+
+            // ── build-tree styles ────────────────────────────────────────────────────
+            // Built ONCE. OnGUI runs every frame and the tree draws up to fourteen nodes, so a
+            // per-node "new GUIStyle" was fourteen allocations a frame for styles that never change.
+            _group = new GUIStyle(_label) { fontSize = 9, wordWrap = true,
+                                            alignment = TextAnchor.MiddleRight };
+            _group.normal.textColor = new Color(0.52f, 0.56f, 0.66f);
+
+            _arrow = new GUIStyle(_label) { fontSize = 12, alignment = TextAnchor.MiddleCenter };
+            _arrow.normal.textColor = new Color(0.45f, 0.49f, 0.58f);
+
+            // Two lines in a 124x32 node: the name, then either its price or why it is out of
+            // reach. wordWrap stays OFF so a long name clips rather than stealing the second line.
+            _nodeReady = new GUIStyle(GUI.skin.button) { fontSize = 10, wordWrap = false,
+                                                        alignment = TextAnchor.MiddleCenter };
+            _nodeReady.normal.textColor = Color.white;
+            _nodeReady.hover.textColor = Gold;
+            _nodeReady.active.textColor = Gold;
+
+            // Affordable-later reads in the mana colour, because the note IS the price.
+            _nodeCost = new GUIStyle(_nodeReady);
+            _nodeCost.normal.textColor = new Color(0.62f, 0.72f, 0.88f);
+            _nodeCost.hover.textColor = new Color(0.78f, 0.86f, 1f);
+
+            // Prerequisite missing or nowhere to stand: the deepest grey that still reads.
+            _nodeLocked = new GUIStyle(_nodeReady);
+            _nodeLocked.normal.textColor = new Color(0.42f, 0.44f, 0.50f);
+            _nodeLocked.hover.textColor = new Color(0.60f, 0.62f, 0.68f);
+
+            // Upgrade tiers are a different KIND of unreachable - not blocked, just taken
+            // somewhere else - so they get their own colour rather than a third shade of grey.
+            _nodeUp = new GUIStyle(_nodeReady);
+            _nodeUp.normal.textColor = new Color(0.50f, 0.46f, 0.38f);
+            _nodeUp.hover.textColor = new Color(0.68f, 0.62f, 0.50f);
+
+            _nodeUpOpen = new GUIStyle(_nodeReady);
+            _nodeUpOpen.normal.textColor = Gold * 0.92f;
+            _nodeUpOpen.hover.textColor = Gold;
         }
 
 
@@ -436,6 +480,11 @@ namespace SpawnRowDuel.View
             DrawLog(w);
             if (_logOpen) DrawLogHistory(w, h);
             if (_settingsOpen) DrawSettings(w, h);
+            // One reset point rather than one beside every "_buildMenuOpen = false": the menu
+            // is closed from seven places and a stale pick would rebuild the inspect card the
+            // next time it opened.
+            if (!_buildMenuOpen) { _buildPickDef = null; _buildHover = null; }
+
             if (_buildMenuOpen) DrawBuildMenu(s, w, h);
             else if (_upgradeMenuOpen) DrawUpgradeMenu(s, w, h);
             else DrawChargePanel(s, w, h);
@@ -1271,18 +1320,60 @@ namespace SpawnRowDuel.View
             }
         }
 
-        /// <summary>A solid panel clamped inside the board region; scrolls when taller.</summary>
+        // ── build menu geometry (logical units) ─────────────────────────────────────────
+        const float NodeW = 134f;
+        const float NodeH = 30f;
+        const float NodeGapX = 16f;      // the arrow gutter between tiers
+        const float NodeGapY = 3f;
+
+        /// <summary>
+        /// The tier label runs down the LEFT of the tree rather than sitting on a row of its own.
+        ///
+        /// As a row each heading cost a full line and pushed the ten-row tree past the board band,
+        /// so a tech tree - the one thing that has to be read whole - arrived scrolling. The tree
+        /// is 434 wide inside a band about a thousand wide, so the space was there the entire time.
+        /// </summary>
+        const float GutterW = 112f;
+        const float GutterGap = 10f;
+
+        /// <summary>
+        /// The build menu as a tech tree.
+        ///
+        /// The flat list it replaced could not express either relation in the data. Prerequisites
+        /// are group headings ("REQUIRES A FORGE"); upgrades run left to right along a row with an
+        /// arrow between tiers, so a branch like Outpost → Cannon Tower / Bastion is visible
+        /// before you commit ◆2 to the Outpost.
+        ///
+        /// Nothing is hidden. A tier you cannot reach is drawn greyed WITH THE REASON on its
+        /// second line, because "why is this dim" is the question a hidden row cannot answer, and
+        /// the reasons differ in kind: too expensive, nowhere to stand, prerequisite missing, or
+        /// upgrade-only. Selecting any node - reachable or not - shows its card on the left.
+        ///
+        /// Two taps to build, and that is for touch. There is no hover on a phone, so a menu that
+        /// built on first tap built blind; the first tap highlights and inspects, the second
+        /// commits. A mouse gets the same two clicks rather than a second rule to learn.
+        /// </summary>
         void DrawBuildMenu(GameState s, float w, float h)
         {
             var cat = _match.Engine.Catalog;
-            var list = cat.BuildList(s.P(Seat.Local).Commander);
+            var rows = BuildTree.Build(s, Seat.Local, cat);
 
-            const float rowH = 26f;
-            const float pw = 280f;
-            float contentH = list.Count * rowH;
+            int cols = 1;
+            float contentH = 0f;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                int span = rows[i].Indent + rows[i].Nodes.Count;
+                if (span > cols) cols = span;
+                contentH += NodeH + NodeGapY;
+            }
+            contentH -= NodeGapY;
+
+            float treeW = cols * NodeW + (cols - 1) * NodeGapX;
+            float fullW = GutterW + GutterGap + treeW;
+            float pw = Mathf.Min(fullW + 20f, w - 24f);
             float regionTop = TopH + 6 + ShellBarH;
             float regionBottom = h - BottomH - 6;
-            float ph = Mathf.Min(contentH + 12, regionBottom - regionTop);
+            float ph = Mathf.Min(contentH + 14f, regionBottom - regionTop);
             float py = regionTop + (regionBottom - regionTop - ph) / 2f;
             var panel = new Rect(w / 2f - pw / 2f, py, pw, ph);
 
@@ -1290,31 +1381,133 @@ namespace SpawnRowDuel.View
             HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
                                         panel.width * _scale, panel.height * _scale);
 
-            _buildScroll = GUI.BeginScrollView(
-                new Rect(panel.x + 4, panel.y + 6, pw - 8, ph - 12), _buildScroll,
-                new Rect(0, 0, pw - 28, contentH), false, contentH > ph - 12);
+            var view = new Rect(panel.x + 4, panel.y + 7, pw - 8, ph - 14);
+            bool bars = contentH > view.height;
+            float innerW = bars ? pw - 28 : pw - 8;
 
-            for (int i = 0; i < list.Count; i++)
+            // Captured BEFORE BeginScrollView, because IMGUI translates mousePosition into the
+            // view's content space once inside it - and keeps translating it for a pointer that is
+            // nowhere near the panel, so a node rect can "contain" a mouse out on the board.
+            // Test containment in the outer space first, then map the point in by hand.
+            var mouse = Event.current.mousePosition;
+            bool inView = view.Contains(mouse);
+            var contentMouse = mouse - view.position + _buildScroll;
+
+            _buildScroll = GUI.BeginScrollView(view, _buildScroll,
+                new Rect(0, 0, innerW, contentH), fullW > innerW, bars);
+
+            StructureDef hovered = null;
+            float y = 0f;
+
+            for (int i = 0; i < rows.Count; i++)
             {
-                var def = list[i];
-                bool can = Placement.CanBuild(s, Seat.Local, def, cat);
-                GUI.enabled = can;
-                if (GUI.Button(new Rect(2, i * rowH, pw - 32, rowH - 3),
-                        def.Name + "   ◆" + def.Cost + "   ⚒" +
-                        (def.Support >= 0 ? "+" : "") + def.Support, _button))
+                var row = rows[i];
+
+                // Set against the whole group in the gutter, so a four-row tier reads as one tier.
+                if (row.Header != null)
                 {
-                    _match.BeginBuild(def);
-                    _buildMenuOpen = false;
-                    if (_match.LegalCells.Count == 0)
-                    {
-                        _match.CancelPending();
-                        Hint("No legal cell for the " + def.Name);
-                    }
+                    float span = row.GroupSpan * (NodeH + NodeGapY) - NodeGapY;
+                    GUI.Label(new Rect(0, y, GutterW, span), row.Header, _group);
                 }
-                GUI.enabled = true;
+
+                for (int k = 0; k < row.Nodes.Count; k++)
+                {
+                    var node = row.Nodes[k];
+                    int col = row.Indent + k;
+                    float x = GutterW + GutterGap + col * (NodeW + NodeGapX);
+                    var r = new Rect(x, y, NodeW, NodeH);
+
+                    // The arrow into this node - drawn from the gutter to its left, so a branch
+                    // row's first node still shows what it grew out of.
+                    if (col > 0)
+                        GUI.Label(new Rect(x - NodeGapX, y, NodeGapX, NodeH), ">", _arrow);
+
+                    if (inView && r.Contains(contentMouse)) hovered = node.Def;
+
+                    bool picked = _buildPickDef != null && _buildPickDef.ExportKey == node.Def.ExportKey;
+                    if (picked) Panel(new Rect(r.x - 2, r.y - 2, r.width + 4, r.height + 4), Gold * 0.8f);
+
+                    // A picked node that CAN be built says so, because a selection ring alone does
+                    // not tell the player that the next tap is the one that spends the mana.
+                    string second =
+                        picked && node.Actionable ? "tap again to place"
+                        : node.State == BuildNodeState.Ready ? ReadyLine(node.Def)
+                        : node.Note;
+
+                    if (GUI.Button(r, node.Def.Name + "\n" + second, StyleFor(node.State)))
+                        OnBuildNode(node);
+                }
+
+                y += NodeH + NodeGapY;
             }
 
             GUI.EndScrollView();
+
+            // Hover wins over the pick so a mouse can sweep the tree and read each card, but the
+            // pick is what survives a finger lifting off - which is the only state a phone has.
+            // Repaint only: the layout pass carries a stale pointer and would blink the card.
+            if (Event.current.type == EventType.Repaint) _buildHover = hovered;
+        }
+
+        /// <summary>
+        /// The price line. A Vault is the only structure at zero support and saying "+0 workers"
+        /// about it is noise, so the clause is dropped rather than printed empty; one worker is
+        /// singular for the same reason a card that reads "+1 workers" looks unfinished.
+        /// </summary>
+        static string ReadyLine(StructureDef d)
+        {
+            string s = d.Cost + " mana";
+            if (d.Support == 0) return s;
+            int n = d.Support < 0 ? -d.Support : d.Support;
+            return s + "   " + (d.Support > 0 ? "+" : "-") + n + (n == 1 ? " worker" : " workers");
+        }
+
+        /// <summary>First tap highlights and inspects; a second tap on the same node commits.</summary>
+        void OnBuildNode(BuildNode node)
+        {
+            if (_buildPickDef == null || _buildPickDef.ExportKey != node.Def.ExportKey)
+            {
+                _buildPickDef = node.Def;
+                return;
+            }
+
+            if (!node.Actionable) return;
+
+            _match.BeginBuild(node.Def);
+            _buildMenuOpen = false;
+            _buildPickDef = null;
+            if (_match.LegalCells.Count == 0)
+            {
+                _match.CancelPending();
+                Hint("No legal cell for the " + node.Def.Name);
+            }
+        }
+
+        GUIStyle StyleFor(BuildNodeState st)
+        {
+            switch (st)
+            {
+                case BuildNodeState.Ready: return _nodeReady;
+                case BuildNodeState.NoMana: return _nodeCost;
+                case BuildNodeState.UpgradeReady: return _nodeUpOpen;
+                case BuildNodeState.UpgradeLater:
+                case BuildNodeState.UpgradeLocked: return _nodeUp;
+                default: return _nodeLocked;
+            }
+        }
+
+        /// <summary>
+        /// What the build menu wants shown in the inspect card, or null. HandBar owns that panel -
+        /// it is a UI Toolkit CardFace and this is IMGUI - so the menu publishes its subject
+        /// rather than drawing a second, worse card of its own.
+        /// </summary>
+        public StructureDef InspectStructure
+        {
+            get
+            {
+                if (!_buildMenuOpen) return null;
+                return _buildHover != null ? _buildHover : _buildPickDef;
+            }
         }
 
         /// <summary>
