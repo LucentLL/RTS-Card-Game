@@ -5,6 +5,7 @@ using NUnit.Framework;
 using SpawnRowDuel.Rules;
 using SpawnRowDuel.View;
 using SpawnRowDuel.View.Cards;
+using SpawnRowDuel.View.Fx;
 using SpawnRowDuel.View.Shell;
 using SpawnRowDuel.View.World;
 using UnityEngine;
@@ -522,6 +523,44 @@ namespace SpawnRowDuel.PlayTests
         }
 
         /// <summary>
+        /// The turn hand-off, announced.
+        ///
+        /// Driven through a REAL BeginTurnCommand rather than through a probe hook, because the
+        /// half of this that could break is the wiring: TurnStarted has to leave the engine, be
+        /// drained by MatchController.PumpEvents, reach Observed, and be read against the SEAT
+        /// rather than against Side.You. A hook that pokes the label proves the label.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureTurnBanner()
+        {
+            yield return PlayToMidGame();
+
+            var match = Object.FindFirstObjectByType<MatchController>();
+            Assert.IsNotNull(match, "the Battle scene has no MatchController");
+
+            TurnHerald.Announce = true;
+            yield return Frames(2);               // let the mid-game backlog drain and expire
+            yield return Frames(120);
+
+            var engine = match.Engine;
+            var other = TurnMachine.Other(engine.State.Turn);
+            // Close the current turn so BeginTurn is legal, then hand over - the same two
+            // commands PlayToMidGame's own loop uses to walk a duel forward.
+            if (engine.State.Phase != TurnPhase.End)
+                Assert.IsTrue(engine.Apply(new EndTurnCommand(engine.State.Turn)).Applied,
+                    "could not end the turn the shot starts in");
+            Assert.AreEqual(TurnPhase.End, engine.State.Phase, "could not reach the end phase");
+            Assert.IsTrue(engine.Apply(new BeginTurnCommand(other)).Applied,
+                "the hand-off command was rejected");
+
+            yield return Frames(30);              // pump, then let the band draw itself across
+            yield return Shoot("turn-banner.png");
+
+            TurnHerald.Announce = false;          // static: do not leak it into the next shot
+            yield return Frames(4);
+        }
+
+        /// <summary>
         /// One shot per biome, from the same board. Terrain is the one part of the view with no
         /// test that can fail: waves, ripples and embers are shader terms, and "does scorched
         /// ground look scorched" is not a thing an assertion knows. Four pictures is the gate.
@@ -592,6 +631,78 @@ namespace SpawnRowDuel.PlayTests
                     "cell " + i + " lost its hollow the moment its card left");
 
             yield return Shoot("press-vacated.png");
+
+            board.gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// The ground healing, at the angle it is actually played at.
+        ///
+        /// Three stills of the SAME squares, wound forward by whole plies: fresh, half filled,
+        /// and closed over. That sequence is the claim - "the hole should fill over time, or
+        /// spring up" - and no single still can make it, because a hollow that is filling and a
+        /// hollow that is frozen photograph identically.
+        ///
+        /// TILTED, unlike CaptureVacatedGround, and that is the point of having both. A depression
+        /// is shaded by its own WALLS, and from straight above a wall is edge-on: top-down is the
+        /// one angle at which real relief and a flat dark rectangle look the same, so it is the
+        /// wrong angle to judge "the shadows should be natural in the depression" from. The
+        /// diorama is what a player sees.
+        ///
+        /// The two clocks are the other half. The blades stand up in about five plies and the
+        /// earth takes nine, so the middle shot should show grass over a hollow that is still
+        /// there - which is a trampled field, where one number for both was a scar.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureGroundHeals()
+        {
+            yield return PlayToMidGame();
+
+            var terrain = Object.FindFirstObjectByType<TerrainField>();
+            Assert.IsNotNull(terrain, "the Battle scene has no TerrainField");
+            var board = Object.FindFirstObjectByType<BoardView>();
+            Assert.IsNotNull(board, "the Battle scene has no BoardView");
+
+            // PlayToMidGame's loop is synchronous - it drives the ENGINE and returns without ever
+            // letting a frame run - and the press field is filled in TerrainField's Update, off
+            // MatchController's version stamp. Reading DentAt before then reads an array that has
+            // only just been allocated. (CaptureVacatedGround gets these frames for free from the
+            // camera poll it does first, which is why it never noticed.)
+            yield return Frames(8);
+
+            var dented = new List<int>();
+            for (int i = 0; i < Board.Columns * Board.Rows; i++)
+                if (terrain.DentAt(i) > 0.5f) dented.Add(i);
+            Assert.Greater(dented.Count, 0, "a mid-game board pressed nothing into the ground");
+
+            // Lift the cards off and stop pretending anything is standing there. Version does not
+            // change again from here, so SyncOccupancy never re-crushes what these shots vacate.
+            board.gameObject.SetActive(false);
+            terrain.PrimeVacated();
+            yield return Frames(2);
+            yield return Shoot("heal-0-fresh.png");
+
+            float dent0 = terrain.DentAt(dented[0]), crush0 = terrain.CrushAt(dented[0]);
+            Assert.Greater(dent0, 0.5f, "the hollow was gone before the clock was even started");
+
+            terrain.PrimeRefilled(5);
+            yield return Frames(2);
+            yield return Shoot("heal-5-plies.png");
+
+            float dent5 = terrain.DentAt(dented[0]), crush5 = terrain.CrushAt(dented[0]);
+            Assert.Less(dent5, dent0, "five plies of material did not fill any of the hollow");
+            Assert.Less(crush5, crush0, "five plies and the blades are lying exactly as flat");
+            // The asymmetry IS the effect: grass is alive and comes back on its own, a dent is
+            // filled by whatever the weather brings. If these ever converge, the split is gone.
+            Assert.Less(crush5, dent5,
+                "the blades are no further up than the hollow is filled - the two clocks have merged");
+
+            terrain.PrimeRefilled(6);
+            yield return Frames(2);
+            yield return Shoot("heal-11-plies.png");
+
+            Assert.Less(terrain.DentAt(dented[0]), 0.06f,
+                "eleven plies on a meadow and the print is still there");
 
             board.gameObject.SetActive(true);
         }
@@ -780,6 +891,13 @@ namespace SpawnRowDuel.PlayTests
         static IEnumerator PlayToMidGame()
         {
             yield return LoadBattle();
+
+            // SILENCE THE TURN BANNER for every capture but its own. It is timed off
+            // Time.unscaledTime while the tests advance by frames, and batchmode runs uncapped -
+            // so whether a 1.5 s announcement is still on screen when Shoot() fires depends on how
+            // fast the machine got here. That is a golden that changes for no reason, which is
+            // worse than one that is wrong. CaptureTurnBanner turns it back on deliberately.
+            TurnHerald.Announce = false;
 
             var match = Object.FindFirstObjectByType<MatchController>();
             Assert.IsNotNull(match);

@@ -227,6 +227,7 @@ namespace SpawnRowDuel.View
             if (GetComponent<Cards.StandeeLayer>() == null) gameObject.AddComponent<Cards.StandeeLayer>();
             if (GetComponent<Cards.UnitVitals>() == null) gameObject.AddComponent<Cards.UnitVitals>();
             if (GetComponent<Fx.CombatTheatre>() == null) gameObject.AddComponent<Fx.CombatTheatre>();
+            if (GetComponent<Fx.TurnHerald>() == null) gameObject.AddComponent<Fx.TurnHerald>();
         }
 
         void EnsureStyles()

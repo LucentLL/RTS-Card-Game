@@ -54,6 +54,16 @@ namespace SpawnRowDuel.View.Fx
         /// <summary>Off leaves the numbers and drops the cut-in - `srd.cutins` in the browser.</summary>
         public static bool CutIns = true;
 
+        /// <summary>
+        /// Is a cut-in on screen right now? Asked by <see cref="TurnHerald"/>, which draws across
+        /// the same middle of the board and waits its turn rather than stacking on top of a fight.
+        ///
+        /// In solo the two cannot collide - Autopilot holds for the cut-in before it ever reaches
+        /// the turn hand-off - but a REMOTE peer's BeginTurn arrives over the wire and knows
+        /// nothing about our HoldUntil, so in multiplayer it can land on a running clash.
+        /// </summary>
+        public bool Busy { get { return _showing != null || _cast != null; } }
+
         const float CutInSeconds = 1.45f;
         const float SlideSeconds = 0.22f;         // the fly-in, front-loaded like the CSS keyframes
         const float FadeSeconds = 0.18f;

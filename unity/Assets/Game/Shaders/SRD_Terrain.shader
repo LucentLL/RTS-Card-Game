@@ -113,6 +113,23 @@ Shader "SpawnRowDuel/Terrain"
         _CardRound   ("Card corner radius", Float) = 0.06
         _RimReach    ("Rim width (x units)", Float) = 0.04
         _RimRelief   ("Rim relief", Float) = 0.11
+
+        // ── the hollow, as a SHAPE rather than a stain ──────────────────────────────────────
+        //
+        // How far the ground steps down at the card's own outline, in X units. This is what makes
+        // a vacated square read as a depression: a wall with a slope, lit by the same sun as the
+        // field around it, bright on the near side and shaded on the far one. Everything the
+        // impression used to be made of slumped with the crest, and what was left was a flat
+        // multiply - a card-shaped stain that did not move when the light did.
+        _HollowStep  ("Hollow wall step (x units)", Float) = 0.02
+        // How much SKY the floor of the hollow loses. Spent on the ambient term ALONE, because a
+        // dent is walled in, not shaded: the sun still reaches into it.
+        _HollowShade ("Hollow sky occlusion", Range(0,1)) = 0.5
+        // The hairline of contact shadow in the crack at a card's edge.
+        _CrackShade  ("Contact crack", Range(0,1)) = 0.55
+        // Packed, trodden ground under a card. Small, and it is meant to be: it is the blades
+        // lying flat that carry this, and they stand back up on their own clock.
+        _PressTint   ("Trodden tint", Range(0,1)) = 0.18
     }
 
     SubShader
@@ -196,6 +213,7 @@ Shader "SpawnRowDuel/Terrain"
                 float4 _DispOrigin, _DispSize;
                 float4 _CellPitch, _CellHalf;
                 float _CardRound, _RimReach, _RimRelief, _PressDepth;
+                float _HollowStep, _HollowShade, _CrackShade, _PressTint;
                 float4 _WindDir;
                 float _StreakAmount, _StreakScale, _DetailBump, _CrestLight, _TroughShade, _Sparkle;
                 float _GustSwing, _GustPeriod;
@@ -308,10 +326,14 @@ Shader "SpawnRowDuel/Terrain"
                 // and darker. At 0.16 that read as a faint tint and the honest answer to "is the
                 // ground displaced at all?" was no.
                 float4 pressW = SrdPress(w, _DispOrigin, _DispSize);
-                // 0.34 on a field of grass is most of what says "trodden", because the blades over
-                // it are lying flat as well. On bare ground - snow, sand, ash - there are no
-                // blades, and the packed earth under the card is the whole of the read.
-                albedo *= 1.0 - pressW.r * 0.46;
+                // TRODDEN, and no more than trodden. This was 0.46 - a 46% multiply over a
+                // card-shaped footprint - and stacked with the 0.30 the block below used to spend
+                // it put a vacated square at 38% of the luminance of the field beside it. That is
+                // not a dent, it is a stain, and it is what "the displaced terrain seems to have a
+                // dark filter where the card was" was looking at. Both are now shading terms
+                // instead, so all this has to carry is the packed earth itself. R is the blades'
+                // own level and springs back on its own clock, so this lifts with them.
+                albedo *= 1.0 - pressW.r * _PressTint;
 
                 // ...and the DISH gets a normal. The vertices moved for it, but a moved vertex on
                 // a 0.19-unit grid barely tilts the face it belongs to - sampling B either side
@@ -323,6 +345,10 @@ Shader "SpawnRowDuel/Terrain"
                     N = normalize(N + float3((bx - pressW.b) / e2.x, 0, (bz - pressW.b) / e2.y)
                                       * _PressDepth * 1.6);
                 }
+                // How much sky the ground is walled off from here. Gathered in the impression
+                // block and spent at the LIGHT, on the ambient term alone - see the note where it
+                // is set. Zero everywhere the board has not been.
+                float pressAo = 0.0;
                 {
                     float2 cell = round(w / _CellPitch.xy) * _CellPitch.xy;
                     float4 flag = SrdPress(cell, _DispOrigin, _DispSize);
@@ -356,14 +382,32 @@ Shader "SpawnRowDuel/Terrain"
                         // grass on it and the contact shade in the crack - not width it cannot have.
                         float reach = min(_RimReach, gap.x);
 
-                        float d   = SrdRoundBox(rel, halfA, _CardRound);
+                        // ── a hollow that is filling gets SMALLER, not just fainter ────────
+                        //
+                        // Every channel used to scale linearly with `here` and nothing else, so a
+                        // print kept a pixel-sharp, full-size card outline at every depth and just
+                        // dimmed - which the eye reads as a permanent hole somebody has turned the
+                        // brightness down on, not as ground closing over. Material slumping into a
+                        // dent takes the edges first: the corners round off, the walls fall inward,
+                        // and what is left at the end is a soft dimple that stops being card-shaped
+                        // before it stops being visible.
+                        //
+                        // Both terms stay INSIDE the cell - the footprint only ever shrinks and the
+                        // corner radius is capped under the half-size - so nothing here can push
+                        // the impression past the halfway line into a neighbour and draw a seam.
+                        float fill    = 1.0 - here;
+                        float2 halfF  = halfA * (1.0 - 0.22 * fill);
+                        float roundF  = min(_CardRound + 0.36 * fill * min(halfA.x, halfA.y),
+                                            min(halfF.x, halfF.y) * 0.92);
+
+                        float d   = SrdRoundBox(rel, halfF, roundF);
                         float rim = SrdRim(d, reach);
 
                         // The slope, by difference. The steps are taken in world units and put
                         // through the same squash, so the gradient stays a world-space slope.
                         const float e = 0.004;
-                        float rx = SrdRim(SrdRoundBox(rel + float2(e, 0) * aspect, halfA, _CardRound), reach);
-                        float rz = SrdRim(SrdRoundBox(rel + float2(0, e) * aspect, halfA, _CardRound), reach);
+                        float rx = SrdRim(SrdRoundBox(rel + float2(e, 0) * aspect, halfF, roundF), reach);
+                        float rz = SrdRim(SrdRoundBox(rel + float2(0, e) * aspect, halfF, roundF), reach);
                         // ON `crest`, NOT ON `here`, and this is the line that was reported.
                         //
                         // _RimRelief / e is a gain of FIFTY on a rim whose gradient peaks near 79
@@ -375,22 +419,68 @@ Shader "SpawnRowDuel/Terrain"
                         // was about. Loose earth heaped on an edge is the FIRST thing to slump.
                         N = normalize(N + float3(-(rx - rim), 0, -(rz - rim)) * (_RimRelief * crest / e));
 
+                        // ── THE WALL OF THE HOLLOW ─────────────────────────────────────────
+                        //
+                        // Every term above belongs to the CREST, which slumps - so a vacated
+                        // square had no relief left at all, and the only thing still drawing it
+                        // was a pair of albedo multiplies. A card-shaped rectangle at 38% of the
+                        // field beside it, the same darkness from every angle, unmoved by where
+                        // the sun was: a dark filter over the ground rather than a mark in it.
+                        //
+                        // A hollow is not a stain, it is a SHAPE. The ground stands at its own
+                        // level out at the tile's margin, drops across the card's own outline and
+                        // is flat and low underneath - and every bit of shading a real dent has
+                        // follows from that wall meeting the light. So draw the wall and let the
+                        // lighting do the rest: the near side takes the sun, the far side turns
+                        // away from it, and the pair TURN OVER as the light moves, which is the
+                        // thing no multiply can do.
+                        //
+                        // `lip` is the hollow's own height field, 1 on the floor and 0 at the
+                        // margin, SQUARED - which puts the steep part against the card's outline
+                        // and eases the outer end into undisturbed ground. That is the profile a
+                        // hole in soft earth actually has: sharp where the object was, graded
+                        // where the material slumped. Squaring also lands the outer end at zero
+                        // gradient, so two neighbouring hollows meet at the midline without a
+                        // crease down the tile boundary.
+                        //
+                        // Gated on `here`, NOT on `crest`: this one is the dent, and the dent is
+                        // what is supposed to outlive the card.
+                        float t0   = saturate(d / max(reach, 0.0001));
+                        float lip  = (1.0 - t0) * (1.0 - t0);
+                        float tx   = saturate(SrdRoundBox(rel + float2(e, 0) * aspect, halfF, roundF) / max(reach, 0.0001));
+                        float tz   = saturate(SrdRoundBox(rel + float2(0, e) * aspect, halfF, roundF) / max(reach, 0.0001));
+                        float lipx = (1.0 - tx) * (1.0 - tx);
+                        float lipz = (1.0 - tz) * (1.0 - tz);
+                        // POSITIVE where the crest's is negative, and that sign is the whole
+                        // difference between the two: the crest is material standing proud of the
+                        // ground, this is ground that has given way. h = -_HollowStep * lip, and a
+                        // normal is (-dh/dx, 1, -dh/dz).
+                        N = normalize(N + float3(lipx - lip, 0, lipz - lip) * (_HollowStep * here / e));
+
+                        // The floor of a dent is walled in, so it sees less SKY - and that is all
+                        // that is left of the old multiply. It is spent on the ambient term alone,
+                        // at the light, so the sun still reaches into the hollow: lit from the
+                        // side it comes out bright on one wall and dark on the other instead of
+                        // uniformly grey, which is the difference between a depression and a hole
+                        // cut out of the ground.
+                        pressAo = lip * here * _HollowShade;
+
                         // Two surfaces, not one. On the crest, material that has just been turned
                         // over and is loose and pale; in the crack at the card's own edge, contact
                         // shade - and it is the shade that says the card is DOWN IN the ground
                         // rather than lying on top of it. A pale rim on its own reads as a halo.
                         //
                         // So they part company when the card leaves. The pale half goes entirely
-                        // with the crest. The shade STAYS - a hollow wants a dark edge, and it is
-                        // most of what says the ground gave way - but it stays at less than half,
-                        // because at full strength it is the shadow cast by an EDGE SITTING IN the
-                        // ground, and there is no longer an edge in it. Measured on the probe, the
-                        // two terms at full on an empty square put the hollow at 22% of the
-                        // luminance of the field beside it, which is a hole punched through the
-                        // ground rather than one pressed into it.
-                        float lip = 1.0 - saturate(d / max(reach, 0.0001));
+                        // with the crest. The crack keeps a third: a hollow wants a dark edge, but
+                        // at full strength it is the shadow cast by an EDGE SITTING IN the ground
+                        // and there is no longer an edge in it.
+                        //
+                        // A HAIRLINE, either side of the outline - not `lip - rim`, which was ~1
+                        // across the entire footprint and so was never a crack at all: it was the
+                        // card-shaped multiply wearing a crack's name.
+                        float crack = 1.0 - saturate(abs(d) / max(reach * 0.5, 0.0001));
                         albedo = lerp(albedo, albedo * 1.34 + _Highlight.rgb * 0.10, rim * crest);
-                        albedo *= 1.0 - saturate(lip - rim) * 0.72 * here * (0.42 + 0.58 * crest);
+                        albedo *= 1.0 - crack * _CrackShade * here * (0.34 + 0.66 * crest);
                     }
                 }
 
@@ -628,6 +718,12 @@ Shader "SpawnRowDuel/Terrain"
                 // run at full strength and every biome came out bleached.
                 float3 ambient = lerp(_BounceColor.rgb, _SkyColor.rgb, saturate(N.y * 0.5 + 0.5))
                                  * lerp(0.35, 1.0, skyOpen) * _Ambient;
+
+                // ...and a card's hollow is one more thing standing between this point and the
+                // sky. On the AMBIENT only: the sun reaches into a dent, the sky does not, and
+                // spending it here rather than on albedo is what leaves the hollow's near wall
+                // bright while its far wall goes dark.
+                ambient *= 1.0 - saturate(pressAo);
 
                 float3 col = albedo * (lit + ambient);
 

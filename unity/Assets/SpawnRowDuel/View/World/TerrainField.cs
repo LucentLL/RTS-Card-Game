@@ -105,6 +105,28 @@ namespace SpawnRowDuel.View.World
         public float RefillEase = 0.12f;
 
         /// <summary>
+        /// What one ply gives the BLADES back, where there are blades. 0.22 is five rounds from
+        /// flat to standing.
+        ///
+        /// Deliberately much faster than any biome's <see cref="BiomeLook.RefillRate"/>, and that
+        /// gap is the effect. The user asked for two things at once - "the hole should fill over
+        /// time, or spring up (depressed grass, for example)" - and they are two materials with two
+        /// answers. Grass is alive and comes back in a handful of plies. The hollow in the earth
+        /// under it is filled by whatever the weather blows into it, which for a meadow is twenty
+        /// rounds and for mud is thirty-three.
+        ///
+        /// Sharing one number meant a square stayed mown for as long as it stayed dented, so the
+        /// fastest recovery anything could show was slower than most duels: the field looked
+        /// permanently scarred and nothing was ever seen to grow back. Now the meadow closes over
+        /// a square within a few turns while the ground under it keeps the dent, which is what a
+        /// trampled field actually looks like.
+        ///
+        /// A floor, never a ceiling: a biome whose ground heals faster than its grass (open water)
+        /// takes the faster of the two, because grass cannot still be flat on ground that is gone.
+        /// </summary>
+        public float GrassSpring = 0.22f;
+
+        /// <summary>
         /// How long the pale CREST of freshly turned material lasts once the card has gone, in
         /// seconds.
         ///
@@ -155,6 +177,43 @@ namespace SpawnRowDuel.View.World
         /// vertices, so this is what those vertices are for.
         /// </summary>
         public float PressDepth = 0.15f;
+
+        /// <summary>
+        /// How far the ground steps DOWN at the card's own outline, in X units - the wall of the
+        /// hollow, shaded in the fragment for the same reason the rim is (see the impression block
+        /// in SRD_Terrain: a 0.19-unit vertex grid cannot hold a card's edge).
+        ///
+        /// This is the term the report was missing. Everything the impression was made of was
+        /// gated on the CREST, which slumps in half a second, so a vacated square kept no relief
+        /// at all and the only thing still drawing it was a pair of albedo multiplies - a
+        /// card-shaped rectangle at 38% of the field beside it, exactly as dark from every angle.
+        /// "The displaced terrain seems to have a dark filter where the card was."
+        ///
+        /// A hollow has a SHAPE, and shading is what a shape does to light. At 0.02 over a reach
+        /// of 0.04 the wall's steepest point is 45 degrees, which at this camera is a wall you can
+        /// see the sun on one side of.
+        /// </summary>
+        public float HollowStep = 0.02f;
+
+        /// <summary>
+        /// How much of the SKY the floor of a hollow is walled off from.
+        ///
+        /// Spent on the ambient term alone, never on albedo, and that is the whole point: the sun
+        /// still reaches into a dent. Occluding the sky darkens the hollow the way a dent is
+        /// darker and leaves the sun free to pick out its near wall, so the mark reads as pressed
+        /// into the ground rather than painted onto it.
+        /// </summary>
+        public float HollowShade = 0.5f;
+
+        /// <summary>The hairline of contact shadow in the crack at a card's edge - most of what
+        /// says the card is DOWN IN the ground. Keeps a third of itself once the card has gone,
+        /// because there is no longer an edge sitting in the crack.</summary>
+        public float CrackShade = 0.55f;
+
+        /// <summary>How dark the packed, trodden ground under a card goes. Was 0.46 and stacked
+        /// with a second 0.30 multiply; both are shading terms now, so all this carries is the
+        /// earth itself. It rides on R - the BLADES' level - so it lifts as they stand up.</summary>
+        public float PressTint = 0.18f;
         public float GustSpeed = 5f;             // world units per second the ring travels
         public float GustLife = 1.8f;
 
@@ -210,7 +269,27 @@ namespace SpawnRowDuel.View.World
         /// CELL rather than one scalar, so a square vacated on ply 12 is not handed the debt that
         /// accrued while something was still standing on it.</summary>
         float[] _pressOwed;
+        /// <summary>
+        /// The BLADES, on their own clock. R in the press texture, which is the only channel the
+        /// grass shader reads: how flat a tuft lies, and which way.
+        ///
+        /// Split off the hollow because they are not the same material and do not come back at the
+        /// same speed. A dent in earth is filled by whatever the weather blows into it, which for
+        /// a meadow is twenty rounds; grass is alive and stands up on its own in a handful. Sharing
+        /// one number meant a square stayed mown for as long as it stayed dented, so the only
+        /// recovery a player could ever see was slower than any duel they would finish - the
+        /// ground looked permanently scarred and nothing ever grew back. That is the half of the
+        /// report about the hole "springing up (depressed grass, for example)".
+        ///
+        /// Still billed a PLY at a time, like everything else that heals here. The blades come up
+        /// because the match moved on, not because the player sat still.
+        /// </summary>
+        float[] _grassLevel;
+        float[] _grassOwed;
         float _refillRate = 0.05f;
+        /// <summary>What a ply pays the blades. Set from the biome: a field with no blades at all
+        /// (snow, sand, water) has nothing to stand up, so its R follows the hollow instead.</summary>
+        float _springRate = 0.22f;
         int _refillTurn = -1;
         float _pressAt;
         bool _pressDirty = true;
@@ -408,14 +487,22 @@ namespace SpawnRowDuel.View.World
             for (int i = 0; playing && i < _pressLevel.Length; i++)
             {
                 float level = _pressLevel[i];
-                if (level <= 0.004f) continue;
+                float blades = _grassLevel != null ? _grassLevel[i] : level;
+                if (level <= 0.004f && blades <= 0.004f) continue;
                 var at = _match.Board.WorldOf(CellRef.FromIndex(i));
 
                 // A CARD SHAPE, not a disc. R is what a blade reads to know how flat to lie, and
                 // 0.10 past the outline is the tile's own gap: beyond that a card has no business
                 // flattening anything. The rim of shoved-out material is not stamped here at all
                 // any more, because a texel is 0.11 units and the whole rim is 0.036 wide.
-                StampRoundedRect(at, _pressHalf, PressRound, 0.10f, UnitPressStrength * level);
+                //
+                // THE BLADES' OWN LEVEL, not the hollow's. They are different materials on
+                // different clocks: the grass over a vacated square is standing again long before
+                // the dent under it has filled, and that is the difference between a field that is
+                // recovering and one that just looks scarred.
+                if (blades > 0.004f)
+                    StampRoundedRect(at, _pressHalf, PressRound, 0.10f, UnitPressStrength * blades);
+                if (level <= 0.004f) continue;
 
                 // ...and a BROAD SOFT DISH into B, which is the half that moves vertices. Feathered
                 // over 0.55 of a unit so it spans four or five of the ground's 0.19-unit vertices
@@ -531,13 +618,15 @@ namespace SpawnRowDuel.View.World
         {
             if (_match == null || _match.Board == null || _cellNow == null) return false;
 
-            // Both arrays together, always: RepaintDisplacement indexes them in the same loop, and
-            // a half-allocated pair is a null read inside the render path.
+            // ALL FIVE arrays together, always: RepaintDisplacement indexes them in the same loop,
+            // and a half-allocated set is a null read inside the render path.
             if (_pressLevel == null || _pressLevel.Length != _cellNow.Length)
             {
                 _pressLevel = new float[_cellNow.Length];
                 _crestLevel = new float[_cellNow.Length];
                 _pressOwed = new float[_cellNow.Length];
+                _grassLevel = new float[_cellNow.Length];
+                _grassOwed = new float[_cellNow.Length];
                 return true;
             }
 
@@ -549,9 +638,11 @@ namespace SpawnRowDuel.View.World
             {
                 if (_cellNow[i] != 0)
                 {
-                    // re-crushed: whatever the ground owed itself is cancelled
+                    // re-crushed: whatever the ground and the grass owed themselves is cancelled
                     _pressOwed[i] = 0f;
+                    _grassOwed[i] = 0f;
                     if (_pressLevel[i] < 1f) { _pressLevel[i] = 1f; moved = true; }
+                    if (_grassLevel[i] < 1f) { _grassLevel[i] = 1f; moved = true; }
                     if (_crestLevel[i] < 1f) { _crestLevel[i] = 1f; moved = true; }
                     continue;
                 }
@@ -573,6 +664,17 @@ namespace SpawnRowDuel.View.World
                     _pressLevel[i] = Mathf.Max(0f, _pressLevel[i] - step);
                     moved = true;
                 }
+
+                // ...and the blades, on their own debt, at their own rate. Same shape, same gate,
+                // different clock - a meadow closes over a square in five rounds while the hollow
+                // under it is still twenty from being filled.
+                if (_grassLevel[i] > 0f && _grassOwed[i] > 0f)
+                {
+                    float step = Mathf.Min(_grassOwed[i], ease);
+                    _grassOwed[i] -= step;
+                    _grassLevel[i] = Mathf.Max(0f, _grassLevel[i] - step);
+                    moved = true;
+                }
             }
             return moved;
         }
@@ -591,15 +693,25 @@ namespace SpawnRowDuel.View.World
         {
             if (_match == null || _match.Engine == null) return;
             if (_pressOwed == null || _cellNow == null || _pressLevel == null) return;
-            if (_refillRate <= 0.0001f) return;              // ground that keeps every mark
+            if (_grassOwed == null || _grassLevel == null) return;
+            if (_refillRate <= 0.0001f && _springRate <= 0.0001f) return;   // keeps every mark
 
             int turn = _match.Engine.State.TurnNumber;
             if (turn == _refillTurn) return;
             _refillTurn = turn;
 
             for (int i = 0; i < _pressOwed.Length && i < _cellNow.Length; i++)
-                if (_cellNow[i] == 0 && _pressLevel[i] > 0f)
+            {
+                if (_cellNow[i] != 0) continue;
+                // TWO DEBTS, and this is the whole of the split. The hollow is filled by material
+                // the weather brings, at the biome's own pace; the blades stand up on their own,
+                // much faster, wherever the biome has any. Both are billed by the PLY - the ground
+                // does not heal while a player sits looking at their hand.
+                if (_pressLevel[i] > 0f && _refillRate > 0.0001f)
                     _pressOwed[i] = Mathf.Min(_pressOwed[i] + _refillRate, _refillRate * 2f);
+                if (_grassLevel[i] > 0f && _springRate > 0.0001f)
+                    _grassOwed[i] = Mathf.Min(_grassOwed[i] + _springRate, _springRate * 2f);
+            }
         }
 
         /// <summary>The dish, into B: broad, soft and centred on the card, for the vertex shader.</summary>
@@ -1143,6 +1255,47 @@ namespace SpawnRowDuel.View.World
             return _pressLevel[cellIndex];
         }
 
+        /// <summary>How flat the BLADES on one cell still lie, 0..1 - the other clock. Standing
+        /// again long before the hollow under them has filled is the whole of the split.</summary>
+        public float CrushAt(int cellIndex)
+        {
+            if (_grassLevel == null || cellIndex < 0 || cellIndex >= _grassLevel.Length) return 0f;
+            return _grassLevel[cellIndex];
+        }
+
+        /// <summary>
+        /// Probe seam: hand the ground the material of <paramref name="plies"/> plies at once, and
+        /// let it land now rather than over the next few frames.
+        ///
+        /// <see cref="PrimeVacated"/>'s twin, and needed for the same reason. That one exists
+        /// because a picture cannot say a dent OUTLIVED its card; this one exists because a
+        /// picture cannot say a dent is FILLING either - a still of a hollow looks the same
+        /// whether the ground is healing at the rate the biome states or not moving at all. Three
+        /// stills of the same square at ply 0, 5 and 10 is the claim, and it needs the clock
+        /// wound forward without a match to wind it.
+        ///
+        /// Both levels, at their own rates, so a shot taken through this shows the real thing the
+        /// two clocks produce: blades standing back up over a hollow that is still there.
+        /// </summary>
+        public void PrimeRefilled(int plies)
+        {
+            if (_pressLevel == null || _grassLevel == null) return;
+
+            float earth = Mathf.Max(0f, _refillRate) * plies;
+            float blades = Mathf.Max(0f, _springRate) * plies;
+            for (int i = 0; i < _pressLevel.Length; i++)
+            {
+                _pressLevel[i] = Mathf.Max(0f, _pressLevel[i] - earth);
+                _grassLevel[i] = Mathf.Max(0f, _grassLevel[i] - blades);
+            }
+            if (_pressOwed != null) System.Array.Clear(_pressOwed, 0, _pressOwed.Length);
+            if (_grassOwed != null) System.Array.Clear(_grassOwed, 0, _grassOwed.Length);
+
+            _pressDirty = false;
+            _pressAt = Time.time;
+            RepaintDisplacement();
+        }
+
         /// <summary>
         /// Wipe everything this field remembers about a duel: what was pressed into it, what had
         /// settled on it, and what was blowing across it.
@@ -1155,8 +1308,10 @@ namespace SpawnRowDuel.View.World
         {
             if (_pressLevel != null) System.Array.Clear(_pressLevel, 0, _pressLevel.Length);
             if (_crestLevel != null) System.Array.Clear(_crestLevel, 0, _crestLevel.Length);
+            if (_grassLevel != null) System.Array.Clear(_grassLevel, 0, _grassLevel.Length);
             // ...and the DEBT, or the first ply of the new duel drains its fresh dents at once.
             if (_pressOwed != null) System.Array.Clear(_pressOwed, 0, _pressOwed.Length);
+            if (_grassOwed != null) System.Array.Clear(_grassOwed, 0, _grassOwed.Length);
             _refillTurn = -1;
             if (_cellNow != null) System.Array.Clear(_cellNow, 0, _cellNow.Length);
             if (_cellStands != null) System.Array.Clear(_cellStands, 0, _cellStands.Length);
@@ -1613,6 +1768,10 @@ namespace SpawnRowDuel.View.World
                 _groundMat.SetFloat("_PressDepth", PressDepth);
                 _groundMat.SetFloat("_RimReach", RimReach);
                 _groundMat.SetFloat("_RimRelief", RimRelief);
+                _groundMat.SetFloat("_HollowStep", HollowStep);
+                _groundMat.SetFloat("_HollowShade", HollowShade);
+                _groundMat.SetFloat("_CrackShade", CrackShade);
+                _groundMat.SetFloat("_PressTint", PressTint);
 
                 _groundMat.SetColor("_HazeColor", look.HazeColor);
                 _groundMat.SetFloat("_HazeStart", look.HazeStart);
@@ -1702,6 +1861,13 @@ namespace SpawnRowDuel.View.World
             // The dents are NOT cleared on a biome change: a field that swaps its weather has not
             // un-trodden the ground under it. Only the rate the ground heals at changes.
             _refillRate = Mathf.Max(0f, look.RefillRate);
+
+            // The blades' own rate. A field with no blades has nothing that can stand back up, so
+            // its R is pinned to the hollow and the trodden tint lasts exactly as long as the dent
+            // does - which on snow, sand or open water is the honest answer.
+            _springRate = look.BladeHeight > 0.0001f
+                ? Mathf.Max(_refillRate, GrassSpring)
+                : _refillRate;
             ResetSettle();
             if (_settleMat != null)
             {

@@ -114,6 +114,19 @@ namespace SpawnRowDuel.Rules.Tests
                     look.Name + " never fills a card's hollow back in");
                 Assert.Less(look.RefillRate, 0.5f,
                     look.Name + " erases a hollow in under three plies, which is a spring not a field");
+
+                // ...AND FAST ENOUGH TO BE WATCHED. This is the other wall, and it is the one the
+                // player walked into: a meadow at 0.05 took twenty plies - ten full rounds - to
+                // erase a print, so in a duel that ends around turn 11 nobody had ever seen a
+                // hollow fill, only hollows that were still there. "The hole should fill over
+                // time" was a report about a rate, not about a missing feature.
+                //
+                // Fifteen plies is the ceiling: long enough that a battlefield still remembers
+                // where the fighting was, short enough that the memory is visibly fading while
+                // the fight is still going on.
+                Assert.LessOrEqual(1f / look.RefillRate, 15f,
+                    look.Name + " takes " + Mathf.CeilToInt(1f / look.RefillRate)
+                    + " plies to fill a hollow - longer than most duels, so the fill is never seen");
             }
         }
 

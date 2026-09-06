@@ -130,6 +130,16 @@ namespace SpawnRowDuel.View.World
         /// 0 is legal and means a mark that never fills. Do not set it on ground that has nothing
         /// in the air to fill it WITH unless you want the board permanently scarred - which is a
         /// look, but it is a decision.
+        ///
+        /// THE EARTH ONLY. The blades lying on top of a hollow are a different material with a
+        /// different answer and run on <see cref="TerrainField.GrassSpring"/> - about five plies
+        /// everywhere - because grass is alive and comes back on its own while a dent is filled by
+        /// whatever the weather brings. They shared one number until 2026-09-06 and the shared
+        /// number had to be the slow one, so a square stayed mown for as long as it stayed dented.
+        ///
+        /// Every rate in this table was roughly doubled at the same time. Three to fourteen plies
+        /// is a fill somebody can WATCH; the old nine-to-thirty-three was a fill that outlasted the
+        /// duel, so the only thing a player ever saw was the hole.
         /// </summary>
         public float RefillRate;
 
@@ -266,9 +276,18 @@ namespace SpawnRowDuel.View.World
             b.BushA = Hex("#3f7526"); b.BushB = Hex("#8fc248"); b.BushRoot = Hex("#17330f");
             b.BushHeight = 0.95f; b.BushWidth = 0.34f; b.BushSway = 0.055f;
             // Grass is the one field that fills a print by GROWING rather than by drifting, and
-            // it is slow at it. Ten rounds, which is what the old regrowth claimed and - on a
-            // wall clock that ran while nobody was playing - never actually delivered.
-            b.RefillRate = 0.05f;
+            // it is slow at it. Nine plies - four and a half rounds - which is slow next to the
+            // instant crush and still inside a duel somebody might finish.
+            //
+            // It was 0.05, twenty plies, and that is the number the report was looking at. A print
+            // it takes ten full rounds to erase is a print nobody has ever WATCHED erase: one turn
+            // bought about 2% of brightness back, on a mark that kept its razor-sharp full-size
+            // outline the whole way down, so the ground read as permanently holed rather than as
+            // healing. The blades on top of it now stand up in five plies of their own
+            // (TerrainField.GrassSpring) and the hollow itself narrows and rounds off as it fills,
+            // so what "twenty" was protecting - that the ground REMEMBERS - is carried by the two
+            // of those and does not need the clock to be longer than the match.
+            b.RefillRate = 0.11f;
             b.ShadowTint = Hex("#7f93c8"); b.CloudAmount = 1f;
             return b;
         }
@@ -319,8 +338,8 @@ namespace SpawnRowDuel.View.World
             // The fastest in the table, and the whole reason this is a per-biome number: this is
             // the field with the most material in the air (VeilAmount 0.85, GrainAmount 0.95), and
             // blown sand fills a footprint in five rounds. A desert that kept a card's outline for
-            // the length of a duel would be arguing with its own weather.
-            b.RefillRate = 0.10f;
+            // the length of a duel would be arguing with its own weather. Two plies quicker than that now.
+            b.RefillRate = 0.22f;
             b.ShadowTint = Hex("#9a93b8"); b.CloudAmount = 0.55f;
             return b;
         }
@@ -378,9 +397,12 @@ namespace SpawnRowDuel.View.World
             b.BladeDensity = 0f;                       // a smooth crust; nothing grows through
             b.BladeA = Hex("#8d8f92"); b.BladeB = Hex("#a9aaad"); b.BladeRoot = Hex("#5f6165");
             b.BladeHeight = 0.100f; b.BladeWidth = 0.120f; b.Sway = 0.070f;
-            // The same number as its SettleRate, on purpose: the snow that greys over a card is
-            // the snow that fills the hollow it leaves, and the two effects should finish together.
-            b.RefillRate = 0.08f;
+            // Six plies. It used to be pinned to SettleRate - the snow that greys over a card is the
+            // snow that fills the hollow it leaves - which is a good idea that produced an
+            // invisible effect: settling is a coat thickening on top of a card that is still
+            // there, and a hollow is a shape in ground the card has left, and they are not owed
+            // the same clock. The fill has to be legible inside one duel; the coat does not.
+            b.RefillRate = 0.18f;
             b.ShadowTint = Hex("#7d9ad0"); b.CloudAmount = 0.75f;
             return b;
         }
@@ -437,7 +459,7 @@ namespace SpawnRowDuel.View.World
             b.BladeDensity = 2.2f;
             b.BladeA = Hex("#3a2f26"); b.BladeB = Hex("#6b5a44"); b.BladeRoot = Hex("#171310");
             b.BladeHeight = 0.30f; b.BladeWidth = 0.145f; b.Sway = 0.085f;
-            b.RefillRate = 0.06f;                      // its SettleRate, for the same reason as snow
+            b.RefillRate = 0.14f;                      // seven plies; see the snowfield's note
             b.ShadowTint = Hex("#8a7f8f"); b.CloudAmount = 0.6f;
             return b;
         }
@@ -497,7 +519,7 @@ namespace SpawnRowDuel.View.World
             b.BladeDensity = 0f;                       // open water
             b.BladeA = Color.white; b.BladeB = Color.white; b.BladeRoot = Color.white;
             b.BladeHeight = 0f; b.BladeWidth = 0f; b.Sway = 0f;
-            b.RefillRate = 0.20f;                      // nothing holds a shape in open water
+            b.RefillRate = 0.40f;                      // nothing holds a shape in open water: three plies
             b.ShadowTint = Hex("#6f86b5"); b.CloudAmount = 0.9f;
             return b;
         }
@@ -546,8 +568,9 @@ namespace SpawnRowDuel.View.World
             // The slowest in the table, and the point of the biome. Churned wet ground takes a
             // print and KEEPS it - there is almost nothing in this air to fill one back in
             // (VeilAmount 0.10) - so a mud field ends a long duel visibly rutted by where the
-            // fighting was. 33 plies to erase, which most matches never reach.
-            b.RefillRate = 0.03f;
+            // fighting was. Still the slowest in the table by a factor of two: fourteen plies, so a mud
+            // field ends a long duel visibly rutted where a meadow would have closed over.
+            b.RefillRate = 0.07f;
             b.ShadowTint = Hex("#7b7f96"); b.CloudAmount = 1f;
             return b;
         }
@@ -617,8 +640,8 @@ namespace SpawnRowDuel.View.World
             b.BladeHeight = 0.42f; b.BladeWidth = 0.15f; b.Sway = 0.115f;
 
             // The tide erases a footprint every time it comes over it, and it comes over the board
-            // every forty seconds. Seven plies.
-            b.RefillRate = 0.14f;
+            // every forty seconds. Three plies.
+            b.RefillRate = 0.30f;
             b.ShadowTint = Hex("#7f9ab5"); b.CloudAmount = 0.95f;
             return b;
         }
@@ -740,8 +763,8 @@ namespace SpawnRowDuel.View.World
             b.SettleGrain = 2.8f; b.SettleSparkle = 0.15f;
 
             // Silt fills a hollow, so the ground here does forget - but at a seabed's pace, which
-            // is between the snowfield and the meadow. Fourteen plies.
-            b.RefillRate = 0.07f;
+            // is between the snowfield and the meadow. Six plies.
+            b.RefillRate = 0.16f;
 
             // A LONG SWELL, read on the floor. Half open water's frequency, so a light band is
             // about nine units wide and one crosses the board in eight seconds - the period of real
@@ -797,10 +820,10 @@ namespace SpawnRowDuel.View.World
                 FallSpeed = 0.2f, FallDrift = 0.9f, FallSize = 0.06f, FallSwirl = 1.2f,
                 SettleRate = 0f, SettleColor = Color.white, SettleShade = Color.grey,
                 SettleMax = 0.6f, SettleCap = 0.6f, SettleGrain = 1.6f, SettleSparkle = 0f,
-                // 20 plies - ten full rounds - to erase a print, and still 70% deep three rounds
-                // later. Deliberately NOT derived from SettleRate: five fields settle nothing and
-                // would keep every mark for ever, with no weather on screen to explain why.
-                RefillRate = 0.05f,
+                // 9 plies to erase a print, and still 45% deep three plies later. Deliberately
+                // NOT derived from SettleRate: five fields settle nothing and would keep every
+                // mark for ever, with no weather on screen to explain why.
+                RefillRate = 0.11f,
                 TideAmount = 0f, TideLevel = 9f, TideRange = 3.4f, TidePeriod = 26f,
                 TideDir = new Vector2(0f, 1f), WaveFreq = 0.55f, WaveSpeed = 2.1f,
                 WaterColor = Hex("#20505c"), DeepColor = Hex("#0e2c3a"),

@@ -58,6 +58,10 @@ namespace SpawnRowDuel.View.Cards
         /// rather than on YouLift, because the stone only stands 74 units proud of its rail while
         /// a card is 139 tall - lift alone tops out at seven eighths of a card.</summary>
         public float YouOpen { get; private set; }
+
+        /// <summary>Their wall's openness, 0 shut to 1 wide open - the mirror of
+        /// <see cref="YouOpen"/>, and what their hand of backs grows on.</summary>
+        public float FoeOpen { get; private set; }
         float _foeTouched = -99f, _youTouched = -99f;
 
         /// <summary>
@@ -191,9 +195,12 @@ namespace SpawnRowDuel.View.Cards
             _youStone.style.bottom = -(full - youCur);
             YouLift = Mathf.Max(0f, youCur - youRail);
             YouOpen = _youOpen;
+            FoeOpen = _foeOpen;
 
             // what the walls cover right now - the board must not take taps through them, and the
-            // hands are opaque too even when the wall behind them is down
+            // hands are opaque too even when the wall behind them is down. The foe's share is
+            // published by LayoutFoeHand, which is the only place that knows how far their hand
+            // has come down out of their wall.
             HudLayout.TopBlockPx = Mathf.Max(foeCur, HudLayout.FoeHandBandPx);
             HudLayout.BottomBlockPx = Mathf.Max(youCur, YouLift + HudLayout.HandBandPx);
 
@@ -284,6 +291,20 @@ namespace SpawnRowDuel.View.Cards
         /// Full backs rather than a peek: a peek works for your hand because the banner it shows
         /// names the card, and the back of a card has nothing to read. What has to carry from
         /// across the board is how many.
+        ///
+        /// AND IT COMES DOWN WITH THEIR WALL, which is the half that was missing. Your hand grows
+        /// out of your wall as it opens (HandBar: `show = lerp(peek, cardH, YouOpen)`) - the wall
+        /// rising is the player asking to LOOK, and answering that with a strip of card still
+        /// mostly off-screen answers half a question. Theirs was pinned at the peek for ever: the
+        /// stone slid down over a hand that never moved, so an opened foe wall showed five slivers
+        /// of card back swallowed by a hundred pixels of battlement. Same lerp, same reason,
+        /// mirrored about the screen's other edge.
+        ///
+        /// The strip is what grows; the CARDS never move inside it. Each one is anchored to the
+        /// strip's lower edge and clipped by it, so how much of a card shows is entirely the
+        /// strip's height - which is what lets the wall grow the hand without rebuilding a
+        /// single element, and why the height is set before the signature check that skips the
+        /// rebuild.
         /// </summary>
         void LayoutFoeHand(GameState s, ElementPalette palette, float panelW, float scale)
         {
@@ -291,14 +312,25 @@ namespace SpawnRowDuel.View.Cards
             var sleeve = palette.Of(s.P(Seat.Remote).PrimaryColor).Color;
 
             float band = HudLayout.FoeHandBandPx;
-            float cardH = band * 2.2f;
+
+            // The same peek-to-card ratio the player's hand uses, so both hands are the same shape
+            // language. Their band is the smaller of the two (44 against 48), so their cards come
+            // out a little smaller than yours, which is what a hand across the table should do -
+            // and at full open a card still stands proud of their crest, the way yours does.
+            float cardH = band * HandBar.CardToPeek;
             float cardW = cardH / CardFace.Aspect;
+            float show = Mathf.Lerp(band, cardH, _foeOpen);
 
             float spanL = panelW * TowerSpan, spanR = panelW * (1f - TowerSpan);
             _foeHand.style.left = spanL;
             _foeHand.style.width = spanR - spanL;
             _foeHand.style.top = 0;
-            _foeHand.style.height = band;
+            _foeHand.style.height = show;
+
+            // ...and the board must not take taps through a hand that is now a card tall. Layout
+            // published the retracted band a moment ago; this is the same rect measured against
+            // what their hand actually occupies.
+            HudLayout.TopBlockPx = Mathf.Max(HudLayout.TopBlockPx, show);
 
             string sig = n + "/" + Mathf.RoundToInt(cardH) + "/" + Mathf.RoundToInt(panelW)
                        + "/" + ((Color32)sleeve).GetHashCode();
@@ -323,8 +355,10 @@ namespace SpawnRowDuel.View.Cards
                 card.style.backgroundImage = new StyleBackground(back);
 
                 // hung from above the screen edge, so what shows is the card's lower band and the
-                // rest is behind their wall - the mirror of the way yours hangs below
-                card.style.top = -(cardH - band);
+                // rest is behind their wall - the mirror of the way yours hangs below. BOTTOM,
+                // not top: the strip's lower edge is the one that moves when their wall opens, so
+                // anchoring there is what makes the card come down with it.
+                card.style.bottom = 0f;
                 _foeHand.Add(card);
             }
         }
