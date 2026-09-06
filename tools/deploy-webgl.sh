@@ -34,6 +34,44 @@ SRC="$ROOT/unity/Build/WebGL"
 DST="$ROOT/play"
 [ -d "$SRC/Build" ] || { echo "no build output at $SRC"; exit 1; }
 
+# ── DOES THE BINARY ACTUALLY COMPILE? ────────────────────────────────────────────────────
+#
+# "Succeeded" out of Unity is not the same claim. 2026-09-06: Bitdefender killed an emcc process
+# mid-compile (gotcha -2, the usual), the retry reported result=Succeeded, and the wasm it linked
+# was CORRUPT - `WebAssembly.validate()` false, V8 refusing function #5674 at +2768220. It reached
+# the phone and the game would not start. Nothing between the compiler and the player had ever
+# asked the one question that matters.
+#
+# Node's V8 answers it in about twenty seconds against a build that takes twenty minutes, so it is
+# free. Note the two V8s disagreed about WHY - node said "invalid alignment: expected 2, actual 34"
+# where Chrome on the phone said "acquire-release requires --experimental-wasm-acquire-release" -
+# which is what garbage bytes look like: two decoders reading one bad byte differently. Do not
+# chase the message; `validate` is the signal.
+#
+# The .unityweb container is a short "UnityWeb Compressed Content (brotli)" header followed by the
+# brotli stream, and node's decoder walks the header as a metadata block, so offset 0 works.
+if command -v node >/dev/null 2>&1; then
+  WASM="$SRC/Build/WebGL.wasm.unityweb"
+  if [ -f "$WASM" ]; then
+    echo "validating $(basename "$WASM") ..."
+    node --max-old-space-size=6144 -e '
+      const fs=require("fs"), zlib=require("zlib");
+      const w=zlib.brotliDecompressSync(fs.readFileSync(process.argv[1]));
+      if (w.readUInt32BE(0) !== 0x0061736d) { console.error("not a wasm module after decompression"); process.exit(1); }
+      if (!WebAssembly.validate(w)) {
+        try { new WebAssembly.Module(w); } catch (e) { console.error("  " + e.message); }
+        console.error("CORRUPT BUILD - not staged. rm -rf unity/Library/Bee and build clean.");
+        process.exit(1);
+      }
+      console.log("  wasm ok (" + (w.length/1048576).toFixed(1) + " MB uncompressed)");
+    ' "$WASM" || exit 1
+  else
+    echo "WARNING: no $WASM to validate"
+  fi
+else
+  echo "WARNING: node not found - staging an UNVALIDATED wasm"
+fi
+
 rm -rf "$DST/Build"
 cp -r "$SRC/Build" "$DST/Build"
 cp "$SRC/index.html" "$DST/index.html"
