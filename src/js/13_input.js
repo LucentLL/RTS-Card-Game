@@ -56,7 +56,7 @@ function validSpellTarget(card,o){
   if(card.effect==='raze') return o.kind==='building';
   if(card.effect==='burn') return o.kind==='creature'||o.kind==='building'||o.kind==='charge';
   if(card.effect==='chain') return o.kind==='creature'&&!o.worker;
-  if(card.effect==='bounce') return o.kind==='creature'&&!o.worker;
+  if(card.effect==='bounce') return o.kind==='creature'&&!o.worker&&!o.token; // a token has no card to go back to
   return false;
 }
 function spellText(card){
@@ -79,9 +79,9 @@ function abilityBrief(card){
   if(card.type==='spell'||card.trap) return spellText(card);
   if(card.type==='building'||card.kind==='building'){ const p=[];
     if(card.eff==='mana')p.push('<b>Forge.</b> ◆'+(card.val||0)+' each turn');
-    else if(card.eff==='villager')p.push('<b>Longhouse.</b> Trains a worker each turn');
+    else if(card.eff==='villager')p.push('<b>Longhouse.</b> Quarters the workforce');
     else if(card.eff==='damage')p.push('<b>Tower.</b> ⚔'+(card.val||0)+' each turn');
-    else if(card.eff==='wall')p.push('<b>Bulwark.</b> Screens the line');
+    else if(card.eff==='wall')p.push('<b>Bulwark.</b> A body that soaks raids');
     else if(card.eff==='revive')p.push('<b>Reliquary.</b> Recalls the fallen');
     if(card.sup)p.push('⚒+'+card.sup+' workers');
     return p.join(' · '); }

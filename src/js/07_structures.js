@@ -52,8 +52,8 @@ function aiBuild(owner){
   // priority order = buildList order; cap how many of each the AI wants
   const CAP={foundry:1,encampment:1,longhouse:1,vault:1,outpost:1,bulwark:1,tower:2,reliquary:1};
   for(const def of list){
-    if(CAP[def.bid] && ownBuildings(owner).filter(b=>bidLineage(b).indexOf(def.bid)>=0).length>=CAP[def.bid]) continue;  // an upgraded tier still counts toward its base's cap
-    if(def.bid==='forge' && ownBuildings(owner).some(b=>bidLineage(b).indexOf('forge')>=0&&b.color===def.color)) continue;   // one forge (or its Grand upgrade) per color
+    if(CAP[def.bid] && ownFamily(owner,def.bid,null).length>=CAP[def.bid]) continue;  // an upgraded tier still counts toward its base's cap
+    if(def.bid==='forge' && ownFamily(owner,'forge',def.color).length>0) continue;   // one forge (or its Grand upgrade) per color
     if(def.bid==='grandforge' && ownBuildings(owner).some(b=>b.bid==='grandforge'&&b.color===def.color)) continue;
     if(!canBuild(owner,def)) continue;
     const which=['back','front'].find(w=>freeDeploySlot(owner,w)>=0&&placeRowOK(owner,w,def)); if(!which)continue;

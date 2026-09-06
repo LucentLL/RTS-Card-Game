@@ -14,6 +14,11 @@ function rowsCrossedInto(aIdx,tIdx){ const o=[];
 // A creature may block even tapped or summoning-sick; blocking is gated once-per-turn by `blocked`.
 function untappedInterceptors(key,attackerOwner){ const out=[];
   rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='creature'&&!c.blocked&&c.owner!==attackerOwner) out.push({key,i,c}); });
+  // NOTE: eff:'wall' structures do NOT interpose. The card text used to say they did; making it
+  // true was tried and measured (1,536 matches: no-result games 24 -> 56, turtle's median match
+  // 36 -> 64 plies) — two indestructible-feeling bodies soaking a strike each per turn stall the
+  // game out. The text now matches the engine; re-enable here if that trade is ever wanted:
+  //   rowArr(key).forEach((c,i)=>{ if(c&&c.kind==='building'&&c.eff==='wall'&&!c.cc&&!c.blocked&&c.h>0&&c.owner!==attackerOwner) out.push({key,i,c}); });
   // worker stacks screen their whole row
   minionsInRow(key).forEach(g=>{ if(g.owner!==attackerOwner&&!g.c.tapped&&!g.c.sick) out.push({key,c:g.c}); });
   return out;
@@ -66,6 +71,13 @@ function resolveCombat(groupA, groupB){
 // thin compatibility shim
 function resolveClash(attackers,blockers){ resolveCombat(attackers,blockers); }
 
+// AI (as defender) directs a jointly-attacked creature's counterstrike: finish an attacker if the
+// blow is lethal, otherwise hit the hardest one. The player answers the same question via askRetaliate.
+function aiRetaliationIndex(T,grp){
+  const rank=grp.map((a,ix)=>({a,ix}));
+  const kill=rank.filter(x=>x.a.h<=(T.a||0)).sort((x,y)=>effA(y.a)-effA(x.a))[0];
+  return (kill||rank.sort((x,y)=>effA(y.a)-effA(x.a))[0]).ix;
+}
 // AI (as defender) decides whether to interpose against the player's strike.
 function aiChooseInterceptors(attackers, info){
   const elig=info.elig||[]; if(!elig.length) return [];
@@ -334,7 +346,7 @@ CMB._resolveNow=async function(){
     if(!grp.length||T.h<=0)continue;
     springAttackTrap('foe',grp,T);                 // the foe's attack-trigger trap, as before
     log(`<span class="y">You attack ${T.nm} with ${grp.length} creature(s).</span>`,'y');
-    await CMB.targetFight(grp,T,0,rowCellEl($(xs[0].tk),xs[0].ti),xs.map(x=>x.a));   // AI retaliation is auto (its own pick)
+    await CMB.targetFight(grp,T,aiRetaliationIndex(T,grp),rowCellEl($(xs[0].tk),xs[0].ti),xs.map(x=>x.a));   // the AI picks who it strikes back at
     if(G.over){G.busy=false;return;}
   }
   // 3) everything else unblocked: structures, face-downs, traps, worker stacks, the wall

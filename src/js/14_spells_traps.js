@@ -18,6 +18,9 @@ function resolveSpell(card,key,i){
     log(`<span class="${towner==='you'?'e':'y'}">${card.nm} arcs through ${cres.map(c=>c.nm).join(' &amp; ')} for ${card.val}.</span>`,towner==='you'?'e':'y');
   } else if(card.effect==='bounce'){
     if(o.kind!=='creature'||o.worker)return false;
+    // a token has no printed card to return to: handcardFromCreature would mint a real, permanent
+    // 0-cost creature out of it. applyUndertow already skips tokens for the same reason.
+    if(o.token)return false;
     if(o.entrench){ log(`<span class="${towner==='you'?'e':'y'}">${o.nm} is entrenched — ${card.nm} slides off.</span>`,towner==='you'?'e':'y'); }
     else { const ow=removeUnitFromBoard(o); if(ow){ G.P[ow].hand.push(handcardFromCreature(o)); log(`<span class="${towner==='you'?'e':'y'}">${card.nm} drags ${o.nm} back to ${ow==='you'?'your':'their'} hand.</span>`,towner==='you'?'e':'y'); } }
   } else return false;

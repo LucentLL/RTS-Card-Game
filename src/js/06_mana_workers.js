@@ -10,6 +10,9 @@ function payCost(o,card){payAny(o,card.c);}
 function manaGlyph(t){return '◆';}                            // mana is colourless now
 function extractColors(owner,which){ return []; }   // mana is generic — no colour sources to enumerate
 function minionCount(owner){ const m=G.P[owner].min; return m.back.length+m.front.length+m.center.length; }
+// LEGACY, unreachable: workers are derived per row by syncWorkers, so nothing trains or culls them
+// any more. canTrain / enforceCap / trainVillager are kept only as the shape a future "trains a
+// worker" effect would need — syncWorkers would delete anything they pushed on the next turn.
 function canTrain(owner){ return minionCount(owner) < workerCap(owner); }
 // cull minions down to the cap (exposed front/center first) — the army "feeds" on the workforce
 function enforceCap(owner){
@@ -91,7 +94,8 @@ function mkCre(t,owner,worker){return {kind:'creature',id:uid++,owner,worker:!!w
   kw:t.kw||null,det:t.det||0,ward:t.ward||0,wardhp:t.wardhp||2,reap:t.reap||0,grow:t.grow||0,hatch:t.hatch||0,into:t.into||null,cnt:t.cnt||0,oc:t.oc||0,entrench:!!t.entrench,token:!!t.token,blocked:false,
   tribe:t.tribe||null,subtype:t.subtype||null};}
 function mkVil(owner){return mkCre({nm:'Worker',a:0,h:1000,c:0,up:0,art:ART.villager},owner,true);}
-function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0,bid:t.bid||null};}
+function mkBld(t,owner){return {kind:'building',id:uid++,owner,color:t.color||G.P[owner].color,nm:t.nm,h:t.h,maxh:t.h,c:t.c,eff:t.eff,val:t.val||0,sup:t.sup||0,ic:t.ic,art:t.art,bank:0,bid:t.bid||null,
+  a:0,blocked:false};}   // a:0 — a wall that interposes goes through the same damage maths as a creature
 
 /* ===== CREATURE KEYWORDS — element identities =====
    Hooks: enter (summon/flip) · death (cleanup) · defend (resolveCombat groupB) · upkeep (startTurn). */
@@ -155,9 +159,12 @@ function overchargeUpkeep(owner){
   const all=ownUnits(owner);
   all.forEach(o=>{ if(kwOf(o)==='overcharge'){ o.oc=Math.min(3,(o.oc||0)+1); log(`<span class="${ekc(o)}">${o.nm} overcharges (◆${o.oc}).</span>`,ekc(o)); } });
 }
-// ATTACK prep: Overcharge attackers discharge their banked ◆ as bonus attack for this strike only
+// ATTACK prep: Overcharge attackers discharge their banked ◆ as bonus attack for this strike only.
+// Each banked charge is worth a creature-tier blow — the x500 stat rescale never reached this line,
+// so a full three-turn charge used to be worth +3 attack against health measured in thousands.
+const OC_PER_CHARGE=500;
 function dischargeOvercharge(attackers){
-  attackers.forEach(a=>{ if(a&&kwOf(a)==='overcharge'&&(a.oc||0)>0){ a._dis=a.oc; a.oc=0;
+  attackers.forEach(a=>{ if(a&&kwOf(a)==='overcharge'&&(a.oc||0)>0){ a._dis=a.oc*OC_PER_CHARGE; a.oc=0;
     log(`<span class="${ekc(a)}">Overcharge! ${a.nm} discharges +${a._dis}⚔.</span>`,ekc(a)); } });
 }
 function clearDischarge(units){ if(units)units.forEach(a=>{ if(a)a._dis=0; }); }
@@ -190,10 +197,25 @@ function ownBuildings(owner){ return ownUnits(owner).filter(o=>o.kind==='buildin
 // upgraded tier still satisfies tech-tree prereqs its base unlocked (e.g. Keep still counts as a Foundry).
 function bidLineage(b){ const out=[]; let cur=b&&b.bid, g=0; while(cur&&g++<8){ out.push(cur); const d=resolveStruct(cur,b.color); cur=d&&d.from; } return out; }
 function hasBuild(owner,bid){ return ownBuildings(owner).some(b=>bidLineage(b).indexOf(bid)>=0); }
+// Every tier a base can grow into, itself included: the FORWARD closure over `up2`. bidLineage walks
+// the chain backward via `from`, which by this file's own convention only exists on tiers reached
+// solely by upgrading — so the two tiers you can also build outright (Longhouse, Cannon Tower) carry
+// no `from`, and a cap that counts backward stops seeing the base the moment its owner upgrades.
+// Counting forward from the base sees every descendant however it was reached.
+function bidFamily(bid,color){ const out=[]; (function walk(b,g){ if(!b||g>8||out.indexOf(b)>=0)return;
+  out.push(b); const d=resolveStruct(b,color); ((d&&d.up2)||[]).forEach(n=>walk(n,g+1)); })(bid,0); return out; }
+// how many of `owner`'s structures belong to that family (optionally of one colour, for the forges)
+function ownFamily(owner,bid,color){ const fam=bidFamily(bid,color);
+  return ownBuildings(owner).filter(b=>fam.indexOf(b.bid)>=0&&(color?b.color===color:true)); }
 function prereqMet(owner,def){ return (def.prereq||[]).every(p=>hasBuild(owner,p)); }
 function hasEmptyDeploy(owner){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x); }); }
 // a worker-COSTING building (negative sup, e.g. a tower) may only go in a row that stays non-negative
-function placeRowOK(owner,which,def){ return (def.sup||0)>=0 || (rowWorkers(owner,which)+(def.sup||0))>=0; }
+function placeRowOK(owner,which,def){
+  // `row` was only ever enforced on the upgrade path (upgradeWhy), so a Longhouse could be raised in
+  // the back row and then never become a Barracks — and structures can neither move nor be razed by
+  // their owner, so that mistake was permanent and silent. Gate it at build time too.
+  if(def.row&&which!==def.row) return false;
+  return (def.sup||0)>=0 || (rowWorkers(owner,which)+(def.sup||0))>=0; }
 function hasPlacement(owner,def){ return ['back','front','center'].some(w=>{ const a=cellArr(owner,w); return a&&a.some(x=>!x)&&placeRowOK(owner,w,def); }); }
 function canBuild(owner,def){ return manaTotal(owner)>=def.c && prereqMet(owner,def) && hasPlacement(owner,def); }
 function resolveStruct(bid,color){ if(bid==='forge')return forgeDef(color); if(bid==='grandforge')return grandForgeDef(color); return STRUCT_DEFS[bid]||null; }
@@ -203,7 +225,7 @@ function drawBuild(){
   const rows=list.map(def=>{
     const ok=canBuild('you',def);
     const PRN={foundry:'a Foundry',forge:'a Forge',longhouse:'a Longhouse',encampment:'an Encampment',outpost:'an Outpost'};
-    const why=!prereqMet('you',def)?('needs '+def.prereq.map(p=>PRN[p]||('a '+p)).join(' + ')):(have<def.c?('need ◆'+def.c):(!hasPlacement('you',def)?((def.sup||0)<0?'no row with ⚒ to spare':'no open space'):''));
+    const why=!prereqMet('you',def)?('needs '+def.prereq.map(p=>PRN[p]||('a '+p)).join(' + ')):(have<def.c?('need ◆'+def.c):(!hasPlacement('you',def)?(def.row?('only in your '+def.row+' row — no space there'):((def.sup||0)<0?'no row with ⚒ to spare':'no open space')):''));
     const dot=def.color?`<span class="cdot" style="background:var(--${def.color})"></span>`:'';
     return `<div class="bdrow${ok?'':' off'}"><div class="bdic">${def.ic}</div>`+
       `<div class="bdmid"><div class="bdnm">${dot}${escHtml(def.nm)}</div><div class="bddesc">${escHtml(def.desc)}</div></div>`+

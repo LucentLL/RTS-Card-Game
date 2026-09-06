@@ -50,7 +50,8 @@ function startTurn(owner){
   G.turnNo++; G.turn=owner;const P=G.P[owner]; G.cardMenu=null; G.moveMana=null; G.decls=[];
   P.firstExtract=true; // no generic income — mana comes from worker harvest + forge yields (all colored)
   P.upaid={back:0,front:0,center:0,raid:0};   // last turn's keep payments expire — shortfalls are settled anew each upkeep
-  ownUnits(owner).forEach(o=>{if(o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.moved2=false;o.paid=false;o.blocked=false;o._dis=0;}});
+  ownUnits(owner).forEach(o=>{if(o.kind==='creature'){o.sick=false;o.tapped=false;o.moved=false;o.moved2=false;o.paid=false;o.blocked=false;o._dis=0;}
+    else if(o.kind==='building'){o.blocked=false;}});   // a Bulwark that screened last turn may screen again
   chrysalisUpkeep(owner);   // cocoons swell (and re-sick so they can't attack) or hatch into their grown form
   overchargeUpkeep(owner);  // Electric creatures bank ◆ for their next discharge
   buildingUpkeep(owner);
@@ -257,7 +258,7 @@ function aiPickTarget(m,aCol){
   const fld=yourFieldTargets();                          // columns never matter in combat — full board reach
   const ch=fld.filter(t=>t.o.kind==='charge'&&t.o.inv>=2).sort((a,b)=>b.o.inv-a.o.inv)[0];
   if(ch&&Math.random()<0.6) return ch;
-  const kill=fld.filter(t=>t.o.kind==='creature'&&!t.o.worker&&m.a>=t.o.h).sort((a,b)=>a.o.h-b.o.h)[0];
+  const kill=fld.filter(t=>t.o.kind==='creature'&&!t.o.worker&&effA(m)>=t.o.h).sort((a,b)=>a.o.h-b.o.h)[0];  // effA: an Overcharge discharge counts toward lethal
   if(kill) return kill;
   const bld=fld.filter(t=>t.o.kind==='building').sort((a,b)=>a.o.h-b.o.h)[0];
   if(bld&&Math.random()<0.3) return bld;
