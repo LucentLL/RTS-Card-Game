@@ -46,7 +46,7 @@ MonoBehaviour:
   glyph: "\u265B"
   buildId: citadel
   structEffect: 1
-  structValue: 3
+  structValue: 2
   support: 4
   prereq: []
   upgradedFrom: keep
@@ -63,7 +63,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "The seat of your realm \u2014 \u25C63 a turn, \u2692+4, and a mighty
+  description: "The seat of your realm \u2014 \u25C62 a turn, \u2692+4, and a mighty
     rampart of stone."
   cardArt: {fileID: 21300000, guid: f3e0984433658f54fa04a563bdaadcf6, type: 3}
   fieldArt: {fileID: 21300000, guid: 3b6db5c251d0cfa49b1427613383833f, type: 3}

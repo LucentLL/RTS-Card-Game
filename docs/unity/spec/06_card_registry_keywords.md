@@ -265,15 +265,15 @@ gated by a prerequisite tech tree (`03_cards_creatures.js:30-34`).
 | `outpost` | Outpost | 2 | 3000 | none | 0 | 1 | forge | — | tower, bastion | — |
 | `tower` | Cannon Tower | 4 | 4000 | damage | 1000 | **-2** | forge | — | — | — |
 | `reliquary` | Reliquary | 5 | 3500 | revive | 0 | 1 | longhouse | — | — | — |
-| `keep` | Keep | 3 | 5000 | mana | 2 | 3 | — | foundry | citadel | back |
-| `citadel` | Citadel | 4 | 7500 | mana | 3 | 4 | — | keep | — | back |
+| `keep` | Keep | 3 | 5000 | mana | 1 | 3 | — | foundry | citadel | back |
+| `citadel` | Citadel | 4 | 7500 | mana | 2 | 4 | — | keep | — | back |
 | `barracks` | Barracks | 3 | 5000 | villager | 0 | 4 | — | longhouse | — | front |
 | `bastion` | Bastion | 3 | 9000 | wall | 0 | 2 | — | outpost | — | — |
 | `grandvault` | Grand Vault | 5 | 4500 | vault | 10 | 0 | — | vault | — | — |
 
 Per-element forges are **generated**, not stored (`03_cards_creatures.js:70-71`):
 
-* `forgeDef(el)` → `{bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:2, sup:2, ic:'⛭', prereq:['foundry'], color:el, up2:['grandforge'], art:forgeArt(el), desc:"A <Element> forge — yields ◆2 each turn and raises ⚒+2. Upgrades to a Grand Forge."}`
+* `forgeDef(el)` → `{bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:1, sup:2, ic:'⛭', prereq:['foundry'], color:el, up2:['grandforge'], art:forgeArt(el), desc:"A <Element> forge — yields ◆1 each turn and raises ⚒+2. Upgrades to a Grand Forge."}`
 * `grandForgeDef(el)` → `{bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:3, sup:3, ic:'⛭', prereq:['forge'], from:'forge', color:el, art:forgeArt(el), desc:"Furnaces past mortal heat — yields ◆3 each turn and raises ⚒+3."}`
 
 `FORGE_NAMES` (`03_cards_creatures.js:23`): fire→**Emberforge**, water→**Tidewell**, earth→**Stonewell**,

@@ -623,9 +623,9 @@ function extractColors(owner,which){ return []; }                    // :11
 | 1 | **Worker harvest** | `+1` per non-sick, non-tapped worker, in each of back/front/center | player: ⛏ Harvest during Upkeep. AI: automatically at the top of its turn. | `17_turns_ai.js:154-161`, `:273-281`; `15_combat.js:145` |
 | 2 | **Structure `eff:'mana'` yield** | `+val` per structure, every turn | `buildingUpkeep` at turn start (§5 step 8) | `17_turns_ai.js:5` |
 | 2a | └ The Foundry | `+1` | | `03_cards_creatures.js:55` |
-| 2b | └ Forge (per element) | `+2` | | `:70` |
-| 2c | └ Keep (Foundry upgrade) | `+2` | | `:64` |
-| 2d | └ Citadel (Keep upgrade) | `+3` | | `:65` |
+| 2b | └ Forge (per element) | `+1` | | `:70` |
+| 2c | └ Keep (Foundry upgrade) | `+1` | | `:64` |
+| 2d | └ Citadel (Keep upgrade) | `+2` | | `:65` |
 | 2e | └ Grand Forge | `+3` | | `:71` |
 | 3 | **Carry-over through the drain** | up to `vaultCap` (§9.5) | end of your turn | `17_turns_ai.js:33-41` |
 | 4 | **Banked ◆ on a card** (`unit.bank`) | recovered only by playing a card on top of that unit | Action phase | `13_input.js:184-205` |
@@ -733,7 +733,7 @@ gated by a prerequisite tech tree (`03_cards_creatures.js:30-34`).
 | bid | Name | ◆ cost | ♥ HP | `eff` | `val` | ⚒ `sup` | `prereq` | `row` gate | `up2` (upgrade targets) | `from` (upgrade-only) |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `foundry` | The Foundry | 2 | 3000 | mana | 1 | **+2** | — | — | `keep` | — |
-| `forge` | *(per element, e.g. Emberforge)* | 3 | 2500 | mana | 2 | **+2** | `foundry` | — | `grandforge` | — |
+| `forge` | *(per element, e.g. Emberforge)* | 3 | 2500 | mana | 1 | **+2** | `foundry` | — | `grandforge` | — |
 | `encampment` | Encampment | 2 | 2500 | none | 0 | **+2** | `foundry` | — | `longhouse` | — |
 | `longhouse` | Longhouse | 4 | 3000 | villager | 0 | **+3** | `foundry` | **front** | `barracks` | — |
 | `vault` | Mana Vault | 4 | 3000 | vault | 4 | 0 | `foundry` | — | `grandvault` | — |
@@ -742,8 +742,8 @@ gated by a prerequisite tech tree (`03_cards_creatures.js:30-34`).
 | `tower` | Cannon Tower | 4 | 4000 | damage | 1000 | **−2** | `forge` | — | — | — |
 | `reliquary` | Reliquary | 5 | 3500 | revive | 0 | **+1** | `longhouse` | — | — | — |
 | `grandforge` | Grand *(forge name)* | 6 | 3500 | mana | 3 | **+3** | `forge` | — | — | `forge` |
-| `keep` | Keep | 3 | 5000 | mana | 2 | **+3** | — | **back** | `citadel` | `foundry` |
-| `citadel` | Citadel | 4 | 7500 | mana | 3 | **+4** | — | **back** | — | `keep` |
+| `keep` | Keep | 3 | 5000 | mana | 1 | **+3** | — | **back** | `citadel` | `foundry` |
+| `citadel` | Citadel | 4 | 7500 | mana | 2 | **+4** | — | **back** | — | `keep` |
 | `barracks` | Barracks | 3 | 5000 | villager | 0 | **+4** | — | **front** | — | `longhouse` |
 | `bastion` | Bastion | 3 | 9000 | wall | 0 | **+2** | — | — | — | `outpost` |
 | `grandvault` | Grand Vault | 5 | 4500 | vault | 10 | 0 | — | — | — | `vault` |

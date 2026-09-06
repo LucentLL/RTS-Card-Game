@@ -182,7 +182,7 @@ at load (18 records) or keep a `(StructId, Element)` keyed factory. **Do not** f
 | `bulwark` | Bulwark | 5 | 6000 | `wall` | 0 | +1 | ▣ | `forge` | null | — | — |
 | `tower` | Cannon Tower | 4 | 4000 | `damage` | **1000** | **−2** | ⤢ | `forge` | null | — | — |
 | `reliquary` | Reliquary | 5 | 3500 | `revive` | 0 | +1 | ☩ | `longhouse` | null | — | — |
-| `forge` | *see 3.3* | 3 | 2500 | `mana` | 2 | +2 | ⛭ | `foundry` | element | `grandforge` | — |
+| `forge` | *see 3.3* | 3 | 2500 | `mana` | 1 | +2 | ⛭ | `foundry` | element | `grandforge` | — |
 | `grandforge` | Grand *…* | 6 | 3500 | `mana` | 3 | +3 | ⛭ | `forge` | element | — | — |
 
 \* `longhouse.row === 'front'` exists in the data but **`canBuild` never reads `row`** — you may
@@ -193,8 +193,8 @@ an Encampment (§7.3). Preserve this exactly, or change it deliberately and reco
 
 | bid | Name | ◆ Cost | ♥ HP | eff | val | sup | Glyph | from | up2 | row gate |
 |---|---|---:|---:|---|---:|---:|:--:|---|---|---|
-| `keep` | Keep | 3 | 5000 | `mana` | 2 | +3 | ♜ | `foundry` | `citadel` | **back** |
-| `citadel` | Citadel | 4 | 7500 | `mana` | 3 | +4 | ♛ | `keep` | — | **back** |
+| `keep` | Keep | 3 | 5000 | `mana` | 1 | +3 | ♜ | `foundry` | `citadel` | **back** |
+| `citadel` | Citadel | 4 | 7500 | `mana` | 2 | +4 | ♛ | `keep` | — | **back** |
 | `barracks` | Barracks | 3 | 5000 | `villager` | 0 | +4 | ⚔ | `longhouse` | — | **front** |
 | `bastion` | Bastion | 3 | 9000 | `wall` | 0 | +2 | ▣ | `outpost` | — | — |
 | `grandvault` | Grand Vault | 5 | 4500 | `vault` | **10** | 0 | ◈ | `vault` | — | — |
@@ -213,7 +213,7 @@ All upgrade-only tiers have `prereq: []` — the prerequisite check is not appli
 
 `forgeDef(el)` / `grandForgeDef(el)` build the record; the name comes from `FORGE_NAMES`:
 
-| Element | Forge name (◆3, ♥2500, ◆+2/turn, ⚒+2) | Grand Forge name (◆6, ♥3500, ◆+3/turn, ⚒+3) |
+| Element | Forge name (◆3, ♥2500, ◆+1/turn, ⚒+2) | Grand Forge name (◆6, ♥3500, ◆+3/turn, ⚒+3) |
 |---|---|---|
 | fire | Emberforge | Grand Emberforge |
 | water | Tidewell | Grand Tidewell |
@@ -656,9 +656,9 @@ scanning `back → front → center`; used by the AI which holds object referenc
 ```mermaid
 graph LR
   subgraph Economy
-    F["Foundry<br/>◆2 · ♥3000<br/>◆+1 · ⚒+2"] -->|"◆3 · back row"| K["Keep<br/>♥5000<br/>◆+2 · ⚒+3"]
-    K -->|"◆4 · back row"| CI["Citadel<br/>♥7500<br/>◆+3 · ⚒+4"]
-    FO["Forge &lt;element&gt;<br/>◆3 · ♥2500<br/>◆+2 · ⚒+2"] -->|"◆6"| GF["Grand Forge<br/>♥3500<br/>◆+3 · ⚒+3"]
+    F["Foundry<br/>◆2 · ♥3000<br/>◆+1 · ⚒+2"] -->|"◆3 · back row"| K["Keep<br/>♥5000<br/>◆+1 · ⚒+3"]
+    K -->|"◆4 · back row"| CI["Citadel<br/>♥7500<br/>◆+2 · ⚒+4"]
+    FO["Forge &lt;element&gt;<br/>◆3 · ♥2500<br/>◆+1 · ⚒+2"] -->|"◆6"| GF["Grand Forge<br/>♥3500<br/>◆+3 · ⚒+3"]
     V["Mana Vault<br/>◆4 · ♥3000<br/>◈4 · ⚒0"] -->|"◆5"| GV["Grand Vault<br/>♥4500<br/>◈10 · ⚒0"]
   end
   subgraph Workforce
@@ -688,7 +688,7 @@ Tabular form (source of truth for the implementer):
 | Bulwark, Cannon Tower, Bastion, Citadel, Barracks, Grand Vault, Grand Forge, Reliquary | — | *(terminal)* | | | |
 
 Cheapest full economy chain: Foundry ◆2 → Keep ◆3 → Citadel ◆4 = **◆9 total** for a ♥7500 /
-◆+3-per-turn / ⚒+4 back-row anchor, versus ◆2 for a bare Foundry (♥3000 / ◆+1 / ⚒+2).
+◆+2-per-turn / ⚒+4 back-row anchor, versus ◆2 for a bare Foundry (♥3000 / ◆+1 / ⚒+2).
 
 ---
 

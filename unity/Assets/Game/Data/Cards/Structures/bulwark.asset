@@ -64,7 +64,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A heavy wall that screens the line \u2014 it can intercept and be
-    raided. Raises \u2692+1."
+  description: "A heavy wall of stone \u2014 a huge body that soaks raids aimed at
+    your line, and raises \u2692+1."
   cardArt: {fileID: 21300000, guid: b193f3eff33f5624daa915473433be1e, type: 3}
   fieldArt: {fileID: 21300000, guid: 54b48fcb14f26ac429625775a6d49ef2, type: 3}

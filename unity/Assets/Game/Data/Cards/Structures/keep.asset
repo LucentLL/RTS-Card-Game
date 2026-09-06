@@ -46,7 +46,7 @@ MonoBehaviour:
   glyph: "\u265C"
   buildId: keep
   structEffect: 1
-  structValue: 2
+  structValue: 1
   support: 3
   prereq: []
   upgradedFrom: foundry
@@ -64,7 +64,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "The Foundry grown into a Keep \u2014 \u25C62 a turn, \u2692+3, far
+  description: "The Foundry grown into a Keep \u2014 \u25C61 a turn, \u2692+3, far
     sturdier walls. Upgrades to a Citadel."
   cardArt: {fileID: 21300000, guid: 90cef2d8dbd784f4c89a93476e381fd3, type: 3}
   fieldArt: {fileID: 21300000, guid: a1539e4a652fb23419a9a60d4aaebfaa, type: 3}

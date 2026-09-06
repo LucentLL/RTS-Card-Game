@@ -431,7 +431,7 @@ Structures **never move, never attack, and never retaliate** (`13:134`, `15:199`
 | bid | c | h | eff | val | **sup** | prereq | from | **row gate** | up2 |
 |---|---|---|---|---|---|---|---|---|---|
 | `foundry` | 2 | 3000 | mana | 1 | **+2** | — | — | — | keep |
-| `forge` (per element) | 3 | 2500 | mana | 2 | **+2** | foundry | — | — | grandforge |
+| `forge` (per element) | 3 | 2500 | mana | 1 | **+2** | foundry | — | — | grandforge |
 | `encampment` | 2 | 2500 | none | 0 | **+2** | foundry | — | — | longhouse |
 | `longhouse` | 4 | 3000 | villager | 0 | **+3** | foundry | — | **front** | barracks |
 | `vault` | 4 | 3000 | vault | 4 | **0** | foundry | — | — | grandvault |
@@ -439,8 +439,8 @@ Structures **never move, never attack, and never retaliate** (`13:134`, `15:199`
 | `outpost` | 2 | 3000 | none | 0 | **+1** | forge | — | — | tower, bastion |
 | `tower` | 4 | 4000 | damage | 1000 | **−2** | forge | — | — | — |
 | `reliquary` | 5 | 3500 | revive | 0 | **+1** | longhouse | — | — | — |
-| `keep` | 3 | 5000 | mana | 2 | **+3** | — | foundry | **back** | citadel |
-| `citadel` | 4 | 7500 | mana | 3 | **+4** | — | keep | **back** | — |
+| `keep` | 3 | 5000 | mana | 1 | **+3** | — | foundry | **back** | citadel |
+| `citadel` | 4 | 7500 | mana | 2 | **+4** | — | keep | **back** | — |
 | `barracks` | 3 | 5000 | villager | 0 | **+4** | — | longhouse | **front** | — |
 | `bastion` | 3 | 9000 | wall | 0 | **+2** | — | outpost | — | — |
 | `grandforge` (per element) | 6 | 3500 | mana | 3 | **+3** | forge | forge | — | — |

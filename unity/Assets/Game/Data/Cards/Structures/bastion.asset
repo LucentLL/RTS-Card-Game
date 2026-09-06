@@ -63,7 +63,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A fortified bastion \u2014 a towering wall that screens the line
-    and raises \u2692+2."
+  description: "A fortified bastion \u2014 the sturdiest body on the board, and raises
+    \u2692+2."
   cardArt: {fileID: 21300000, guid: b86fb311a7e874c4d91205854e4cd8df, type: 3}
   fieldArt: {fileID: 21300000, guid: b00e0b5b5919e194e97d556f66a74970, type: 3}

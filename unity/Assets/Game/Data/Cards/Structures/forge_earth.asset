@@ -46,7 +46,7 @@ MonoBehaviour:
   glyph: "\u26ED"
   buildId: forge
   structEffect: 1
-  structValue: 2
+  structValue: 1
   support: 2
   prereq:
   - foundry
@@ -65,7 +65,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A Earth forge \u2014 yields \u25C62 each turn and raises \u2692+2.
+  description: "A Earth forge \u2014 yields \u25C61 each turn and raises \u2692+2.
     Upgrades to a Grand Forge."
   cardArt: {fileID: 21300000, guid: f2492cf84b43f1543ad34f7a8a727525, type: 3}
   fieldArt: {fileID: 21300000, guid: 6854ab2c763a95847b75277bcb8abcdc, type: 3}

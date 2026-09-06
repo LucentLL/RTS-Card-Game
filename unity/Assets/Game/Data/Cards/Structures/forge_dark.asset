@@ -46,7 +46,7 @@ MonoBehaviour:
   glyph: "\u26ED"
   buildId: forge
   structEffect: 1
-  structValue: 2
+  structValue: 1
   support: 2
   prereq:
   - foundry
@@ -65,7 +65,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A Dark forge \u2014 yields \u25C62 each turn and raises \u2692+2.
+  description: "A Dark forge \u2014 yields \u25C61 each turn and raises \u2692+2.
     Upgrades to a Grand Forge."
   cardArt: {fileID: 21300000, guid: dbd008528a5e2c947860116e89dc4c9d, type: 3}
   fieldArt: {fileID: 21300000, guid: 831db3d2e8e65a243bb8c1bf7232613f, type: 3}

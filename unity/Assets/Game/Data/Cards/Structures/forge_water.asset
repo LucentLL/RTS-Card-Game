@@ -46,7 +46,7 @@ MonoBehaviour:
   glyph: "\u26ED"
   buildId: forge
   structEffect: 1
-  structValue: 2
+  structValue: 1
   support: 2
   prereq:
   - foundry
@@ -65,7 +65,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A Water forge \u2014 yields \u25C62 each turn and raises \u2692+2.
+  description: "A Water forge \u2014 yields \u25C61 each turn and raises \u2692+2.
     Upgrades to a Grand Forge."
   cardArt: {fileID: 21300000, guid: e7a57d571fe32dd40ab2d213fdc843a9, type: 3}
   fieldArt: {fileID: 21300000, guid: a3f1327e998a40047a9971ccb8bf160f, type: 3}

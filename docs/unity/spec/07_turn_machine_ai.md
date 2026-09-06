@@ -239,7 +239,7 @@ check.
 
 | `eff` | Structures | Start-of-turn behaviour |
 |---|---|---|
-| `mana` | Foundry (◆1), Keep (◆2), Citadel (◆3), Forge (◆2), Grand Forge (◆3) | `P.mana = min(99, P.mana + val)` |
+| `mana` | Foundry (◆1), Keep (◆1), Citadel (◆2), Forge (◆1), Grand Forge (◆3) | `P.mana = min(99, P.mana + val)` |
 | `damage` | Cannon Tower (`val` = 1000) | `buildingDamage` — §5.2 |
 | `revive` | Reliquary | `reviveFromGrave` — §5.3, once per turn total |
 | `vault` | Mana Vault (`val` 4), Grand Vault (`val` 10) | No upkeep tick; contributes to `vaultCap` — §8 |
@@ -808,8 +808,8 @@ return false
 | # | Structure | `bid` | Cost ◆ | HP | `eff` / `val` | `sup` | Prereq |
 |---|---|---|---|---|---|---|---|
 | 1 | The Foundry | `foundry` | 2 | 3000 | mana 1 | +2 | — |
-| 2 | *(colour 1)* Forge | `forge` | 3 | 2500 | mana 2 | +2 | foundry |
-| 2b | *(colour 2, dual leaders only)* Forge | `forge` | 3 | 2500 | mana 2 | +2 | foundry |
+| 2 | *(colour 1)* Forge | `forge` | 3 | 2500 | mana 1 | +2 | foundry |
+| 2b | *(colour 2, dual leaders only)* Forge | `forge` | 3 | 2500 | mana 1 | +2 | foundry |
 | 3 | Encampment | `encampment` | 2 | 2500 | none | +2 | foundry |
 | 4 | Longhouse | `longhouse` | 4 | 3000 | villager | +3 | foundry (front row) |
 | 5 | Mana Vault | `vault` | 4 | 3000 | vault 4 | 0 | foundry |

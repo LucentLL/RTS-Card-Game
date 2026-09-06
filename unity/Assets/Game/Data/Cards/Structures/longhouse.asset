@@ -65,7 +65,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "Hearth and full benches \u2014 trains a Worker each turn and raises
-    \u2692+3. Your main workforce. Upgrades to a Barracks."
+  description: "Hearth and full benches \u2014 quarters \u2692+3 of workforce. Your
+    main workforce. Upgrades (in the front row) to a Barracks."
   cardArt: {fileID: 21300000, guid: 6572ceeb89e3d9e41814e710208f98a8, type: 3}
   fieldArt: {fileID: 21300000, guid: 9d72ab6d7ddef144bb575b285568cb2a, type: 3}

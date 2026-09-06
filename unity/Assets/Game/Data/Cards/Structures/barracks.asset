@@ -63,7 +63,6 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "Drill yards and armories \u2014 trains a Worker each turn and raises
-    \u2692+4."
+  description: "Drill yards and armories \u2014 quarters \u2692+4 of workforce."
   cardArt: {fileID: 21300000, guid: 456ca834339cbc74db63308459df5844, type: 3}
   fieldArt: {fileID: 21300000, guid: 6f8fd4f167d1a554b8932017d7b40fc5, type: 3}

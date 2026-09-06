@@ -46,7 +46,7 @@ MonoBehaviour:
   glyph: "\u26ED"
   buildId: forge
   structEffect: 1
-  structValue: 2
+  structValue: 1
   support: 2
   prereq:
   - foundry
@@ -65,7 +65,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A Wind forge \u2014 yields \u25C62 each turn and raises \u2692+2.
+  description: "A Wind forge \u2014 yields \u25C61 each turn and raises \u2692+2.
     Upgrades to a Grand Forge."
   cardArt: {fileID: 21300000, guid: 6e89aacc33a9d144eba98678eae5f45c, type: 3}
   fieldArt: {fileID: 21300000, guid: 95b81ce0b8c01e641b76e533496f799d, type: 3}
