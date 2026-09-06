@@ -331,6 +331,78 @@ namespace SpawnRowDuel.PlayTests
         }
 
         /// <summary>
+        /// The SPELL cut-in: a raze, held up against the structure it just deleted.
+        ///
+        /// This is the surface with the least witness of all, and the reason it exists. `Raze`
+        /// puts the cell to null and emits UnitDestroyed and nothing else - no DamageApplied - so
+        /// none of the other reporting fires: no floating number, no clash, nothing on the board
+        /// but a structure that has stopped being there. A player watching their own Foundry go
+        /// gets the log line and the hole. The cut-in is the only thing that names the card.
+        ///
+        /// Staged for the same reason the battle cut-in is: the scripted AI does not reliably hold
+        /// a raze at a chosen moment. The spell is put in hand and cast through the CONTROLLER, so
+        /// the events drain the way they do in a real match and the theatre sees the board as it
+        /// was one frame before the structure left it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureSpellCutIn()
+        {
+            yield return PlayToMidGame();
+
+            var match = Object.FindFirstObjectByType<MatchController>();
+            var engine = match.Engine;
+            var s = engine.State;
+            Side me = s.Turn;
+            Side foe = TurnMachine.Other(me);
+
+            Assert.AreEqual(TurnPhase.Action, s.Phase, "the mid-game board should stop on an action phase");
+
+            // A mid-game board is all structures, which is exactly what a raze wants.
+            CellRef target = default(CellRef);
+            bool haveTarget = false;
+            for (int i = 0; i < Board.Cells && !haveTarget; i++)
+            {
+                var cell = CellRef.FromIndex(i);
+                var b = s.At(cell) as StructureUnit;
+                if (b == null || b.Owner != foe) continue;
+                target = cell;
+                haveTarget = true;
+            }
+            Assert.IsTrue(haveTarget, "the mid-game board has no enemy structure to raze");
+
+            SpellCard raze = null;
+            for (int i = 0; i < engine.Catalog.Spells.Count; i++)
+            {
+                var sp = engine.Catalog.Spells[i];
+                if (sp.IsTrap || sp.Effect != SpellEffect.Raze) continue;
+                raze = sp;
+                break;
+            }
+            Assert.IsNotNull(raze, "the catalog carries no raze spell");
+
+            // in hand, and paid for - the point is the presentation, not the economy
+            s.P(me).Hand.Add(new HandCard(raze.Id, Element.None));
+            int hand = s.P(me).Hand.Count - 1;
+            if (s.P(me).Mana < raze.Cost) s.P(me).Mana = raze.Cost;
+
+            // Let the structure BE on the board for a frame: the theatre draws the victim from its
+            // one-frame-old snapshot, because by the time SpellResolved is raised the cell is
+            // already empty.
+            yield return Frames(2);
+
+            var cast = new PlayCardCommand(me, hand, Rules.PlayMode.Cast, target);
+            Assert.AreEqual(Rejection.None, engine.CanApply(cast), "the staged raze is not legal");
+            Assert.AreEqual(Rejection.None, match.TryHuman(cast));
+
+            Assert.IsNull(s.At(target), "the raze did not remove the structure");
+
+            // past the fly-in, inside the hold, where the card and its victim are both up
+            yield return Frames(2);
+            yield return GameSeconds(0.5f);
+            yield return Shoot("spell-cutin.png");
+        }
+
+        /// <summary>
         /// A JOINT attack: one target, three attackers, declared the way a player declares one -
         /// aim once, then tap the others.
         ///

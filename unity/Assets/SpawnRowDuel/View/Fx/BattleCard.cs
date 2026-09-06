@@ -26,6 +26,17 @@ namespace SpawnRowDuel.View.Fx
             public bool Died, Foe, Wall, Structure;
             public Element Element;
             public Sprite Art;
+
+            /// <summary>
+            /// A card that is PLAYED rather than fought: a spell or a trap. It has no health, so the
+            /// hp figure and the bar under it are hidden rather than drawn as ♥0 over an empty red
+            /// bar - which is what a card with no statline looks like if you let the creature layout
+            /// have it, and reads as "this thing is dead" instead of "this thing has no hp".
+            /// </summary>
+            public bool Played;
+
+            /// <summary>Overrides the lozenge when set - "SPELL" / "TRAP".</summary>
+            public string TypeName;
         }
 
         readonly VisualElement _art, _bar, _barFill, _stamp, _stats;
@@ -143,9 +154,15 @@ namespace SpawnRowDuel.View.Fx
                 ? Color.clear
                 : ElementPalette.Mix(sw.Deep, Color.black, 0.45f);
 
-            _type.text = m.Wall ? "CASTLE WALL" : m.Structure ? "STRUCTURE" : "CREATURE";
+            _type.text = !string.IsNullOrEmpty(m.TypeName) ? m.TypeName
+                       : m.Wall ? "CASTLE WALL" : m.Structure ? "STRUCTURE" : "CREATURE";
             _type.style.fontSize = Mathf.Max(6f, width * 0.062f);
             _type.style.color = ElementPalette.Mix(sw.Accent, Color.white, 0.5f);
+
+            // A played card keeps the stat bar - its cost lives there - but loses the half of it
+            // that measures damage it cannot take.
+            _hp.style.display = m.Played ? DisplayStyle.None : DisplayStyle.Flex;
+            _bar.style.display = m.Played ? DisplayStyle.None : DisplayStyle.Flex;
 
             _lead.text = m.Lead;
             _lead.style.fontSize = Mathf.Max(9f, width * 0.135f);
@@ -169,7 +186,20 @@ namespace SpawnRowDuel.View.Fx
         /// </summary>
         public void ShowResult(bool after)
         {
-            int hp = after ? _model.HpAfter : _model.Hp;
+            // A spell has no hp to count down and takes no blow: the only thing its card does after
+            // the clash is stay on screen naming what was cast.
+            if (_model.Played)
+            {
+                _damage.style.display = DisplayStyle.None;
+                _stamp.style.display = DisplayStyle.None;
+                return;
+            }
+
+            // DESTROYED beats the arithmetic. A raze deals no damage - it removes the card - so
+            // HpAfter is still full, and a full green bar under the word DESTROYED reads as a
+            // contradiction rather than as a card that was deleted without being hurt. Anything
+            // that died is drawn at zero; in a normal fight the blow already took it there.
+            int hp = after ? (_model.Died ? 0 : _model.HpAfter) : _model.Hp;
             _hp.text = Stat.Hp(hp);
 
             float frac = Mathf.Clamp01(hp / (float)Mathf.Max(1, _model.MaxHp));

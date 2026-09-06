@@ -139,8 +139,60 @@ namespace SpawnRowDuel.View.Fx
         /// the cards are too narrow to read a name off.</summary>
         const int MaxStack = 3;
 
+        // ── the card being played ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A spell or trap resolving, told with the same picture a fight gets: the card that was
+        /// played on the left, what it happened TO on the right.
+        ///
+        /// This exists because a raze is invisible. `Spells.Raze` puts the cell to null and emits
+        /// UnitDestroyed and nothing else - no DamageApplied - so the floating number that is
+        /// every other effect's witness never fires, and a Cave-In reads on the board as a
+        /// structure that stopped existing for no stated reason. The class doc above argues that
+        /// spells "are not battles and get no cut-in"; that holds for a Bolt, which at least throws
+        /// a number, and does not hold for the three razes.
+        /// </summary>
+        sealed class Cast
+        {
+            public Snap Card;                     // the spell itself - synthesised, never on the board
+            public Snap Victim;
+            public bool HasVictim;
+            public int Damage;
+            public bool VictimDied;
+            public bool Trap;
+            public CellRef At;
+            public bool Targeted;                 // an untargeted card names itself and nothing else
+        }
+
+        /// <summary>
+        /// Cards played this batch, waiting for the frame to end so their effect can be read off.
+        ///
+        /// The two events arrive on OPPOSITE sides of their own effect - SpellResolved is raised
+        /// after `SpellEngine.Resolve` (PlayCardHandler), TrapSprung before it (Traps) - so neither
+        /// can be bound where it arrives. Both are held here instead and resolved in LateUpdate,
+        /// which runs after the whole batch has been pumped and before Resnap replaces the board:
+        /// the one moment where the victim is still snapshotted AS IT WAS and everything that
+        /// happened to it has already been seen.
+        /// </summary>
+        readonly List<Cast> _pending = new List<Cast>();
+        readonly List<Cast> _castQueue = new List<Cast>();
+
+        /// <summary>What this batch's events did to each unit, so a Cast can claim it afterwards.</summary>
+        readonly Dictionary<int, int> _batchHurt = new Dictionary<int, int>(16);
+        readonly HashSet<int> _batchDead = new HashSet<int>();
+
+        Cast _cast;
+
+        /// <summary>
+        /// How many played cards one batch may stop the game for. A trap that springs on a summon
+        /// during a resolution can chain, and three cards flying in for one tap is the same
+        /// punishment MaxToldPerCombat exists to prevent.
+        /// </summary>
+        const int MaxCastsPerBatch = 2;
+
         float _shownAt = -99f;
         int _told;
+        int _leftShown;
         bool _rebind;
 
         /// <summary>
@@ -272,6 +324,9 @@ namespace SpawnRowDuel.View.Fx
                 if (TrySnap(dmg.TargetId, out s) || TryFightSnap(dmg.TargetId, out s))
                     Pop(s.At, "-" + Stat.Show(dmg.Amount), Hurt);
                 Record(dmg.TargetId, dmg.Amount);
+                int had;
+                _batchHurt[dmg.TargetId] = (_batchHurt.TryGetValue(dmg.TargetId, out had) ? had : 0)
+                                         + dmg.Amount;
                 return;
             }
 
@@ -299,6 +354,7 @@ namespace SpawnRowDuel.View.Fx
             var dead = ev as UnitDestroyed;
             if (dead != null)
             {
+                _batchDead.Add(dead.UnitId);
                 for (int i = 0; i < _fights.Count; i++)
                 {
                     var f = _fights[i];
@@ -308,6 +364,101 @@ namespace SpawnRowDuel.View.Fx
                 }
                 return;
             }
+
+            // A CARD PLAYED. Both are recorded with their target cell and bound later - see _pending.
+            var cast = ev as SpellResolved;
+            if (cast != null) { Played(cast.Card, false, cast.HasTarget, cast.Target); return; }
+
+            var sprung = ev as TrapSprung;
+            if (sprung != null) { Played(sprung.Card, true, true, sprung.At); return; }
+        }
+
+        /// <summary>
+        /// Record a spell or trap for telling. The card's face is built here, from the catalog,
+        /// because it is the one thing that cannot be recovered later: a spell is never a
+        /// BoardObject, so Resnap has never seen it and never will - by the time the frame ends the
+        /// card is already in the graveyard.
+        /// </summary>
+        void Played(CardId card, bool trap, bool hasTarget, CellRef at)
+        {
+            if (_match == null || _match.Engine == null) return;
+            if (_pending.Count >= MaxCastsPerBatch) return;
+
+            var spell = _match.Engine.Catalog.Spell(card);
+            string name = spell != null && !string.IsNullOrEmpty(spell.Name) ? spell.Name : card.Value;
+            var def = _match.DefOf(name);
+
+            var face = new Snap
+            {
+                Id = -1,                                   // never a board id: nothing may match it
+                Name = name,
+                Color = Element.None,                      // spells are neutral
+                Art = def != null ? def.CardArt : null,
+                Lead = spell != null ? "◆" + spell.Cost : (trap ? "⚠" : "✦"),
+                SeenAt = Time.unscaledTime,
+            };
+
+            _pending.Add(new Cast { Card = face, Trap = trap, At = at, Targeted = hasTarget });
+        }
+
+        /// <summary>
+        /// Turn this batch's played cards into cut-ins, now that the batch is over.
+        ///
+        /// The victim is found by CELL, not by id: a razed structure is off the board before
+        /// SpellResolved is even raised, so there is nothing to look up - but `_snaps` still holds
+        /// the board as it was one frame ago, keyed by id and carrying the cell each unit stood in,
+        /// and that is the version worth drawing. Damage and death come from what the batch was
+        /// seen doing to that same unit.
+        /// </summary>
+        void ResolveCasts()
+        {
+            for (int i = 0; i < _pending.Count; i++)
+            {
+                var c = _pending[i];
+
+                Snap victim;
+                if (c.Targeted && SnapAt(c.At, out victim))
+                {
+                    c.Victim = victim;
+                    c.HasVictim = true;
+                    int hurt;
+                    c.Damage = _batchHurt.TryGetValue(victim.Id, out hurt) ? hurt : 0;
+                    c.VictimDied = _batchDead.Contains(victim.Id);
+                }
+
+                // A spell with nothing to hold up against it - a trap that fizzled, a bolt whose
+                // target had already gone - is still worth naming, so it is told on its own.
+                _castQueue.Add(c);
+            }
+
+            _pending.Clear();
+            _batchHurt.Clear();
+            _batchDead.Clear();
+        }
+
+        /// <summary>
+        /// The unit that was standing in this cell as of last frame, dead or alive.
+        ///
+        /// Takes the most recently SEEN of the candidates, and has to: a snapshot outlives the unit
+        /// by GraveMemory, so a cell that has been fought over twice in twelve seconds holds
+        /// several, and the older ones are corpses that have nothing to do with this spell. Every
+        /// unit still on the board was re-stamped by the last Resnap, so the freshest match is
+        /// either the thing standing there now or the thing that was standing there one frame ago -
+        /// which is exactly the pair a spell can have hit.
+        /// </summary>
+        bool SnapAt(CellRef at, out Snap found)
+        {
+            bool any = false;
+            found = default(Snap);
+            foreach (var kv in _snaps)
+            {
+                var s = kv.Value;
+                if (!s.At.Equals(at)) continue;
+                if (any && s.SeenAt <= found.SeenAt) continue;
+                found = s;
+                any = true;
+            }
+            return any;
         }
 
         /// <summary>
@@ -383,18 +534,35 @@ namespace SpawnRowDuel.View.Fx
 
             EnsureSurfaces();
 
-            if (_showing == null && _queue.Count > 0)
+            // The batch is over: a played card can now see what it did. Before the dequeue, so a
+            // card played this frame can be told this frame.
+            ResolveCasts();
+
+            if (_showing == null && _cast == null && _queue.Count > 0)
             {
                 var next = _queue[0];
                 _queue.RemoveAt(0);
                 if (CutIns && _told < MaxToldPerCombat) { Show(next); _told++; }
                 else Regroup(next);              // still claim its partners, so they do not queue
             }
+            else if (_showing == null && _cast == null && _castQueue.Count > 0)
+            {
+                // A fight outranks a spell: the fight is the thing the player is waiting on, and
+                // the spell that provoked it has already had its say in the log.
+                var next = _castQueue[0];
+                _castQueue.RemoveAt(0);
+                if (CutIns) ShowCast(next);
+            }
             else if (_rebind && _showing != null)
             {
                 BindCards();
             }
             _rebind = false;
+
+            // A cut-in that never got shown must not pile up behind one that is running: the queue
+            // is a frame's worth of news, not a backlog.
+            if (_castQueue.Count > MaxCastsPerBatch)
+                _castQueue.RemoveRange(0, _castQueue.Count - MaxCastsPerBatch);
 
             AnimateCutIn();
             AnimateFloaters();
@@ -610,6 +778,56 @@ namespace SpawnRowDuel.View.Fx
         }
 
         /// <summary>
+        /// The played card, held up against what it happened to. Same picture as a fight, one card
+        /// on the left instead of a fan, and a different glyph between them: a spell is not a
+        /// clash, so ⚔ would be a lie about what just happened.
+        /// </summary>
+        void ShowCast(Cast c)
+        {
+            _cast = c;
+            _shownAt = Time.unscaledTime;
+
+            _group.Clear();
+            BindCast();
+            _cutIn.style.display = DisplayStyle.Flex;
+
+            MatchController.Hold(CutInSeconds);
+        }
+
+        void BindCast()
+        {
+            float cardW = CardWidth();
+
+            _left.Clear();
+            var card = LeftCard(0);
+            card.Bind(new BattleCard.Model
+            {
+                Name = _cast.Card.Name,
+                Lead = _cast.Card.Lead,
+                Element = _cast.Card.Color,
+                Art = _cast.Card.Art,
+                Played = true,
+                TypeName = _cast.Trap ? "TRAP" : "SPELL",
+            }, _palette, cardW);
+            card.style.marginLeft = 0f;
+            card.style.translate = new Translate(0f, 0f);
+            card.style.rotate = new Rotate(new Angle(0f, AngleUnit.Degree));
+            _left.Add(card);
+            _leftShown = 1;
+
+            // An untargeted card holds up nothing: the right half stays empty rather than showing
+            // a card that had nothing to do with it.
+            _right.style.display = _cast.HasVictim ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_cast.HasVictim)
+                _rightCard.Bind(Model(_cast.Victim, _cast.Damage, _cast.VictimDied), _palette, cardW);
+
+            _clash.text = _cast.Trap ? "⚠" : "✦";
+            _clash.style.fontSize = cardW * 0.42f;
+            _clash.style.marginLeft = cardW * 0.10f;
+            _clash.style.marginRight = cardW * 0.10f;
+        }
+
+        /// <summary>
         /// Everything declared against the same defender, told together.
         ///
         /// It reads `_fights`, not the queue, and has to: in a joint attack only ONE fight is ever
@@ -719,13 +937,19 @@ namespace SpawnRowDuel.View.Fx
 
         void AnimateCutIn()
         {
-            if (_showing == null) { _cutIn.style.display = DisplayStyle.None; return; }
+            if (_showing == null && _cast == null)
+            {
+                _cutIn.style.display = DisplayStyle.None;
+                return;
+            }
 
             float age = Time.unscaledTime - _shownAt;
             if (age > CutInSeconds)
             {
                 _showing = null;
+                _cast = null;
                 _group.Clear();
+                _right.style.display = DisplayStyle.Flex;    // a cast may have hidden it
                 _cutIn.style.display = DisplayStyle.None;
                 return;
             }
@@ -752,9 +976,10 @@ namespace SpawnRowDuel.View.Fx
             // the numbers land WITH the clash, not with the fly-in: the cards read as they were,
             // then the blow happens
             bool hit = age >= SlideSeconds * 0.5f + 0.12f;
-            for (int i = 0; i < _group.Count && i < _leftCards.Count; i++)
+            int left = _cast != null ? _leftShown : _group.Count;
+            for (int i = 0; i < left && i < _leftCards.Count; i++)
                 _leftCards[i].ShowResult(hit);
-            _rightCard.ShowResult(hit);
+            if (_cast == null || _cast.HasVictim) _rightCard.ShowResult(hit);
         }
 
         // ── damage numbers ─────────────────────────────────────────────────────────────────
@@ -870,6 +1095,10 @@ namespace SpawnRowDuel.View.Fx
             _builtFor = _hand.PanelGeneration;
             _cutIn = null; _inner = null; _left = null; _right = null; _floatLayer = null;
             _clash = null; _rightCard = null;
+
+            // A cast in flight is holding the OLD _left/_right; let it go with them rather than
+            // animate a card that is parented to a detached layer.
+            _cast = null;
 
             // THE POOLS GO TOO, and they are the half that would have been missed. Both are
             // RECYCLED rather than rebuilt - SpawnPopped hands back the first floater that is not

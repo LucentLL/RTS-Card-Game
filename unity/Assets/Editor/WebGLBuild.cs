@@ -42,17 +42,31 @@ public static class WebGLBuild
 
         // ── the heap the whole game lives in ──────────────────────────────────────────────
         //
-        // It started at THIRTY-TWO megabytes and grew 20% at a time. Every one of those growth
-        // steps is a new ArrayBuffer and a full copy of the old one, and on a phone a copy that
-        // large can simply fail - at which point realloc returns null and the failure surfaces
-        // wherever the allocator was standing: "indirect call to null" inside
-        // MemoryManager::Reallocate under UI Toolkit growing a GPU staging buffer, or an
-        // out-of-bounds inside emscripten_builtin_free under BufferManagerGLES::AcquireBuffer.
-        // Both of those are this, and neither of them looks like it from the stack.
+        // It started at THIRTY-TWO megabytes and grew 20% at a time, which is too small for a game
+        // that loads four hundred textures, a URP pipeline, two UI Toolkit panels and a
+        // fifty-thousand-vertex terrain before a card is played. Half a gigabyte up front, growth
+        // still available to 2GB behind it.
         //
-        // This game loads four hundred textures, a URP pipeline, two UI Toolkit panels and a
-        // fifty-thousand-vertex terrain before a card is played. Half a gigabyte up front means
-        // it never has to make that copy at all; growth stays available to 2GB behind it.
+        // TWO CORRECTIONS to the reasoning this line was originally committed with (a3a1d07),
+        // recorded because the crash it was meant to fix CAME BACK at 512MB, on a phone, with the
+        // same stack:
+        //
+        //   1. "Every growth step is a new ArrayBuffer and a full copy" is the ASM.JS model. This
+        //      is a wasm build: the shipped framework's own growMemory is wasmMemory.grow(pages)
+        //      followed by updateMemoryViews(), which grows in place against reserved address
+        //      space and rebuilds the JS typed-array views. There is no copy to fail, so that was
+        //      never the mechanism.
+        //   2. "Indirect call to null under MemoryManager::Reallocate is the heap being out of
+        //      room" does not follow either. This build links ABORTING_MALLOC=1, so an exhausted
+        //      heap aborts with "Aborted(OOM)" - a different message entirely. A null function
+        //      pointer at that site is consistent with GetAllocator(label) simply returning null.
+        //
+        // So do not reach for this number again when the crash recurs: it is not established that
+        // the heap is the problem, and on a low-RAM Android device a 512MB up-front reservation is
+        // HARDER to satisfy than a small one that grows. Lowering it back toward 256 is a
+        // legitimate experiment. The evidence actually worth collecting is in the browser CONSOLE
+        // (see the errorHandler in Assets/WebGLTemplates/Fullscreen/index.html, which now logs the
+        // live heap size, the device memory and the build stamp at the moment of the crash).
         PlayerSettings.WebGL.memorySize = 512;
         PlayerSettings.WebGL.initialMemorySize = 512;
 
