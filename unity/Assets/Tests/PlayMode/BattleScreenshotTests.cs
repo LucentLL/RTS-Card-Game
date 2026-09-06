@@ -543,6 +543,60 @@ namespace SpawnRowDuel.PlayTests
         }
 
         /// <summary>
+        /// What the ground keeps after the cards have gone.
+        ///
+        /// The pair IS the test, because the claim is a difference: the same squares with the cards
+        /// on them, then the same squares with the cards lifted off. The hollows have to still be
+        /// there in the second shot - card-shaped, dark, dished - and the bright rim around each
+        /// one has to be gone. Those two used to be one number, so a vacated square kept its
+        /// highlight for as long as it kept its dent, which is what was reported.
+        ///
+        /// Top-down and with the board lifted off, because at the tilted angle a card covers the
+        /// square it is denting and there is nothing to photograph.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CaptureVacatedGround()
+        {
+            yield return PlayToMidGame();
+
+            var input = Object.FindFirstObjectByType<BoardInput>();
+            Assert.IsNotNull(input, "the Battle scene has no BoardInput");
+            input.Tilted = false;
+            // Poll the ease, never a frame count: batchmode runs uncapped and a frame here is worth
+            // a fraction of a player's deltaTime.
+            for (int i = 0; i < 2000 && input.TiltBlend > 0.005f; i++) yield return null;
+            Assert.Less(input.TiltBlend, 0.01f, "the camera never reached the top-down angle");
+
+            var terrain = Object.FindFirstObjectByType<TerrainField>();
+            Assert.IsNotNull(terrain, "the Battle scene has no TerrainField");
+            var board = Object.FindFirstObjectByType<BoardView>();
+            Assert.IsNotNull(board, "the Battle scene has no BoardView");
+
+            yield return Shoot("press-occupied.png");
+
+            // Which squares were dented while the cards were on them...
+            var dented = new List<int>();
+            for (int i = 0; i < Board.Columns * Board.Rows; i++)
+                if (terrain.DentAt(i) > 0.5f) dented.Add(i);
+            Assert.Greater(dented.Count, 0, "a mid-game board pressed nothing into the ground");
+
+            board.gameObject.SetActive(false);       // lift the board off, leaving the ground
+            terrain.PrimeVacated();
+            yield return Frames(2);
+
+            // ...and they are still dented with every card gone. This is the assertion the picture
+            // cannot make: the old code faded the hollow out on a wall clock, so "it is still there"
+            // was only ever a question of how fast the shot was taken.
+            foreach (int i in dented)
+                Assert.Greater(terrain.DentAt(i), 0.5f,
+                    "cell " + i + " lost its hollow the moment its card left");
+
+            yield return Shoot("press-vacated.png");
+
+            board.gameObject.SetActive(true);
+        }
+
+        /// <summary>
         /// A board that weather has been landing on for a while.
         ///
         /// The falling half of the weather photographs itself; the SETTLED half does not, because

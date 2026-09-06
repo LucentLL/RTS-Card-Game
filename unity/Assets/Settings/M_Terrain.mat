@@ -30,6 +30,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _Ambient: 0.34
+    - _BoardWet: 0.45
+    - _CardRound: 0.06
     - _CloudAmount: 1
     - _CloudContrast: 3.2
     - _CloudScale: 9
@@ -41,6 +43,8 @@ Material:
     - _EmberAmount: 0
     - _FadeWidth: 2.5
     - _Grain: 0.06
+    - _GustPeriod: 15
+    - _GustSwing: 0.45
     - _HazeDensity: 0.5
     - _HazeStart: 10
     - _MotionSpeed: 0.35
@@ -48,6 +52,8 @@ Material:
     - _Patch3Cut: 0.66
     - _PatchScale: 0.22
     - _PressDepth: 0.085
+    - _RimReach: 0.04
+    - _RimRelief: 0.11
     - _RippleAmount: 0
     - _ShadowDepth: 0.45
     - _Sheen: 0.2
@@ -56,7 +62,10 @@ Material:
     - _StreakAmount: 0.3
     - _StreakScale: 3
     - _SunIntensity: 0.95
+    - _SwellFoam: 0.5
+    - _SwellHeight: 0.1
     - _TideAmount: 0
+    - _TideFreeze: -1
     - _TideLevel: 9
     - _TidePeriod: 26
     - _TideRange: 3.4
@@ -66,7 +75,10 @@ Material:
     - _WaveSpeed: 2.1
     m_Colors:
     - _BaseColor: {r: 0.24, g: 0.42, b: 0.2, a: 1}
+    - _BoardHalf: {r: 3.8, g: 3.9, b: 0, a: 0}
     - _BounceColor: {r: 0.29, g: 0.25, b: 0.2, a: 1}
+    - _CellHalf: {r: 0.5, g: 0.725, b: 0, a: 0}
+    - _CellPitch: {r: 1.08, g: 1.566, b: 0, a: 0}
     - _CloudDir: {r: 1, g: 0.35, b: 0, a: 0}
     - _DeepColor: {r: 0.1, g: 0.24, b: 0.34, a: 1}
     - _DispOrigin: {r: -18, g: -14, b: 0, a: 0}
@@ -78,6 +90,7 @@ Material:
     - _SkyColor: {r: 0.6, g: 0.71, b: 0.85, a: 1}
     - _SunColor: {r: 1, g: 0.93, b: 0.82, a: 1}
     - _SunDir: {r: 0.2, g: 0.25, b: 0.9, a: 0}
+    - _SwellDir: {r: 0.82, g: 0, b: 0.57, a: 0}
     - _TideDir: {r: 0, g: 0, b: 1, a: 0}
     - _Tint2: {r: 0.28, g: 0.47, b: 0.22, a: 1}
     - _Tint3: {r: 0.2, g: 0.36, b: 0.17, a: 1}

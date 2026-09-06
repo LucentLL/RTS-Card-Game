@@ -28,7 +28,10 @@ Material:
     - _Amount: 1
     - _BoardClear: 0.85
     - _Grains: 1
+    - _GustPeriod: 15
     - _GustRound: 0.22
+    - _GustSwing: 0.45
+    - _GustWander: 12
     - _NearFade: 3.5
     - _Scale: 7
     - _Specks: 1

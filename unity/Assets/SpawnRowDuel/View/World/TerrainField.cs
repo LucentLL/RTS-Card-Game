@@ -84,19 +84,43 @@ namespace SpawnRowDuel.View.World
         public float UnitPressStrength = 0.95f;   // a card presses the grass it is lying on
 
         /// <summary>
-        /// How long a crushed square takes to stand back up, in seconds.
+        /// How fast a ply's worth of refill eases on, in depth per second. <see cref="SettleEase"/>'s
+        /// twin, and the same number for the same reason: fast enough that a ply has landed before
+        /// the next one is billed, slow enough that it arrives as ground moving rather than as a
+        /// value changing.
         ///
-        /// There is no MOW any more. The board used to stamp 0.80 across its whole plateau, which
-        /// cut every blade over the playing surface to a third of its height and left a visible
-        /// rectangle of lawn in the middle of a meadow. The field is one field now: the grass on
-        /// the board is the same grass as the grass beside it, and the only thing that flattens it
-        /// is a CARD lying on it.
+        /// THE GROUND DOES NOT SPRING BACK ANY MORE. It used to: a `GrassRegrow` of 110 seconds of
+        /// WALL CLOCK, ticked every frame, so a dent healed itself while a player sat looking at
+        /// their hand and a square was clean two minutes after the card left it whether one ply had
+        /// passed or ten. That is the same mistake the settled layer was already fixed for - the
+        /// note at <see cref="BillSettle"/> spells it out - and it is the one the player reported
+        /// from the other end: "the displaced terrain should stay displaced ... the terrain can
+        /// fill back in over time like how snow/ash covers battlefields."
         ///
-        /// Which means it has to come back, and slowly - grass that springs up the instant a unit
-        /// steps off is grass on a hinge. Nearly two minutes, so a square a creature left three
-        /// turns ago is still visibly trodden and a square it left ten turns ago is not.
+        /// So a hollow is now filled by MATERIAL, a ply at a time, at a rate the biome sets (
+        /// <see cref="BiomeLook.RefillRate"/>) - and nothing fills while nobody is playing. The
+        /// crush stays instant; only the healing is on the slow clock. That asymmetry is the whole
+        /// effect and it is why the two halves are separate numbers.
         /// </summary>
-        public float GrassRegrow = 110f;
+        public float RefillEase = 0.12f;
+
+        /// <summary>
+        /// How long the pale CREST of freshly turned material lasts once the card has gone, in
+        /// seconds.
+        ///
+        /// The dent and the highlight around it used to be one number, so a square a card had left
+        /// kept its bright rim for as long as it kept its hollow - which is the other half of the
+        /// player's report: "the displaced terrain should stay displaced, but the highlight around
+        /// the tile should be removed." They are different things on different clocks. A hollow in
+        /// the ground is a two-minute story and now a much longer one; loose earth heaped on a lip
+        /// is pale for a moment and then it is just earth, and the lip itself slumps.
+        ///
+        /// Half a second, which is three ticks of the 0.2 s repaint throttle - long enough not to
+        /// read as a light switch, short enough that the card is gone and so is its outline. Do not
+        /// take it below ~0.4 s without touching that throttle, and the throttle is there to stop
+        /// a 320x240 texture being rebuilt more often than anyone can see.
+        /// </summary>
+        public float CrestSettle = 0.5f;
 
         [Header("Settling")]
         /// <summary>How proud of the ground the rim around a card stands. Shading, not geometry -
@@ -159,7 +183,6 @@ namespace SpawnRowDuel.View.World
         Material _groundMat, _bladeMat, _bushMat, _cloudMat, _veilMat, _fallMat, _settleMat;
         Mesh _bladeMesh, _bushMesh, _groundMesh, _fallMesh, _settleMesh;
         BiomeId? _built;
-        Camera _cam;
         MatchController _match;
 
         Texture2D _disp;
@@ -181,6 +204,14 @@ namespace SpawnRowDuel.View.World
         int _seenMatch = -1;
 
         float[] _pressLevel;
+        /// <summary>The bright lip, on its own much faster clock - see <see cref="CrestSettle"/>.</summary>
+        float[] _crestLevel;
+        /// <summary>Refill billed to each cell by a ply and not yet eased into the ground. Per
+        /// CELL rather than one scalar, so a square vacated on ply 12 is not handed the debt that
+        /// accrued while something was still standing on it.</summary>
+        float[] _pressOwed;
+        float _refillRate = 0.05f;
+        int _refillTurn = -1;
         float _pressAt;
         bool _pressDirty = true;
         float _settleRate, _settleCap = 1f, _settleAt;
@@ -226,7 +257,6 @@ namespace SpawnRowDuel.View.World
 
         void Start()
         {
-            _cam = Camera.main;
             _match = FindFirstObjectByType<MatchController>(FindObjectsInactive.Include);
             BuildDisplacement();
             BuildSettleField();
@@ -281,6 +311,7 @@ namespace SpawnRowDuel.View.World
 
             if (_groundMat != null) _groundMat.SetFloat("_TideFreeze", TideFreeze);
 
+            BillRefill();
             BillSettle();
             GrowSettle();
             PushGusts();
@@ -397,6 +428,13 @@ namespace SpawnRowDuel.View.World
                 // resolution, which no 0.11-unit texel and no 0.19-unit vertex could give it.
                 // Scaled by the same level, so the dent fades out as the grass stands back up.
                 StampCellFlag(at, level);
+
+                // ...and A says something is standing here RIGHT NOW. G is the hollow, which is
+                // meant to outlast the card; this is the pale crest of turned material and the
+                // sharp lip that throws it, which are not. Splitting them is the whole of "the
+                // displaced terrain should stay displaced, but the highlight should be removed":
+                // one texture, two clocks, and the shader picks the right one per term.
+                StampCellCrest(at, _crestLevel[i]);
             }
 
             _disp.SetPixels32(_dispPixels);
@@ -456,38 +494,112 @@ namespace SpawnRowDuel.View.World
         }
 
         /// <summary>
-        /// Crush what is stood on and let the rest come back up. Returns whether anything moved.
+        /// "...and something is standing on it AT THIS MOMENT", into A. Same footprint and same
+        /// crudeness as <see cref="StampCellFlag"/> - it is read at the cell centre and the outline
+        /// is drawn from the pitch, so all this has to do is agree with itself around a centre.
+        /// </summary>
+        void StampCellCrest(Vector3 world, float level)
+        {
+            if (level <= 0.004f) return;
+            var c = new Vector2(world.x, world.z);
+            var half = _pressHalf * 0.5f;
+            int x0 = WorldToTexelX(c.x - half.x), x1 = WorldToTexelX(c.x + half.x);
+            int y0 = WorldToTexelY(c.y - half.y), y1 = WorldToTexelY(c.y + half.y);
+
+            for (int y = Mathf.Max(0, y0); y <= Mathf.Min(DispHeight - 1, y1); y++)
+                for (int x = Mathf.Max(0, x0); x <= Mathf.Min(DispWidth - 1, x1); x++)
+                    WriteA(x, y, level);
+        }
+
+        /// <summary>
+        /// Crush what is stood on, and fill back in only what a ply has paid for. Returns whether
+        /// anything moved.
         ///
         /// The crush is INSTANT and the recovery is not, which is the asymmetry the effect lives
         /// on: a card lands with a thump, and the square it lands on is flat before the animation
-        /// has finished. What takes time is the grass standing up again after it leaves - and it
-        /// has to, because grass that springs back the frame a unit steps off is grass on a hinge.
+        /// has finished. What takes time is the ground coming back - and what brings it back is
+        /// material, billed a ply at a time by <see cref="BillRefill"/> and eased on here. With no
+        /// ply billed there is no debt, so a hollow HOLDS: the board a player left is the board
+        /// they come back to, and a square is only clean once enough of the match has gone over it.
+        ///
+        /// TWO LEVELS, NOT ONE, and that is the fix to the second half of the report. The hollow
+        /// and the pale lip around it used to be the same number, so a vacated square kept its
+        /// bright outline for as long as it kept its dent. The lip is on <see cref="CrestSettle"/>
+        /// and is gone in half a second; the hollow is on the ply clock and stays.
         /// </summary>
         bool StepPress()
         {
             if (_match == null || _match.Board == null || _cellNow == null) return false;
 
+            // Both arrays together, always: RepaintDisplacement indexes them in the same loop, and
+            // a half-allocated pair is a null read inside the render path.
             if (_pressLevel == null || _pressLevel.Length != _cellNow.Length)
             {
                 _pressLevel = new float[_cellNow.Length];
+                _crestLevel = new float[_cellNow.Length];
+                _pressOwed = new float[_cellNow.Length];
                 return true;
             }
 
-            float back = Time.deltaTime / Mathf.Max(1f, GrassRegrow);
+            float ease = RefillEase * Time.deltaTime;
+            float slump = Time.deltaTime / Mathf.Max(0.05f, CrestSettle);
             bool moved = false;
+
             for (int i = 0; i < _pressLevel.Length; i++)
             {
                 if (_cellNow[i] != 0)
                 {
+                    // re-crushed: whatever the ground owed itself is cancelled
+                    _pressOwed[i] = 0f;
                     if (_pressLevel[i] < 1f) { _pressLevel[i] = 1f; moved = true; }
+                    if (_crestLevel[i] < 1f) { _crestLevel[i] = 1f; moved = true; }
+                    continue;
                 }
-                else if (_pressLevel[i] > 0f)
+
+                if (_crestLevel[i] > 0f)
                 {
-                    _pressLevel[i] = Mathf.Max(0f, _pressLevel[i] - back);
+                    _crestLevel[i] = Mathf.Max(0f, _crestLevel[i] - slump);
+                    moved = true;
+                }
+
+                // NOTE the debt gate. Without it this branch is true for every dented cell on
+                // every frame, which pinned RepaintDisplacement at its 5 Hz ceiling for the rest
+                // of any match where anything had been played. Now it runs for the half second
+                // after a ply and then stops.
+                if (_pressLevel[i] > 0f && _pressOwed[i] > 0f)
+                {
+                    float step = Mathf.Min(_pressOwed[i], ease);
+                    _pressOwed[i] -= step;
+                    _pressLevel[i] = Mathf.Max(0f, _pressLevel[i] - step);
                     moved = true;
                 }
             }
             return moved;
+        }
+
+        /// <summary>
+        /// Bill each empty-but-dented square one ply's worth of refill.
+        ///
+        /// Its own method rather than a branch inside <see cref="BillSettle"/>, and that is not
+        /// tidiness: BillSettle gives up when the biome settles nothing, which is five of the eight
+        /// fields - so anything folded into it would be dead on the majority of play.
+        ///
+        /// The cap mirrors BillSettle's for the same reason: a rematch puts the turn number back to
+        /// 1, and a step backwards must not bank a debt that erases the new duel's first dents.
+        /// </summary>
+        void BillRefill()
+        {
+            if (_match == null || _match.Engine == null) return;
+            if (_pressOwed == null || _cellNow == null || _pressLevel == null) return;
+            if (_refillRate <= 0.0001f) return;              // ground that keeps every mark
+
+            int turn = _match.Engine.State.TurnNumber;
+            if (turn == _refillTurn) return;
+            _refillTurn = turn;
+
+            for (int i = 0; i < _pressOwed.Length && i < _cellNow.Length; i++)
+                if (_cellNow[i] == 0 && _pressLevel[i] > 0f)
+                    _pressOwed[i] = Mathf.Min(_pressOwed[i] + _refillRate, _refillRate * 2f);
         }
 
         /// <summary>The dish, into B: broad, soft and centred on the card, for the vertex shader.</summary>
@@ -527,6 +639,19 @@ namespace SpawnRowDuel.View.World
             int i = y * DispWidth + x;
             byte b = (byte)(Mathf.Clamp01(v) * 255f);
             if (b > _dispPixels[i].g) _dispPixels[i].g = b;
+        }
+
+        /// <summary>
+        /// The crest flag. Worth knowing when reading the shader: this texture is sRGB (the
+        /// four-argument Texture2D constructor defaults `linear` to false), so R, G and B come back
+        /// gamma-DECODED while alpha does not. A is therefore the only channel that hands the
+        /// shader the number that was written, which suits a flag and would not suit a depth.
+        /// </summary>
+        void WriteA(int x, int y, float v)
+        {
+            int i = y * DispWidth + x;
+            byte b = (byte)(Mathf.Clamp01(v) * 255f);
+            if (b > _dispPixels[i].a) _dispPixels[i].a = b;
         }
 
         Vector2 TexelToWorld(int x, int y)
@@ -993,6 +1118,32 @@ namespace SpawnRowDuel.View.World
         }
 
         /// <summary>
+        /// Lift every piece off the ground and let the loose earth settle, for the screenshot probe.
+        ///
+        /// The change this exists to photograph is a DIFFERENCE between two clocks, and a probe
+        /// frame is one instant: a card that has just left is indistinguishable from a card still
+        /// standing there, because the crest takes half a second to slump. So the probe asks for
+        /// the state directly, the way <see cref="PrimeSettle"/> does - the hollows stay exactly as
+        /// deep as they are, and only the live-occupancy flag and the highlight it carries go.
+        /// </summary>
+        public void PrimeVacated()
+        {
+            if (_cellNow != null) System.Array.Clear(_cellNow, 0, _cellNow.Length);
+            if (_crestLevel != null) System.Array.Clear(_crestLevel, 0, _crestLevel.Length);
+            _pressDirty = false;
+            _pressAt = Time.time;
+            RepaintDisplacement();
+        }
+
+        /// <summary>How deep the hollow under one cell still is, 0..1. The probe's seam for the
+        /// half of the claim a picture cannot make: that the dent OUTLIVED the card.</summary>
+        public float DentAt(int cellIndex)
+        {
+            if (_pressLevel == null || cellIndex < 0 || cellIndex >= _pressLevel.Length) return 0f;
+            return _pressLevel[cellIndex];
+        }
+
+        /// <summary>
         /// Wipe everything this field remembers about a duel: what was pressed into it, what had
         /// settled on it, and what was blowing across it.
         ///
@@ -1003,6 +1154,10 @@ namespace SpawnRowDuel.View.World
         void ForgetTheLastMatch()
         {
             if (_pressLevel != null) System.Array.Clear(_pressLevel, 0, _pressLevel.Length);
+            if (_crestLevel != null) System.Array.Clear(_crestLevel, 0, _crestLevel.Length);
+            // ...and the DEBT, or the first ply of the new duel drains its fresh dents at once.
+            if (_pressOwed != null) System.Array.Clear(_pressOwed, 0, _pressOwed.Length);
+            _refillTurn = -1;
             if (_cellNow != null) System.Array.Clear(_cellNow, 0, _cellNow.Length);
             if (_cellStands != null) System.Array.Clear(_cellStands, 0, _cellStands.Length);
             if (_cellIsStruct != null) System.Array.Clear(_cellIsStruct, 0, _cellIsStruct.Length);
@@ -1363,12 +1518,33 @@ namespace SpawnRowDuel.View.World
 
         void BuildCloudQuad()
         {
-            if (_cam == null) return;
-
+            // PARENTED TO THE FIELD, like everything else here - it used to hang off the battle
+            // camera, and that is what put a dark band over the bottom half of the campaign map.
+            //
+            // The pass never cared where its quad was: the vertex shader writes clip space
+            // untransformed and the bounds below are 1e5, so the position, the rotation and the
+            // near plane were all decoration. What the camera parent DID do was outlive the
+            // battlefield. GameShell takes the battle world down with TerrainRoot.SetActive(false)
+            // and BattleCamera.enabled = false - and `enabled` is the COMPONENT, not the object,
+            // so this renderer stayed alive on a live GameObject and drew into whichever camera
+            // was rendering: the globe's. SRD_CloudShadow splits the screen at the view horizon
+            // (`if (ray.y > -1e-4) return white`) and multiplies everything below it by the cloud
+            // shade, and the globe camera has ZERO pitch - so the horizon landed dead across the
+            // middle of the viewport, in a straight full-width line, and the half of the world map
+            // under it breathed dark and light as the clouds of a battlefield nobody was on drifted
+            // over it. The committed probe shot carries it: shell-worldmap.png is 10,14,23 on every
+            // background row except 450 and 451 of 900.
+            //
+            // Under `transform` the quad is a child of Terrain, which GameShell already governs
+            // with TerrainRoot.SetActive(battleWorld || scenery) - so the clouds live exactly where
+            // the ground does, and no screen that has no battlefield can be shaded by one.
+            //
+            // Losing the _cam read closes a race as well: Camera.main is null while the main camera
+            // is disabled, nothing orders this against GameShell's first Show(), and the old guard
+            // turned a lost race into no cloud shadows for the life of the process. Do not put a
+            // camera dependency back in here.
             var go = new GameObject("CloudShadows");
-            go.transform.SetParent(_cam.transform, false);
-            go.transform.localPosition = new Vector3(0f, 0f, _cam.nearClipPlane + 0.01f);
-            go.transform.localRotation = Quaternion.identity;
+            go.transform.SetParent(transform, false);
 
             var m = new Mesh { name = "SRD Cloud Quad" };
             m.vertices = new[]
@@ -1523,6 +1699,9 @@ namespace SpawnRowDuel.View.World
             // spending a tick a second walking twenty thousand texels that never change.
             _settleRate = look.SettleRate;
             _settleCap = Mathf.Clamp01(look.SettleCap);
+            // The dents are NOT cleared on a biome change: a field that swaps its weather has not
+            // un-trodden the ground under it. Only the rate the ground heals at changes.
+            _refillRate = Mathf.Max(0f, look.RefillRate);
             ResetSettle();
             if (_settleMat != null)
             {
@@ -1605,8 +1784,13 @@ namespace SpawnRowDuel.View.World
                 // 6.5 world units and a lump is about half of one, which puts a cloud at roughly
                 // half the board. Speed is cells per second - a cloud crosses the field in about
                 // seven, where the first pass took seventeen and read as a shifting gradient.
-                _cloudMat.SetFloat("_CloudScale", 6.5f);
-                _cloudMat.SetFloat("_CloudSpeed", 0.55f);
+                //
+                // PER BIOME, because the same pass is not always cloud. Over a seabed there is no
+                // sky to have weather in; what this projects there is the shadow between the bands
+                // of light coming down through the surface, and caustics are small and quick where
+                // a cloud is large and slow. Every existing field keeps 6.5/0.55 through Common().
+                _cloudMat.SetFloat("_CloudScale", look.CloudScale);
+                _cloudMat.SetFloat("_CloudSpeed", look.CloudSpeed);
             }
         }
 

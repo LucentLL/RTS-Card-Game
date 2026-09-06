@@ -65,13 +65,56 @@ namespace SpawnRowDuel.Rules.Tests
             var seen = new HashSet<BiomeId>();
             for (ulong h = 1; h <= 400; h++) seen.Add(MatchController.BattlefieldFor(h));
 
-            Assert.GreaterOrEqual(seen.Count, 5, "every battlefield in the list comes up");
+            // Bound to the list rather than to a number, so adding a field to the roll cannot
+            // leave this assertion quietly testing less than it says it does.
+            Assert.GreaterOrEqual(seen.Count, MatchController.Battlefields.Length,
+                "every battlefield in the list comes up");
             Assert.IsFalse(seen.Contains(BiomeId.Shore),
                 "Shore is the tide biome - half its board spends the match under water");
 
             for (ulong h = 1; h <= 50; h++)
                 Assert.AreEqual(MatchController.BattlefieldFor(h), MatchController.BattlefieldFor(h),
                     "and the same match always lands in the same field");
+        }
+
+        /// <summary>
+        /// Every field in the list is its OWN field.
+        ///
+        /// `Biomes.Of` ends in `default: return Grass()`, so a BiomeId added to the enum and to
+        /// `All` but not to the switch comes back as a meadow under its own name - no compiler
+        /// warning, no failing test, and a probe shot that looks perfectly reasonable. Distinct
+        /// names are the cheapest thing that cannot be true by accident.
+        /// </summary>
+        [Test]
+        public void EveryBattlefield_HasAnEntryOfItsOwn()
+        {
+            var names = new HashSet<string>();
+            foreach (var id in Biomes.All)
+            {
+                var look = Biomes.Of(id);
+                Assert.IsFalse(string.IsNullOrEmpty(look.Name), id + " has no name");
+                Assert.IsTrue(names.Add(look.Name),
+                    id + " came back as \"" + look.Name + "\" - it is missing its case in Biomes.Of");
+            }
+            Assert.AreEqual(Biomes.All.Length, names.Count);
+        }
+
+        /// <summary>
+        /// A hollow is filled back in by MATERIAL, a ply at a time, so every field has to say how
+        /// much material it has. Zero is legal and means ground that keeps every mark for the whole
+        /// duel - but it is a decision, and no field should arrive at it by forgetting to set one.
+        /// </summary>
+        [Test]
+        public void EveryBattlefield_SaysHowFastItForgets()
+        {
+            foreach (var id in Biomes.All)
+            {
+                var look = Biomes.Of(id);
+                Assert.Greater(look.RefillRate, 0f,
+                    look.Name + " never fills a card's hollow back in");
+                Assert.Less(look.RefillRate, 0.5f,
+                    look.Name + " erases a hollow in under three plies, which is a spring not a field");
+            }
         }
 
         /// <summary>

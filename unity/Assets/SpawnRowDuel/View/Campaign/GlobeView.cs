@@ -49,7 +49,14 @@ namespace SpawnRowDuel.View.Campaign
         public Material TileMaterial;            // vertex-coloured, unlit
         public Material BorderMaterial;
 
-        /// <summary>Drag feel, ported from the browser build (spec 08 §11.5).</summary>
+        /// <summary>
+        /// Drag feel, ported from the browser build (spec 08 §11.5).
+        ///
+        /// The MAGNITUDES came from there. The SIGNS could not, and that was the bug: the browser
+        /// viewer sits on the +Z side of its globe and this camera sits at (0,0,-3.9) looking the
+        /// other way, so "toward the viewer" changed sign while screen-right did not, and every
+        /// horizontal drag spun the planet the wrong way. See <see cref="Orientation"/>.
+        /// </summary>
         const float YawPerPixel = 0.005f, PitchPerPixel = 0.005f, PitchClamp = 1.25f;
         const float InertiaSeed = 0.0009f, InertiaDecay = 0.93f;
         const float IdleDelay = 2.6f, IdleSpin = 0.0011f;
@@ -333,21 +340,72 @@ namespace SpawnRowDuel.View.Campaign
 
         // ── camera aim ──────────────────────────────────────────────────────────────────
 
-        /// <summary>Spin so a tile faces the viewer - used to open on your own capital.</summary>
+        /// <summary>
+        /// Spin so a tile faces the viewer - used to open on your own capital.
+        ///
+        /// <see cref="HexSphere.AimAt"/> is ported JS maths and solves for the browser's frame,
+        /// where the viewer is on the +Z side: it hands back the pair that puts the tile at
+        /// (0,0,+1). This camera is at (0,0,-3.9), so the same pair aimed the campaign at the
+        /// ANTIPODE of your capital - the map opened on the far side of the planet with the
+        /// capital's own pin hidden by <see cref="AnchorFacing"/>.
+        ///
+        /// Corrected here rather than in HexSphere, because HexSphere is parity code in the rules
+        /// assembly and the frame mismatch is a view concern. Half a turn of yaw walks the tile
+        /// round to the near side and the pitch negates with it; both are exact, not a fudge -
+        /// with R = Rx(p)*Ry(y), y = yaw+PI sends the centre to (0, cy, -r) and p = -pitch sends
+        /// that to (0,0,-1), dead centre and facing the camera.
+        /// </summary>
         public void AimAt(int tileIndex)
         {
             double yaw, pitch;
             HexSphere.AimAt(_sphere.Tiles[tileIndex].Center, out yaw, out pitch);
-            _yaw = (float)yaw;
-            _pitch = (float)pitch;
+            _yaw = (float)yaw + Mathf.PI;
+            _pitch = -(float)pitch;
             _vyaw = 0f;
             Apply();
+        }
+
+        /// <summary>
+        /// Yaw and pitch as one rotation: pitch about WORLD X, yaw about the globe's own pole.
+        ///
+        /// The order is the whole point, and it is why this is not a Quaternion.Euler triple.
+        /// Euler(pitch, yaw, 0) composes as Ry(yaw)*Rx(pitch), which makes yaw the outer rotation
+        /// and leaves PITCH turning about the globe's own X - an axis the yaw drags round with it.
+        /// A quarter turn away from home a vertical drag was pure ROLL, and half a turn away it
+        /// was exactly backwards, which is what "often seems to rotate the opposite direction"
+        /// was: not a constant inversion, a response that changed with where you had spun to.
+        ///
+        /// Rx(pitch)*Ry(yaw) pins the pitch axis to the screen's horizontal for good, and leaves
+        /// yaw spinning the globe about its own (already tilted) pole - a turntable, which is what
+        /// a planet is. Unity applies the RIGHT operand first, so this reads back to front.
+        /// </summary>
+        public static Quaternion Orientation(float yaw, float pitch)
+        {
+            return Quaternion.AngleAxis(pitch * Mathf.Rad2Deg, Vector3.right)
+                 * Quaternion.AngleAxis(yaw * Mathf.Rad2Deg, Vector3.up);
+        }
+
+        /// <summary>
+        /// One frame of drag, as DIRECT MANIPULATION: the ground under the finger goes where the
+        /// finger goes, at every orientation. Static and by-ref so the invariant can be tested
+        /// without a scene - see GlobeDragTests.
+        ///
+        /// Both signs are negatives of the browser's because the camera is on the other side of
+        /// the planet from the browser's viewer; the vertical had accidentally survived that flip
+        /// in the port because Unity's mouse Y counts upward where the browser's clientY counts
+        /// down, and the two inversions cancelled.
+        /// </summary>
+        public static void Drag(Vector2 delta, ref float yaw, ref float pitch)
+        {
+            yaw -= delta.x * YawPerPixel;
+            pitch += delta.y * PitchPerPixel;
+            pitch = Mathf.Clamp(pitch, -PitchClamp, PitchClamp);
         }
 
         void Apply()
         {
             _pitch = Mathf.Clamp(_pitch, -PitchClamp, PitchClamp);
-            transform.rotation = Quaternion.Euler(_pitch * Mathf.Rad2Deg, _yaw * Mathf.Rad2Deg, 0f);
+            transform.rotation = Orientation(_yaw, _pitch);
         }
 
         // ── input ───────────────────────────────────────────────────────────────────────
@@ -366,7 +424,9 @@ namespace SpawnRowDuel.View.Campaign
                 _vyaw *= InertiaDecay;
                 if (Mathf.Abs(_vyaw) < 1e-5f) _vyaw = 0f;
 
-                if (Time.unscaledTime - _idleSince > IdleDelay) _yaw += IdleSpin;
+                // Negated with the drag, so the planet drifts the way a flick would send it and
+                // the way a planet turns: the ground travels left to right across the frame.
+                if (Time.unscaledTime - _idleSince > IdleDelay) _yaw -= IdleSpin;
             }
             Apply();
         }
@@ -395,9 +455,8 @@ namespace SpawnRowDuel.View.Campaign
                 if (Mathf.Abs(d.x) + Mathf.Abs(d.y) > (_pointerId >= 0 ? DragSlopTouch : DragSlopMouse))
                     _moved = true;
 
-                _yaw += d.x * YawPerPixel;
-                _pitch -= d.y * PitchPerPixel;
-                _vyaw = d.x * InertiaSeed;
+                Drag(d, ref _yaw, ref _pitch);
+                _vyaw = -d.x * InertiaSeed;      // the flick carries the drag's sign
                 _dragFrom = pos;
                 _idleSince = Time.unscaledTime;
             }

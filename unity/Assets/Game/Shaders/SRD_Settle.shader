@@ -145,7 +145,12 @@ Shader "SpawnRowDuel/Settle"
                 float2 cell = round(w / _CellPitch.xy) * _CellPitch.xy;
                 float2 duv = saturate((cell - _DispOrigin.xy) / max(_DispSize.xy, 0.0001));
                 float inField = all(duv > 0.0) && all(duv < 1.0) ? 1.0 : 0.0;
-                float here = SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, duv, 0).g * inField;
+                // ALPHA, not G. G is how deep the hollow still is and now outlasts the card that
+                // made it by many plies; a seam is drift banked against something STANDING there,
+                // so it reads the same live-occupancy flag the ground's bright rim does. On G this
+                // left a pale card-shaped ring on the snow long after the card had gone - the same
+                // bug as the terrain's highlight, one layer up.
+                float here = SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, duv, 0).a * inField;
 
                 float2 q = abs(frac(w / _CellPitch.xy + 0.5) - 0.5) * _CellPitch.xy;
                 float2 toEdge = _CellHalf.xy - q;

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace SpawnRowDuel.View.World
 {
-    public enum BiomeId { Grass, Sand, Water, Ash, Snow, Earth, Shore }
+    public enum BiomeId { Grass, Sand, Water, Ash, Snow, Earth, Shore, Seabed }
 
     /// <summary>
     /// What a battlefield looks like, as data.
@@ -117,6 +117,22 @@ namespace SpawnRowDuel.View.World
         /// patchy is what settled ash looks like.</summary>
         public float SettleCap;
 
+        /// <summary>
+        /// How much of a card's hollow ONE PLY fills back in, as a fraction of full.
+        /// <see cref="SettleRate"/>'s twin: what buries a card is what fills the print it left.
+        ///
+        /// Per ply, not per second, and for the same reason - ground that heals itself while a
+        /// player sits thinking is weather happening to the screen rather than to the match. This
+        /// is the number that decides how long a battlefield remembers where the fighting was, so
+        /// it is keyed to how much loose material the field actually has moving over it: blowing
+        /// sand fills a footprint in a few rounds, packed earth keeps one for the whole duel.
+        ///
+        /// 0 is legal and means a mark that never fills. Do not set it on ground that has nothing
+        /// in the air to fill it WITH unless you want the board permanently scarred - which is a
+        /// look, but it is a decision.
+        /// </summary>
+        public float RefillRate;
+
         // ---- the tide -------------------------------------------------------------------------
         /// <summary>0 for everything that is not a beach. The waterline is a position along
         /// <see cref="TideDir"/> that swings by TideRange every TidePeriod seconds.</summary>
@@ -154,6 +170,11 @@ namespace SpawnRowDuel.View.World
         /// <summary>The colour a cloud shadow pulls the ground toward. Shade is bluer, not just darker.</summary>
         public Color ShadowTint;
         public float CloudAmount;
+        /// <summary>How big one cloud cell is in world units, and how many of them the pattern
+        /// crosses a second. Per biome because the same projected pattern is not always cloud: on
+        /// a seabed it is the shadow between the bands of light coming down through the surface,
+        /// and caustics are small and quick where weather is large and slow.</summary>
+        public float CloudScale, CloudSpeed;
     }
 
     public static class Biomes
@@ -161,9 +182,15 @@ namespace SpawnRowDuel.View.World
         public static readonly BiomeId[] All =
         {
             BiomeId.Grass, BiomeId.Earth, BiomeId.Sand, BiomeId.Snow,
-            BiomeId.Ash, BiomeId.Shore, BiomeId.Water,
+            BiomeId.Ash, BiomeId.Shore, BiomeId.Water, BiomeId.Seabed,
         };
 
+        /// <summary>
+        /// NOTE the default. A biome that reaches this switch without a case of its own comes back
+        /// as a MEADOW, silently, under its own name - no compiler warning, no failing test, and a
+        /// probe shot that looks perfectly reasonable. Adding a BiomeId without adding a case here
+        /// is the one mistake in this file that costs an afternoon.
+        /// </summary>
         public static BiomeLook Of(BiomeId id)
         {
             switch (id)
@@ -174,6 +201,7 @@ namespace SpawnRowDuel.View.World
                 case BiomeId.Snow: return Snow();
                 case BiomeId.Earth: return Earth();
                 case BiomeId.Shore: return Shore();
+                case BiomeId.Seabed: return Seabed();
                 default: return Grass();
             }
         }
@@ -237,6 +265,10 @@ namespace SpawnRowDuel.View.World
             b.BushDensity = 3.2f;
             b.BushA = Hex("#3f7526"); b.BushB = Hex("#8fc248"); b.BushRoot = Hex("#17330f");
             b.BushHeight = 0.95f; b.BushWidth = 0.34f; b.BushSway = 0.055f;
+            // Grass is the one field that fills a print by GROWING rather than by drifting, and
+            // it is slow at it. Ten rounds, which is what the old regrowth claimed and - on a
+            // wall clock that ran while nobody was playing - never actually delivered.
+            b.RefillRate = 0.05f;
             b.ShadowTint = Hex("#7f93c8"); b.CloudAmount = 1f;
             return b;
         }
@@ -284,6 +316,11 @@ namespace SpawnRowDuel.View.World
             b.BladeDensity = 0f;
             b.BladeA = Hex("#a89253"); b.BladeB = Hex("#c4ad6a"); b.BladeRoot = Hex("#7a6636");
             b.BladeHeight = 0.115f; b.BladeWidth = 0.140f; b.Sway = 0.058f;
+            // The fastest in the table, and the whole reason this is a per-biome number: this is
+            // the field with the most material in the air (VeilAmount 0.85, GrainAmount 0.95), and
+            // blown sand fills a footprint in five rounds. A desert that kept a card's outline for
+            // the length of a duel would be arguing with its own weather.
+            b.RefillRate = 0.10f;
             b.ShadowTint = Hex("#9a93b8"); b.CloudAmount = 0.55f;
             return b;
         }
@@ -341,6 +378,9 @@ namespace SpawnRowDuel.View.World
             b.BladeDensity = 0f;                       // a smooth crust; nothing grows through
             b.BladeA = Hex("#8d8f92"); b.BladeB = Hex("#a9aaad"); b.BladeRoot = Hex("#5f6165");
             b.BladeHeight = 0.100f; b.BladeWidth = 0.120f; b.Sway = 0.070f;
+            // The same number as its SettleRate, on purpose: the snow that greys over a card is
+            // the snow that fills the hollow it leaves, and the two effects should finish together.
+            b.RefillRate = 0.08f;
             b.ShadowTint = Hex("#7d9ad0"); b.CloudAmount = 0.75f;
             return b;
         }
@@ -397,6 +437,7 @@ namespace SpawnRowDuel.View.World
             b.BladeDensity = 2.2f;
             b.BladeA = Hex("#3a2f26"); b.BladeB = Hex("#6b5a44"); b.BladeRoot = Hex("#171310");
             b.BladeHeight = 0.30f; b.BladeWidth = 0.145f; b.Sway = 0.085f;
+            b.RefillRate = 0.06f;                      // its SettleRate, for the same reason as snow
             b.ShadowTint = Hex("#8a7f8f"); b.CloudAmount = 0.6f;
             return b;
         }
@@ -456,6 +497,7 @@ namespace SpawnRowDuel.View.World
             b.BladeDensity = 0f;                       // open water
             b.BladeA = Color.white; b.BladeB = Color.white; b.BladeRoot = Color.white;
             b.BladeHeight = 0f; b.BladeWidth = 0f; b.Sway = 0f;
+            b.RefillRate = 0.20f;                      // nothing holds a shape in open water
             b.ShadowTint = Hex("#6f86b5"); b.CloudAmount = 0.9f;
             return b;
         }
@@ -501,6 +543,11 @@ namespace SpawnRowDuel.View.World
             b.BushHeight = 0.72f; b.BushWidth = 0.28f; b.BushSway = 0.042f;
             b.GrainAmount = 0.2f;
 
+            // The slowest in the table, and the point of the biome. Churned wet ground takes a
+            // print and KEEPS it - there is almost nothing in this air to fill one back in
+            // (VeilAmount 0.10) - so a mud field ends a long duel visibly rutted by where the
+            // fighting was. 33 plies to erase, which most matches never reach.
+            b.RefillRate = 0.03f;
             b.ShadowTint = Hex("#7b7f96"); b.CloudAmount = 1f;
             return b;
         }
@@ -569,7 +616,162 @@ namespace SpawnRowDuel.View.World
             b.BladeA = Hex("#6f8a3e"); b.BladeB = Hex("#a8bd6a"); b.BladeRoot = Hex("#4a5530");
             b.BladeHeight = 0.42f; b.BladeWidth = 0.15f; b.Sway = 0.115f;
 
+            // The tide erases a footprint every time it comes over it, and it comes over the board
+            // every forty seconds. Seven plies.
+            b.RefillRate = 0.14f;
             b.ShadowTint = Hex("#7f9ab5"); b.CloudAmount = 0.95f;
+            return b;
+        }
+
+        // ── the seabed: sand and mud at the bottom of it ─────────────────────────────────
+
+        /// <summary>
+        /// The floor of a lake or a shallow sea, fought on from underneath.
+        ///
+        /// Not "the water biome, lower down". Water and Shore are both surfaces seen from above -
+        /// the whole subject is where the air meets the sea. Here the surface is somewhere overhead
+        /// and off-screen, and the only evidence of it is the LIGHT it lets through. So the terms
+        /// that carry this field are the ones that describe a medium: the haze, which starts closer
+        /// and bites harder than anywhere else in the table; a sun with the red drowned out of it;
+        /// an ambient that comes mostly from the lit water column rather than from the beam; and
+        /// the swell, read as bands of light crossing the sand rather than as a shape on a surface.
+        ///
+        /// The four questions this field had to answer, in the order they get asked of any effect
+        /// here. Does it ARRIVE - yes: the silt falls, lands and lies on the board until something
+        /// moves. Does it ALTERNATE - yes: the swell bands run one way and the caustic net wanders
+        /// both, and neither is a scroll. Is it the BOARD'S SHAPE - the impression, the gust ring
+        /// and the silt wipe are all the same card-shaped rounded rectangles they are everywhere
+        /// else. Is it UNIFORM - no: every drifting mote has its own rate, phase and wobble.
+        /// </summary>
+        static BiomeLook Seabed()
+        {
+            var b = Common();
+            b.Name = "seabed";
+
+            // Sand seen through METRES of water, not through a film of it. Water eats red first,
+            // so the grains that are #a98d4c in the dunes and #8a7c58 wet on the shore land here a
+            // third darker with the red pulled down into the green. Tint3 is the mud between the
+            // ripples - Earth's #4a3a2c with the warmth taken out of it.
+            b.Base = Hex("#9c9268"); b.Tint2 = Hex("#b0a67c"); b.Tint3 = Hex("#6f7160");
+            // NOT foam-white. Highlight is what the ripple drift lerps toward and what the card's
+            // lip picks up, so it has to be lit SEDIMENT.
+            b.Highlight = Hex("#cfd8b8");
+
+            // THE LIGHT COMING DOWN, as the swell term. At Water's 1.0 this is a sea; at 0.45,
+            // with no tide under it, what is left is the part that reads on a floor - troughs
+            // pulled toward DeepColor, crest bands brightened, the sparkle pinned to those bands.
+            // Bands of light crossing sand, which is the thing everybody has actually seen.
+            b.Waves = 0.45f;
+            // The seabed's own signature, and the one term this shares honestly with the dunes:
+            // orbital motion combs sand into ripples exactly as wind does.
+            b.Ripples = 0.85f;
+            b.MotionSpeed = 0.18f;                     // the slowest clock in the table. Water is not air.
+
+            // Low mounds and swales. A drowned dune field at Sand's 1.75 would bury a card and read
+            // as a desert with a filter on it; a beach's 0.34 has no landscape left once the haze
+            // has eaten the distance. WindStretch stays high - the shaping current is as
+            // directional as wind - but Ridge is low, because water rounds a brink that air
+            // sharpens, and Detail is second only to mud: a seabed is pocked with burrow and shell.
+            b.Terrain = new TerrainProfile
+            {
+                Amplitude = 0.72f, Wavelength = 6.0f, WindStretch = 0.74f, WindAngle = -6f,
+                Ridge = 0.20f, Detail = 0.42f, PlateauPad = 0.8f, PlateauFalloff = 3.0f,
+            };
+
+            // A LOW BLUE SUN. Every other row's sun is warm; this one has been through ten metres
+            // of water and has no red left in it. Elevation 16 rather than the deserts' 9-11
+            // because refraction bends the beam toward the vertical - still low enough to throw the
+            // long soft shadows off the mounds that make the relief read at all.
+            b.SunAngle = -14f; b.SunElevation = 24f;
+            b.SunColor = Hex("#c8ecdf");
+            // ...and the most saturated sky in the table by a distance, because down here "sky" is
+            // the lit water column and scatter does more of the work than the beam does.
+            b.SkyColor = Hex("#79a5a2");
+            b.BounceColor = Hex("#6e7358");            // pale floor throwing green light back up
+            // Weaker than mud's 0.55: the sand is wet, but the air-water interface that gives water
+            // its specular is far overhead rather than here.
+            b.Sheen = 0.20f; b.SheenPower = 16f;
+            // The lowest in the table, under open water's 0.18. Nothing casts a black shadow in a
+            // medium that scatters from every direction at once.
+            b.ShadowDepth = 0.16f;
+
+            b.StreakAmount = 0.16f; b.StreakScale = 4.0f;
+            b.DetailBump = 0.95f;                      // rippled sand is very nearly all bump
+            b.CrestLight = 0.16f; b.TroughShade = 0.36f;
+            b.Sparkle = 0.5f;                          // glitter that travels with the light bands
+
+            // THE HEADLINE, and the number that makes this a battlefield underwater rather than a
+            // battlefield with a blue filter: the distance does not fade, it DISSOLVES, and it
+            // dissolves dark - the deserts go to a bright #e8d3ab, this goes into the water.
+            //
+            // Tuned back from 3/0.95 after looking at it. Haze is measured on the camera's XZ
+            // distance and the camera stands seven units off the near row, so a start of 3 was
+            // putting the whole BOARD behind the murk: the ground the player was asked for -
+            // "the sand or mud at the bottom" - never showed at all, and the field read as a
+            // green fog with cards floating in it. Starting past the board and biting hard after
+            // it keeps both halves: sand you can see, water you cannot see through.
+            b.HazeColor = Hex("#2f5f66"); b.HazeStart = 7.5f; b.HazeDensity = 0.78f;
+
+            // SUSPENDED MATTER, hanging rather than blowing. Open water zeroes its grains because
+            // "there is no sand on open water" - the opposite is true down here, and the grain pass
+            // draws near-isotropic specks that suit marine snow exactly.
+            b.VeilAmount = 0.55f; b.VeilColor = Hex("#9fc0bf");
+            // The slowest veil in the table by a factor of two, and this one number is most of what
+            // says water rather than air.
+            b.VeilSpeed = 0.22f; b.VeilScale = 4.5f; b.VeilHeight = 1.6f;
+            b.GrainAmount = 0.75f; b.GrainColor = Hex("#dff0ec");
+            // A current BREATHES; it does not gust. The calmest air in the table, and eight degrees
+            // of wander so the drift holds one bearing.
+            b.GustSwing = 0.30f; b.GustPeriod = 30f; b.GustWander = 8f;
+
+            // SILT, FALLING. Slower than ash - which was already the slowest thing here - and small
+            // with a lot of wobble, because a fleck of marine snow has no weight to speak of and
+            // takes its time. This is the layer that answers "does it arrive?".
+            b.FallAmount = 0.8f; b.FallColor = Hex("#dfe9dd");
+            b.FallDensity = 0.55f; b.FallHeight = 6.5f;
+            b.FallSpeed = 0.055f; b.FallDrift = 1.7f; b.FallSize = 0.045f; b.FallSwirl = 2.6f;
+
+            // ...and it LIES on the board. Slower than ash's 0.06 and capped much lower: silt
+            // greys the seams and dusts the cards, and a seabed buried pale inside ten plies would
+            // be the snow bug wearing a wetsuit. Half of what snow lays down, arriving half as fast.
+            b.SettleRate = 0.03f;
+            b.SettleColor = Hex("#c3c9b4"); b.SettleShade = Hex("#5b6a63");
+            b.SettleMax = 0.34f; b.SettleCap = 0.44f;
+            b.SettleGrain = 2.8f; b.SettleSparkle = 0.15f;
+
+            // Silt fills a hollow, so the ground here does forget - but at a seabed's pace, which
+            // is between the snowfield and the meadow. Fourteen plies.
+            b.RefillRate = 0.07f;
+
+            // A LONG SWELL, read on the floor. Half open water's frequency, so a light band is
+            // about nine units wide and one crosses the board in eight seconds - the period of real
+            // ocean swell. SwellHeight is a third of open water's because down here the term is the
+            // refractive wobble of the floor, not the shape of a surface.
+            b.SwellDir = new Vector2(0.22f, -0.97f);
+            b.SwellHeight = 0.10f;
+            // ZERO, and not a taste call: the swell breaks whitecaps off its crests, and a whitecap
+            // on a seabed is a bug. The only row that runs Waves with no foam at all.
+            b.SwellFoam = 0f;
+            b.WaveFreq = 0.11f; b.WaveSpeed = 1.6f;
+            b.DeepColor = Hex("#173f4a"); b.FoamColor = Hex("#dff2f0");
+
+            // EELGRASS, patchy - a quarter of the meadow's density. The tallest blade in the table,
+            // because eelgrass is long, and the widest sway, because water moves a blade further
+            // than air does. It crushes under a card exactly as grass does.
+            b.BladeDensity = 4.5f;
+            b.BladeA = Hex("#3d6b53"); b.BladeB = Hex("#6f9f6a"); b.BladeRoot = Hex("#1d3529");
+            b.BladeHeight = 0.52f; b.BladeWidth = 0.17f; b.Sway = 0.16f;
+            b.BushDensity = 0.45f;
+            b.BushA = Hex("#2f5a4a"); b.BushB = Hex("#517f5c"); b.BushRoot = Hex("#16302a");
+            b.BushHeight = 0.85f; b.BushWidth = 0.40f; b.BushSway = 0.10f;
+
+            // CAUSTICS. The same projected pattern every other field uses for cloud, at a quarter
+            // the size and three times the speed: over a seabed what crosses the ground is not
+            // weather, it is the shadow between the bands of light coming down through a surface
+            // that will not hold still. Deep blue-green rather than the violet-grey every other row
+            // shades with, because this is water taking the light out, not a cloud.
+            b.ShadowTint = Hex("#1e4d59"); b.CloudAmount = 0.85f;
+            b.CloudScale = 1.7f; b.CloudSpeed = 1.6f;
             return b;
         }
 
@@ -595,6 +797,10 @@ namespace SpawnRowDuel.View.World
                 FallSpeed = 0.2f, FallDrift = 0.9f, FallSize = 0.06f, FallSwirl = 1.2f,
                 SettleRate = 0f, SettleColor = Color.white, SettleShade = Color.grey,
                 SettleMax = 0.6f, SettleCap = 0.6f, SettleGrain = 1.6f, SettleSparkle = 0f,
+                // 20 plies - ten full rounds - to erase a print, and still 70% deep three rounds
+                // later. Deliberately NOT derived from SettleRate: five fields settle nothing and
+                // would keep every mark for ever, with no weather on screen to explain why.
+                RefillRate = 0.05f,
                 TideAmount = 0f, TideLevel = 9f, TideRange = 3.4f, TidePeriod = 26f,
                 TideDir = new Vector2(0f, 1f), WaveFreq = 0.55f, WaveSpeed = 2.1f,
                 WaterColor = Hex("#20505c"), DeepColor = Hex("#0e2c3a"),
@@ -602,7 +808,7 @@ namespace SpawnRowDuel.View.World
                 SwellDir = new Vector2(0.35f, -0.94f), SwellHeight = 0f, SwellFoam = 0f,
                 BushDensity = 0f, BushA = Color.white, BushB = Color.white, BushRoot = Color.white,
                 BushHeight = 0.5f, BushWidth = 0.6f, BushSway = 0.03f,
-                CloudAmount = 1f,
+                CloudAmount = 1f, CloudScale = 6.5f, CloudSpeed = 0.55f,
             };
         }
 

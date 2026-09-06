@@ -94,10 +94,13 @@ Shader "SpawnRowDuel/Terrain"
         _CloudDir    ("Cloud direction", Vector) = (1, 0.35, 0, 0)
         _CloudAmount ("Cloud amount", Range(0,1)) = 1
 
-        // What the board has pressed into the ground. R is how hard - a card crushes the square
-        // it lies on, and the value eases back to nothing over about two minutes after it leaves,
-        // which is what the grass reads to know how flat to lie. G is the same number used as a
-        // FLAG, and it is what switches on the impression the fragment draws from the pitch.
+        // What the board has pressed into the ground. R is how hard - a card crushes the square it
+        // lies on, and the value fills back in a PLY at a time once it leaves, at a rate the biome
+        // sets, which is what the grass reads to know how flat to lie. G is the same number used as
+        // a FLAG, and it is what switches on the impression the fragment draws from the pitch. A is
+        // the same flag on a much faster clock: "something is standing here right now", which is
+        // what the bright half of the impression is gated on so that a vacated square keeps its
+        // hollow and loses its highlight.
         _DispTex     ("Displacement", 2D) = "black" {}
         _DispOrigin  ("Displacement origin", Vector) = (-18, -14, 0, 0)
         _DispSize    ("Displacement size", Vector) = (36, 28, 0, 0)
@@ -137,13 +140,20 @@ Shader "SpawnRowDuel/Terrain"
             SAMPLER(sampler_DispTex);
 
             // What the board has done to the ground here, as
-            //   R how hard the grass is crushed, G is a piece on this square, B the dish.
-            float3 SrdPress(float2 world, float4 origin, float4 size)
+            //   R how hard the grass is crushed, G how deep the hollow still is, B the dish,
+            //   A whether something is standing on this square RIGHT NOW.
+            //
+            // G and A are the same flag on two clocks, and keeping them apart is the whole of
+            // "the displaced terrain should stay displaced, but the highlight around the tile
+            // should be removed". A hollow outlives the card that made it - it is filled back in a
+            // ply at a time by whatever the field has blowing over it - while the pale crest of
+            // turned earth and the sharp lip that catches the light do not: loose material slumps.
+            // Read the HOLLOW out of G and every bright term out of A.
+            float4 SrdPress(float2 world, float4 origin, float4 size)
             {
                 float2 uv = (world - origin.xy) / max(size.xy, 0.0001);
-                if (any(uv < 0.0) || any(uv > 1.0)) return float3(0, 0, 0);
-                float4 t = SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, uv, 0);
-                return t.rgb;
+                if (any(uv < 0.0) || any(uv > 1.0)) return float4(0, 0, 0, 0);
+                return SAMPLE_TEXTURE2D_LOD(_DispTex, sampler_DispTex, uv, 0);
             }
 
             // The pile of material a card's edge shoves out: nothing at the card's own outline,
@@ -297,7 +307,7 @@ Shader "SpawnRowDuel/Terrain"
                 // A card crushes the grass on its square and the bare earth under it is packed
                 // and darker. At 0.16 that read as a faint tint and the honest answer to "is the
                 // ground displaced at all?" was no.
-                float3 pressW = SrdPress(w, _DispOrigin, _DispSize);
+                float4 pressW = SrdPress(w, _DispOrigin, _DispSize);
                 // 0.34 on a field of grass is most of what says "trodden", because the blades over
                 // it are lying flat as well. On bare ground - snow, sand, ash - there are no
                 // blades, and the packed earth under the card is the whole of the read.
@@ -315,7 +325,9 @@ Shader "SpawnRowDuel/Terrain"
                 }
                 {
                     float2 cell = round(w / _CellPitch.xy) * _CellPitch.xy;
-                    float here = SrdPress(cell, _DispOrigin, _DispSize).g;
+                    float4 flag = SrdPress(cell, _DispOrigin, _DispSize);
+                    float here  = flag.g;     // the hollow: outlives the card, fills by the ply
+                    float crest = flag.a;     // the pale lip: gone within half a second of it
                     if (here > 0.01)
                     {
                         // Z into X units first. Depth is foreshortened by sin(42 deg) = 0.669 at
@@ -352,15 +364,33 @@ Shader "SpawnRowDuel/Terrain"
                         const float e = 0.004;
                         float rx = SrdRim(SrdRoundBox(rel + float2(e, 0) * aspect, halfA, _CardRound), reach);
                         float rz = SrdRim(SrdRoundBox(rel + float2(0, e) * aspect, halfA, _CardRound), reach);
-                        N = normalize(N + float3(-(rx - rim), 0, -(rz - rim)) * (_RimRelief * here / e));
+                        // ON `crest`, NOT ON `here`, and this is the line that was reported.
+                        //
+                        // _RimRelief / e is a gain of FIFTY on a rim whose gradient peaks near 79
+                        // per unit, so the normal comes out of normalize() very nearly horizontal:
+                        // a bright wall two hundredths of a unit wide, and by some way the loudest
+                        // thing about an impression. That is right under a card - the lip of turned
+                        // material is what says the ground gave way - and wrong the moment the card
+                        // is gone, which is what "the highlight around the tile should be removed"
+                        // was about. Loose earth heaped on an edge is the FIRST thing to slump.
+                        N = normalize(N + float3(-(rx - rim), 0, -(rz - rim)) * (_RimRelief * crest / e));
 
                         // Two surfaces, not one. On the crest, material that has just been turned
                         // over and is loose and pale; in the crack at the card's own edge, contact
                         // shade - and it is the shade that says the card is DOWN IN the ground
                         // rather than lying on top of it. A pale rim on its own reads as a halo.
+                        //
+                        // So they part company when the card leaves. The pale half goes entirely
+                        // with the crest. The shade STAYS - a hollow wants a dark edge, and it is
+                        // most of what says the ground gave way - but it stays at less than half,
+                        // because at full strength it is the shadow cast by an EDGE SITTING IN the
+                        // ground, and there is no longer an edge in it. Measured on the probe, the
+                        // two terms at full on an empty square put the hollow at 22% of the
+                        // luminance of the field beside it, which is a hole punched through the
+                        // ground rather than one pressed into it.
                         float lip = 1.0 - saturate(d / max(reach, 0.0001));
-                        albedo = lerp(albedo, albedo * 1.34 + _Highlight.rgb * 0.10, rim * here);
-                        albedo *= 1.0 - saturate(lip - rim) * 0.72 * here;
+                        albedo = lerp(albedo, albedo * 1.34 + _Highlight.rgb * 0.10, rim * crest);
+                        albedo *= 1.0 - saturate(lip - rim) * 0.72 * here * (0.42 + 0.58 * crest);
                     }
                 }
 

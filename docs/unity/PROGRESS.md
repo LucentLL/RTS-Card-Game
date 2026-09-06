@@ -34,6 +34,78 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-06 — the ground remembers, the globe turns the right way (363 -> 370 tests)
+
+Four reports off the Pages build. Two of them were one bug each, one was a new arena, and the
+fourth was a renderer that had outlived the world it belonged to.
+
+* **The ground healed itself while nobody was playing** (D59). `StepPress` decayed a dent at
+  `deltaTime / GrassRegrow`, 110 seconds of WALL CLOCK, so a square was clean two minutes after the
+  card left it whether one ply had passed or ten — the same mistake the settled layer was fixed for
+  in the 2026-08-24 pass, from the other end. A hollow is filled by MATERIAL now, billed one ply at
+  a time by `BillRefill` and eased on at `RefillEase`, at a rate each biome states
+  (`BiomeLook.RefillRate`): blowing sand fills a print in five rounds, packed mud takes thirty-three
+  plies and most duels never reach it. The crush stays instant. Nothing fills while nobody plays,
+  which is what "stays displaced" means. It also un-pinned `RepaintDisplacement` from its 5 Hz
+  ceiling — the old decay branch set `moved` for every dented cell on every frame, for the rest of
+  any match where anything had been played.
+* **...and it kept the highlight too** (D60). The hollow and the bright rim around it were ONE
+  number, `_DispTex.g`, so a vacated square kept its gold outline for as long as it kept its dent.
+  They are different things on different clocks: `_crestLevel` is stamped into the texture's unused
+  ALPHA channel and slumps in half a second, and the shader reads the hollow out of G and every
+  bright term out of A. Both bright terms — a numeric re-check of the impression block during
+  review found that `_RimRelief / e` is a gain of FIFTY on a rim whose gradient peaks near 79, so
+  the NORMAL at line 355 is the loud one and deleting the albedo brighten alone left the ring at or
+  above the surrounding field in every biome. The contact crack keeps 42% on a vacated square
+  rather than all of it: measured on the probe, both terms at full put an empty hollow at 22% of
+  the field's luminance, which is a hole punched through the ground rather than pressed into it.
+  `SRD_Settle`'s seam gathering read the same G and got the same fix.
+* **The campaign map was dark below the middle** (D61) — and it was the BATTLEFIELD's clouds.
+  `BuildCloudQuad` was the one renderer in `TerrainField` parented to the camera instead of to the
+  field, and `GameShell` takes the battle world down with `TerrainRoot.SetActive(false)` and
+  `BattleCamera.enabled = false` — `enabled` is the COMPONENT, so the quad stayed alive on a live
+  object and drew into whichever camera was rendering. `SRD_CloudShadow` splits the screen at the
+  view horizon and multiplies everything below it, and the globe camera has zero pitch, so the
+  horizon landed dead across the middle of the viewport. The committed golden had been carrying the
+  proof all along: `shell-worldmap.png` was `10,14,23` on every background row except 450 and 451
+  of 900. It is a child of `Terrain` now, which the shell already governs.
+* **The globe turned the wrong way, and not always the same wrong way** (D62). Three bugs behind
+  one report. `Quaternion.Euler(pitch, yaw, 0)` composes as `Ry(yaw)*Rx(pitch)`, which leaves the
+  PITCH axis being dragged round by the yaw — correct at home, pure ROLL a quarter turn away,
+  exactly inverted half a turn away, which is what "often" was. `Orientation` is
+  `Rx(pitch)*Ry(yaw)` now: pitch pinned to the screen's horizontal, yaw about the globe's own pole.
+  Both drag signs were transcribed from the browser, whose viewer sits on the +Z side of its globe
+  where this camera sits at (0,0,-3.9) looking the other way, so the drag is direct manipulation
+  now — the ground under the finger goes where the finger goes. And `HexSphere.AimAt` solves for
+  that same browser frame, so the campaign had been opening on the exact ANTIPODE of the player's
+  capital with its own pin hidden by `AnchorFacing`; the view corrects the frame (`yaw + PI`,
+  `-pitch`) rather than touching the parity maths. `shell-worldmap.png` now opens with the capital
+  dead centre.
+* **A new arena: `seabed`** — sand and mud at the bottom of a lake, asked for directly. Data only,
+  no new shader and no new material: haze that starts past the board and bites hard after it, a sun
+  with the red drowned out of it, the swell at 0.45 read as bands of light crossing the floor
+  rather than as a surface, silt that falls and settles, eelgrass, and the cloud pass retuned into
+  CAUSTICS — `CloudScale`/`CloudSpeed` are per-biome now (every existing field keeps 6.5/0.55
+  through `Common()`), because over a seabed what crosses the ground is not weather. First pass had
+  `HazeStart 3`, which put the whole board behind the murk and hid the ground the report actually
+  asked for; 7.5 keeps sand you can see and water you cannot see through.
+
+The scene was STALE and had been lying about the dent: `Battle.unity` still serialized
+`PressDepth: 0.075` and `RimRelief: 0.11` from 2026-08-31 against code defaults of 0.15 and 0.20
+that `bea1b31` set on 2026-09-05, and serialized values win. `tools/regen-scene.sh` first, before
+tuning anything, or the new constants get calibrated against a bug.
+
+New tests: `GlobeDragTests` pins direct manipulation at seven yaws x five pitches (the quarter- and
+half-turn entries are the ones the Euler composition got wrong), that a vertical drag does not spin
+the globe sideways, the pitch clamp, and that `AimAt` lands every non-polar tile on the camera axis.
+`PresentationTests` gained the guard for the trap in `Biomes.Of` — its `default:` returns a MEADOW,
+so a biome added to the enum and to `All` but not to the switch is silently a meadow under its own
+name, with nothing to fail — plus one that every field says how fast it forgets. `BattleScreenshotTests`
+gained `press-occupied.png` / `press-vacated.png`, a top-down pair with the board lifted off, whose
+assertion is the half a picture cannot make: the hollows are still there with every card gone.
+
+`bash tools/run-unity-tests.sh` → total=370 passed=365 failed=0. PlayMode probe 19/19.
+
 ### 2026-09-05 — combat controls, the defender's light, the shell overlap (360 -> 363 tests)
 
 Four reports off the Pages build, all of them one bug each and one of them a rules addition.

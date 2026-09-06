@@ -42,15 +42,15 @@ Material:
     - _Curve: 0.09
     - _Flatten: 0.94
     - _Framerate: 12
-    - _Perspective: 0.3
     - _GustRound: 0.22
     - _Height: 0.34
     - _Inset: 1
+    - _Perspective: 0.3
     - _PushDist: 0.34
     - _Ripple: 0.35
     - _Sway: 0.22
     - _Taper: 0.86
-    - _TipLight: 0.30
+    - _TipLight: 0.3
     - _Variants: 4
     - _Width: 0.1
     - _WindBias: 0.28

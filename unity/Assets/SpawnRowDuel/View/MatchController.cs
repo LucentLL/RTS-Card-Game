@@ -239,12 +239,14 @@ namespace SpawnRowDuel.View
         /// moved, so no message has to carry the choice and the two cannot disagree.
         ///
         /// Shore is left out of the roll. It is the tide biome, it is beautiful, and half its
-        /// board spends the match under water.
+        /// board spends the match under water. Water is out for the blunter version of the same
+        /// reason: it has no ground in it. Seabed is IN - it is a floor you can read a card on,
+        /// which is the whole test a battlefield has to pass.
         /// </summary>
         public static readonly World.BiomeId[] Battlefields =
         {
             World.BiomeId.Grass, World.BiomeId.Sand, World.BiomeId.Ash,
-            World.BiomeId.Snow, World.BiomeId.Earth,
+            World.BiomeId.Snow, World.BiomeId.Earth, World.BiomeId.Seabed,
         };
 
         /// <summary>
