@@ -34,6 +34,75 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-06 (later) — their wall gets a hand, the ground gets a shape, the turn gets said
+
+Three more reports off the same Pages build. One was a mirror that was never built, one was the
+previous entry's fix landing only half the distance, and one was a genuine absence.
+
+* **Their cards did not come out of their wall** (D63). Your hand grows as your wall opens -
+  `HandBar` lerps its clip strip from a peek to a whole card on `WallBands.YouOpen` - and the foe's
+  strip was the constant `FoeHandBandPx` it was built at, with every back pinned at a fixed
+  `top = -(cardH - band)` inside it. `_foeOpen` was computed and used for nothing but the stone. So
+  a hundred units of battlement slid down over a hand that never moved, and what showed was the
+  same sliver either way: the bottom 45% of a sleeve, which is *below* the emblem and the two
+  diamonds (`BuildBack` centres them at `H * 0.44` from the top) - five card backs reading as five
+  empty slots. Their strip is the mirror of yours now, on the same `HandBar.CardToPeek`, so a card
+  stands proud of their crest the way yours does. **The trap is `_handSig`**: it memoises the
+  rebuild on hand count / card size / width / sleeve and NOT on openness, and it returns above
+  `_foeHand.Clear()`. So the strip height is set *before* the memo and the cards anchor
+  `bottom = 0` *once* - anything animated per-frame onto the card elements would freeze until the
+  foe next drew a card.
+* **The displaced ground was a dark filter** (D64), and it was one because every term that gave an
+  impression a SHAPE was gated on `crest`, which slumps in half a second. What outlived a card was
+  two albedo multiplies - a 46% trodden tint and a 30% one that `saturate(lip - rim)` smeared over
+  the *whole* footprint (`lip` is ~1 everywhere inside the outline, so that was never a crack; it
+  was the card-shaped multiply wearing a crack's name). 38% of the field beside it, identical from
+  every angle, unmoved when the light moved. A hollow is a shape now: `lip` squared is its height
+  field, its analytic gradient is the wall, and the wall is gated on `here` so it lives as long as
+  the dent. The only darkening left is sky occlusion on the floor - spent on the AMBIENT term
+  alone, so the sun still reaches in and the near wall stays lit - plus a real contact crack
+  confined to `abs(d) < reach/2`.
+* **...and it never looked like it was FILLING, because it only ever dimmed** (D65). Every channel
+  scaled linearly with the level and nothing else, so a print kept a pixel-sharp full-size card
+  outline the whole way down while a meadow took 20 plies to erase it: about 2% of brightness per
+  turn, in a duel that ends around turn 11. Three changes. (a) It gets **smaller** and its corners
+  round off as it goes - material slumping into a dent takes the edges first - which is the term
+  that actually reads as closing over. (b) Rates roughly doubled, 3-14 plies, mud still slowest by
+  two. (c) The **blades are split onto their own clock**: grass is alive and stands up in ~5 plies
+  (`GrassSpring`) while the earth keeps the dent for 9. They shared one number and the shared
+  number had to be the slow one, so a square stayed mown for as long as it stayed dented. Probe
+  measurement of the same squares: **50% -> 78% -> 87%** of the field's luminance at 0, 5, 11 plies.
+* **Nothing said whose turn it was** (D66). `TurnStarted` has been emitted since M6 and already
+  reaches the view through `MatchController.Observed`; the only thing rendering it was two words of
+  11px type swapping colour in a tower span, with no motion and no dwell. `TurnHerald` draws it
+  across the middle of the board for 1.53 s, both directions, off the **seat** so a multiplayer
+  guest is not told their own turns belong to the opponent. Two things a naive version gets wrong:
+  **`MatchSetup` enters turn 1 directly at Upkeep and emits no `TurnStarted` for the opening hand**
+  (so it seeds off `MatchSerial` too - and that opening hand is the coin-flip, the one most worth
+  saying), and a remote peer's `BeginTurn` arrives over the wire with no regard for `HoldUntil`, so
+  it can land on a running cut-in (it waits out `CombatTheatre.Busy` rather than stacking).
+
+**Gotchas earned here.** (i) **Top-down is the wrong angle to judge relief from.** A depression is
+shaded by its own walls and from straight above a wall is edge-on, so real geometry and a flat dark
+rectangle photograph identically - `press-vacated.png` had been the only witness and could not have
+caught this. `CaptureGroundHeals` shoots the diorama. (ii) **`PlayToMidGame` drives the ENGINE and
+returns without letting a frame run**, and the press field is filled in `TerrainField.Update` off
+`MatchController.Version` - so `DentAt` immediately afterwards reads a just-allocated array.
+`CaptureVacatedGround` only got away with it because its camera poll yields first. (iii) **The
+displacement texture is NOT gamma-decoded.** A long-standing comment claimed R/G/B come back
+decoded because the texture is sRGB; `ProjectSettings.m_ActiveColorSpace: 0` is Gamma and nothing
+decodes. The claim quietly flattered the refill - a decode would have made the fill look
+front-loaded - and it is dead linear, which is part of why a print only ever appeared to dim.
+
+New probe seams: `TerrainField.PrimeRefilled(plies)` (wind the ply clock forward with no match to
+wind it - `PrimeVacated`'s twin, because a still cannot say a hollow is filling any more than it
+could say it outlived its card) and `CrushAt` (the blades' level, so the two clocks can be asserted
+apart). New shots: `turn-banner.png`, `heal-{0-fresh,5-plies,11-plies}.png`. The banner is
+**silenced for every other capture** - it is timed off `unscaledTime` while the probe advances by
+frames, which is a golden that changes for no reason.
+
+370 tests, 0 failures. PlayMode probe 21/21 (was 19). Shipped as `d15d65a` + `f24fe90`.
+
 ### 2026-09-06 — the ground remembers, the globe turns the right way (363 -> 370 tests)
 
 Four reports off the Pages build. Two of them were one bug each, one was a new arena, and the

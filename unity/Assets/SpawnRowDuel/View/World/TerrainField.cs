@@ -754,10 +754,20 @@ namespace SpawnRowDuel.View.World
         }
 
         /// <summary>
-        /// The crest flag. Worth knowing when reading the shader: this texture is sRGB (the
-        /// four-argument Texture2D constructor defaults `linear` to false), so R, G and B come back
-        /// gamma-DECODED while alpha does not. A is therefore the only channel that hands the
-        /// shader the number that was written, which suits a flag and would not suit a depth.
+        /// The crest flag.
+        ///
+        /// A note that used to live here said this texture is sRGB (the four-argument Texture2D
+        /// constructor defaults `linear` to false) so R, G and B come back gamma-DECODED while
+        /// alpha does not, and that A was therefore the only channel handing the shader the number
+        /// that was written. THAT IS NOT TRUE IN THIS PROJECT: ProjectSettings has
+        /// `m_ActiveColorSpace: 0`, which is Gamma, and in Gamma no sampler decodes anything. All
+        /// four channels arrive exactly as they were written.
+        ///
+        /// It matters because the claim quietly flattered the refill: a decode would have made a
+        /// half-filled hollow read at a fifth of its depth, so the fill would have LOOKED
+        /// front-loaded and fast. It is dead linear, which is a large part of why a print only
+        /// ever appeared to dim. A is still where the crest belongs, but for the plain reason that
+        /// it was the free channel, not because it is the honest one.
         /// </summary>
         void WriteA(int x, int y, float v)
         {
