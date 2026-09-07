@@ -34,6 +34,47 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-06 (last) — sweep the HUD text IMGUI was never drawing
+
+The tech-tree entry below found that IMGUI drops every glyph above Latin-1. This is the sweep,
+and the scale of it was the surprise: **69 string literals across `MatchHud` and
+`MatchController` were shipping characters the player has never seen.**
+
+The rule, pinned against the player's own screenshots rather than guessed:
+
+| glyph | IMGUI | UI Toolkit |
+|---|---|---|
+| `·` U+00B7 | draws — visible as "Foe turn 6 · Upkeep" in the log | draws |
+| `—` U+2014, `◆` U+25C6, `⚒` U+2692, `♥`, `⚔`, `→`, `−`, `✕`, `⬆`, `↩`, `▶`, `✔`, `⚠`, `🎲` | **nothing at all** | draws |
+
+Latin-1 is the line. Everything past it is silently eaten — no tofu box, no warning, no log line.
+
+What that cost, before this commit:
+
+* The charge panel's **`−` decrement button was a blank button.** Not a cosmetic loss; the
+  control looked broken.
+* `✕ CANCEL` and `⚔ ATTACK` rendered as ` CANCEL` and ` ATTACK`, indented by a space that came
+  from nowhere. Same for `⬆ UPGRADE`, `↩ LEAVE`, `▶ START DUEL`, `🎲 RANDOM FOE`.
+* Every mana figure in the HUD lost its unit: `SUMMON ◆5` → `SUMMON 5`, `PAY ◆3` → `PAY 3`,
+  `Not enough ◆` → `Not enough`.
+* The commander picker read `Fire (1000 2)` — both the stat glyph and the worker glyph gone.
+* Every em dash in every hint and log line vanished, so `MATCH OVER — YouWin` read
+  `MATCH OVER  YouWin` and the raid log read `stormed for 300  1000 remains`.
+* The checkbox in the choice panel had no tick: `✔ ` and `   ` are the same three columns of
+  nothing, so a checked row and an unchecked row were identical.
+
+Everything now spells its unit out, matching the build tree: `SUMMON 5 mana`, `+2 workers`,
+`300 damage`, `1000 hp left`, `[x]` / `[ ]`, `->`, `-`. `·` is kept wherever it was, because it
+works. `View/Fx/CombatTheatre.cs` is **deliberately untouched** — it is UI Toolkit
+(`VisualElement` / `.text`), its symbols reach the SDF fallback chain, and they render.
+
+**The real fix is not this.** ◆ and ⚒ are the game's vocabulary and the HUD should speak it; what
+IMGUI needs is either a merged legacy `Font` covering the 76-glyph list, or these panels moved to
+UI Toolkit where the rest of the presentation already lives. This commit makes the shipped build
+*legible*, which it was not, and does not pretend to be the design.
+
+365 tests green, no rules change. Staged to `play/`.
+
 ### 2026-09-06 (later still) — the build menu becomes a tech tree, and says why not
 
 The menu was a flat scrolling list of ten rows: name, cost, worker figure, and `GUI.enabled` set

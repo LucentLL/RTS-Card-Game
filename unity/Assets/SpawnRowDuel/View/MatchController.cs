@@ -145,8 +145,8 @@ namespace SpawnRowDuel.View
             RollBattlefield(true);
 
             _log.Clear();
-            Push("— " + Catalog.Commander(you).Name + " vs " + Catalog.Commander(foe).Name + " —");
-            Push("— Your turn · Upkeep — ⛏ Harvest to begin —");
+            Push(Catalog.Commander(you).Name + " vs " + Catalog.Commander(foe).Name);
+            Push("Your turn · Upkeep · Harvest to begin");
             Touch();
         }
 
@@ -491,7 +491,7 @@ namespace SpawnRowDuel.View
                 int banked = Mana.OnCard(standing);
                 AskConfirm(cmd, "Play over " + NameOf(standing),
                            "It is destroyed to make room"
-                           + (banked > 0 ? " — its ◆" + banked + " carries over." : "."));
+                           + (banked > 0 ? " - its " + banked + " carries over." : "."));
                 return true;
             }
 
@@ -850,7 +850,7 @@ namespace SpawnRowDuel.View
                 var why = Probe(cmd);
                 if (why != Rejection.None) return why;
                 AskConfirm(cmd, u.Name + " advances onto " + NameOf(Engine.State.At(to)),
-                           "The row is full — it is destroyed to make room.", to);
+                           "The row is full - it is destroyed to make room.", to);
                 return Rejection.None;
             }
             return TryHuman(cmd);
@@ -947,19 +947,19 @@ namespace SpawnRowDuel.View
                 case Rejection.ShortfallUnsettled: return "Settle the worker shortfall first";
                 case Rejection.WrongPhase: return "Not in this phase";
                 case Rejection.NotYourTurn: return "Not your turn";
-                case Rejection.NotEnoughMana: return "Not enough ◆";
-                case Rejection.NeedsOneMana: return "Setting costs ◆1";
+                case Rejection.NotEnoughMana: return "Not enough mana";
+                case Rejection.NeedsOneMana: return "Setting costs 1 mana";
                 case Rejection.DestinationNotDeployable: return "Deploy to your own rows";
                 case Rejection.CellOccupied: return "That spot is taken";
                 case Rejection.MissingPrereq: return "Missing a prerequisite structure";
                 case Rejection.RowLacksWorkers: return "That row has no workers to spare";
                 case Rejection.MoveAlreadySpent: return "Its move is spent";
-                case Rejection.ChargeUnderfunded: return "Pour more ◆ before flipping";
+                case Rejection.ChargeUnderfunded: return "Pour more mana before flipping";
                 case Rejection.DeclarationsPending:
-                    return "Confirm the attack below — ⚔ ATTACK, or ✕ CANCEL it";
+                    return "Confirm the attack below - ATTACK, or CANCEL it";
                 case Rejection.NothingDeclared: return "Nothing has been declared";
                 case Rejection.BlockersCommitted:
-                    return "Too late to call it off — the defenders are already in";
+                    return "Too late to call it off - the defenders are already in";
                 case Rejection.ChoicePending: return "Waiting on a choice";
                 default: return why.ToString();
             }
@@ -1169,12 +1169,12 @@ namespace SpawnRowDuel.View
         {
             var turn = ev as TurnStarted;
             if (turn != null)
-                return "— " + (turn.Side == Seat.Local ? "Your" : "Foe") + " turn " +
-                       turn.TurnNumber + " · Upkeep —";
+                return (turn.Side == Seat.Local ? "Your" : "Foe") + " turn " +
+                       turn.TurnNumber + " · Upkeep";
 
             var harvest = ev as HarvestCollected;
             if (harvest != null)
-                return (Engine.State.Turn == Seat.Local ? "You harvest ◆" : "Foe harvests ◆") + harvest.Amount;
+                return (Engine.State.Turn == Seat.Local ? "You harvest " : "Foe harvests ") + harvest.Amount + " mana";
 
             var drawn = ev as CardDrawn;
             if (drawn != null)
@@ -1195,15 +1195,15 @@ namespace SpawnRowDuel.View
             var flipped = ev as CardFlipped;
             if (flipped != null)
                 return NameOf(flipped.UnitId) + " surges into being" +
-                       (flipped.Sick ? " — must rest" : " — battle-ready!");
+                       (flipped.Sick ? " - must rest" : " - battle-ready!");
 
             var drained = ev as ManaDrained;
             if (drained != null && drained.Lost > 0)
-                return "◆" + drained.Lost + " unspent mana drains away" +
-                       (drained.Kept > 0 ? " — vaults keep ◆" + drained.Kept : "");
+                return drained.Lost + " unspent mana drains away" +
+                       (drained.Kept > 0 ? " - vaults keep " + drained.Kept : "");
 
             var yielded = ev as ManaYielded;
-            if (yielded != null) return "A structure yields ◆" + yielded.Amount;
+            if (yielded != null) return "A structure yields " + yielded.Amount + " mana";
 
             var revived = ev as CreatureRevived;
             if (revived != null) return "The Reliquary returns " + revived.Card.Value;
@@ -1215,7 +1215,7 @@ namespace SpawnRowDuel.View
             var hit = ev as DamageApplied;
             if (hit != null && hit.Amount > 0)
             {
-                string blow = "⚔" + Stat.Show(hit.Amount)
+                string blow = Stat.Show(hit.Amount) + " damage"
                             + (hit.Tier == DamageTier.FirstStrike ? " (first strike)" : "");
                 string left = Remaining(hit.TargetId);
                 return (hit.SourceId != 0
@@ -1235,13 +1235,13 @@ namespace SpawnRowDuel.View
             }
 
             var declared = ev as AttackDeclared;
-            if (declared != null) return "⚔ " + NameOf(declared.AttackerId) + " declares an attack";
+            if (declared != null) return NameOf(declared.AttackerId) + " declares an attack";
 
             var withdrawn = ev as AttackWithdrawn;
             if (withdrawn != null)
                 return (withdrawn.Attacker == Seat.Local ? "You call off " : "They call off ")
                      + (withdrawn.DeclarationCount == 1 ? "the attack"
-                                                        : "the attack — " + withdrawn.DeclarationCount
+                                                        : "the attack - " + withdrawn.DeclarationCount
                                                           + " stand down");
 
             var blocks = ev as BlockersAssigned;
@@ -1252,8 +1252,8 @@ namespace SpawnRowDuel.View
 
             var wall = ev as WallStruck;
             if (wall != null)
-                return (wall.Defender == Seat.Local ? "Your" : "The enemy") + " wall is stormed for ⚔" +
-                       Stat.Show(wall.Amount) + " — ♥" + Stat.Show(wall.LifeRemaining) + " remains";
+                return (wall.Defender == Seat.Local ? "Your" : "The enemy") + " wall is stormed for " +
+                       Stat.Show(wall.Amount) + " - " + Stat.Show(wall.LifeRemaining) + " life remains";
 
             var bounced = ev as UnitBounced;
             if (bounced != null)
@@ -1282,7 +1282,7 @@ namespace SpawnRowDuel.View
                 return (cast.Caster == Seat.Local ? "You cast " : "They cast ") + cast.Card.Value;
 
             var ended = ev as MatchEnded;
-            if (ended != null) return "— MATCH OVER: " + ended.Outcome + " —";
+            if (ended != null) return "MATCH OVER: " + ended.Outcome;
 
             return null;
         }
@@ -1313,9 +1313,9 @@ namespace SpawnRowDuel.View
             if (o == null || !onBoard) return "";
 
             var c = o as CreatureUnit;
-            if (c != null) return c.Hp > 0 ? " — ♥" + Stat.Show(c.Hp) + " left" : "";
+            if (c != null) return c.Hp > 0 ? " - " + Stat.Show(c.Hp) + " hp left" : "";
             var b = o as StructureUnit;
-            if (b != null) return b.Hp > 0 ? " — ♥" + Stat.Show(b.Hp) + " left" : "";
+            if (b != null) return b.Hp > 0 ? " - " + Stat.Show(b.Hp) + " hp left" : "";
             return "";
         }
 

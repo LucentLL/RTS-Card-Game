@@ -392,7 +392,7 @@ namespace SpawnRowDuel.View
             if (s.IsOver)
             {
                 var over = new GUIStyle(_label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
-                GUI.Label(new Rect(0, h / 2f - 20, w, 40), "MATCH OVER — " + s.Outcome, over);
+                GUI.Label(new Rect(0, h / 2f - 20, w, 40), "MATCH OVER - " + s.Outcome, over);
 
                 // ...AND A WAY OUT OF IT.
                 //
@@ -407,7 +407,7 @@ namespace SpawnRowDuel.View
                 var shell = FindShell();
                 if (shell == null || !shell.OffersExit)
                 {
-                    if (Btn(new Rect(w / 2f - 70, h / 2f + 28, 140, 30), "↩ LEAVE", _button))
+                    if (Btn(new Rect(w / 2f - 70, h / 2f + 28, 140, 30), "LEAVE", _button))
                         _quitRequested = true;
                 }
                 return;
@@ -621,14 +621,14 @@ namespace SpawnRowDuel.View
             var youDef = cat.Commander(_pickYou);
             var foeDef = cat.Commander(_pickFoe);
             GUI.Label(new Rect(0, h - 84, w, 18),
-                "YOU: " + youDef.Name + " (" + Stat.Hp(youDef.Hp) + " ⚒" + youDef.Workers + ")"
+                "YOU: " + youDef.Name + " (" + Stat.Hp(youDef.Hp) + " hp, " + youDef.Workers + " workers)"
                 + "     vs     " + foeDef.Name
-                + " (" + Stat.Hp(foeDef.Hp) + " ⚒" + foeDef.Workers + ")", _center);
+                + " (" + Stat.Hp(foeDef.Hp) + " hp, " + foeDef.Workers + " workers)", _center);
 
-            if (Btn(new Rect(w / 2f - 150, h - 62, 145, 34), "🎲 RANDOM FOE", _button))
+            if (Btn(new Rect(w / 2f - 150, h - 62, 145, 34), "RANDOM FOE", _button))
                 _pickFoe = all[Mathf.Abs((int)(Time.realtimeSinceStartup * 1000f)) % all.Count].Id;
 
-            if (Btn(new Rect(w / 2f + 5, h - 62, 145, 34), "▶ START DUEL", _bigButton))
+            if (Btn(new Rect(w / 2f + 5, h - 62, 145, 34), "START DUEL", _bigButton))
             {
                 ulong seed = (ulong)System.DateTime.Now.Ticks;
                 _match.StartMatch(_pickYou, _pickFoe, seed);
@@ -712,7 +712,7 @@ namespace SpawnRowDuel.View
                 bool on = (mine ? _pickYou : _pickFoe).Value == c.Id.Value;
                 var r = new Rect(2, i * rowH, area.width - 24, rowH - 2);
                 if (on) Panel(r, new Color(0.55f, 0.45f, 0.12f, 1f));
-                if (GUI.Button(r, "  " + c.Name + (c.Dual ? "  ✦" : ""), _button))
+                if (GUI.Button(r, "  " + c.Name + (c.Dual ? "  (dual)" : ""), _button))
                 {
                     if (mine) _pickYou = c.Id; else _pickFoe = c.Id;
                 }
@@ -944,7 +944,7 @@ namespace SpawnRowDuel.View
             if (_match.Pending != MatchController.Intent.None)
             {
                 GUI.Label(new Rect(0, by, w, 24),
-                    "tap a lit cell to place — tap the card again to cancel", _center);
+                    "tap a lit cell to place  -  tap the card again to cancel", _center);
                 return;
             }
 
@@ -957,21 +957,21 @@ namespace SpawnRowDuel.View
                 SpellCard sp;
                 if (_match.Engine.Catalog.TryCreature(id, out c))
                 {
-                    if (Btn(new Rect(w / 2f - 125, by, 120, 24), "SUMMON ◆" + c.Cost, _button))
+                    if (Btn(new Rect(w / 2f - 125, by, 120, 24), "SUMMON " + c.Cost + " mana", _button))
                         Arm(Rules.PlayMode.Summon);
-                    if (Btn(new Rect(w / 2f + 5, by, 120, 24), "SET ◆1", _button))
+                    if (Btn(new Rect(w / 2f + 5, by, 120, 24), "SET 1 mana", _button))
                         Arm(Rules.PlayMode.Set);
                 }
                 else if (_match.Engine.Catalog.TrySpell(id, out sp))
                 {
                     if (sp.IsTrap)
                     {
-                        if (Btn(new Rect(w / 2f - 60, by, 120, 24), "SET TRAP ◆1", _button))
+                        if (Btn(new Rect(w / 2f - 60, by, 120, 24), "SET TRAP 1 mana", _button))
                             Arm(Rules.PlayMode.SetTrap);
                     }
                     else if (!SpellTargeting.HasAnyTarget(s, sp, Seat.Local))
                         GUI.Label(new Rect(0, by, w, 24), "no legal target for " + sp.Name, _center);
-                    else if (Btn(new Rect(w / 2f - 60, by, 120, 24), "CAST ◆" + sp.Cost, _button))
+                    else if (Btn(new Rect(w / 2f - 60, by, 120, 24), "CAST " + sp.Cost + " mana", _button))
                         Arm(Rules.PlayMode.Cast);
                 }
                 return;
@@ -986,7 +986,7 @@ namespace SpawnRowDuel.View
                 if (_match.SendFrom.HasValue)
                 {
                     GUI.Label(new Rect(0, by, w, 24),
-                        "tap one of your cards to store the ◆ there — or tap this one to cancel",
+                        "tap one of your cards to store the mana there  -  or tap this one to cancel",
                         _center);
                     return;
                 }
@@ -998,8 +998,8 @@ namespace SpawnRowDuel.View
                     float gw = Mathf.Min(w - 16f, 440f);
                     float gx = (w - gw) / 2f;
                     GUI.Label(new Rect(gx, by, gw - 40f, 24),
-                        "⚔" + _input.Group.Count + " selected — tap a target, or ⚔ WALL", _center);
-                    if (Btn(new Rect(gx + gw - 34f, by, 34f, 24), "✕", _button))
+                        _input.Group.Count + " attacking  -  tap a target, or WALL", _center);
+                    if (Btn(new Rect(gx + gw - 34f, by, 34f, 24), "X", _button))
                         _input.ClearSelectionFromUi();
                     return;
                 }
@@ -1013,7 +1013,7 @@ namespace SpawnRowDuel.View
                 {
                     // the FULL stepper lives in the charge panel; this row just says where it is
                     GUI.Label(new Rect(0, by, w, 24),
-                        ch.Card.Name + " — ◆" + ch.Invested + "/" + ch.Card.Cost
+                        ch.Card.Name + "  -  " + ch.Invested + "/" + ch.Card.Cost + " mana"
                         + (ch.Invested >= ch.Card.Cost ? " · ready to flip" : " · pour below"),
                         _center);
                     return;
@@ -1044,7 +1044,7 @@ namespace SpawnRowDuel.View
                         if (wallOk)
                         {
                             float ww = legalZones.Count > 0 ? 130 : 250;
-                            if (Btn(new Rect(x, by, ww, 24), "⚔ WALL", _button))
+                            if (Btn(new Rect(x, by, ww, 24), "WALL", _button))
                                 Declare(cell, new WallTarget(Seat.Remote), "the wall");
                             x += ww + 5;
                         }
@@ -1054,7 +1054,7 @@ namespace SpawnRowDuel.View
                         {
                             var z = legalZones[i];
                             int n = s.P(Seat.Remote).Workers[(int)z].Count;
-                            if (Btn(new Rect(x, by, zw, 24), "⚒" + ZoneTag(z) + n, _button))
+                            if (Btn(new Rect(x, by, zw, 24), ZoneTag(z) + n + " wkr", _button))
                                 Declare(cell, new WorkerStackTarget(Seat.Remote, z),
                                         "the " + ZoneName(z) + " workers");
                             x += zw + 4;
@@ -1077,12 +1077,12 @@ namespace SpawnRowDuel.View
                     if (canUpgrade)
                     {
                         if (Btn(new Rect(x, by, bw, 24),
-                                _upgradeMenuOpen ? "CLOSE" : "⬆ UPGRADE", _button))
+                                _upgradeMenuOpen ? "CLOSE" : "UPGRADE", _button))
                             _upgradeMenuOpen = !_upgradeMenuOpen;
                         x += bw + 6;
                     }
                     if (canSend && Btn(new Rect(x, by, bw, 24),
-                            "◆ SEND " + owned.Bank, _button))
+                            "SEND " + owned.Bank + " mana", _button))
                     {
                         _upgradeMenuOpen = false;
                         _match.BeginSendMana(cell);
@@ -1100,7 +1100,7 @@ namespace SpawnRowDuel.View
                     int pay = Mathf.Min(cr.Upkeep, deficit);
 
                     GUI.enabled = pay > 0 && !cr.PaidUpkeep && s.P(Seat.Local).Mana >= pay;
-                    if (Btn(new Rect(w / 2f - 125, by, 120, 24), "PAY ◆" + pay, _button))
+                    if (Btn(new Rect(w / 2f - 125, by, 120, 24), "PAY " + pay + " mana", _button))
                         Try(new UpkeepPayCommand(Seat.Local, cell, cr.Id));
                     GUI.enabled = true;
                     if (Btn(new Rect(w / 2f + 5, by, 120, 24), "SACRIFICE", _button))
@@ -1113,8 +1113,8 @@ namespace SpawnRowDuel.View
             if (myTurn && s.Phase == TurnPhase.Upkeep
                 && !Upkeep.HarvestUnlocked(s, Seat.Local, _match.Engine.Catalog))
                 GUI.Label(new Rect(0, by, w, 24),
-                    "shortfall ⚒" + Upkeep.TotalDeficit(s, Seat.Local, _match.Engine.Catalog)
-                    + " — move the flagged creature to a lit cell, PAY its keep, or SACRIFICE it",
+                    "shortfall " + Upkeep.TotalDeficit(s, Seat.Local, _match.Engine.Catalog) + " workers"
+                    + "  -  move the flagged creature to a lit cell, PAY its keep, or SACRIFICE it",
                     _center);
         }
 
@@ -1143,8 +1143,8 @@ namespace SpawnRowDuel.View
             float rx = (w - rowW) / 2f;
 
             GUI.Label(new Rect(rx, by, rowW - 216f, 24),
-                "⚔" + _match.AssaultSize + " on " + _match.StandingAttackLabel
-                + (_match.Assault != null ? " — tap more to join" : ""), _center);
+                _match.AssaultSize + " attacking " + _match.StandingAttackLabel
+                + (_match.Assault != null ? "  -  tap more to join" : ""), _center);
 
             // GREYED while a choice is parked, the way the rail already is. The engine refuses
             // every command but the answer to a parked request (CommandProcessor: ChoicePending),
@@ -1153,7 +1153,7 @@ namespace SpawnRowDuel.View
             // its "waiting on foe" label exist to answer.
             GUI.enabled = s.Pending == null;
 
-            if (Btn(new Rect(rx + rowW - 212f, by, 118f, 24), "⚔ ATTACK", _button))
+            if (Btn(new Rect(rx + rowW - 212f, by, 118f, 24), "ATTACK", _button))
                 Confirm();
 
             // CANCEL, not LATER. It used to mean "stop talking about it": the declarations stood,
@@ -1161,7 +1161,7 @@ namespace SpawnRowDuel.View
             // was to attack after all. It takes the attack back now, and the creatures stand up
             // again. A refusal is SAID - a defender who has already committed a blocker is the one
             // case that can refuse, and a button that silently does nothing reads as broken.
-            if (Btn(new Rect(rx + rowW - 90f, by, 90f, 24), "✕ CANCEL", _button))
+            if (Btn(new Rect(rx + rowW - 90f, by, 90f, 24), "CANCEL", _button))
             {
                 var no = _match.WithdrawAssault();
                 if (no != Rejection.None) Hint(MatchController.Hint(no));
@@ -1316,7 +1316,7 @@ namespace SpawnRowDuel.View
                 step.normal.textColor = i == now ? new Color(0.10f, 0.08f, 0.04f)
                                       : i < now ? new Color(0.42f, 0.54f, 0.37f)
                                       : new Color(0.54f, 0.51f, 0.60f);
-                GUI.Label(r, (sub ? "↳" : "") + PhaseNames[i], step);
+                GUI.Label(r, (sub ? "- " : "") + PhaseNames[i], step);
             }
         }
 
@@ -1553,14 +1553,14 @@ namespace SpawnRowDuel.View
 
             int surplus = Mathf.Max(0, ch.Invested + _chargeAmount - ch.Card.Cost);
             GUI.Label(new Rect(panel.x + 8, y, pw - 16, 18),
-                "invested ◆" + ch.Invested + " / ◆" + ch.Card.Cost + "   ·   your ◆" + mana
-                + (surplus > 0 ? "   ·   ◆" + surplus + " would bank" : ""), _small);
+                "invested " + ch.Invested + " / " + ch.Card.Cost + " mana   ·   your " + mana
+                + (surplus > 0 ? "   ·   " + surplus + " would bank" : ""), _small);
             y += 22;
 
             // stepper
-            if (Btn(new Rect(panel.x + 8, y, 40, rowH - 2), "−", _button))
+            if (Btn(new Rect(panel.x + 8, y, 40, rowH - 2), "-", _button))
                 _chargeAmount = Mathf.Max(0, _chargeAmount - 1);
-            GUI.Label(new Rect(panel.x + 52, y + 4, 60, 20), "◆" + _chargeAmount, _center);
+            GUI.Label(new Rect(panel.x + 52, y + 4, 60, 20), _chargeAmount + " mana", _center);
             if (Btn(new Rect(panel.x + 116, y, 40, rowH - 2), "+", _button))
                 _chargeAmount = Mathf.Min(mana, _chargeAmount + 1);
 
@@ -1568,13 +1568,13 @@ namespace SpawnRowDuel.View
             if (Btn(new Rect(panel.x + 162, y, 60, rowH - 2), "FILL", _button))
                 _chargeAmount = Mathf.Min(mana, remaining);
             GUI.enabled = mana > 0;
-            if (Btn(new Rect(panel.x + 228, y, 64, rowH - 2), "ALL ◆" + mana, _button))
+            if (Btn(new Rect(panel.x + 228, y, 64, rowH - 2), "ALL " + mana, _button))
                 _chargeAmount = mana;
             GUI.enabled = true;
             y += rowH + 4;
 
             GUI.enabled = _chargeAmount > 0 && _chargeAmount <= mana;
-            if (Btn(new Rect(panel.x + 8, y, (pw - 24) / 2f, rowH), "POUR ◆" + _chargeAmount, _button))
+            if (Btn(new Rect(panel.x + 8, y, (pw - 24) / 2f, rowH), "POUR " + _chargeAmount, _button))
             {
                 Try(new PourIntoChargeCommand(Seat.Local, cell, ch.Id, _chargeAmount));
                 _chargeAmount = 0;
@@ -1582,7 +1582,7 @@ namespace SpawnRowDuel.View
             GUI.enabled = ch.Invested >= ch.Card.Cost;
             int bankOnFlip = Mathf.Max(0, ch.Invested - ch.Card.Cost);
             if (Btn(new Rect(panel.x + 16 + (pw - 24) / 2f, y, (pw - 24) / 2f, rowH),
-                    bankOnFlip > 0 ? "FLIP (bank ◆" + bankOnFlip + ")" : "FLIP UP", _button))
+                    bankOnFlip > 0 ? "FLIP (bank " + bankOnFlip + ")" : "FLIP UP", _button))
             {
                 Try(new FlipChargeCommand(Seat.Local, cell, ch.Id));
                 _chargeAmount = 0;
@@ -1631,8 +1631,8 @@ namespace SpawnRowDuel.View
                 var cmd = new UpgradeStructureCommand(Seat.Local, cell, bld.Id, def.Bid);
                 var why = _match.Probe(cmd);
                 GUI.enabled = why == Rejection.None;
-                string label = def.Name + "   ◆" + def.Cost + "   " + Stat.Hp(def.MaxHp)
-                             + "   ⚒" + (def.Support >= 0 ? "+" : "") + def.Support;
+                string label = def.Name + "   " + def.Cost + " mana   " + Stat.Hp(def.MaxHp) + " hp"
+                             + "   " + (def.Support >= 0 ? "+" : "") + def.Support + " wkr";
                 if (Btn(new Rect(panel.x + 8, y, pw - 16, rowH - 3), label, _button))
                 {
                     Try(cmd);
@@ -1710,24 +1710,24 @@ namespace SpawnRowDuel.View
                 // "attack 2 of 3": the whole assault was declared before you were asked anything,
                 // so how far through it this one is belongs on the panel.
                 title = blocker.DeclarationCount > 1
-                    ? "DEFEND — attack " + (blocker.DeclarationIndex + 1) + " of "
+                    ? "DEFEND - attack " + (blocker.DeclarationIndex + 1) + " of "
                       + blocker.DeclarationCount
                     : "DEFEND";
-                pairing = UnitLabel(s, blocker.AttackerId) + " → " + DeclaredTarget(s, blocker);
+                pairing = UnitLabel(s, blocker.AttackerId) + " -> " + DeclaredTarget(s, blocker);
                 options = blocker.Eligible;
             }
             else if (absorber != null)
             {
                 title = "ASSIGN THE BLOW";
                 pairing = UnitLabel(s, absorber.AttackerId) + " is gang-blocked by "
-                        + absorber.Blockers.Length + " — which one takes it?";
+                        + absorber.Blockers.Length + " - which one takes it?";
                 options = absorber.Blockers;
             }
             else if (retaliation != null)
             {
                 title = "STRIKE BACK";
                 pairing = UnitLabel(s, retaliation.DefenderId) + " was hit by "
-                        + retaliation.Attackers.Length + " — which one does it hit back?";
+                        + retaliation.Attackers.Length + " - which one does it hit back?";
                 options = retaliation.Attackers;
             }
             else return;
@@ -1755,7 +1755,7 @@ namespace SpawnRowDuel.View
                 {
                     bool on = _chosenBlockers.Contains(i);
                     if (Btn(new Rect(panel.x + 8, y, pw - 16, rowH - 3),
-                            (on ? "✔ " : "   ") + label, _button))
+                            (on ? "[x] " : "[ ] ") + label, _button))
                     {
                         if (on) _chosenBlockers.Remove(i);
                         else _chosenBlockers.Add(i);
@@ -1801,7 +1801,7 @@ namespace SpawnRowDuel.View
             string what = req.Trigger == TrapTrigger.Summon
                 ? "The opponent summons " + UnitLabel(s, req.Subject.UnitId)
                 : "Your line is struck" + (req.Subject.UnitId != 0
-                    ? " — " + UnitLabel(s, req.Subject.UnitId) + " defends" : "");
+                    ? " - " + UnitLabel(s, req.Subject.UnitId) + " defends" : "");
 
             float contentH = req.ArmedTraps.Length * (rowH + 20) + rowH + 46;
             float regionTop = TopH + 6 + ShellBarH;
@@ -1821,7 +1821,7 @@ namespace SpawnRowDuel.View
             for (int i = 0; i < req.ArmedTraps.Length; i++)
             {
                 var trapUnit = s.FindById(req.ArmedTraps[i].UnitId, out _, out _) as TrapUnit;
-                string label = "⚠ " + (trapUnit != null ? trapUnit.Card.Value : "trap");
+                string label = "! " + (trapUnit != null ? trapUnit.Card.Value : "trap");
                 if (Btn(new Rect(panel.x + 8, y, pw - 16, rowH - 3), label, _button))
                     Try(new RespondCommand(Seat.Local, new TrapChosen(req.ArmedTraps[i])));
                 y += rowH;
@@ -1890,7 +1890,7 @@ namespace SpawnRowDuel.View
 
             _upkeepPromptedTurn = s.TurnNumber;
             _input.SelectFromUi(cell);
-            Hint("Upkeep shortfall — this creature needs a worker, a payment, or its life");
+            Hint("Upkeep shortfall - this creature needs a worker, a payment, or its life");
         }
 
         /// <summary>
