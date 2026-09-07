@@ -29,7 +29,7 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.IsNotNull(_db,
                 "CardDatabase.asset missing - run Tools > Spawn Row Duel > Import Cards (or bash tools/regen-cards.sh)");
             // 68 creatures + 14 spells + 31 structures + 36 commanders + 9 elements + 1 worker
-            Assert.AreEqual(159, _db.All.Count);
+            Assert.AreEqual(160, _db.All.Count);
             Assert.AreEqual(40, _db.DeckSize);
             Assert.AreEqual(3, _db.MaxCopies);
             Assert.IsNotEmpty(_db.SourceHash);

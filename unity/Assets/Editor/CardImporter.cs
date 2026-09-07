@@ -222,7 +222,15 @@ namespace SpawnRowDuel.EditorPipeline
             so.__EditorApply(delegate (CardDefinition c) { Populate(c, row, art, report); });
             var after = EditorJsonUtility.ToJson(so);
 
-            if (created) report.Created.Add(path);
+            if (created)
+            {
+                report.Created.Add(path);
+                // CreateAsset serialised the EMPTY instance a moment ago; the populate above
+                // happened in memory. Without this, SaveAssets has nothing to write and the
+                // first import of any new card ships a blank asset - which is exactly what the
+                // Bombard Tower did on 2026-09-07 (displayName "", registryIndex -1).
+                if (!dryRun) EditorUtility.SetDirty(so);
+            }
             else if (before != after)
             {
                 report.Updated.Add(path);

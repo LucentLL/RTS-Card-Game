@@ -222,20 +222,20 @@ namespace SpawnRowDuel.Rules.Tests
             GameState s;
             var e = Engine(out s);
 
-            // A lone Cannon Tower in the FRONT row: sup -2 with no free workforce and no
+            // A lone Cannon Tower in the FRONT row: sup -1 with no free workforce and no
             // creature to settle - the anti-deadlock case (spec 02 s7.4).
             var tower = TestData.Catalog.Structure(new StructId("tower"), Element.None);
             s.Put(new CellRef(RowKey.YouFront, 0), UnitFactory.MakeStructure(s, Side.You, tower));
 
-            Assert.AreEqual(2, Upkeep.ZoneDeficit(s, Side.You, WorkerZone.Front, TestData.Catalog));
-            Assert.AreEqual(2, Upkeep.OrphanDeficit(s, Side.You, TestData.Catalog));
+            Assert.AreEqual(1, Upkeep.ZoneDeficit(s, Side.You, WorkerZone.Front, TestData.Catalog));
+            Assert.AreEqual(1, Upkeep.OrphanDeficit(s, Side.You, TestData.Catalog));
             Assert.AreEqual(Rejection.None, e.CanApply(new HarvestCommand(Side.You)),
                 "the lock is on the OFFENDER, not the deficit");
 
             var r = e.Apply(new HarvestCommand(Side.You));
             Assert.IsTrue(r.Applied);
-            Assert.AreEqual(0, s.P(Side.You).Mana, "harvested 2, then the crews' wages took it");
-            Assert.AreEqual(2, s.P(Side.You).UpkeepPaid[(int)WorkerZone.Front],
+            Assert.AreEqual(1, s.P(Side.You).Mana, "harvested 2, then the crew's wage took one");
+            Assert.AreEqual(1, s.P(Side.You).UpkeepPaid[(int)WorkerZone.Front],
                 "the deficit is credited IN FULL so the turn can never dead-lock");
             Assert.AreEqual(TurnPhase.Draw, s.Phase);
         }

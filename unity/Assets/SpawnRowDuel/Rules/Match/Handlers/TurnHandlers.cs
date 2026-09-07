@@ -35,6 +35,11 @@ namespace SpawnRowDuel.Rules
 
         public void Execute(GameState s, ICommand cmd, ICardCatalog cat, EventSink ev)
         {
+            // The upkeep is settled (Validate refused otherwise): towers fire now, their kills
+            // are swept, and only then do the workers dig. Built last turn, survived a turn,
+            // crewed - or silent.
+            StructureUpkeep.FireTowers(s, cmd.Actor, cat, ev);
+            DeathSweep.Cleanup(s, cat, ev);
             TurnPipeline.Harvest(s, cmd.Actor, cat, ev);
         }
     }

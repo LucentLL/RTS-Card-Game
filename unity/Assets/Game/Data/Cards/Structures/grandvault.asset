@@ -19,7 +19,7 @@ MonoBehaviour:
   element: 0
   isNeutral: 1
   isPlayable: 0
-  registryIndex: 12
+  registryIndex: 13
   cost: 5
   poolIndex: -1
   attack: 0

@@ -24,7 +24,7 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(68, cat.Creatures.Count, "64 deckable + 4 divine");
             Assert.AreEqual(14, cat.Spells.Count);
             Assert.AreEqual(36, cat.Commanders.Count);
-            Assert.AreEqual(31, cat.Structures.Count, "13 static + 18 generated forges");
+            Assert.AreEqual(32, cat.Structures.Count, "14 static + 18 generated forges");
             Assert.AreEqual(9, cat.Elements.Count);
             Assert.AreEqual(40, cat.DeckSize);
             Assert.AreEqual(3, cat.MaxCopies);

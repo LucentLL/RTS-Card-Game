@@ -141,17 +141,17 @@ namespace SpawnRowDuel.Rules.Tests
                 e.CanApply(new BuildStructureCommand(Side.You, new StructId("encampment"),
                     Element.None, new CellRef(RowKey.FoeBack, 0))));
 
-            // the tower's -2 support: legal where the figure can bear it, refused where not.
+            // the tower's -1 support: legal where the figure can bear it, refused where not.
             // (prereq: forge -> foundry chain first)
             s.Put(new CellRef(RowKey.YouBack, 6), UnitFactory.MakeStructure(s, Side.You,
                 TestData.Catalog.Structure(new StructId("forge"), Element.Fire)));
             Assert.AreEqual(Rejection.RowLacksWorkers,
                 e.CanApply(new BuildStructureCommand(Side.You, new StructId("tower"),
                     Element.None, new CellRef(RowKey.YouFront, 0))),
-                "an empty front row has no ⚒ to spare for a -2 tower");
+                "an empty front row has no ⚒ to spare for a -1 tower");
             Assert.IsTrue(e.Apply(new BuildStructureCommand(Side.You, new StructId("tower"),
                 Element.None, new CellRef(RowKey.YouBack, 1))).Applied,
-                "the back row's free workforce absorbs the -2");
+                "the back row's free workforce absorbs the -1");
         }
 
         [Test]
@@ -201,7 +201,7 @@ namespace SpawnRowDuel.Rules.Tests
             var e = Engine(out s);
             s.P(Side.You).Mana = 30;
 
-            // Outpost (sup +1) alone in the FRONT row: figure 1; 1 - 1 + (-2) = -2 -> refused
+            // Outpost (sup +1) alone in the FRONT row: figure 1; 1 - 1 + (-1) = -1 -> refused
             var frontOutpost = UnitFactory.MakeStructure(s, Side.You,
                 TestData.Catalog.Structure(new StructId("outpost"), Element.None));
             s.Put(new CellRef(RowKey.YouFront, 3), frontOutpost);
@@ -209,14 +209,23 @@ namespace SpawnRowDuel.Rules.Tests
                 e.CanApply(new UpgradeStructureCommand(Side.You, new CellRef(RowKey.YouFront, 3),
                     frontOutpost.Id, new StructId("tower"))));
 
-            // in the BACK row: figure wk2 + 1 = 3; 3 - 1 - 2 = 0 -> allowed
+            // in the BACK row: figure wk2 + 1 = 3; 3 - 1 - 1 = 1 -> allowed
             var backOutpost = UnitFactory.MakeStructure(s, Side.You,
                 TestData.Catalog.Structure(new StructId("outpost"), Element.None));
             s.Put(new CellRef(RowKey.YouBack, 5), backOutpost);
             var r = e.Apply(new UpgradeStructureCommand(Side.You, new CellRef(RowKey.YouBack, 5),
                 backOutpost.Id, new StructId("tower")));
             Assert.IsTrue(r.Applied, r.Rejection.ToString());
-            Assert.AreEqual(-2, backOutpost.Support);
+            Assert.AreEqual(-1, backOutpost.Support, "a Cannon Tower crews one");
+
+            // and one tier further: figure 3 - (-1) + (-2) = 2 -> the Bombard is allowed too,
+            // and takes the second worker the tower left
+            s.P(Side.You).Mana = 30;
+            var r2 = e.Apply(new UpgradeStructureCommand(Side.You, new CellRef(RowKey.YouBack, 5),
+                backOutpost.Id, new StructId("bombard")));
+            Assert.IsTrue(r2.Applied, r2.Rejection.ToString());
+            Assert.AreEqual(-2, backOutpost.Support, "a Bombard Tower crews two");
+            Assert.AreEqual(1000, backOutpost.Value, "and fires for the old tower's full shot");
         }
 
         [Test]

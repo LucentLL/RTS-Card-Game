@@ -38,14 +38,49 @@ namespace SpawnRowDuel.Rules
                         Mana.Add(s, owner, b.Value, ev);
                         ev.Add(new ManaYielded(owner, b.Id, b.Value));
                     }
-                    else if (b.Effect == StructEffect.Damage)
-                    {
-                        FireTower(s, owner, b, ev);
-                    }
+                    // StructEffect.Damage no longer fires here - see FireTowers, which the harvest
+                    // step calls once the upkeep has been settled.
                     else if (b.Effect == StructEffect.Revive)
                     {
                         if (!revived) revived = ReviveFromGrave(s, owner, ev);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Towers fire at HARVEST, not at turn start (2026-09-07): after the upkeep has been
+        /// settled - moved, paid or sacrificed - and before the workers dig. So a tower must be
+        /// built, survive a whole enemy turn, and have its crew: one standing in a row whose
+        /// shortfall is still unsettled at that moment does not fire. The JS fired at turn start
+        /// regardless (buildingUpkeep); the port departs deliberately, and the self-play that
+        /// motivated it is in PROGRESS.md. Same walk as Tick - owner's FRONT, BACK, then CENTER,
+        /// slots ascending - so two towers fire in the order they always did.
+        /// </summary>
+        public static void FireTowers(GameState s, Side owner, ICardCatalog cat, EventSink ev)
+        {
+            var rows = new[]
+            {
+                Board.RowFor(owner, SlotName.Front),
+                Board.RowFor(owner, SlotName.Back),
+                RowKey.Center,
+            };
+
+            for (int r = 0; r < rows.Length; r++)
+            {
+                for (int col = 0; col < Board.Columns; col++)
+                {
+                    var b = s.At(new CellRef(rows[r], col)) as StructureUnit;
+                    if (b == null || b.Owner != owner || b.Effect != StructEffect.Damage) continue;
+
+                    // "adequate resources to fire": the crew's shortfall must be settled - paid,
+                    // or no shortfall at all. An orphaned deficit (a tower whose support was
+                    // razed) is paid out of THIS harvest's proceeds, which is after the shot -
+                    // so a tower in that row stays silent until its row can carry it again.
+                    var zone = Board.ZoneForRow(owner, rows[r]);
+                    if (Upkeep.ZoneDeficit(s, owner, zone, cat) > 0) continue;
+
+                    FireTower(s, owner, b, ev);
                 }
             }
         }

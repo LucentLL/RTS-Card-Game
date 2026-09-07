@@ -31,8 +31,10 @@ namespace SpawnRowDuel.Rules
             KeywordEngine.UpkeepTick(s, owner, cat, ev);       // 6-7. one pass per keyword, in
                                                                //   enum order: Chrysalis (hatch,
                                                                //   re-sick) then Overcharge (+1)
-            StructureUpkeep.Tick(s, owner, cat, ev);           // 8. mana -> tower fire -> revive
-            DeathSweep.Cleanup(s, cat, ev);                    // 9. sweep what the tower killed
+            StructureUpkeep.Tick(s, owner, cat, ev);           // 8. mana -> revive (towers fire
+                                                               //    at harvest now, once the
+                                                               //    upkeep is settled)
+            DeathSweep.Cleanup(s, cat, ev);                    // 9. sweep (revive/keyword deaths)
             WorkerMath.Resync(s, owner, cat);                  // 10. pools from the board as it now is
             s.P(owner).ReadyWorkers();                         // 11. the ONLY un-sick/un-tap of workers
 

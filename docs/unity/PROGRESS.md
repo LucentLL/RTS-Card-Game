@@ -34,6 +34,61 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-07 (night) — the tower fires for half, at harvest, crewed; grows a Bombard; the importer stops shipping blanks
+
+**Cannon Tower** ⚔1000 ⚒−2 → **⚔500 ⚒−1**, and a new upgrade-only tier, **Bombard Tower**
+◆5 ♥3000 ⚔1000 ⚒−2 (`from:'tower'`, deliberately NOT in any build list — see the Grand Forge
+hole). The user's numbers: "reduce damage to 50 and be upgradeable to 100; require 1 and 2
+resource like similar monsters"; then "500 is a lot of health for a structure that can attack
+freely every turn", so the Bombard stands on thinner walls than the tower it grew from — the
+bigger gun is a trade-off, not strictly better. `BLD_ART.bombard` is the tower silhouette with a
+second barrel; the PNG art is the cannon tower's, copied WITHOUT its .meta so Unity minted a
+fresh GUID. Tests moved: 160 definitions, 32 structures, the headroom test now walks
+tower → bombard, the orphan-shortfall test settles ⚒1.
+
+**Towers fire at HARVEST now, not at turn start.** The user's timing: "at the beginning of your
+own turn, after payment, movement and sacrifice, but before harvest — so they must be built,
+survive a turn, and have adequate resources to fire." `StructureUpkeep.FireTowers` runs from
+`HarvestHandler.Execute` (which Validate only reaches once every settleable shortfall is settled),
+sweeps its kills, and only then does `TurnPipeline.Harvest` dig. The crew gate is
+`Upkeep.ZoneDeficit == 0` for the tower's row: a paid shortfall counts, an ORPHANED one (a tower
+whose support was razed) does not, because the orphan is paid out of the proceeds *after* the
+shot — so a tower in a row that cannot carry it stays silent until the row can.
+`Tick` no longer touches `StructEffect.Damage`. Two tests: the sibling tower test now asserts the
+target survives BeginTurn and dies at Harvest; `Tower_StaysSilent_WhileItsRowCannotCrewIt` pins
+the gate. The JS still fires at turn start (buildingUpkeep) — the port departs deliberately.
+
+**Importer bug.** The first import of the new card produced an EMPTY asset — displayName "",
+registryIndex −1. `CardImporter.UpsertOne` called `SetDirty` for an *updated* asset and never for
+a *created* one, so `CreateAsset` serialised the blank instance and the populate that followed
+lived only in memory until the editor exited. Every brand-new card has shipped blank on its first
+import; a second run papered over it, which is presumably how the original 159 got there. Fixed.
+
+**Measured before the timing change** (self-play, deck-out on, before → after the numbers alone):
+first player 31% → 45%, tower shots 85 → 82 a match, damage 85k → 78k, deck-out endings
+40% → 36%. The AI builds 3.4 towers a side and upgrades 2.8 of them; 1.9 Bombards stand at the
+end and 0.1 plain towers. **At 17 mana a turn, ◆5 is not a decision** — the number nerf alone was
+paid through the flood. The timing rule is what should bite: a tower now costs a turn of
+exposure and a crewed row before its first shot. Re-measured under the harvest timing: shots 82 → 82, first player 45% → 44%, deck-out endings
+36% → 37%, every other line within noise. The AI never starves a tower row — it builds where
+PlaceRowOk holds and has workers to spare — so the crew gate never bites it. The rule’s value is
+against a person: a tower now costs a full enemy turn of exposure before its first shot, and
+razing the row that crews it silences it, which is the siege pilot’s business. The flood
+underneath is unchanged.
+
+**Still open, sized, awaiting a go: blockable tower fire** ("blocking logic should also work even
+when towers attack nearest target automatically"). Proposed shape: towers auto-declare in the
+owner's combat, defender interposes by the row-interval rule, no retaliation, tower never taps.
+`CombatResolver` (680 lines) assumes attackers are creatures in ~28 places. About a day. The
+user's "for now" is the harvest timing above.
+
+Also proposed, not built: colour flavour as **forge-gated spells** ("needs a Gloomwell") rather
+than creature-gated — structures die 5.6 times a side a match, creatures 65, so a forge is a
+tenfold steadier anchor, and sapping a forge silences a colour; devotion-style scaling for
+premium spells; the user's "need to control a Dark creature" kept for signature cards.
+
+365 green, three goldens re-cut. Staged to `play/`.
+
 ### 2026-09-07 (evening) — deck-out is a loss, and the sapper was the pilot's fault
 
 **Deck-out.** `DrawForTurnHandler` ends the match against a player whose deck is empty at their

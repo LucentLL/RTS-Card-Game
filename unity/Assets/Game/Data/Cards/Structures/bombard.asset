@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 29923b38cc73cf642b8c6ebc22b3eb98, type: 3}
-  m_Name: forge_light
+  m_Name: bombard
   m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
-  exportKey: forge:light
+  exportKey: bombard
   kind: 2
-  displayName: Dawnwell
-  slug: dawnwell
-  element: 7
-  isNeutral: 0
-  isPlayable: 1
-  registryIndex: 26
-  cost: 3
+  displayName: Bombard Tower
+  slug: bombardtower
+  element: 0
+  isNeutral: 1
+  isPlayable: 0
+  registryIndex: 12
+  cost: 5
   poolIndex: -1
   attack: 0
-  health: 2500
+  health: 3000
   upkeep: 0
   firstStrike: 0
   keyword: 0
@@ -43,18 +43,16 @@ MonoBehaviour:
   spellValue: -1
   spellTarget: 0
   trapTrigger: 0
-  glyph: "\u26ED"
-  buildId: forge
-  structEffect: 1
-  structValue: 2
-  support: 0
-  prereq:
-  - foundry
-  upgradedFrom: 
-  upgradesTo:
-  - grandforge
+  glyph: "\u2922"
+  buildId: bombard
+  structEffect: 5
+  structValue: 1000
+  support: -2
+  prereq: []
+  upgradedFrom: tower
+  upgradesTo: []
   rowGate: 0
-  buildable: 1
+  buildable: 0
   life: 0
   baseWorkers: 0
   colors: 
@@ -65,7 +63,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A Light forge \u2014 yields \u25C62 each turn and raises no workers.
-    Upgrades to a Grand Forge."
-  cardArt: {fileID: 21300000, guid: 57ced597592c7b447816c1b8e72d42ff, type: 3}
-  fieldArt: {fileID: 21300000, guid: 3674978a99a40f940854daf8bfce05f4, type: 3}
+  description: "The cannon grown into a bombard \u2014 strikes the first enemy creature
+    in range for 1000 each turn, behind thinner walls. Needs \u26922 to crew."
+  cardArt: {fileID: 21300000, guid: a1e24ed3d81c2654d949f8aed5ec4db5, type: 3}
+  fieldArt: {fileID: 21300000, guid: c791d83144431aa43834fbc1b253bb4b, type: 3}

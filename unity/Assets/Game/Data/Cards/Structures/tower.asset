@@ -46,12 +46,13 @@ MonoBehaviour:
   glyph: "\u2922"
   buildId: tower
   structEffect: 5
-  structValue: 1000
-  support: -2
+  structValue: 500
+  support: -1
   prereq:
   - forge
   upgradedFrom: 
-  upgradesTo: []
+  upgradesTo:
+  - bombard
   rowGate: 0
   buildable: 1
   life: 0
@@ -64,8 +65,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "Guns that never sleep \u2014 strikes the nearest enemy creature for
-    1000 each turn. Needs \u26922 to crew (build it where a row has the workers to
-    spare)."
+  description: "Guns that never sleep \u2014 strikes the first enemy creature in
+    range for 500 each turn. Needs \u26921 to crew. Upgrades to a Bombard Tower."
   cardArt: {fileID: 21300000, guid: 3d8a83e154c026d43a1bd03e45e4bdd3, type: 3}
   fieldArt: {fileID: 21300000, guid: a1c8e609632c5b04882d2dd69711c126, type: 3}

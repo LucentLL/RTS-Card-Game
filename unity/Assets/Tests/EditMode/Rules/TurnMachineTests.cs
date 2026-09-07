@@ -170,9 +170,6 @@ namespace SpawnRowDuel.Rules.Tests
             var s = e.State;
             var cat = TestData.Catalog;
 
-            var tower = cat.Structure(new StructId("tower"), Element.None);
-            s.Put(new CellRef(RowKey.YouBack, 6), UnitFactory.MakeStructure(s, Side.You, tower));
-
             // 500 HP in the foe FRONT row (dies), 500 HP in the foe BACK row (must survive).
             // An Encampment (sup 2) keeps the foe's front-row upkeep solvent so its own
             // harvest is not locked by the shortfall rule while the turn cycles.
@@ -184,9 +181,14 @@ namespace SpawnRowDuel.Rules.Tests
             var camp = cat.Structure(new StructId("encampment"), Element.None);
             s.Put(new CellRef(RowKey.FoeFront, 6), UnitFactory.MakeStructure(s, Side.Foe, camp));
 
-            // hand the turn around so You begins a fresh turn
+            // Turn 1: harvest and draw with no tower standing, then raise it in the ACTION phase
+            // the way a real build lands - so it has to survive the foe's turn before its first
+            // shot. A tower put down before the first harvest would fire at that harvest, which
+            // is what a pre-existing tower does and what a built one never can.
             MustApply(e, new HarvestCommand(Side.You));
             MustApply(e, new DrawForTurnCommand(Side.You));
+            var tower = cat.Structure(new StructId("tower"), Element.None);
+            s.Put(new CellRef(RowKey.YouBack, 6), UnitFactory.MakeStructure(s, Side.You, tower));
             MustApply(e, new EndTurnCommand(Side.You));
             MustApply(e, new BeginTurnCommand(Side.Foe));
             MustApply(e, new HarvestCommand(Side.Foe));
@@ -195,11 +197,17 @@ namespace SpawnRowDuel.Rules.Tests
             e.DrainEvents();
             MustApply(e, new BeginTurnCommand(Side.You));
 
+            // Towers fire at HARVEST, not at turn start: the target is still standing here.
+            Assert.IsNotNull(s.At(new CellRef(RowKey.FoeFront, 4)),
+                "turn start does not fire the tower any more");
+
+            MustApply(e, new HarvestCommand(Side.You));
             Assert.IsNull(s.At(new CellRef(RowKey.FoeFront, 4)),
-                "the tower's kill is swept before the worker resync");
+                "the tower fires at harvest and its kill is swept before the workers dig");
             var survivor = s.At(new CellRef(RowKey.FoeBack, 0)) as CreatureUnit;
             Assert.IsNotNull(survivor, "front -> center -> back scan stops at the FIRST match");
             Assert.AreEqual(500, survivor.Hp);
+            Assert.AreEqual(TurnPhase.Draw, s.Phase, "and the harvest still moved the phase on");
             Assert.AreEqual(1, s.P(Side.Foe).Grave.Count);
 
             bool fired = false, destroyed = false;
@@ -210,6 +218,51 @@ namespace SpawnRowDuel.Rules.Tests
             }
             Assert.IsTrue(fired);
             Assert.IsTrue(destroyed);
+        }
+
+        /// <summary>
+        /// "They must be built, survive a turn, and have adequate resources to fire" (2026-09-07).
+        /// A tower whose row cannot crew it is silent; the orphaned shortfall it causes is paid out
+        /// of the harvest AFTER the shot would have gone, so it stays silent until the row can
+        /// carry it - here, until an Encampment moves in beside it.
+        /// </summary>
+        [Test]
+        public void Tower_StaysSilent_WhileItsRowCannotCrewIt()
+        {
+            var e = Engine(8);
+            var s = e.State;
+            var cat = TestData.Catalog;
+
+            // a lone tower in YOUR FRONT row: figure 0 - 1 = -1, an orphaned shortfall
+            var tower = cat.Structure(new StructId("tower"), Element.None);
+            s.Put(new CellRef(RowKey.YouFront, 6), UnitFactory.MakeStructure(s, Side.You, tower));
+            var sparkimp = cat.Creature(new CardId("Sparkimp"));
+            s.Put(new CellRef(RowKey.FoeFront, 4),
+                UnitFactory.MakeCreature(s, Side.Foe, sparkimp, Element.None));
+            var camp = cat.Structure(new StructId("encampment"), Element.None);
+            s.Put(new CellRef(RowKey.FoeFront, 6), UnitFactory.MakeStructure(s, Side.Foe, camp));
+
+            Assert.AreEqual(1, Upkeep.ZoneDeficit(s, Side.You, WorkerZone.Front, cat),
+                "the crew is one short");
+            MustApply(e, new HarvestCommand(Side.You));        // orphaned: harvests through
+            Assert.IsNotNull(s.At(new CellRef(RowKey.FoeFront, 4)),
+                "an uncrewed tower does not fire, even though the harvest went ahead");
+
+            // give the row a crew, come back around
+            s.Put(new CellRef(RowKey.YouFront, 0), UnitFactory.MakeStructure(s, Side.You, camp));
+            MustApply(e, new DrawForTurnCommand(Side.You));
+            MustApply(e, new EndTurnCommand(Side.You));
+            MustApply(e, new BeginTurnCommand(Side.Foe));
+            MustApply(e, new HarvestCommand(Side.Foe));
+            MustApply(e, new DrawForTurnCommand(Side.Foe));
+            MustApply(e, new EndTurnCommand(Side.Foe));
+            MustApply(e, new BeginTurnCommand(Side.You));
+
+            Assert.AreEqual(0, Upkeep.ZoneDeficit(s, Side.You, WorkerZone.Front, cat),
+                "encampment +2, tower -1: one to spare");
+            MustApply(e, new HarvestCommand(Side.You));
+            Assert.IsNull(s.At(new CellRef(RowKey.FoeFront, 4)),
+                "crewed, it fires at the next harvest");
         }
 
         [Test]
