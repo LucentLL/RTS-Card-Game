@@ -1097,8 +1097,14 @@ namespace SpawnRowDuel.View
                     var cat = _match.Engine.Catalog;
                     var zone = Rules.Board.ZoneForRow(Seat.Local, cell.Row);
                     int deficit = Upkeep.ZoneDeficit(s, Seat.Local, zone, cat);
-                    int pay = Mathf.Min(cr.Upkeep, deficit);
 
+                    // No shortfall in this row means nothing to pay and nothing to settle, so
+                    // neither button. SACRIFICE used to sit here lit for every creature tapped
+                    // at upkeep - a free kill-your-own-Reap-creature the rules never meant, and
+                    // beside a greyed "PAY 0 mana" it read as the thing you were supposed to do.
+                    if (deficit <= 0) return;
+
+                    int pay = Mathf.Min(cr.Upkeep, deficit);
                     GUI.enabled = pay > 0 && !cr.PaidUpkeep && s.P(Seat.Local).Mana >= pay;
                     if (Btn(new Rect(w / 2f - 125, by, 120, 24), "PAY " + pay + " mana", _button))
                         Try(new UpkeepPayCommand(Seat.Local, cell, cr.Id));
@@ -1142,6 +1148,17 @@ namespace SpawnRowDuel.View
             float rowW = Mathf.Min(w - 16f, 520f);
             float rx = (w - rowW) / 2f;
 
+            // Solid ground under the whole row. Btn draws the skin's translucent face, which
+            // over the rail's dark panel reads as a button and over lit grass reads as a
+            // watermark - "the ATTACK and CANCEL buttons look transparent" was the report. The
+            // primary gets a gold ring so the one that spends the attack is the one that stands out.
+            var atkR = new Rect(rx + rowW - 212f, by, 118f, 24);
+            var cancelR = new Rect(rx + rowW - 90f, by, 90f, 24);
+            Panel(new Rect(rx - 6f, by - 3f, rowW + 12f, 30f), PanelSoft);
+            Panel(new Rect(atkR.x - 2f, atkR.y - 2f, atkR.width + 4f, atkR.height + 4f), Gold * 0.9f);
+            Panel(atkR, PanelColor);
+            Panel(new Rect(cancelR.x - 2f, cancelR.y - 2f, cancelR.width + 4f, cancelR.height + 4f), PanelColor);
+
             GUI.Label(new Rect(rx, by, rowW - 216f, 24),
                 _match.AssaultSize + " attacking " + _match.StandingAttackLabel
                 + (_match.Assault != null ? "  -  tap more to join" : ""), _center);
@@ -1153,7 +1170,7 @@ namespace SpawnRowDuel.View
             // its "waiting on foe" label exist to answer.
             GUI.enabled = s.Pending == null;
 
-            if (Btn(new Rect(rx + rowW - 212f, by, 118f, 24), "ATTACK", _button))
+            if (Btn(atkR, "ATTACK", _button))
                 Confirm();
 
             // CANCEL, not LATER. It used to mean "stop talking about it": the declarations stood,
@@ -1161,7 +1178,7 @@ namespace SpawnRowDuel.View
             // was to attack after all. It takes the attack back now, and the creatures stand up
             // again. A refusal is SAID - a defender who has already committed a blocker is the one
             // case that can refuse, and a button that silently does nothing reads as broken.
-            if (Btn(new Rect(rx + rowW - 90f, by, 90f, 24), "CANCEL", _button))
+            if (Btn(cancelR, "CANCEL", _button))
             {
                 var no = _match.WithdrawAssault();
                 if (no != Rejection.None) Hint(MatchController.Hint(no));

@@ -145,6 +145,7 @@ namespace SpawnRowDuel.View
             RollBattlefield(true);
 
             _log.Clear();
+            Names.SetOwners(Catalog.Commander(you).Name, Catalog.Commander(foe).Name);
             Push(Catalog.Commander(you).Name + " vs " + Catalog.Commander(foe).Name);
             Push("Your turn · Upkeep · Harvest to begin");
             Touch();
@@ -295,6 +296,10 @@ namespace SpawnRowDuel.View
             _log.Clear();
             var mine = Catalog.Commander(Engine.State.P(Seat.Local).Commander);
             var theirs = Catalog.Commander(Engine.State.P(Seat.Remote).Commander);
+            // The people over the wire have names; the base is theirs, not their element's.
+            Names.SetOwners(
+                string.IsNullOrEmpty(session.MyName) ? mine.Name : session.MyName,
+                string.IsNullOrEmpty(session.PeerName) ? theirs.Name : session.PeerName);
             Push("- " + mine.Name + " vs " + theirs.Name + " -");
             Push(Engine.State.Turn == Seat.Local ? "- Your turn -" : "- Their turn -");
             Touch();
@@ -809,7 +814,7 @@ namespace SpawnRowDuel.View
             var c = o as CreatureUnit;
             if (c != null) return c.Name;
             var b = o as StructureUnit;
-            if (b != null) return string.IsNullOrEmpty(b.Name) ? b.DefId.Value : b.Name;
+            if (b != null) return Names.Of(b);
             return "the face-down card";
         }
 
@@ -953,6 +958,8 @@ namespace SpawnRowDuel.View
                 case Rejection.CellOccupied: return "That spot is taken";
                 case Rejection.MissingPrereq: return "Missing a prerequisite structure";
                 case Rejection.RowLacksWorkers: return "That row has no workers to spare";
+                case Rejection.WrongRowForTier: return "This tier cannot stand in that row";
+                case Rejection.NoShortfall: return "No shortfall in that row to settle";
                 case Rejection.MoveAlreadySpent: return "Its move is spent";
                 case Rejection.ChargeUnderfunded: return "Pour more mana before flipping";
                 case Rejection.DeclarationsPending:
@@ -1111,7 +1118,7 @@ namespace SpawnRowDuel.View
                 var c = kv.Value as CreatureUnit;
                 if (c != null && !c.IsWorker) { _names[c.Id] = c.Name; continue; }
                 var b = kv.Value as StructureUnit;
-                if (b != null) _names[b.Id] = string.IsNullOrEmpty(b.Name) ? b.DefId.Value : b.Name;
+                if (b != null) _names[b.Id] = Names.Of(b);
             }
         }
 

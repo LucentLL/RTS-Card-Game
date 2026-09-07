@@ -377,7 +377,9 @@ namespace SpawnRowDuel.Rules.Tests
             DealScreenshotHand(s);
             s.P(Side.You).Mana = 60;
 
-            Assert.Greater(s.P(Side.You).Workers[(int)WorkerZone.Back].Count, 10,
+            // seven Bases at ⚒+1 each plus the commander's two: nine. It was eleven-plus when the
+            // Foundry raised two, and the freeze this reproduces never cared about the exact figure.
+            Assert.Greater(s.P(Side.You).Workers[(int)WorkerZone.Back].Count, 8,
                 "the point of this test is a big pool");
 
             for (int h = 0; h < 3; h++)

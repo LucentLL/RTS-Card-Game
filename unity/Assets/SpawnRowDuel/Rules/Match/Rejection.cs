@@ -46,6 +46,9 @@ namespace SpawnRowDuel.Rules
         /// <summary>An assault cannot be taken back once the defender has answered it - a blocker
         /// they have already spent on one declaration is information they cannot un-see.</summary>
         BlockersCommitted,
+
+        /// <summary>A sacrifice offered where the row has no worker shortfall to settle.</summary>
+        NoShortfall,
     }
 
     public enum CommandStatus : byte

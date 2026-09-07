@@ -25,6 +25,25 @@ namespace SpawnRowDuel.Rules
             return WorkerMath.RowWorkers(s, owner, zone, cat) + def.Support >= 0;
         }
 
+        /// <summary>
+        /// The tier's row gate, applied to a BUILD as well as an upgrade.
+        ///
+        /// The JS only ever gated upgrades (spec 05 s7.3), so a Longhouse marked front-only could
+        /// be raised straight into the back row and only its Barracks was ever refused. The gate
+        /// is a property of the tier, not of how the tier was reached - and the Outpost is now
+        /// centre-only precisely so that a forward post has to stand forward.
+        /// </summary>
+        public static bool RowGateOk(StructureDef def, WorkerZone zone)
+        {
+            switch (def.RowGate)
+            {
+                case RowGate.BackOnly: return zone == WorkerZone.Back;
+                case RowGate.FrontOnly: return zone == WorkerZone.Front;
+                case RowGate.CenterOnly: return zone == WorkerZone.Center;
+                default: return true;
+            }
+        }
+
         /// <summary>hasBuild - lineage-aware: an upgraded Keep still counts as a Foundry.</summary>
         public static bool HasBuild(GameState s, Side owner, string familyBid, ICardCatalog cat)
         {
@@ -57,6 +76,7 @@ namespace SpawnRowDuel.Rules
             for (int z = 0; z < 3; z++)
             {
                 var zone = (WorkerZone)z;
+                if (!RowGateOk(def, zone)) continue;
                 if (!PlaceRowOk(s, owner, zone, def, cat)) continue;
                 var rows = Board.RowsOfZone(owner, zone);
                 for (int r = 0; r < rows.Length; r++)

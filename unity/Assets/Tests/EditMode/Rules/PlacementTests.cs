@@ -299,7 +299,7 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(1, s.P(Side.You).Mana, "the bank covered the whole cost");
             Assert.AreEqual(1, s.P(Side.You).Grave.Count, "the covered card is destroyed");
             // the grave holds the CARD name, as toGrave's `nm` does - never the bid
-            Assert.AreEqual("The Foundry", s.P(Side.You).Grave[0].Name);
+            Assert.AreEqual("Base", s.P(Side.You).Grave[0].Name);
         }
 
         /// <summary>

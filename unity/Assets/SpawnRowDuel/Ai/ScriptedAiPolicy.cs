@@ -404,10 +404,16 @@ namespace SpawnRowDuel.Ai
 
                 if (!Placement.CanBuild(s, _side, def, cat)) continue;
 
-                var which = new[] { SlotName.Back, SlotName.Front };
+                // A centre-only tier (the Outpost) has to be tried on the middle row, or the AI
+                // would offer it the back row, be refused, and never build one at all.
+                var which = def.RowGate == RowGate.CenterOnly
+                    ? new[] { SlotName.Center }
+                    : new[] { SlotName.Back, SlotName.Front };
                 for (int w = 0; w < which.Length; w++)
                 {
-                    var zone = which[w] == SlotName.Back ? WorkerZone.Back : WorkerZone.Front;
+                    var zone = which[w] == SlotName.Back ? WorkerZone.Back
+                             : which[w] == SlotName.Front ? WorkerZone.Front
+                             : WorkerZone.Center;
                     if (!Placement.PlaceRowOk(s, _side, zone, def, cat)) continue;
 
                     int slot = AiChoices.PickDeploySlot(s, _side, which[w]);

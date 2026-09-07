@@ -34,6 +34,57 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-07 — one coin buys mana or workers; the Base is somebody's; a forward post stands forward
+
+Six reports off the tech-tree build, in one pass. Two are HUD, four are rules or data.
+
+**The economy now trades off.** The user's framing: "like old MtG — 2 mana 2/2 bear, 2 mana 1/1
+flying," but here the two axes are mana generation and the workers that harvest and feed
+monsters. So a structure's price buys one or the other, or a split:
+
+| | before | after |
+|---|---|---|
+| Forge ◆3 | ◆1 ⚒+2 | **◆2 ⚒0** — pure mana |
+| Grand Forge ◆6 | ◆3 ⚒+3 | **◆4 ⚒0** — double, for double |
+| Base ◆2 (was The Foundry) | ◆1 ⚒+2 | **◆1 ⚒+1** — one of each |
+| Encampment ◆2 | ◆0 ⚒+2 | unchanged — pure workers |
+
+The Forge and the "another structure can make 1 mana and 1 resource" were the user's numbers; the
+Base being that other structure is the reading that makes the three cheapest buildings the three
+poles of the trade-off, and it is stated to them as a reading. Keep, Citadel, Longhouse and
+Barracks are untouched and flagged. This supersedes the 09-05 "val ≤ half cost" cap, which the
+Forge now breaks on purpose; the rule block above `STRUCT_DEFS` says so.
+
+**The Foundry is the Base, and it is named for its owner.** Card name `Base`; on the board, in
+the log and on the target labels it reads `Fire's Base` — the commander in solo, which is the
+name the log's "Fire vs Water" header already uses, and `NetSession.MyName` / `PeerName` in a
+networked match (`View/Names.cs`, one resolver, three call sites). The inspect face and the build
+tree still say `Base`: there the owner is never in doubt. Renaming a card changes its **slug**, and
+art resolves by slug, so `foundry_cardart/fieldart.png` moved to `base_*` — via `git mv` of the
+`.meta` files too, so the GUIDs the asset points at did not change.
+
+**Row gates apply to BUILDS now.** `Placement.RowGateOk` is the one check, and
+`BuildStructureHandler`, `UpgradeStructureHandler` and `HasPlacement` all go through it. The JS only
+ever gated upgrades (spec 05 §7.3): a Longhouse marked front-only could be raised straight into
+the back row and only its Barracks was ever refused. The gate is a property of the tier, not of how
+the tier was reached. With that in place the **Outpost is `row:'center'`** — "far away, like the
+centre row" — and the AI's `FindBuild` tries the middle row for a centre-only tier, or it would
+offer the back row, be refused, and never build one.
+
+**Sacrifice needs a shortfall.** `UpkeepSacrificeHandler` rejects with the new
+`Rejection.NoShortfall` when the creature's row has no deficit, and the HUD hides both PAY and
+SACRIFICE for that row. It used to sit lit beside a greyed `PAY 0 mana` for every creature you
+tapped at upkeep — which read as the thing you were supposed to do, and was a Reap trigger on
+demand.
+
+**The attack row has ground under it.** `Btn` draws the skin's translucent face; over the rail's
+dark panel that reads as a button and over lit grass it read as a watermark. The row sits on a
+soft panel now, both buttons on solid ones, ATTACK with a gold ring as the one that spends the
+attack.
+
+Goldens re-cut (`SRD_REGEN_GOLDEN=1`) and replaying stably; five tests that pinned the old
+numbers or the old name moved with them. 365 green. Staged to `play/`.
+
 ### 2026-09-06 (last) — sweep the HUD text IMGUI was never drawing
 
 The tech-tree entry below found that IMGUI drops every glyph above Latin-1. This is the sweep,

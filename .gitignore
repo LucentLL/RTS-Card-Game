@@ -97,3 +97,6 @@ unity/Assets/InitTestScene*.unity.meta
 # Dynamic 2D Grass (MIT code / CC BY 4.0 art, Jomoho Games) - the wind + cloud technique in
 # unity/Assets/Game/Shaders/SRD_*.shader is ported from it.
 /dynamic-2d-grass-main*/
+
+# Unity Performance Testing package writes its run-info here on every test run - runner scratch, not content
+unity/Assets/Resources/PerformanceTestRun*

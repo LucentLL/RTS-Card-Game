@@ -33,17 +33,18 @@ function typeLine(o){ return o ? [o.tribe||'',o.subtype||''].filter(Boolean).joi
    A built structure tags the field with its `bid`; a structure is buildable only once all of
    its `prereq` bids are present on your field (and you can afford it and have an empty slot).
 
-   MANA YIELD RULE (provisional, 2026-09-05 — a balance test, not a law):
-     a structure's `val` under eff:'mana' may not exceed HALF its own printed `c`, and no
-     base-level tier (anything raised from the menu without upgrading) may print more than ◆1.
-     Measured against the price on the tier itself, not the chain that led to it — so a Keep costs
-     ◆3 and prints ◆1, whatever the Foundry under it cost. eff:'vault' is OUT of scope: its `val`
-     is a storage cap, not income.
-   The rule bounds `val` ONLY. A structure also prints mana through `sup`: every worker it quarters
-   digs ◆1 at harvest (minYield, 15_combat.js), so a Foundry's real yield is ◆1 + ⚒2 = ◆3/turn on a
-   ◆2 build. Worker income is ~72% of all mana in the game (tools/playtest/out/economy-8.json) and
-   is deliberately untouched here — `sup` is also the budget that keeps creatures fed, so cutting it
-   is a different, larger change. */
+   ECONOMY RULE (2026-09-07, supersedes the 09-05 half-cost cap on `val`):
+     a structure's price buys MANA or WORKERS on one budget — the way two mana buys either a 2/2
+     or a 1/1 flier. The two axes are `val` (◆ printed at upkeep) and `sup` (⚒ workers, each of
+     which ALSO digs ◆1 at harvest — minYield, 15_combat.js — and is the budget that keeps
+     creatures fed). So the same coin can be all income, all workforce, or split:
+         Forge      ◆3  →  val 2, sup 0     pure mana
+         Encampment ◆2  →  val 0, sup 2     pure workers
+         Base       ◆2  →  val 1, sup 1     one of each — and the root nothing builds without
+     Grand Forge doubles the Forge for double the price (◆6 → val 4, sup 0). eff:'vault' is out
+     of scope: its `val` is a storage cap, not income. Keep / Citadel / Longhouse / Barracks have
+     NOT been retuned to this yet. Worker income was ~72% of all mana before this pass
+     (tools/playtest/out/economy-8.json); the pass makes that split a choice instead of a leak. */
 function forgeArt(el){ return FORGE_ART[el]||phArt(el,'bld'); }
 /* ---- distinct rough SVG silhouettes for each STRUCTURE, so a Foundry reads differently from a
    Longhouse or a Cannon Tower on the battlefield (the on-field standee borrows this `art`). 120x120,
@@ -64,23 +65,23 @@ const BLD_ART={
 };
 const STRUCT_DEFS={
   // BUILDABLE from the menu. `up2` = in-place upgrade targets (bids); `from` marks a tier reached only by upgrading.
-  foundry:  {bid:'foundry',  nm:'The Foundry', c:2, h:3000,  eff:'mana',     val:1, sup:2, ic:'⚒', prereq:[],          color:null, up2:['keep'],    art:BLD_ART.foundry, desc:'Town hall of the host. Yields ◆1 a turn and raises ⚒+2. Unlocks the forges and the Longhouse. Upgrades (in the back row) to a Keep.'},
+  foundry:  {bid:'foundry',  nm:'Base',        c:2, h:3000,  eff:'mana',     val:1, sup:1, ic:'⚒', prereq:[],          color:null, up2:['keep'],    art:BLD_ART.foundry, desc:'Your seat on the board. Yields ◆1 a turn and raises ⚒+1. Nothing else can be built without it. Upgrades (in the back row) to a Keep.'},
   encampment:{bid:'encampment',nm:'Encampment',c:2, h:2500,  eff:'none',     val:0, sup:2, ic:'⛺', prereq:['foundry'], color:null, up2:['longhouse'],art:BLD_ART.encampment, desc:'A staging camp — raises ⚒+2. Upgrade it (in the front row) into a Longhouse.'},
   longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:3000,  eff:'villager', val:0, sup:3, ic:'⌂', prereq:['foundry'], color:null, row:'front', up2:['barracks'],art:ART.longhouse, desc:'Hearth and full benches — quarters ⚒+3 of workforce. Your main workforce. Upgrades (in the front row) to a Barracks.'},
   vault:    {bid:'vault',    nm:'Mana Vault',  c:4, h:3000,  eff:'vault',    val:4, sup:0, ic:'◈', prereq:['foundry'], color:null, up2:['grandvault'], art:BLD_ART.vault, desc:'Cisterns that hold the surplus — unspent mana drains at end of turn, but a vault keeps up to ◆4 of it. Upgrades to a Grand Vault. ⚒0.'},
   bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:6000, eff:'wall',     val:0, sup:1, ic:'▣', prereq:['forge'],   color:null, art:BLD_ART.bulwark, desc:'A heavy wall of stone — a huge body that soaks raids aimed at your line, and raises ⚒+1.'},
-  outpost:  {bid:'outpost',  nm:'Outpost',     c:2, h:3000,  eff:'none',     val:0, sup:1, ic:'⛨', prereq:['forge'],   color:null, up2:['tower','bastion'], art:BLD_ART.outpost, desc:'A forward post — raises ⚒+1. Branches on upgrade into a Cannon Tower (offense) or a Bastion (defense).'},
+  outpost:  {bid:'outpost',  nm:'Outpost',     c:2, h:3000,  eff:'none',     val:0, sup:1, ic:'⛨', prereq:['forge'],   color:null, row:'center', up2:['tower','bastion'], art:BLD_ART.outpost, desc:'A forward post on the contested middle row — raises ⚒+1. Branches on upgrade into a Cannon Tower (offense) or a Bastion (defense).'},
   tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:4000,  eff:'damage',   val:1000, sup:-2,ic:'⤢', prereq:['forge'],   color:null, art:BLD_ART.tower,  desc:'Guns that never sleep — strikes the nearest enemy creature for 1000 each turn. Needs ⚒2 to crew (build it where a row has the workers to spare).'},
   reliquary:{bid:'reliquary',nm:'Reliquary',  c:5, h:3500,  eff:'revive',    val:0, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:BLD_ART.reliquary,  desc:'Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.'},
   // UPGRADE-ONLY tiers (reached by upgrading the structure named in `from`; `row` gates where the tier may live).
-  keep:     {bid:'keep',     nm:'Keep',        c:3, h:5000,  eff:'mana',     val:1, sup:3, ic:'♜', prereq:[], from:'foundry', row:'back',  up2:['citadel'], color:null, art:BLD_ART.keep, desc:'The Foundry grown into a Keep — ◆1 a turn, ⚒+3, far sturdier walls. Upgrades to a Citadel.'},
+  keep:     {bid:'keep',     nm:'Keep',        c:3, h:5000,  eff:'mana',     val:1, sup:3, ic:'♜', prereq:[], from:'foundry', row:'back',  up2:['citadel'], color:null, art:BLD_ART.keep, desc:'The Base grown into a Keep — ◆1 a turn, ⚒+3, far sturdier walls. Upgrades to a Citadel.'},
   citadel:  {bid:'citadel',  nm:'Citadel',     c:4, h:7500,  eff:'mana',     val:2, sup:4, ic:'♛', prereq:[], from:'keep',    row:'back',  color:null, art:BLD_ART.citadel, desc:'The seat of your realm — ◆2 a turn, ⚒+4, and a mighty rampart of stone.'},
   barracks: {bid:'barracks', nm:'Barracks',    c:3, h:5000,  eff:'villager', val:0, sup:4, ic:'⚔', prereq:[], from:'longhouse',row:'front', color:null, art:BLD_ART.barracks,       desc:'Drill yards and armories — quarters ⚒+4 of workforce.'},
   bastion:  {bid:'bastion',  nm:'Bastion',     c:3, h:9000,  eff:'wall',     val:0, sup:2, ic:'▣', prereq:[], from:'outpost', color:null, art:BLD_ART.bastion, desc:'A fortified bastion — the sturdiest body on the board, and raises ⚒+2.'},
   grandvault:{bid:'grandvault',nm:'Grand Vault',c:5, h:4500, eff:'vault',    val:10,sup:0, ic:'◈', prereq:[], from:'vault',   color:null, art:BLD_ART.vault, desc:'Deep cisterns behind bank-vault doors — keeps up to ◆10 of your unspent mana across the turn. ⚒0.'},
 };
-function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:1, sup:2, ic:'⛭', prereq:['foundry'], color:el, up2:['grandforge'], art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆1 each turn and raises ⚒+2. Upgrades to a Grand Forge.'}; }
-function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:3, sup:3, ic:'⛭', prereq:['forge'], from:'forge', color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆3 each turn and raises ⚒+3.'}; }
+function forgeDef(el){ return {bid:'forge', nm:FORGE_NAMES[el], c:3, h:2500, eff:'mana', val:2, sup:0, ic:'⛭', prereq:['foundry'], color:el, up2:['grandforge'], art:forgeArt(el), desc:'A '+ELEMENTS[el].name+' forge — yields ◆2 each turn and raises no workers. Upgrades to a Grand Forge.'}; }
+function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el], c:6, h:3500, eff:'mana', val:4, sup:0, ic:'⛭', prereq:['forge'], from:'forge', color:el, art:forgeArt(el), desc:'Furnaces past mortal heat — yields ◆4 each turn and raises no workers.'}; }
 // the ordered list of structures a given commander can build (its colors expand the forges)
 function buildList(ccId){
   const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];

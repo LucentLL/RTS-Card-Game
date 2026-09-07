@@ -54,7 +54,7 @@ MonoBehaviour:
   upgradesTo:
   - tower
   - bastion
-  rowGate: 0
+  rowGate: 3
   buildable: 1
   life: 0
   baseWorkers: 0
@@ -66,7 +66,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A forward post \u2014 raises \u2692+1. Branches on upgrade into a
-    Cannon Tower (offense) or a Bastion (defense)."
+  description: "A forward post on the contested middle row \u2014 raises \u2692+1.
+    Branches on upgrade into a Cannon Tower (offense) or a Bastion (defense)."
   cardArt: {fileID: 21300000, guid: 65d9ee3e5cd8a644a9aabb1eb16cd46e, type: 3}
   fieldArt: {fileID: 21300000, guid: 6fe87f16cdc0007499c5326f304328e5, type: 3}

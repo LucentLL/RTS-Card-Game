@@ -133,6 +133,7 @@ namespace SpawnRowDuel.Net
         public int Ply { get { return _log.Count; } }
 
         public string PeerName { get { return _peerName; } }
+        public string MyName { get { return _myName; } }
 
         /// <summary>Seconds since anything arrived from the peer. The HUD says "waiting" versus
         /// "they may have dropped" off this.</summary>

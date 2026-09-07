@@ -35,8 +35,8 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual("foundry", b.DefId.Value);
             Assert.AreEqual(3000, b.Hp);
             Assert.AreEqual(3, s.P(Side.You).Mana, "the Foundry costs ◆2");
-            Assert.AreEqual(4, s.P(Side.You).Workers[(int)WorkerZone.Back].Count,
-                "afterDeploy: wk 2 + sup 2 materialise (the new two arrive sick)");
+            Assert.AreEqual(3, s.P(Side.You).Workers[(int)WorkerZone.Back].Count,
+                "afterDeploy: wk 2 + sup 1 materialise (the new one arrives sick)");
         }
 
         [Test]
@@ -236,7 +236,8 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual("grandforge", forge.DefId.Value);
             Assert.AreEqual(Element.Fire, forge.Color,
                 "an Emberforge becomes a GRAND Emberforge - the colour rides the chain");
-            Assert.AreEqual(3, forge.Value, "grand forge yields ◆3");
+            Assert.AreEqual(4, forge.Value, "grand forge yields ◆4 - pure mana, double a forge");
+            Assert.AreEqual(0, forge.Support, "and raises no workers, like the forge it grew from");
         }
     }
 }

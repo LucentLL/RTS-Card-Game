@@ -46,8 +46,8 @@ MonoBehaviour:
   glyph: "\u26ED"
   buildId: grandforge
   structEffect: 1
-  structValue: 3
-  support: 3
+  structValue: 4
+  support: 0
   prereq:
   - forge
   upgradedFrom: forge
@@ -64,7 +64,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "Furnaces past mortal heat \u2014 yields \u25C63 each turn and raises
-    \u2692+3."
+  description: "Furnaces past mortal heat \u2014 yields \u25C64 each turn and raises
+    no workers."
   cardArt: {fileID: 21300000, guid: f273fadb1bf47ad4ab7624672be1121a, type: 3}
   fieldArt: {fileID: 21300000, guid: 5f4b68a11f194a7429ec063c3319a62e, type: 3}

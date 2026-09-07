@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
   exportKey: foundry
   kind: 2
-  displayName: The Foundry
-  slug: foundry
+  displayName: Base
+  slug: base
   element: 0
   isNeutral: 1
   isPlayable: 1
@@ -47,7 +47,7 @@ MonoBehaviour:
   buildId: foundry
   structEffect: 1
   structValue: 1
-  support: 2
+  support: 1
   prereq: []
   upgradedFrom: 
   upgradesTo:
@@ -64,7 +64,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "Town hall of the host. Yields \u25C61 a turn and raises \u2692+2.
-    Unlocks the forges and the Longhouse. Upgrades (in the back row) to a Keep."
+  description: "Your seat on the board. Yields \u25C61 a turn and raises \u2692+1.
+    Nothing else can be built without it. Upgrades (in the back row) to a Keep."
   cardArt: {fileID: 21300000, guid: 2c59aa464f9c17c4596b7b1016d4dd18, type: 3}
   fieldArt: {fileID: 21300000, guid: 14d0edc3507b6c344821c3002a278dff, type: 3}

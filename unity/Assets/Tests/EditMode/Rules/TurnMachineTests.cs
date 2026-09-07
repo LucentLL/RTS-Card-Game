@@ -134,10 +134,10 @@ namespace SpawnRowDuel.Rules.Tests
             MustApply(e, new EndTurnCommand(Side.Foe));
             MustApply(e, new BeginTurnCommand(Side.You));
 
-            Assert.AreEqual(1, s.P(Side.You).Mana, "the Foundry yields ◆1 at its owner's upkeep");
-            Assert.AreEqual(4, s.P(Side.You).Workers[(int)WorkerZone.Back].Count,
-                "wk 2 + Foundry sup 2");
-            Assert.AreEqual(4, s.P(Side.You).Workers[(int)WorkerZone.Back].ReadyCount,
+            Assert.AreEqual(1, s.P(Side.You).Mana, "the Base yields ◆1 at its owner's upkeep");
+            Assert.AreEqual(3, s.P(Side.You).Workers[(int)WorkerZone.Back].Count,
+                "wk 2 + Base sup 1");
+            Assert.AreEqual(3, s.P(Side.You).Workers[(int)WorkerZone.Back].ReadyCount,
                 "turn-start workers are readied");
         }
 

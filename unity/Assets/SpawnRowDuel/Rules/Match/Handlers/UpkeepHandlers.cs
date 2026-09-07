@@ -64,6 +64,11 @@ namespace SpawnRowDuel.Rules
             if (c == null) return Rejection.NotACreature;
             if (c.Id != m.UnitId) return Rejection.NoSuchUnit;
             if (c.Owner != m.Actor) return Rejection.NotYourUnit;
+
+            // A sacrifice SETTLES a shortfall; with no shortfall in the row there is nothing to
+            // settle, and a free kill-your-own-creature at upkeep is a Reap trigger on demand.
+            var zone = Board.ZoneForRow(m.Actor, m.Target.Row);
+            if (Upkeep.ZoneDeficit(s, m.Actor, zone, cat) <= 0) return Rejection.NoShortfall;
             return Rejection.None;
         }
 

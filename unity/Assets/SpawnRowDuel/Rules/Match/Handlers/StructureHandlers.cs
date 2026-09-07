@@ -30,6 +30,7 @@ namespace SpawnRowDuel.Rules
             if (s.At(m.To) != null) return Rejection.CellOccupied;
 
             var zone = Board.ZoneForRow(m.Actor, m.To.Row);
+            if (!Placement.RowGateOk(def, zone)) return Rejection.WrongRowForTier;
             if (!Placement.PlaceRowOk(s, m.Actor, zone, def, cat)) return Rejection.RowLacksWorkers;
 
             if (!Placement.PrereqMet(s, m.Actor, def, cat)) return Rejection.MissingPrereq;
@@ -86,8 +87,7 @@ namespace SpawnRowDuel.Rules
             if (def == null) return Rejection.NotAnUpgradeTarget;
 
             var zone = Board.ZoneForRow(m.Actor, m.At.Row);
-            if (def.RowGate == RowGate.BackOnly && zone != WorkerZone.Back) return Rejection.WrongRowForTier;
-            if (def.RowGate == RowGate.FrontOnly && zone != WorkerZone.Front) return Rejection.WrongRowForTier;
+            if (!Placement.RowGateOk(def, zone)) return Rejection.WrongRowForTier;
 
             if (s.P(m.Actor).Mana < def.Cost) return Rejection.NotEnoughMana;
 

@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 467fb7d4b21f9574696d9100ae25bdbb, type: 3}
   m_Name: CardDatabase
   m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDatabase
-  sourceHash: 0abbbe94066c4bb03b04ffc5e1ec412e7acc25bff2e90baafd01e94132b50bbf
-  sourceGeneratedAt: 2026-09-05T23:52:18.340Z
+  sourceHash: 4753cbaabf9fdec81586369215b35f2b67f727a4653b88b8417edc2c01c85065
+  sourceGeneratedAt: 2026-09-07T14:02:09.001Z
   all:
   - {fileID: 11400000, guid: f5093adad386ac6488150d21f8c5f200, type: 2}
   - {fileID: 11400000, guid: 7f8b16b5bbd636b49afa498c1a3ae0db, type: 2}

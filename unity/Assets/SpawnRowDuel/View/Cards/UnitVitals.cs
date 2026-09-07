@@ -326,8 +326,7 @@ namespace SpawnRowDuel.View.Cards
         static string Name(CreatureUnit cre, StructureUnit bld)
         {
             if (cre != null) return cre.Name;
-            if (bld == null) return "";
-            return string.IsNullOrEmpty(bld.Name) ? bld.DefId.Value : bld.Name;
+            return Names.Of(bld);
         }
 
         /// <summary>
