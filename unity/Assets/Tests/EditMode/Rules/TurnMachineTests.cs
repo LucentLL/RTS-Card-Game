@@ -75,20 +75,8 @@ namespace SpawnRowDuel.Rules.Tests
                 "the side whose turn just ended cannot begin the next one");
         }
 
-        [Test]
-        public void EmptyDeck_DrawStillAdvances_NoDeckOutLoss()
-        {
-            var cat = TestData.Catalog;
-            var s = MatchSetup.NewMatch(cat, new CommanderId("fire"), new CommanderId("water"),
-                new List<HandCard>(), new List<HandCard>(), 3, RulesOptions.JsParity);
-            var e = new DuelEngine(s, cat);
-
-            MustApply(e, new HarvestCommand(Side.You));
-            MustApply(e, new DrawForTurnCommand(Side.You));
-            Assert.AreEqual(0, s.P(Side.You).Hand.Count);
-            Assert.AreEqual(TurnPhase.Action, s.Phase);
-            Assert.IsFalse(s.IsOver);
-        }
+        // EmptyDeck_DrawStillAdvances_NoDeckOutLoss lived here until 2026-09-07. Deck-out is a
+        // loss now; DrawForTurn_OnAnEmptyDeck_LosesTheMatch below pins the rule that replaced it.
 
         [Test]
         public void Drain_KeepsWhatTheVaultsHold()
@@ -139,6 +127,40 @@ namespace SpawnRowDuel.Rules.Tests
                 "wk 2 + Base sup 1");
             Assert.AreEqual(3, s.P(Side.You).Workers[(int)WorkerZone.Back].ReadyCount,
                 "turn-start workers are readied");
+        }
+
+        /// <summary>
+        /// Deck-out is a loss (2026-09-07): the draw a player cannot make ends the match against
+        /// them. The opening deal is exempt - MatchSetupTests pins that an empty deck deals an
+        /// empty hand and nothing more.
+        /// </summary>
+        [Test]
+        public void DrawForTurn_OnAnEmptyDeck_LosesTheMatch()
+        {
+            var e = Engine(7);
+            var s = e.State;
+            s.P(Side.You).Deck.Clear();
+
+            MustApply(e, new HarvestCommand(Side.You));
+            Assert.IsFalse(s.IsOver, "harvesting with an empty deck is fine; drawing is the problem");
+
+            var r = e.Apply(new DrawForTurnCommand(Side.You));
+            Assert.IsTrue(r.Applied, "the draw is a legal command that ends the game, not a rejection");
+            Assert.IsTrue(s.IsOver);
+            Assert.AreEqual(MatchOutcome.FoeWin, s.Outcome, "the player who could not draw loses");
+            Assert.AreEqual(TurnPhase.Draw, s.Phase, "the phase never advances past the draw that ended it");
+
+            bool decked = false, ended = false;
+            foreach (var ev in e.Events)
+            {
+                if (ev is DeckedOut && ((DeckedOut)ev).Side == Side.You) decked = true;
+                if (ev is MatchEnded) ended = true;
+            }
+            Assert.IsTrue(decked, "DeckedOut says why");
+            Assert.IsTrue(ended, "MatchEnded says who");
+
+            Assert.AreEqual(Rejection.GameOver, e.CanApply(new EndTurnCommand(Side.You)),
+                "nothing is playable once the match is over");
         }
 
         [Test]
@@ -294,25 +316,40 @@ namespace SpawnRowDuel.Rules.Tests
             var hashesA = new List<ulong>();
             var hashesB = new List<ulong>();
 
-            for (int t = 0; t < 200; t++)
+            // Two hundred turns was the budget when an empty deck drew nothing and played on.
+            // Deck-out ends the match now, so the loop runs until it does - which is itself part
+            // of the contract: both engines must end on the same turn, for the same reason.
+            for (int t = 0; t < 200 && !a.State.IsOver; t++)
             {
                 var side = a.State.Turn;
                 MustApply(a, new HarvestCommand(side));
                 MustApply(a, new DrawForTurnCommand(side));
-                MustApply(a, new EndTurnCommand(side));
-                MustApply(a, new BeginTurnCommand(TurnMachine.Other(side)));
-                hashesA.Add(a.Hash());
+                if (a.State.IsOver) { hashesA.Add(a.Hash()); }
+                else
+                {
+                    MustApply(a, new EndTurnCommand(side));
+                    MustApply(a, new BeginTurnCommand(TurnMachine.Other(side)));
+                    hashesA.Add(a.Hash());
+                }
 
                 var sideB = b.State.Turn;
                 MustApply(b, new HarvestCommand(sideB));
                 MustApply(b, new DrawForTurnCommand(sideB));
-                MustApply(b, new EndTurnCommand(sideB));
-                MustApply(b, new BeginTurnCommand(TurnMachine.Other(sideB)));
-                hashesB.Add(b.Hash());
+                if (b.State.IsOver) { hashesB.Add(b.Hash()); }
+                else
+                {
+                    MustApply(b, new EndTurnCommand(sideB));
+                    MustApply(b, new BeginTurnCommand(TurnMachine.Other(sideB)));
+                    hashesB.Add(b.Hash());
+                }
             }
 
-            Assert.AreEqual(201, a.State.TurnNumber);
-            Assert.AreEqual(0, a.State.P(Side.You).Deck.Count, "the deck ran dry long ago, harmlessly");
+            Assert.IsTrue(a.State.IsOver, "a match nobody attacks in ends when the first deck runs dry");
+            Assert.AreEqual(MatchOutcome.FoeWin, a.State.Outcome,
+                "You drew first, so You drew from an empty deck first");
+            Assert.AreEqual(0, a.State.P(Side.You).Deck.Count);
+            Assert.Greater(a.State.TurnNumber, 70, "36 cards after the opening hand is 36 draws");
+            Assert.AreEqual(a.State.TurnNumber, b.State.TurnNumber, "both engines end on the same turn");
             CollectionAssert.AreEqual(hashesA, hashesB,
                 "the per-turn hash trace is the determinism contract");
         }

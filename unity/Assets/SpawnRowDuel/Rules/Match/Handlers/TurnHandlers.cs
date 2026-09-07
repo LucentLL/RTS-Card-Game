@@ -40,8 +40,10 @@ namespace SpawnRowDuel.Rules
     }
 
     /// <summary>
-    /// Draw --DrawForTurn--> Action. Advances EVEN ON AN EMPTY DECK - there is no deck-out
-    /// loss in this game (spec 02 s4.2).
+    /// Draw --DrawForTurn--> Action, or the match ends: a player whose deck is empty at their
+    /// draw LOSES. The JS advanced on an empty deck and played on (spec 02 s4.2); ruleset v3
+    /// departs from that deliberately - see Execute. The opening deal (MatchSetup.DealOpening)
+    /// is not a draw in this sense and never ends a match.
     /// </summary>
     public sealed class DrawForTurnHandler : ICommandHandler
     {
@@ -54,7 +56,19 @@ namespace SpawnRowDuel.Rules
 
         public void Execute(GameState s, ICommand cmd, ICardCatalog cat, EventSink ev)
         {
-            MatchSetup.DrawCard(s, cmd.Actor, ev);
+            // Deck-out is a LOSS, as it is in every card game this one is measured against. The
+            // JS let an empty deck draw nothing and play on, and 14% of self-play matches never
+            // ended: both decks empty, both walls standing, a tower and a reliquary trading the
+            // same creature back and forth forever (playtest, 2026-09-07). A player who cannot
+            // draw has run out of game.
+            if (!MatchSetup.DrawCard(s, cmd.Actor, ev))
+            {
+                ev.Add(new DeckedOut(cmd.Actor));
+                s.IsOver = true;
+                s.Outcome = cmd.Actor == Side.You ? MatchOutcome.FoeWin : MatchOutcome.YouWin;
+                ev.Add(new MatchEnded(s.Outcome));
+                return;
+            }
             TurnMachine.SetPhase(s, TurnPhase.Action, ev);
         }
     }

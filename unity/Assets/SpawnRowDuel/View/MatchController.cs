@@ -1289,6 +1289,10 @@ namespace SpawnRowDuel.View
                 return (cast.Caster == Seat.Local ? "You cast " : "They cast ") + cast.Card.Value;
 
             var ended = ev as MatchEnded;
+            var decked = ev as DeckedOut;
+            if (decked != null)
+                return (decked.Side == Seat.Local ? "You have" : "They have") + " no cards left to draw";
+
             if (ended != null) return "MATCH OVER: " + ended.Outcome;
 
             return null;

@@ -284,6 +284,14 @@ namespace SpawnRowDuel.Rules
         public MatchEnded(MatchOutcome outcome) { Outcome = outcome; }
     }
 
+    /// <summary>A player reached their draw with no deck left. The MatchEnded that follows
+    /// says who won; this says why, so the log can say "has no cards left to draw".</summary>
+    public sealed class DeckedOut : GameEvent
+    {
+        public readonly Side Side;
+        public DeckedOut(Side side) { Side = side; }
+    }
+
     /// <summary>
     /// The transient event buffer. NOT part of GameState: a dropped event costs an animation,
     /// never a wrong board, because the view can always re-render from state.

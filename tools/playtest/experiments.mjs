@@ -125,6 +125,61 @@ const VARIANTS = [
       for (const b of ['foundry', 'keep', 'citadel']) api.STRUCT_DEFS[b].val = 0;
     },
   },
+
+  /* ---- the late-game levers the 2026-09-07 playtest pointed at ----
+     Self-play printed 17 mana a side a turn from turn ten and drained hundreds; 14% of matches
+     never ended with both decks empty. These variants ask what a ceiling and a deck-out rule are
+     each worth, and whether the sapper's 0% is about structure HP at all. */
+  {
+    key: 'mana-cap-10',
+    what: 'the mana pool is capped at 10 (Hearthstone\'s ceiling) — does scarcity come back?',
+    apply(realm) {
+      const { api, G } = realm;
+      // Every credit site writes P.mana directly, so the cap lives in a setter on the two
+      // player objects, installed after startGame has built them.
+      const orig = api.startGame;
+      api.startGame = (...a) => {
+        orig(...a);
+        for (const o of ['you', 'foe']) {
+          let v = G.P[o].mana;
+          Object.defineProperty(G.P[o], 'mana', {
+            get: () => v, set: (x) => { v = Math.min(10, x); }, configurable: true, enumerable: true,
+          });
+        }
+      };
+    },
+  },
+  {
+    key: 'deckout',
+    what: 'a player who must draw from an empty deck loses (Magic / Yu-Gi-Oh rule)',
+    apply(realm) {
+      const { win, api, G } = realm;
+      const orig = win.drawCard;
+      win.drawCard = (o) => {
+        if (!G.P[o].deck.length) { G.P[o].life = 0; api.checkWin(); return; }
+        return orig(o);
+      };
+    },
+  },
+  {
+    key: 'struct-half-hp',
+    what: 'every structure at half its printed HP — is the sapper\'s problem that buildings are too tough?',
+    apply(realm) {
+      const { win, api } = realm;
+      for (const k of Object.keys(api.STRUCT_DEFS)) api.STRUCT_DEFS[k].h = Math.round(api.STRUCT_DEFS[k].h / 2);
+      const f = win.forgeDef, g = win.grandForgeDef;
+      win.forgeDef = (el) => { const d = f(el); return { ...d, h: Math.round(d.h / 2) }; };
+      win.grandForgeDef = (el) => { const d = g(el); return { ...d, h: Math.round(d.h / 2) }; };
+    },
+  },
+  {
+    key: 'cap-and-deckout',
+    what: 'mana-cap-10 and deckout together — the two rules the comparison games each have',
+    apply(realm) {
+      VARIANTS.find((v) => v.key === 'mana-cap-10').apply(realm);
+      VARIANTS.find((v) => v.key === 'deckout').apply(realm);
+    },
+  },
 ];
 
 /** Sum every ◆ figure a log pattern captures — the economy's size, read out of the narration. */

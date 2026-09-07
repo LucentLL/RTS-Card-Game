@@ -42,7 +42,7 @@ line-for-line and prints the narrated log.
 | `multiattack` | same as balanced | the whole army onto one target every turn |
 | `turtle` | the full build list, upgrades, face-downs, traps, banked ◆ | only from turn 14, only good trades |
 | `sapper` | midrange | enemy structures first, always |
-| `raider` | midrange | the enemy worker stacks |
+| `siege` | midrange | enemy structures while they have two or more and the game is young, then the wall |
 | `hunter` | control deck | enemy creatures only, never the wall |
 
 Deck shapes (`makeDeck`) bias the curve to match: `aggro`, `midrange`, `control`, or `random`

@@ -518,18 +518,30 @@ export const PERSONAS = {
     },
   },
 
-  /** starve them out: kill the workforce that pays for everything, then take the wall */
-  raider: {
-    name: 'raider',
+  /**
+   * Sap, then convert. The `sapper` above razes forever and never touches the wall - every one
+   * of its matches ended with the enemy at 10000 life, so its 0% said nothing about whether
+   * sapping works. This one razes while the enemy still has a real economy standing and the
+   * game is young, then switches to the wall and cashes in the board it should have by then.
+   */
+  siege: {
+    name: 'siege',
     upkeep: ['pay', 'move', 'sac'],
     blocking: 'smart',
     async action(r, telem) {
       tryBuild(r, BUILD_MID, telem);
+      tryCast(r, telem);
       trySummon(r, { order: 'biggest' }, telem);
       tryAdvance(r, telem, { keepHome: 1 });
-      await attack(r, 'workers', telem);
+      const standing = foeBuildings(r).length;
+      await attack(r, standing >= 2 && r.G.turnNo < 20 ? 'building' : 'wall', telem);
     },
   },
+
+  // `raider` lived here until 2026-09-07: it attacked the enemy worker stacks. Workers are a
+  // derived RESOURCE in the design now, not units, so a playstyle built on killing them measures
+  // a target the game is not meant to have. (The engine still exposes the stacks as an attack
+  // target - see WorkerStackTarget - which is the same vestige from the other side.)
 
   /** kill every creature they play and win on attrition */
   hunter: {

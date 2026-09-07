@@ -34,6 +34,52 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-07 (evening) — deck-out is a loss, and the sapper was the pilot's fault
+
+**Deck-out.** `DrawForTurnHandler` ends the match against a player whose deck is empty at their
+draw: `DeckedOut(side)` then `MatchEnded`. The opening deal is exempt (MatchSetupTests pins it).
+The JS drew nothing and played on (spec 02 §4.2); ruleset v3 departs on purpose. Two goldens
+re-cut — fire-water and forest-dark both reached an empty deck at plies 682 and 801 and now end
+there. `EmptyDeck_DrawStillAdvances_NoDeckOutLoss` is gone; `DrawForTurn_OnAnEmptyDeck_LosesTheMatch`
+replaces it, and the 200-turn determinism test now runs until the first deck runs dry and asserts
+both engines end on the same turn for the same reason.
+
+What it measured (self-play, 8×8×5): **stalls 45 → 0**. And **40% of AI-vs-AI games now end by
+deck-out**, the first player losing every one of them because it draws first — first-player wins
+49% → 31%, while the wall games underneath stay 52%. In the pilot lens deck-out changed
+nothing at all (identical to baseline): nobody reaches an empty deck in a game that ends in 24
+plies. So it is a stall-breaker for people and a coin for the AI grind, which is the
+tower–reliquary treadmill measured a second way. Two candidate follow-ups, neither taken
+without the user: the standard first-player draw skip (which also answers go-second), or
+Hearthstone fatigue instead of an instant loss.
+
+**The sapper.** Its 0% said nothing: every one of its matches ended with the enemy at 10000
+life, because the persona never attacks the wall. A `siege` pilot — raze while they hold two or
+more buildings and the game is young, then the wall — is 17% on the shipped numbers. The user's
+read was that structures have too much HP. **They were right**: at half HP the siege wins 83%
+(median 23 plies, enemy at 0), the old sapper 50%, every non-rush pilot rises, and the rush does
+not move (aggro 75 → 75). A 2500–3000 HP building is two creature-turns to fell and one turn to
+rebuild at 17 mana; at half, sapping keeps the AI in an early board state, which was the design.
+
+**The mana cap** (10, Hearthstone's) went the other way: pilot 31% → 22%, balanced 58 → 8,
+hunter 50 → 0, turtle 8 → 0, wallrush 58 → 83. A ceiling punishes whoever was building. The
+ceiling the game wants is an economy that can be attacked — which is the structure-HP lever
+again.
+
+**Raider retired** from the harness: workers are a resource in the design now, not units. The
+engine still exposes the worker stacks as an attack target (`WorkerStackTarget`) — flagged, not
+touched.
+
+The earlier report's "let structure or worker damage count toward the win" is withdrawn: the
+wall is the win, alternates should be rare, and what the data shows is about the *route* to the
+wall, not about needing another one.
+
+`experiments.mjs` gained `mana-cap-10`, `deckout`, `struct-half-hp`, `cap-and-deckout`; the
+mana cap is a setter on `G.P[o].mana` installed after `startGame`, since every credit site in
+the JS writes the field directly. Report artifact republished with a levers table.
+
+365 tests green. Staged to `play/`.
+
 ### 2026-09-07 — one coin buys mana or workers; the Base is somebody's; a forward post stands forward
 
 Six reports off the tech-tree build, in one pass. Two are HUD, four are rules or data.

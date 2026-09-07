@@ -212,7 +212,8 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(2, s.P(Side.You).Hand.Count);
             Assert.AreEqual("Magmaw", s.P(Side.You).Hand[0].Id.Value, "the END of the list is the top");
             Assert.AreEqual(0, s.P(Side.You).Deck.Count);
-            Assert.IsFalse(s.IsOver, "there is no deck-out loss");
+            Assert.IsFalse(s.IsOver,
+                "the opening deal never decks anyone out - only a TURN draw from an empty deck loses");
 
             Assert.AreEqual(0, s.P(Side.Foe).Hand.Count, "an empty deck deals an empty hand");
         }
