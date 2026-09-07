@@ -3,6 +3,7 @@
     "rootNamespace": "SpawnRowDuel.EditorPipeline",
     "references": [
         "SpawnRowDuel.Rules",
+        "SpawnRowDuel.Ai",
         "SpawnRowDuel.Data",
         "SpawnRowDuel.View",
         "Unity.RenderPipelines.Core.Runtime",
