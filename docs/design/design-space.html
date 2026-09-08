@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Saved from https://claude.ai/code/artifact/ - self-contained except the Google Fonts
+     link below, which degrades to the declared Georgia/Times fallbacks when offline. -->
+<title>Spawn Row Duel Design Space</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#0b1018; --ground-2:#0e1522; --panel:#151e2c; --edge:#26334a; --edge-soft:#1d2839;
+  --ink:#e7ecf5; --ink-2:#a2b0c6; --ink-3:#6d7c96;
+  --mana:#57a8e8; --gold:#e2b862; --ember:#d45a3d; --sage:#7fae8c; --violet:#a58ad6;
+  --display:"Cinzel",Georgia,"Times New Roman",serif;
+  --body:"EB Garamond",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  --measure:70ch; --r:3px;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.62;margin:0;padding:0 20px 96px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto}
+.label{font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+p{margin:0}
+.masthead{border-bottom:1px solid var(--edge);padding:56px 0 28px;margin-bottom:44px}
+.masthead .label{color:var(--gold);margin-bottom:18px}
+h1{font-size:clamp(2.1rem,5.4vw,3.5rem);font-weight:900;letter-spacing:.005em;line-height:1.05;margin-bottom:16px}
+.dek{font-size:1.12rem;color:var(--ink-2);max-width:var(--measure);margin-bottom:26px}
+.dek em{color:var(--ink);font-style:italic}
+.tally{display:flex;flex-wrap:wrap;gap:10px 28px;font-family:var(--mono);font-size:.78rem;color:var(--ink-3)}
+.tally b{color:var(--ink);font-weight:500}
+section{margin-bottom:64px}
+.sec-head{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--edge-soft);padding-bottom:10px;margin-bottom:22px}
+h2{font-size:1.5rem;font-weight:700;letter-spacing:.02em}
+.sec-head .label{margin-left:auto;white-space:nowrap}
+.note{color:var(--ink-2);max-width:var(--measure);margin-bottom:22px}
+.note b{color:var(--ink);font-weight:500}
+.inline-code{font-family:var(--mono);font-size:.85em;color:var(--gold)}
+
+.verdict{background:var(--ground-2);border:1px solid var(--edge-soft);border-left:2px solid var(--gold);border-radius:0 var(--r) var(--r) 0;padding:22px 26px;margin-bottom:56px;max-width:860px}
+.verdict h3{font-size:1.05rem;font-weight:700;letter-spacing:.05em;margin-bottom:10px}
+.verdict p{color:var(--ink-2);max-width:var(--measure)}
+.verdict p+p{margin-top:10px}
+.verdict b{color:var(--ink);font-weight:500}
+
+.table-scroll{overflow-x:auto;border:1px solid var(--edge-soft);border-radius:var(--r);margin-bottom:22px}
+table{border-collapse:collapse;width:100%;min-width:900px;font-size:.9rem}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--edge-soft);vertical-align:top}
+thead th{font-family:var(--mono);font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);background:var(--ground-2);font-weight:400;white-space:nowrap;position:sticky;top:0}
+tbody tr:last-child td{border-bottom:none}
+td.fn{font-family:var(--display);font-weight:700;letter-spacing:.02em;font-size:.86rem;color:var(--ink);min-width:150px}
+td.g{color:var(--ink-2);font-size:.88rem;line-height:1.5}
+td.srd{color:var(--ink);background:rgba(87,168,232,.05);font-size:.88rem;line-height:1.5}
+td.srd em{color:var(--gold);font-style:normal}
+tr.grp td{background:var(--ground-2);font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);padding:8px 12px;border-bottom:1px solid var(--edge)}
+.same{color:var(--sage);font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;margin-left:6px}
+.dash{color:var(--ink-3)}
+caption{caption-side:bottom;text-align:left;padding:12px 14px 0;color:var(--ink-3);font-size:.86rem;line-height:1.5}
+
+.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.pillar{background:var(--panel);border:1px solid var(--edge-soft);border-top:2px solid var(--mana);border-radius:var(--r);padding:18px 20px}
+.pillar.hs{border-top-color:var(--gold)} .pillar.ygo{border-top-color:var(--violet)}
+.pillar h3{font-size:1.1rem;font-weight:700;letter-spacing:.03em;margin-bottom:10px}
+.pillar ul{margin:0;padding-left:18px;color:var(--ink-2);font-size:.93rem;line-height:1.5}
+.pillar li{margin-bottom:6px}
+.pillar li b{color:var(--ink);font-weight:500}
+.pillar .why{margin-top:10px;font-family:var(--mono);font-size:.7rem;color:var(--ink-3);line-height:1.5}
+
+.tag{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;border-radius:2px;white-space:nowrap}
+.tag.b{color:var(--ink-2);background:rgba(162,176,198,.1)}
+.tag.h{color:var(--gold);background:rgba(226,184,98,.12)}
+.tag.o{color:var(--sage);background:rgba(127,174,140,.13)}
+
+.space{display:flex;flex-direction:column;gap:2px}
+.idea{background:var(--ground-2);border-left:2px solid var(--mana);padding:16px 22px;display:grid;grid-template-columns:minmax(0,1fr);gap:5px}
+.idea.top{border-left-color:var(--sage)}
+.idea.rare{border-left-color:var(--gold)}
+.idea.skip{border-left-color:var(--ink-3)}
+.idea-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.idea h3{font-size:1.02rem;font-weight:700;letter-spacing:.03em}
+.idea p{color:var(--ink-2);max-width:var(--measure);font-size:.96rem}
+.idea .pre{font-family:var(--mono);font-size:.68rem;color:var(--ink-3);letter-spacing:.02em}
+.fit{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;border-radius:2px;white-space:nowrap}
+.fit.top{color:var(--sage);background:rgba(127,174,140,.13)}
+.fit.good{color:var(--mana);background:rgba(87,168,232,.12)}
+.fit.rare{color:var(--gold);background:rgba(226,184,98,.12)}
+.fit.skip{color:var(--ink-2);background:rgba(162,176,198,.1)}
+h3.sub{font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:26px 0 10px}
+
+.coll{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 36px}
+.coll div{padding:14px 0;border-top:1px solid var(--edge-soft)}
+.coll h3{font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ember);margin-bottom:6px}
+.coll p{color:var(--ink-2);font-size:.93rem;line-height:1.5}
+footer{border-top:1px solid var(--edge);padding-top:22px;color:var(--ink-3);font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;line-height:1.8}
+@media (max-width:760px){body{font-size:16px;padding:0 16px 72px}}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="label">Spawn Row Duel &middot; Design Survey &middot; September 2026</div>
+  <h1>Spawn Row Duel Design Space</h1>
+  <p class="dek">Every mechanic of consequence in <em>Magic: The Gathering</em>, <em>Hearthstone</em> and <em>Yu-Gi-Oh! Master Duel</em>, sorted by what it <em>does</em> rather than what it is called &mdash; so the same idea under three names collapses into one row, and what each game genuinely owns stands out. Then your game as the fourth column, the space none of them occupy, and &mdash; at the word level &mdash; <em>the keyword lexicon</em>: what gets printed on a card, which names are synonyms, and which words are still free.</p>
+  <div class="tally">
+    <span><b>58</b> functions compared</span>
+    <span><b>3</b> games &middot; rules as of early 2026</span>
+    <span><b>34</b> of your mechanics traced to their ancestors</span>
+    <span><b>29</b> system openings, tiered by fit</span>
+    <span><b>63</b> keywords mapped &middot; <b>40</b> names free</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <h3>The short version</h3>
+  <p><b>Most of a card game is the same game.</b> Enter-the-battlefield is Battlecry is &ldquo;when Summoned&rdquo;; Deathrattle is &ldquo;when this dies&rdquo;; Energy is Corpses is Xyz materials is your Vault; Secrets are Traps; Set is Morph is your charge. Roughly two-thirds of the functions below exist in all three games under different names. That is not a criticism &mdash; it is the vocabulary.</p>
+  <p><b>Each game owns three or four things.</b> Magic: the stack, lands, blocking, attackable non-creatures. Hearthstone: the hero power, randomness, Secrets, Locations. Yu-Gi-Oh: no mana at all, the Extra Deck, five summon mechanics, Link arrows, the Chain. Everything else they share.</p>
+  <p><b>Your open space is the two things none of them have &mdash; a grid and buildings &mdash; plus the economy that runs on both.</b> The closest any of the three comes is a Hearthstone Location (a permanent with durability and a once-a-turn activation) and a Yu-Gi-Oh Link arrow (a zone that points at another zone). Everything positional, everything about what a structure can <em>do</em> beyond print mana, and everything about workers as a resource you assign, is yours to define.</p>
+  <p><b>At the word level the same shape holds.</b> Of 63 printed keywords, roughly forty are one idea wearing three names &mdash; Trample is Overwhelm is <em>piercing</em>; Battlecry is Play: is Opening Gambit. The unclaimed words cluster in exactly two places: <b>position</b> (nothing in the big three needs a word for &ldquo;hits the next row&rdquo;, because nothing has rows) and <b>siegecraft</b> (nothing needs a word for &ldquo;extra damage to buildings&rdquo;, because nothing has buildings). The military vocabulary &mdash; enfilade, sortie, cover, garrison, levy &mdash; is sitting there untouched.</p>
+</div>
+
+<section>
+  <div class="sec-head"><h2>The same thing under three names</h2><span class="label">Function &rarr; name in each game</span></div>
+  <p class="note">Read down the function column. Where a row has an entry in all three games, the mechanic is <b>common vocabulary</b> &mdash; a player of any of them will recognise yours instantly, whatever you call it. A dash means the game deliberately doesn&rsquo;t have it. The last column is where Spawn Row Duel stands today; <em>gold</em> marks something you have that the others do not.</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Function</th><th>Magic</th><th>Hearthstone</th><th>Yu-Gi-Oh</th><th>Spawn Row Duel</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="5">Resources and tempo</td></tr>
+        <tr><td class="fn">The primary resource</td><td class="g">Lands &mdash; drawn from the deck, permanent, tap for one. Variance is the design.</td><td class="g">Mana crystals &mdash; +1 a turn automatically, cap 10. Zero variance; the curve is the deck.</td><td class="g">None. One Normal Summon or Set per turn is the budget; everything else is card effects.</td><td class="srd"><em>A generic pool from buildings and workers you place</em>, reset at end of turn unless vaulted. No other CCG builds its resource.</td></tr>
+        <tr><td class="fn">Ramp</td><td class="g">Rampant Growth, mana dorks, mana rocks</td><td class="g">Wild Growth, Innervate, The Coin</td><td class="g">Special Summons that bypass the normal-summon limit</td><td class="srd">Raise a Forge; quarter more workers</td></tr>
+        <tr><td class="fn">A stored resource across turns<span class="same">same</span></td><td class="g">Energy counters (Kaladesh); Treasure, Clue, Food tokens</td><td class="g">Corpses (Death Knight); Overload is the negative version</td><td class="g">Xyz materials, counters</td><td class="srd">Mana Vault carry-over; Overcharge&rsquo;s bank; &#9670; banked on a set card</td></tr>
+        <tr><td class="fn">Sacrifice as a cost<span class="same">same</span></td><td class="g">&ldquo;Sacrifice a creature:&rdquo; &mdash; the whole aristocrats archetype</td><td class="g">&ldquo;Destroy a friendly minion&rdquo; effects</td><td class="g">Tribute Summon &mdash; the central summoning cost</td><td class="srd">Upkeep Sacrifice; play-on-top razes your own card</td></tr>
+        <tr><td class="fn">Tap creatures to pay</td><td class="g">Convoke, Crew (Vehicles), Saddle</td><td class="g">&mdash;</td><td class="g">&mdash; (Link materials are consumed)</td><td class="srd"><em>Workers tap to harvest; towers need a crew (&#9874;&minus;1/&minus;2)</em></td></tr>
+        <tr><td class="fn">Ongoing cost to keep a thing</td><td class="g">Echo, cumulative upkeep, &ldquo;sacrifice unless you pay&rdquo;</td><td class="g">&mdash;</td><td class="g">Some maintenance costs (&ldquo;pay 500 LP or destroy&rdquo;)</td><td class="srd"><em>Worker upkeep per creature; the Move / Pay / Sacrifice settlement; pay-to-stay raiding</em></td></tr>
+        <tr><td class="fn">Cost reduction</td><td class="g">Affinity, delve, improvise, convoke</td><td class="g">&ldquo;Costs (1) less for each&hellip;&rdquo;</td><td class="g">&ldquo;Can be Special Summoned by&hellip;&rdquo; (the cost is a condition)</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Card draw and search<span class="same">same</span></td><td class="g">Draw; tutors</td><td class="g">Draw; Discover</td><td class="g">Draw; search (deck to hand) &mdash; the engine of the game</td><td class="srd">Draw; Reliquary returns the dead</td></tr>
+        <tr><td class="fn">Deck-out<span class="same">same</span></td><td class="g">Lose when drawing from an empty library</td><td class="g">Fatigue &mdash; escalating damage per empty draw</td><td class="g">Lose when you cannot draw</td><td class="srd">Lose when you cannot draw (since 7 Sept)</td></tr>
+
+        <tr class="grp"><td colspan="5">Permanents and card types</td></tr>
+        <tr><td class="fn">Creature<span class="same">same</span></td><td class="g">Creature</td><td class="g">Minion</td><td class="g">Monster</td><td class="srd">Creature</td></tr>
+        <tr><td class="fn">Non-creature permanent with an ongoing effect</td><td class="g">Enchantment, artifact</td><td class="g">Almost none &mdash; <b>Locations</b> since 2022: durability, activate once a turn, cooldown</td><td class="g">Continuous Spell/Trap; Field Spell (one per side)</td><td class="srd"><em>Structures &mdash; 16 of them, off-deck, on a tech tree</em></td></tr>
+        <tr><td class="fn">Attackable non-creature</td><td class="g">Planeswalkers (loyalty); Battles / Sieges (defence counters the <em>opponent</em> protects)</td><td class="g">The hero itself</td><td class="g">&mdash;</td><td class="srd"><em>Every structure; the wall from a row</em></td></tr>
+        <tr><td class="fn">Equipment<span class="same">same</span></td><td class="g">Equipment, Auras</td><td class="g">Weapons (hero, durability)</td><td class="g">Equip Spells</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Face-down permanent<span class="same">same</span></td><td class="g">Morph, Disguise, Manifest &mdash; a 2/2 you flip for a cost</td><td class="g">&mdash;</td><td class="g">Set monster (face-down defence); Set spell/trap</td><td class="srd">The charge: set, <em>pour &#9670; over turns</em>, flip when paid</td></tr>
+        <tr><td class="fn">Pay now, cast later</td><td class="g">Suspend, Foretell, Plot</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">The charge again &mdash; <em>incremental payment is yours alone</em></td></tr>
+        <tr><td class="fn">Tokens<span class="same">same</span></td><td class="g">Tokens</td><td class="g">Tokens</td><td class="g">Tokens</td><td class="srd">Lumen (Ward), Shade (Reap)</td></tr>
+        <tr><td class="fn">A global field effect</td><td class="g">Enchantments</td><td class="g">&mdash;</td><td class="g">Field Spell &mdash; one per side, sets the terms</td><td class="srd">&mdash; <span class="dash">(the Base and forges could)</span></td></tr>
+        <tr><td class="fn">An off-deck toolbox with guaranteed access<span class="same">same</span></td><td class="g">Companion (one card); the Commander</td><td class="g">Hero Power</td><td class="g">Extra Deck &mdash; fifteen cards you always have</td><td class="srd"><em>The build menu &mdash; every structure, every game</em></td></tr>
+        <tr><td class="fn">Grow a permanent in place</td><td class="g">Level up, +1/+1 counters, Sagas, Class enchantments</td><td class="g">Imbue (upgrade the hero power), Titans</td><td class="g">&mdash; (Xyz ranks up via effects)</td><td class="srd"><em>In-place structure upgrades on a tech tree</em></td></tr>
+
+        <tr class="grp"><td colspan="5">Combat</td></tr>
+        <tr><td class="fn">Who picks the target</td><td class="g">Attacker chooses player / walker / battle; <b>defender assigns blockers</b></td><td class="g">Attacker chooses <em>any</em> minion or face; Taunt constrains</td><td class="g">Attacker chooses a monster, or attacks directly if none</td><td class="srd">Attacker chooses; <em>defender may interpose from any row the attack crosses</em></td></tr>
+        <tr><td class="fn">Blocking</td><td class="g">Yes &mdash; the defender&rsquo;s decision, multiple blockers</td><td class="g">No</td><td class="g">No</td><td class="srd">Yes &mdash; row-interval; a same-row strike cannot be blocked; joint attacks</td></tr>
+        <tr><td class="fn">Mutual damage<span class="same">same</span></td><td class="g">Simultaneous combat damage</td><td class="g">Both deal damage</td><td class="g">Battle: both take it, the loser dies</td><td class="srd">Universal retaliation &mdash; anything attacked strikes back</td></tr>
+        <tr><td class="fn">Strike first</td><td class="g">First strike, double strike</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">First Strike</td></tr>
+        <tr><td class="fn">Attack twice</td><td class="g">Double strike; extra combat phases</td><td class="g">Windfury</td><td class="g">&ldquo;Can make a second attack&rdquo;</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Summoning sickness</td><td class="g">Yes; Haste ignores it</td><td class="g">Yes; Charge ignores it, Rush ignores it for minions only</td><td class="g"><b>No</b> &mdash; monsters attack the turn they land</td><td class="srd">Yes; workers arrive sick too</td></tr>
+        <tr><td class="fn">Evasion<span class="same">same</span></td><td class="g">Flying, menace, unblockable, shadow, trample</td><td class="g">Stealth, Elusive, Immune</td><td class="g">Direct attack; &ldquo;cannot be targeted&rdquo;</td><td class="srd">Scour &mdash; flies over interceptors and shatters a back-row card</td></tr>
+        <tr><td class="fn">Must attack / must block<span class="same">same</span></td><td class="g">Lure, provoke, &ldquo;must be blocked if able&rdquo;</td><td class="g">Taunt</td><td class="g">&ldquo;Must attack this card&rdquo;</td><td class="srd">Provoke (on a trap)</td></tr>
+        <tr><td class="fn">Damage carries through</td><td class="g">Trample</td><td class="g">&mdash;</td><td class="g">Piercing (through defence position)</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Position and state</td><td class="g">Tapped / untapped</td><td class="g">Has attacked or not</td><td class="g">Attack / defence position, face-down</td><td class="srd">Tapped; <em>laid (cannot act)</em>; moved this turn</td></tr>
+        <tr><td class="fn">Movement</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash; (zone shifts by effect)</td><td class="srd"><em>One row, any column, each turn. Five rows, seven columns. Only you have this.</em></td></tr>
+        <tr><td class="fn">Freeze / stun<span class="same">same</span></td><td class="g">&ldquo;Doesn&rsquo;t untap&rdquo;</td><td class="g">Freeze</td><td class="g">&ldquo;Cannot attack&rdquo;, forced position change</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Ranged &mdash; hit without being hit</td><td class="g">&mdash; (Reach is the counter to flying, not a range)</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd"><em>The Cannon Tower &mdash; and nothing else yet</em></td></tr>
+
+        <tr class="grp"><td colspan="5">Interaction</td></tr>
+        <tr><td class="fn">Reacting on the opponent&rsquo;s turn</td><td class="g">Instants, flash, activated abilities &mdash; at any time</td><td class="g">Never directly &mdash; only <b>Secrets</b>, hidden triggers set in advance</td><td class="g">Traps, Quick effects, <b>hand traps</b> (interaction from hand)</td><td class="srd">Traps set face-down; a single response window</td></tr>
+        <tr><td class="fn">Hidden trigger<span class="same">same</span></td><td class="g">&mdash; (everything is open information)</td><td class="g">Secret</td><td class="g">Trap</td><td class="srd">Trap &mdash; springs on summon or on attack</td></tr>
+        <tr><td class="fn">The order of responses</td><td class="g">The Stack (last in, first out)</td><td class="g">&mdash;</td><td class="g">The Chain (last in, first out; spell speeds 1&ndash;3)</td><td class="srd">&mdash; one window, no nesting</td></tr>
+        <tr><td class="fn">Counter a spell</td><td class="g">Counterspell</td><td class="g">Counterspell, as a Secret</td><td class="g">Counter Traps; negation is the whole interaction layer</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Removal<span class="same">same</span></td><td class="g">Destroy, exile, bounce, &minus;X/&minus;X, fight</td><td class="g">Destroy, transform, silence, return to hand</td><td class="g">Destroy, banish, return to hand or deck, negate</td><td class="srd">Burn 150/200, Raze (structures), Riptide (bounce), Arc Flash (chain), Detonate, towers</td></tr>
+        <tr><td class="fn">Strip abilities<span class="same">same</span></td><td class="g">&ldquo;Loses all abilities&rdquo;</td><td class="g">Silence</td><td class="g">&ldquo;Negate its effects&rdquo;</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Board wipe<span class="same">same</span></td><td class="g">Wrath of God</td><td class="g">Flamestrike, Twisting Nether</td><td class="g">Raigeki, Dark Hole</td><td class="srd">&mdash; <span class="dash">(open; Arc Flash is the seed)</span></td></tr>
+        <tr><td class="fn">Protection<span class="same">same</span></td><td class="g">Hexproof, <b>Ward</b> (a tax to target), indestructible, protection from a colour</td><td class="g">Elusive, Immune, Divine Shield</td><td class="g">&ldquo;Cannot be targeted / destroyed by card effects&rdquo;</td><td class="srd">Entrench (immovable). <em>Your &ldquo;Ward&rdquo; is a different thing &mdash; see collisions</em></td></tr>
+        <tr><td class="fn">Absorb one hit<span class="same">same</span></td><td class="g">Shield counters (2022)</td><td class="g">Divine Shield</td><td class="g">&mdash;</td><td class="srd">Ward&rsquo;s 0/2 Lumen, in effect</td></tr>
+
+        <tr class="grp"><td colspan="5">Triggers and keywords</td></tr>
+        <tr><td class="fn">On entering<span class="same">same</span></td><td class="g">&ldquo;When this enters&rdquo; (ETB)</td><td class="g">Battlecry</td><td class="g">&ldquo;When this card is Summoned&rdquo;</td><td class="srd">Ward (conjures a Lumen beside it)</td></tr>
+        <tr><td class="fn">On dying<span class="same">same</span></td><td class="g">&ldquo;When this dies&rdquo;</td><td class="g">Deathrattle</td><td class="g">&ldquo;If this card is destroyed&rdquo;</td><td class="srd">Detonate (damage), Reap (a token)</td></tr>
+        <tr><td class="fn">Comes back once<span class="same">same</span></td><td class="g">Undying, Persist</td><td class="g">Reborn</td><td class="g">&mdash; (spells do it)</td><td class="srd">&mdash; (Reliquary returns it to hand instead)</td></tr>
+        <tr><td class="fn">Static buff to others<span class="same">same</span></td><td class="g">Anthems</td><td class="g">&ldquo;Your other minions have +1/+1&rdquo;</td><td class="g">Field Spells, continuous boosts</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Grows over time<span class="same">same</span></td><td class="g">Level up, Sagas, Monstrosity</td><td class="g">Dormant &mdash; sleeps N turns, then wakes</td><td class="g">&mdash;</td><td class="srd">Chrysalis &mdash; grows each turn, then hatches</td></tr>
+        <tr><td class="fn">Lifelink / Deathtouch<span class="same">same</span></td><td class="g">Lifelink; Deathtouch</td><td class="g">Lifesteal; Poisonous</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Triggers when damaged<span class="same">same</span></td><td class="g">Enrage</td><td class="g">Frenzy</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Modal &mdash; choose one of N<span class="same">same</span></td><td class="g">Charms, Spree, kicker</td><td class="g">Choose One</td><td class="g">&mdash; (rare)</td><td class="srd">&mdash; <span class="dash">(open)</span></td></tr>
+        <tr><td class="fn">Random generation</td><td class="g">&mdash; (a design taboo)</td><td class="g">Discover, &ldquo;a random X&rdquo; &mdash; digital-native, the house style</td><td class="g">&mdash;</td><td class="srd">&mdash; (you are digital; open)</td></tr>
+        <tr><td class="fn">Bounce the attacker</td><td class="g">Aetherize-style effects</td><td class="g">&mdash;</td><td class="g">&ldquo;Return the attacking monster to the hand&rdquo;</td><td class="srd">Undertow &mdash; as a keyword on a blocker</td></tr>
+        <tr><td class="fn">Store, then burst</td><td class="g">Energy; charge counters</td><td class="g">&mdash;</td><td class="g">Detach Xyz material</td><td class="srd">Overcharge &mdash; banks &#9670; three turns, discharges as &#9876;</td></tr>
+        <tr><td class="fn">Once-per-turn as a balance lever</td><td class="g">Occasional</td><td class="g">Not needed &mdash; mana does it</td><td class="g"><b>The</b> lever: &ldquo;hard once per turn&rdquo; on nearly every effect</td><td class="srd">The Reliquary latch</td></tr>
+        <tr><td class="fn">Type and attribute synergy<span class="same">same</span></td><td class="g">Creature types (tribal); colour</td><td class="g">Minion types (Beast, Mech, Dragon&hellip;)</td><td class="g">Type (Dragon, Warrior) &times; Attribute (FIRE, WATER&hellip;); archetypes by name</td><td class="srd">Element &times; tribe/subtype &mdash; the Yu-Gi-Oh shape, <em>and nothing reads it yet</em></td></tr>
+        <tr><td class="fn">Deck identity</td><td class="g">Colour identity (Commander); the pie</td><td class="g">Class (11), dual-class cards</td><td class="g">Archetype</td><td class="srd">The commander: one or two elements, its own workers, its own build list</td></tr>
+        <tr><td class="fn">Deck size and copies<span class="same">same</span></td><td class="g">60 / 4</td><td class="g">30 / 2 (1 legendary)</td><td class="g">40&ndash;60 / 3</td><td class="srd">40 / 3 &mdash; Yu-Gi-Oh&rsquo;s</td></tr>
+        <tr><td class="fn">Life scale</td><td class="g">20</td><td class="g">30 + armour</td><td class="g">8000</td><td class="srd">10000, printed &divide;10 &mdash; Yu-Gi-Oh&rsquo;s scale</td></tr>
+        <tr><td class="fn">Alternate win conditions</td><td class="g">Poison, mill, Thassa&rsquo;s Oracle, Approach&hellip; many, all rare</td><td class="g">A handful of Quests; Mecha&rsquo;thun</td><td class="g">Exodia, Final Countdown &mdash; rare, famous</td><td class="srd">Deck-out only. You have said alternates should be under 10%.</td></tr>
+        <tr><td class="fn">Turn structure</td><td class="g">Untap, upkeep, draw, main, combat, <b>main 2</b>, end</td><td class="g">Start, draw, one open phase, end</td><td class="g">Draw, standby, main 1, battle, <b>main 2</b>, end</td><td class="srd">Upkeep (settle), harvest, draw, action, combat, end &mdash; <em>no second action phase after combat</em></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>What each game actually owns</h2><span class="label">The pillars nobody else copied</span></div>
+  <div class="pillars">
+    <div class="pillar">
+      <h3>Magic</h3>
+      <ul>
+        <li><b>The stack and instant speed.</b> Anyone can act at any time; responses nest. The richest interaction in the genre, and the slowest.</li>
+        <li><b>Lands.</b> The resource is in the deck, so it varies &mdash; screw and flood are the game&rsquo;s drama, and the colour pie hangs off it.</li>
+        <li><b>Blocking</b> as the defender&rsquo;s decision. The only one of the three where defence is played, not just declared.</li>
+        <li><b>Attackable non-creatures.</b> Planeswalkers, then Battles: permanents the <em>opponent</em> protects.</li>
+        <li><b>The graveyard as a resource</b> &mdash; flashback, delve, escape. Cards that come back are a design axis.</li>
+        <li><b>Time mechanics</b> &mdash; suspend, Sagas, foretell, plot. Paying now for later.</li>
+        <li><b>Speed</b> (2025): a global counter that ramps to Max &mdash; the nearest thing a CCG has to a tech level.</li>
+      </ul>
+      <p class="why">What it buys: depth and expressiveness. What it costs: a rules engine the size of a legal code, and twenty-minute games.</p>
+    </div>
+    <div class="pillar hs">
+      <h3>Hearthstone</h3>
+      <ul>
+        <li><b>The hero power.</b> A small action you always have &mdash; the direct ancestor of your build menu, and Imbue lets it tech up.</li>
+        <li><b>Randomness on purpose.</b> Discover, &ldquo;a random Dragon&rdquo;, generated cards. Only possible because it is digital; Magic forbids it.</li>
+        <li><b>Secrets</b> &mdash; the entire reactive layer is hidden triggers, because nothing else happens on your opponent&rsquo;s turn.</li>
+        <li><b>Locations</b> (2022): a permanent with durability that you activate once a turn. The closest thing in any of the three to a structure that <em>does</em> something.</li>
+        <li><b>Weapons and armour</b> &mdash; the hero fights and wears things.</li>
+        <li><b>The ten-crystal cap and no floating.</b> Every late turn is still a decision.</li>
+        <li><b>Starships</b> (2025): assemble a vehicle from parts over turns &mdash; a build mechanic, in a card game.</li>
+      </ul>
+      <p class="why">What it buys: pace and legibility &mdash; the benchmark for both. What it costs: interaction; the opponent&rsquo;s turn is a cutscene.</p>
+    </div>
+    <div class="pillar ygo">
+      <h3>Yu-Gi-Oh</h3>
+      <ul>
+        <li><b>No mana.</b> The one Normal Summon a turn is the budget; the game is about breaking that limit. Turn one can be the whole game.</li>
+        <li><b>The Extra Deck</b> &mdash; fifteen cards you always have, reached by converting your board: Fusion, Synchro, Xyz, Link, Pendulum. Five different summons, five different economies.</li>
+        <li><b>Link arrows.</b> Zones that point at other zones. The only positional mechanic in any of the three &mdash; and it is only about where you may summon.</li>
+        <li><b>Pendulum scales</b> &mdash; two &ldquo;structures&rdquo; you set to enable mass summoning every turn.</li>
+        <li><b>The Chain, negation, hand traps.</b> Interaction is about stopping the other player&rsquo;s engine, from anywhere, including your hand.</li>
+        <li><b>Set and Flip; attack / defence position.</b> Face-down is a state, not a trick.</li>
+        <li><b>Hard once-per-turn</b> as the universal safety valve.</li>
+      </ul>
+      <p class="why">What it buys: explosive turns and a toolbox always in reach. What it costs: readability &mdash; famously &mdash; and games decided before the second player acts.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Where your mechanics came from</h2><span class="label">Borrowed &middot; hybrid &middot; original</span></div>
+  <p class="note">Every mechanic in the game today, traced. <span class="tag b">borrowed</span> means a player of that game already knows it. <span class="tag h">hybrid</span> means the parts exist but the combination is yours. <span class="tag o">original</span> means none of the three has it &mdash; and those are the rows to build on.</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Yours</th><th>Nearest relatives</th><th style="text-align:right">Lineage</th></tr></thead>
+      <tbody>
+        <tr><td class="fn">A built economy &mdash; Base, Forge, Encampment, Vault</td><td class="g">StarCraft&rsquo;s tech tree; Faeria&rsquo;s placed lands are the only CCG cousin. Hearthstone&rsquo;s hero power is the &ldquo;always available action&rdquo; ancestor.</td><td class="g" style="text-align:right"><span class="tag o">original</span></td></tr>
+        <tr><td class="fn">Workers as a derived supply</td><td class="g">RTS supply cap; Magic&rsquo;s Convoke and Crew (tap bodies to pay); Death Knight Corpses</td><td class="g" style="text-align:right"><span class="tag o">original</span></td></tr>
+        <tr><td class="fn">The upkeep settlement &mdash; move, pay, sacrifice</td><td class="g">Magic&rsquo;s echo and &ldquo;sacrifice unless you pay&rdquo;; StarCraft&rsquo;s supply block</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Pay-to-stay raiding</td><td class="g">Nothing. A creature that costs upkeep <em>to stand on enemy ground</em> is yours.</td><td class="g" style="text-align:right"><span class="tag o">original</span></td></tr>
+        <tr><td class="fn">Mana resets unless vaulted</td><td class="g">Hearthstone&rsquo;s no-floating; Magic&rsquo;s Energy for the vault</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Structures off-deck on a tech tree, upgraded in place</td><td class="g">Extra Deck (guaranteed access) + hero power + Imbue + RTS buildings</td><td class="g" style="text-align:right"><span class="tag o">original</span></td></tr>
+        <tr><td class="fn">Cannon Tower / Bombard</td><td class="g">A Hearthstone Location that activates each turn; a Magic planeswalker that pings; crewed like a Vehicle</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Reliquary</td><td class="g">A recursion engine &mdash; Hearthstone&rsquo;s &ldquo;return a minion to hand&rdquo; deathrattles, Magic&rsquo;s graveyard loops &mdash; made a building</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">The grid, rows, columns, movement</td><td class="g">Duelyst, Faeria, Duel of Champions &mdash; none of the big three. Link arrows are the only positional idea among them.</td><td class="g" style="text-align:right"><span class="tag o">original</span> <span class="tag b" title="vs the board games">vs the board CCGs: borrowed</span></td></tr>
+        <tr><td class="fn">Row-interval blocking</td><td class="g">Magic&rsquo;s blocking, with your geometry deciding who may</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Universal retaliation; joint attacks</td><td class="g">Mutual combat damage (all three); banding-ish group attacks</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">The wall as the life pool, struck from a row</td><td class="g">LP / hero life; Magic&rsquo;s Battles for &ldquo;siege a thing from the board&rdquo;</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Set face-down, pour &#9670;, flip</td><td class="g">Yu-Gi-Oh Set; Magic&rsquo;s Morph and Foretell / Plot. Paying in instalments is yours.</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Traps that spring on summon or attack</td><td class="g">Yu-Gi-Oh Traps; Hearthstone Secrets</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Response window</td><td class="g">Magic&rsquo;s priority, with the nesting removed</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">First Strike</td><td class="g">Magic, by name</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Detonate</td><td class="g">Deathrattle: deal damage; Magic&rsquo;s &ldquo;when this dies, it deals N&rdquo;</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Reap</td><td class="g">Deathrattle: summon a token; Undying in spirit</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Ward (yours)</td><td class="g">&ldquo;Battlecry: summon a 0/2 Taunt&rdquo; &mdash; a Hearthstone card, not a keyword</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Chrysalis</td><td class="g">Dormant; Level up; a Saga with one chapter</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Scour</td><td class="g">Flying &mdash; plus a back-row raze on attack, which is new</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Undertow</td><td class="g">Aetherize-style bounce, as a keyword on a blocker. Rare enough to count as yours.</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Entrench</td><td class="g">Only meaningful in a game with movement &mdash; the others have no &ldquo;cannot be moved&rdquo; because nothing moves</td><td class="g" style="text-align:right"><span class="tag o">original</span></td></tr>
+        <tr><td class="fn">Overcharge</td><td class="g">Energy; the inverse of Overload; detaching Xyz material</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Burn, raze, bounce, chain lightning spells</td><td class="g">Every game&rsquo;s removal suite</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Commander: element(s), workers, a build list</td><td class="g">Hearthstone class hero + Commander colour identity</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+        <tr><td class="fn">Element &times; tribe / subtype</td><td class="g">Yu-Gi-Oh Attribute &times; Type, exactly</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">40 cards, 3 copies; life &times;500</td><td class="g">Yu-Gi-Oh</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Deck-out</td><td class="g">Magic and Yu-Gi-Oh</td><td class="g" style="text-align:right"><span class="tag b">borrowed</span></td></tr>
+        <tr><td class="fn">Play-on-top; send banked mana</td><td class="g">Tribute in spirit; moving counters</td><td class="g" style="text-align:right"><span class="tag h">hybrid</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>The pattern:</b> your <em>cards</em> are borrowed vocabulary &mdash; which is right; that is what makes them learnable. Your <em>systems</em> are original: the built economy, workers, the grid, structures on a tree, the settlement, raiding. The playtest said the same thing from the other side: the creatures are basic and the middle of the game is new. So the space to spend design on is where the original systems meet the cards &mdash; keywords and buildings that only make sense on a grid with an economy.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>The open space</h2><span class="label">29 openings, by what only you can do</span></div>
+  <p class="note">Tiered by how much they lean on the two things nobody else has. <span class="fit top">best fit</span> uses the grid or the buildings <em>and</em> the economy at once; <span class="fit good">good fit</span> uses one; <span class="fit rare">rare</span> is fine at the edges but should stay under your 10% for alternates; <span class="fit skip">skip</span> is the others&rsquo; identity, not yours.</p>
+
+  <h3 class="sub">Structures that do things</h3>
+  <div class="space">
+    <div class="idea top"><div class="idea-top"><h3>Activated structures &mdash; pay &#9670; once a turn for an effect</h3><span class="fit top">best fit</span></div><p>A Barracks that spends &#9670;2 to raise a 1/1 militia; a Library that spends &#9670;1 to draw; a Watchtower that spends &#9670;1 to look at their top card. This is the Hearthstone Location, made a building. It also solves the problem the playtest measured hardest: <b>17 mana a turn with nothing to spend it on</b>. Activated structures are mana sinks that scale with the economy they sit in.</p><p class="pre">precedent: Hearthstone Locations, hero powers &middot; cost: one new StructEffect kind + a HUD button on the standee</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Walls that actually block</h3><span class="fit top">best fit</span></div><p>Make <span class="inline-code">eff:'wall'</span> real: an attack that crosses a Bulwark&rsquo;s row must be aimed at the Bulwark first, and a creature standing behind it in the same column cannot be attacked at all. Taunt for buildings. The dead effect becomes the reason sieges exist &mdash; and the reason the sapper has to bring a bigger army.</p><p class="pre">precedent: Taunt, Lure, Battles &middot; cost: one clause in CombatEligibility &middot; the playtest already found structure HP is the sapper lever; this is the same lever from the defender&rsquo;s side</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Production &mdash; a building that makes a unit every N turns</h3><span class="fit top">best fit</span></div><p>The RTS idiom in one card: a Barracks that raises a 2/2 Militia every second upkeep, crewed like a tower (&#9874;&minus;1). Structures become the source of board presence, not just mana, and razing one is now removing a spawner &mdash; the sapper&rsquo;s reason to exist without touching the wall rule.</p><p class="pre">precedent: Assemble the Legion (Magic), Starship pieces (Hearthstone) &middot; cost: a StructEffect with a counter, like Chrysalis</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Garrison &mdash; a creature inside a building</h3><span class="fit top">best fit</span></div><p>Move a creature onto a friendly structure&rsquo;s cell: it cannot be attacked or targeted, the structure gains its attack and retaliates with it, and destroying the structure ejects it damaged. A tower becomes a tower <em>with an archer in it</em>. Nothing in the three games has this &mdash; Vehicles and Crew are the nearest and they are a shadow of it.</p><p class="pre">precedent: Vehicles + Crew (Magic) &middot; cost: a cell can hold two objects; medium</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Structures as gates</h3><span class="fit top">best fit</span></div><p>Two flavours, both proposed already: <b>forge-gated colour spells</b> (&ldquo;needs a Gloomwell&rdquo;) and <b>tier-gated creatures</b> (&ldquo;needs a Keep&rdquo;). This is how RTS games make buildings matter without giving them abilities: no Templar Archives, no High Templar. It is also a mana sink in disguise &mdash; you build the gate to unlock the card. Magic&rsquo;s Speed counter (2025) is the only CCG analogue of a tech level, and it is global; yours is on the board and can be razed.</p><p class="pre">precedent: StarCraft tech tree; Speed (Aetherdrift) &middot; cost: a <span class="inline-code">needs</span> field on cards + one check in PlayCardHandler</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Structure adjacency</h3><span class="fit good">good fit</span></div><p>A Forge beside the Base yields one more; a Barracks gives the creature in front of it +50; two Encampments side by side share a crew. City-builder logic on your grid. Only a game with buildings <em>and</em> positions can have it.</p><p class="pre">precedent: none in card games; SimCity, Anno &middot; cost: adjacency lookup in the upkeep tick</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Under construction</h3><span class="fit good">good fit</span></div><p>Structures take a turn to complete, and a worker standing beside one finishes it now. The tower already works this way in effect (built this turn, fires next harvest); make it universal, visible, and something workers can spend themselves on. Raiding a half-built forge is a real play.</p><p class="pre">precedent: Suspend, Plot &middot; cost: a flag + a turn counter on StructureUnit</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Reactive structures</h3><span class="fit good">good fit</span></div><p>A tower that fires when a creature <em>enters</em> its row; a Bulwark that raises a shield when its row is attacked; a Ward Tower that negates the first enemy spell each turn. Yu-Gi-Oh&rsquo;s traps are cards; yours can be buildings &mdash; permanent, visible, razeable interaction, bounded by once-per-turn. It answers the &ldquo;the opponent&rsquo;s turn is a cutscene&rdquo; problem Hearthstone has without importing the stack.</p><p class="pre">precedent: Secrets, Trap monsters, Counter Traps &middot; cost: structures as trigger sources in Triggers.cs</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Repair</h3><span class="fit good">good fit</span></div><p>Nothing heals a structure today. A worker action &mdash; &#9670;1 and a tapped worker to restore 100 &mdash; makes damaged buildings a decision instead of a countdown, and gives workers a third thing to do.</p><p class="pre">precedent: none (Magic proliferate, loosely) &middot; cost: one command</p></div>
+    <div class="idea rare"><div class="idea-top"><h3>Siege objectives on their side</h3><span class="fit rare">rare</span></div><p>Magic&rsquo;s Battles: a permanent you put on the opponent&rsquo;s side that <em>they</em> must defend. A Siege Camp planted in their front row that wins a reward if it stands for three turns. Keep it a reward, not a win, and it is a great use of the grid.</p><p class="pre">precedent: Battles / Sieges (Magic 2023) &middot; keep under the 10%</p></div>
+    <div class="idea rare"><div class="idea-top"><h3>A wonder</h3><span class="fit rare">rare</span></div><p>A late, expensive structure that wins if it survives N turns. Every one of the three has one famous alternate win; this would be yours, and it is a structure, which is right. Rare by cost.</p><p class="pre">precedent: Exodia, Quests, Azor&rsquo;s Elocutors &middot; keep under the 10%</p></div>
+  </div>
+
+  <h3 class="sub">Position &mdash; the thing only a grid has</h3>
+  <div class="space">
+    <div class="idea top"><div class="idea-top"><h3>Ranged creatures, and Reach</h3><span class="fit top">best fit</span></div><p>A creature that attacks across rows without moving &mdash; blockable by the row-interval rule, exactly like the tower shot you want blockable. Then <b>Reach</b> as the answer: a creature that may block ranged attacks from any row. This turns your existing blocking geometry into a rock-paper-scissors of range, and gives the tower a family instead of a monopoly.</p><p class="pre">precedent: Reach (Magic, inverted) &middot; cost: attack declaration without movement; the resolver already handles crossed rows</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Adjacency auras</h3><span class="fit top">best fit</span></div><p>&ldquo;Creatures beside this get +50.&rdquo; Link arrows are Yu-Gi-Oh&rsquo;s one positional idea, and they only decide where you may summon; an aura that reads the neighbouring cells is the same idea with teeth. Formation becomes a decision every turn.</p><p class="pre">precedent: Link arrows; Duelyst&rsquo;s adjacency &middot; cost: cheap &mdash; a keyword that reads the four neighbours</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Movement keywords</h3><span class="fit good">good fit</span></div><p><b>Charge</b>: move and attack in one turn. <b>Slow</b>: move or attack, not both. <b>Swift</b>: two moves. <b>Phalanx</b>: moves as a group. Haste and Rush are the only movement-adjacent keywords the others have, and they are about summoning sickness. Yours would be about the board.</p><p class="pre">precedent: Haste / Rush &middot; cost: flags on MoveUnit</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Terrain rules on the middle row</h3><span class="fit good">good fit</span></div><p>The arena already rolls a biome. Let it mean something: forest gives the centre row stealth (cannot be attacked from two rows away), sand slows movement across it, stone gives structures there +100. A global rule that changes every match, drawn from what is already on screen.</p><p class="pre">precedent: Field Spells (Yu-Gi-Oh), Duelyst tiles &middot; cost: a per-biome rule table</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Zone control</h3><span class="fit good">good fit</span></div><p>A structure that makes the row in front of it cost &#9670;1 to enter, or that stops enemy creatures ending a move beside it. Bunkers. The grid finally has choke points, and the centre row is worth fighting over for a reason beyond being in the way.</p><p class="pre">precedent: none &middot; cost: a movement-cost hook</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Cover</h3><span class="fit good">good fit</span></div><p>A creature with a friendly structure in front of it (same column, nearer the enemy) cannot be hit by towers or ranged attacks. Buildings become shelter as well as economy; where you put the Forge now matters to the army.</p><p class="pre">precedent: none &middot; cost: a column check in FireTower / ranged targeting</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Flank and rear</h3><span class="fit good">good fit</span></div><p>Attacking from the centre row into their front gives +50 (flank); a creature with a friendly creature in front of it in the same column cannot be attacked (rear guard). Formation as a mechanic, not just a picture.</p><p class="pre">precedent: Summoner Wars, Duelyst &middot; cost: two eligibility clauses</p></div>
+  </div>
+
+  <h3 class="sub">Workers and the economy</h3>
+  <div class="space">
+    <div class="idea top"><div class="idea-top"><h3>Contested income on the middle row</h3><span class="fit top">best fit</span></div><p>Magic&rsquo;s Monarch and Initiative are contested statuses &mdash; whoever holds them draws. Yours can be a <em>place</em>: a Mine that stands on the centre row and yields &#9670;2 to whoever controls the cells around it. King of the hill, on a board that already has a hill. The centre row stops being a corridor.</p><p class="pre">precedent: the Monarch, the Initiative &middot; cost: a neutral structure + a control check</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Hiring &mdash; mana into workers</h3><span class="fit top">best fit</span></div><p>Pay &#9670;2 at a structure to add a worker to its row, up to what the row&rsquo;s buildings can house. Today support is fixed by the building; with hiring it is a choice, mana has somewhere to go, and &ldquo;workers are resources&rdquo; is literally true &mdash; you buy them.</p><p class="pre">precedent: Corpses, inverted &middot; cost: a command + a housing cap</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Worker assignment</h3><span class="fit good">good fit</span></div><p>Each turn a worker either harvests, or builds (finishes construction), or garrisons (adds +50 to the structure it stands in). The RTS economy proper. The deepest version of your unique layer, and the one with the most UI.</p><p class="pre">precedent: StarCraft, Agricola &middot; cost: high &mdash; a per-worker state and a way to set it on a phone</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Supply as a printed keyword</h3><span class="fit good">good fit</span></div><p>Creatures already carry upkeep. Print it as a keyword family: <b>Quartermaster</b> (other creatures in this row cost one less to keep), <b>Elite</b> (costs two, hits harder), <b>Levy</b> (free to keep, dies at end of turn). The settlement phase becomes a place cards are designed for, not just a tax.</p><p class="pre">precedent: StarCraft supply &middot; cost: keyword hooks in WorkerMath</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Spend the vault</h3><span class="fit good">good fit</span></div><p>Magic&rsquo;s Energy pays for abilities. Let banked &#9670; be an alternate cost &mdash; a spell that costs &ldquo;&#9670;3, or &#9670;1 from the vault&rdquo; &mdash; and the Vault becomes a strategy instead of a buffer.</p><p class="pre">precedent: Energy &middot; cost: a second cost field</p></div>
+  </div>
+
+  <h3 class="sub">Cards, colour, and the rest</h3>
+  <div class="space">
+    <div class="idea good"><div class="idea-top"><h3>Tribes that do something</h3><span class="fit good">good fit</span></div><p>Dragon, Warrior, Wizard, Human are on the cards and nothing reads them. The cheapest depth available: &ldquo;+50 for each other Dragon you control&rdquo;, &ldquo;Wizards cost one less to keep&rdquo;. Yu-Gi-Oh&rsquo;s entire archetype system is this.</p><p class="pre">precedent: tribal (Magic), minion types (Hearthstone), Types (Yu-Gi-Oh) &middot; cost: trivial</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Devotion scaling for premium colour spells</h3><span class="fit good">good fit</span></div><p>&ldquo;Deal 50, +25 for each Dark creature you control.&rdquo; Never a dead card, rewards commitment. Pair with the forge gate as the floor; use your &ldquo;needs a Dark creature&rdquo; for signature cards only.</p><p class="pre">precedent: Devotion (Theros), Spell Damage &middot; cost: a count in SpellEngine</p></div>
+    <div class="idea good"><div class="idea-top"><h3>A second action phase</h3><span class="fit good">good fit</span></div><p>Magic and Yu-Gi-Oh both act again after combat; you do not. Building <em>after</em> the attack &mdash; rebuilding what they razed, raising a tower where the line held &mdash; is the RTS rhythm, and it is one phase-machine edge.</p><p class="pre">precedent: Main Phase 2 &middot; cost: one transition</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Search</h3><span class="fit good">good fit</span></div><p>Eight creatures an element is a thin pool; Yu-Gi-Oh makes thin pools consistent with search. A structure or spell that tutors a creature of your element from the deck fixes consistency without adding cards.</p><p class="pre">precedent: search (Yu-Gi-Oh), tutors &middot; cost: trivial</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Digital-native choice</h3><span class="fit good">good fit</span></div><p>You are digital. A Recruit structure that offers a choice of three creatures from your pool, a rolled terrain that changes the rules, a hidden worker count. Hearthstone owns randomness in the genre; you can take the <em>choice</em> half of it without the coin flips.</p><p class="pre">precedent: Discover &middot; cost: a choice request, which the engine already has</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Siege units</h3><span class="fit good">good fit</span></div><p>&ldquo;Siege: double damage to structures.&rdquo; &ldquo;Breach: may attack the wall past a structure.&rdquo; Trample for a game with buildings. Makes the sapper a deck you build rather than a plan you hope for.</p><p class="pre">precedent: Trample, Piercing &middot; cost: two damage modifiers</p></div>
+    <div class="idea good"><div class="idea-top"><h3>The rest of the evergreen set</h3><span class="fit good">good fit</span></div><p>Lifelink, Deathtouch, Enrage/Frenzy, Freeze, Windfury, Taunt, Choose One, board wipes, silence, counterspell. All missing, all common vocabulary, all cheap. Not where the identity is &mdash; but the creatures are basic because these are absent, and every one is a few lines in KeywordEngine.</p><p class="pre">precedent: everywhere &middot; cost: low, one at a time</p></div>
+    <div class="idea skip"><div class="idea-top"><h3>Skip: the stack, hand traps, hand-position mechanics</h3><span class="fit skip">skip</span></div><p>Nested responses are Magic&rsquo;s identity and its cost; instant-speed interaction from hand is Yu-Gi-Oh&rsquo;s. Outcast (Hearthstone) reads the position of a card in your hand, which has no meaning on a board. Your reactive layer should be <em>buildings</em>, above.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>The keyword lexicon</h2><span class="label">What is actually printed on the card</span></div>
+  <p class="note">The word layer rather than the system layer. Two extra columns earn their place: <b>Yu-Gi-Oh has almost no formal keywords</b> &mdash; it writes full sentences, and the <em>community</em> supplies the vocabulary (piercing, floodgate, hand trap, omni-negate, hard once-per-turn), so that column carries community terms in italics. And the <b>grid CCGs</b> &mdash; Duelyst, Legends of Runeterra &mdash; matter more to you than to anyone, because Duelyst is the closest thing to your board that has ever shipped and it had to name all of this already.</p>
+  <div class="table-scroll">
+    <table>
+      <caption>Read across: where four columns are filled, the idea is settled vocabulary and you should borrow the clearest name rather than invent. Where the row is mostly empty, the games did not need a word &mdash; and those gaps are the next section.</caption>
+      <thead><tr><th>What it does</th><th>Magic</th><th>Hearthstone</th><th>Yu-Gi-Oh <span style="text-transform:none">(<em>community</em>)</span></th><th>Duelyst / Runeterra</th><th>Spawn Row Duel</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="6">Damage and death</td></tr>
+        <tr><td class="fn">Excess damage carries on<span class="same">4 names</span></td><td class="g">Trample</td><td class="g">&mdash;</td><td class="g"><em>piercing</em> (&ldquo;inflicts piercing battle damage&rdquo;)</td><td class="g">Overwhelm (LoR)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Any damage kills<span class="same">4 names</span></td><td class="g">Deathtouch</td><td class="g">Poisonous; Venomous (once)</td><td class="g">&mdash;</td><td class="g">Deadly (LoR)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Damage heals you<span class="same">3 names</span></td><td class="g">Lifelink</td><td class="g">Lifesteal</td><td class="g">&mdash;</td><td class="g">Lifesteal (LoR)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Hits before it is hit<span class="same">3 names</span></td><td class="g">First strike; Double strike</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">Quick Attack (LoR)</td><td class="srd">First Strike</td></tr>
+        <tr><td class="fn">Attacks twice<span class="same">3 names</span></td><td class="g">Double strike</td><td class="g">Windfury; Mega-Windfury</td><td class="g">&ldquo;can attack twice&rdquo;</td><td class="g">Double Attack (LoR); Celerity (Duelyst)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Ignores the first hit<span class="same">3 names</span></td><td class="g">Shield counter</td><td class="g">Divine Shield</td><td class="g">&mdash;</td><td class="g">Barrier (LoR); Forcefield (Duelyst)</td><td class="srd">Ward &mdash; <em>a token, not a shield</em></td></tr>
+        <tr><td class="fn">Triggers on surviving damage<span class="same">2 names</span></td><td class="g">Enrage</td><td class="g">Frenzy</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+
+        <tr class="grp"><td colspan="6">Evasion and interception</td></tr>
+        <tr><td class="fn">Only some things can block it<span class="same">5 names</span></td><td class="g">Flying; Menace; Shadow; Horsemanship</td><td class="g">Stealth</td><td class="g">&mdash;</td><td class="g">Elusive, Fearsome (LoR); Flying (Duelyst)</td><td class="srd">Scour &mdash; flier <em>and</em> a back-row raze</td></tr>
+        <tr><td class="fn">Can catch a flier<span class="same">1 name</span></td><td class="g">Reach</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">open &mdash; and you need it</span></td></tr>
+        <tr><td class="fn">Must be dealt with first<span class="same">4 names</span></td><td class="g">&mdash; (Lure; &ldquo;must be blocked&rdquo;)</td><td class="g">Taunt</td><td class="g">&ldquo;must attack this card&rdquo;</td><td class="g">Provoke (Duelyst); Challenger pulls (LoR)</td><td class="srd">Provoke &mdash; on a trap, not a body</td></tr>
+        <tr><td class="fn">Cannot be targeted<span class="same">4 names</span></td><td class="g">Hexproof; Shroud; Protection</td><td class="g">Elusive; Immune</td><td class="g">&ldquo;cannot be targeted&rdquo; <em>(non-targeting removal is the counter)</em></td><td class="g">Spellshield (LoR)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Costs extra to target</td><td class="g"><b>Ward</b> &mdash; a tax</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd"><em>your Ward means something else &mdash; see collisions</em></td></tr>
+        <tr><td class="fn">Attacks without exhausting<span class="same">1 name</span></td><td class="g">Vigilance</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Cannot attack<span class="same">2 names</span></td><td class="g">Defender</td><td class="g">&mdash;</td><td class="g">(Defence Position)</td><td class="g">&mdash;</td><td class="srd">Chrysalis, while cocooned</td></tr>
+        <tr><td class="fn">Skip its next action<span class="same">3 names</span></td><td class="g">&ldquo;doesn&rsquo;t untap&rdquo;</td><td class="g">Freeze</td><td class="g">&mdash;</td><td class="g">Frostbite (LoR); Stunned (Duelyst)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Acts the turn it arrives<span class="same">4 names</span></td><td class="g">Haste</td><td class="g">Charge; Rush (minions only)</td><td class="g">(always true &mdash; no sickness)</td><td class="g">Rush (Duelyst)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+
+        <tr class="grp"><td colspan="6">Position &mdash; where the big three fall silent</td></tr>
+        <tr><td class="fn">Hits the cell behind the target</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g"><b>Blast</b> (Duelyst &mdash; the whole row)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Hits neighbouring cells</td><td class="g">&mdash;</td><td class="g">&ldquo;damage adjacent minions&rdquo; <em>(no keyword)</em></td><td class="g">&mdash;</td><td class="g"><b>Frenzy</b> (Duelyst &mdash; all adjacent)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Attacks at a distance</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g"><b>Ranged</b> (Duelyst)</td><td class="srd">the Cannon Tower, with no word for it</td></tr>
+        <tr><td class="fn">Buffs the cells around it</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">Link arrows <em>(enable, not buff)</em></td><td class="g"><b>Zeal</b> (Duelyst &mdash; near your General); Support (LoR &mdash; the ally beside it)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Bonus for attacking from behind</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g"><b>Backstab</b> (Duelyst)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Arrives anywhere on the board</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g"><b>Airdrop</b> (Duelyst)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Cannot be moved<span class="same">2 names</span></td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">Immobile (LoR)</td><td class="srd">Entrench</td></tr>
+        <tr><td class="fn">Moves further</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">Celerity (Duelyst)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+
+        <tr class="grp"><td colspan="6">Triggers</td></tr>
+        <tr><td class="fn">On arrival<span class="same">5 names</span></td><td class="g">&ldquo;When this enters&rdquo; <em>(no keyword)</em></td><td class="g">Battlecry</td><td class="g">&ldquo;When this card is Summoned&rdquo;</td><td class="g">Play: (LoR); Opening Gambit (Duelyst)</td><td class="srd">Ward conjures its token</td></tr>
+        <tr><td class="fn">On death<span class="same">5 names</span></td><td class="g">&ldquo;When this dies&rdquo; <em>(no keyword)</em></td><td class="g">Deathrattle</td><td class="g">&ldquo;If this card is destroyed&rdquo;</td><td class="g">Last Breath (LoR); Dying Wish (Duelyst)</td><td class="srd">Detonate; Reap</td></tr>
+        <tr><td class="fn">When anything dies<span class="same">3 names</span></td><td class="g">Morbid; exploit</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">Deathwatch (Duelyst)</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Comes back once<span class="same">4 names</span></td><td class="g">Undying; Persist</td><td class="g">Reborn</td><td class="g">&mdash;</td><td class="g">Rebirth (Duelyst)</td><td class="srd">&mdash; (the Reliquary does it from outside)</td></tr>
+        <tr><td class="fn">Grows over time<span class="same">4 names</span></td><td class="g">Level up; Monstrosity; Sagas</td><td class="g">Dormant; Titan</td><td class="g">&mdash;</td><td class="g">Grow (Duelyst)</td><td class="srd">Chrysalis</td></tr>
+        <tr><td class="fn">Rewards a condition met<span class="same">many</span></td><td class="g">Landfall; Metalcraft; Threshold; Delirium; Raid; Ferocious <em>(ability words &mdash; italic, no rules meaning)</em></td><td class="g">Combo; Finale; Manathirst; Spellburst; Outcast</td><td class="g">&mdash;</td><td class="g">Reputation; Attune (LoR)</td><td class="srd">&mdash; <span class="dash">open &mdash; and cheap</span></td></tr>
+
+        <tr class="grp"><td colspan="6">Resources</td></tr>
+        <tr><td class="fn">Banks a resource<span class="same">3 names</span></td><td class="g">Energy counters</td><td class="g">Overload <em>(the inverse &mdash; a debt)</em></td><td class="g">Xyz materials</td><td class="g">Attune (LoR)</td><td class="srd">Overcharge; the Vault</td></tr>
+        <tr><td class="fn">Costs less under a condition<span class="same">many</span></td><td class="g">Affinity; Convoke; Delve; Improvise</td><td class="g">&ldquo;Costs (1) less for each&hellip;&rdquo;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+        <tr><td class="fn">Tap bodies to pay<span class="same">3 names</span></td><td class="g">Convoke; Crew; Saddle</td><td class="g">&mdash;</td><td class="g">Tribute</td><td class="g">&mdash;</td><td class="srd">workers tap to harvest; towers need a crew</td></tr>
+        <tr><td class="fn">Put creatures on a permanent to charge it</td><td class="g"><b>Station</b> (2025, Spacecraft)</td><td class="g">Starship pieces</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">this is Garrison, already proposed</span></td></tr>
+        <tr><td class="fn">Pay now, use later<span class="same">4 names</span></td><td class="g">Suspend; Foretell; Plot</td><td class="g">&mdash;</td><td class="g">Set</td><td class="g">&mdash;</td><td class="srd">the charge &mdash; <em>paid in instalments, which is yours</em></td></tr>
+        <tr><td class="fn">Ongoing cost to keep<span class="same">2 names</span></td><td class="g">Echo; cumulative upkeep</td><td class="g">&mdash;</td><td class="g">&ldquo;pay 500 LP or destroy&rdquo;</td><td class="g">&mdash;</td><td class="srd">worker upkeep &mdash; <em>with no keyword on the card</em></td></tr>
+        <tr><td class="fn">Once ever<span class="same">2 names</span></td><td class="g">Exhaust (2025)</td><td class="g">&mdash;</td><td class="g"><em>hard once-per-turn (HOPT)</em></td><td class="g">&mdash;</td><td class="srd">the Reliquary latch</td></tr>
+        <tr><td class="fn">Swap a dead card for a live one<span class="same">2 names</span></td><td class="g">Cycling</td><td class="g">Tradeable</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+
+        <tr class="grp"><td colspan="6">Structures &mdash; the shortest column in the genre</td></tr>
+        <tr><td class="fn">A permanent you activate once a turn</td><td class="g">&mdash;</td><td class="g"><b>Location</b> (durability + cooldown)</td><td class="g">Continuous Spell/Trap</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">open &mdash; the biggest one</span></td></tr>
+        <tr><td class="fn">Extra damage to buildings</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">nobody has a word: siegecraft is empty</span></td></tr>
+        <tr><td class="fn">Improve a permanent in place<span class="same">3 names</span></td><td class="g">Level up; Craft</td><td class="g"><b>Forge</b> (pay 2 to improve); Imbue</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">structure upgrades &mdash; <em>note the Forge collision</em></td></tr>
+        <tr><td class="fn">Repair a damaged permanent</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="g">&mdash;</td><td class="srd">&mdash; <span class="dash">open</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>Three things to take from the table.</b> First, where four columns are filled, <em>use the clearest existing word</em> &mdash; a player who knows any of these games gets your card for free, and inventing a synonym costs you that. Second, Yu-Gi-Oh proves the opposite case: refuse to name a thing and the community names it for you (piercing, floodgate, brick, garnet, omni-negate). Naming your own mechanics is free identity, and it is the cheapest identity there is. Third, <b>the position and structure blocks are nearly empty</b>, and the only column that fills them at all is Duelyst &mdash; a grid game that shipped in 2016 and had to invent Blast, Zeal, Backstab, Airdrop and Provoke because nothing existed to borrow.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Words that are still free</h2><span class="label">Keyword-level open space</span></div>
+  <p class="note">Names not spoken for by Magic, Hearthstone, Yu-Gi-Oh, Runeterra or Duelyst, that mean something obvious on a board with rows, buildings and an upkeep. Each is a keyword you could print tomorrow. <span class="fit top">best fit</span> needs the grid or the structures to make sense at all &mdash; those are the ones no competitor can copy without building your board first.</p>
+
+  <h3 class="sub">Siegecraft &mdash; the empty category</h3>
+  <div class="space">
+    <div class="idea top"><div class="idea-top"><h3>Siege N</h3><span class="fit top">best fit</span></div><p>Deals N extra damage to structures. The single most obviously missing word in your game: buildings are attackable, they have big health bars, and no card is <em>for</em> killing them. Caution: Magic uses &ldquo;Siege&rdquo; as a Battle subtype, so it is not virgin ground &mdash; but as a creature keyword it reads clean, and no one prints it on a body.</p><p class="pre">alternatives if you want it fully clear: <b>Breaker</b>, <b>Demolish</b>, <b>Sapper</b></p></div>
+    <div class="idea top"><div class="idea-top"><h3>Breach</h3><span class="fit top">best fit</span></div><p>May attack the wall past an enemy structure in its column &mdash; or, when it razes a structure, may attack again. Trample for a game with buildings, and the reason a siege deck converts instead of stalling. Unused anywhere as a keyword.</p><p class="pre">nearest: Trample, Overwhelm &mdash; neither is about buildings</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Salvage N</h3><span class="fit top">best fit</span></div><p>When a structure you control is destroyed, gain &#9670;N. Turns losing a forge from a spiral into a swing, and gives the defender of a siege something to play for. &ldquo;Scavenge&rdquo; is taken by Magic; Salvage is free and more precise.</p><p class="pre">nearest: Magic&rsquo;s Scavenge (taken, and unrelated)</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Emplacement</h3><span class="fit good">good fit</span></div><p>This creature may not move, but hits at range. A stationary gun as a <em>creature</em> rather than a building &mdash; the bridge between your two card types. Completely unclaimed, and unmistakably military.</p><p class="pre">nearest: Defender + Ranged, which no single game has together</p></div>
+  </div>
+
+  <h3 class="sub">Position</h3>
+  <div class="space">
+    <div class="idea top"><div class="idea-top"><h3>Enfilade</h3><span class="fit top">best fit</span></div><p>Hits every enemy in the target&rsquo;s row. The military word for firing along a line, unused by any card game, and it describes your board exactly. Duelyst called its version Blast; enfilade is better and free.</p><p class="pre">nearest: Blast (Duelyst)</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Volley</h3><span class="fit top">best fit</span></div><p>Attacks a cell two rows away without moving, and cannot attack adjacent. Artillery: real range with a real weakness. Pairs with <b>Reach</b> (borrow Magic&rsquo;s word, invert its meaning: may block ranged attacks) to make range answerable.</p><p class="pre">nearest: Ranged (Duelyst) &mdash; simpler; Volley adds the minimum range that makes it interesting</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Cover</h3><span class="fit top">best fit</span></div><p>Cannot be hit by ranged attacks or towers while a friendly structure stands in front of it. Makes where you put the Forge a decision the army cares about. The word is universal in shooters and strategy games and untouched in card games.</p><p class="pre">nearest: nothing &mdash; needs both a grid and buildings</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Flank</h3><span class="fit good">good fit</span></div><p>+N when attacking from the centre row into their front. Magic had &ldquo;Flanking&rdquo; in 1997 (a blocker penalty, long retired), so it is nearly free and the meaning is intuitive.</p><p class="pre">nearest: Backstab (Duelyst); Flanking (Magic, retired)</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Vanguard</h3><span class="fit good">good fit</span></div><p>This creature must be attacked before others in its row &mdash; Taunt, but scoped to a row instead of a whole board, which is what a grid lets you say. Also a natural name for &ldquo;the front line&rdquo; in your fiction.</p><p class="pre">nearest: Taunt, Provoke &mdash; neither is positional</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Phalanx</h3><span class="fit good">good fit</span></div><p>+N while a friendly creature stands beside it. Adjacency as an identity rather than a one-off. Free, and it says &ldquo;formation&rdquo; without a rules paragraph.</p><p class="pre">nearest: Zeal (Duelyst), Support (LoR)</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Advance / Skirmish</h3><span class="fit good">good fit</span></div><p><b>Advance</b>: may move and attack in the same turn. <b>Skirmish</b>: may move again after attacking. Haste and Rush are about summoning sickness; these are about the board, and neither word is taken.</p><p class="pre">nearest: Celerity (Duelyst)</p></div>
+  </div>
+
+  <h3 class="sub">Supply &mdash; keywords for an economy nobody else has</h3>
+  <div class="space">
+    <div class="idea top"><div class="idea-top"><h3>Levy</h3><span class="fit top">best fit</span></div><p>Costs no upkeep, but returns to your hand (or dies) at end of turn. A conscript: free to field, impossible to hold. Your upkeep system makes this a real trade-off; in any other game it is just a bad card.</p><p class="pre">nearest: Ephemeral (LoR) &mdash; but the <em>reason</em> is yours</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Quartermaster</h3><span class="fit top">best fit</span></div><p>Other creatures in this row cost one less &#9874; to keep. A support unit whose whole job is the settlement phase &mdash; a card designed for a system only you have.</p><p class="pre">nearest: nothing</p></div>
+    <div class="idea top"><div class="idea-top"><h3>Forage / Requisition</h3><span class="fit top">best fit</span></div><p>&ldquo;Forage&rdquo; is taken by Magic (2024). <b>Requisition N</b> is free: tap a worker to gain &#9670;N or a benefit &mdash; a card that spends the workforce directly, which is the resource nothing else has.</p><p class="pre">nearest: Convoke (Magic) &mdash; tapping bodies, but for casting cost only</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Conscript</h3><span class="fit good">good fit</span></div><p>Turn one of your workers into a 1/1 creature (or this costs one less for each worker you sacrifice). The clearest possible statement that workers are a resource you spend, not units you keep.</p><p class="pre">nearest: Tribute (Yu-Gi-Oh), sacrifice costs</p></div>
+    <div class="idea good"><div class="idea-top"><h3>Garrison</h3><span class="fit good">good fit</span></div><p>May enter a friendly structure: untargetable while inside, the structure gains its attack. Magic shipped <b>Station</b> in 2025 for almost exactly this (crew a Spacecraft by putting creatures on it), which is proof the idea works &mdash; and Garrison is the better word for a castle.</p><p class="pre">nearest: Station, Crew, Saddle (Magic)</p></div>
+  </div>
+
+  <h3 class="sub">Borrow these outright &mdash; do not invent a synonym</h3>
+  <div class="space">
+    <div class="idea"><div class="idea-top"><h3>Trample, Deathtouch, Lifelink, Taunt, Freeze, Vigilance, Reach</h3><span class="fit good">borrow</span></div><p>Settled in three or four games each. Every one is missing from your card set, every one is a few lines in <span class="inline-code">KeywordEngine</span>, and every one is understood on sight by a player from any of the three. <b>Taunt</b> in particular: you have Provoke on a trap, but no body that demands to be dealt with, which is the most basic defensive card in the genre. <b>Reach</b> is the answer to your own towers and to Scour.</p><p class="pre">This is the cheapest fix for &ldquo;the creatures are very basic&rdquo; &mdash; not new words, the standard ones you skipped</p></div>
+    <div class="idea skip"><div class="idea-top"><h3>Do not use: Ward, Forge, Charge, Rush, Station, Crew, Exhaust, Scavenge, Forage, Reinforce, Plot, Craft, Discover, Echo, Combo, Titan</h3><span class="fit skip">taken</span></div><p>All are live keywords in Magic or Hearthstone with settled meanings. Two are already in your game pointing the wrong way: <b>Ward</b> (yours summons a blocker; Magic&rsquo;s taxes targeting) and <b>Forge</b> (your central building; Hearthstone&rsquo;s keyword for &ldquo;pay 2 to improve a card&rdquo; &mdash; a mild collision, and arguably fine since yours is a card name, not a keyword).</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Name collisions to fix before players notice</h2><span class="label">Same word, different meaning</span></div>
+  <div class="coll">
+    <div><h3>Ward</h3><p>In Magic, Ward is a tax on targeting (&ldquo;Ward 2&rdquo;). Yours conjures a token blocker. A Magic player will read your card wrong every time. <b>Escort</b> or <b>Aegis</b> says what it does.</p></div>
+    <div><h3>Overcharge</h3><p>Sits one letter from Hearthstone&rsquo;s Overload, which is the opposite (a debt). Yours banks and discharges &mdash; <b>Capacitor</b> or <b>Charge</b>, except Charge is Hearthstone&rsquo;s haste. <b>Store</b> is plain and free.</p></div>
+    <div><h3>Chrysalis</h3><p>Fine &mdash; distinct from Dormant, and a better word for what it does. Keep it.</p></div>
+    <div><h3>First Strike, Detonate, Reap</h3><p>All clear. First Strike is Magic&rsquo;s and means the same; Detonate and Reap are yours and read at a glance.</p></div>
+    <div><h3>Scour</h3><p>Not a keyword anywhere else; a Magic card name only. Safe.</p></div>
+    <div><h3>Forge</h3><p>Hearthstone made <b>Forge</b> a keyword in 2023 &mdash; pay 2 to improve a card. Yours is a building name, not a keyword, so the two rarely meet on a page; worth knowing before you ever print &ldquo;Forge&rdquo; as an <em>ability</em>.</p></div>
+    <div><h3>Base, Keep, Vault</h3><p>Plain English, no collisions. The Vault will be compared to Energy &mdash; that is a compliment.</p></div>
+  </div>
+</section>
+
+<footer>
+  Games taken as they stand in early 2026: Magic through Edge of Eternities and Aetherdrift (Speed, Exhaust, Station), Hearthstone through Imbue and Starships, Yu-Gi-Oh as Master Duel plays it. Duelyst and Legends of Runeterra are included in the keyword lexicon because they are the only shipped CCGs that had to name positional mechanics. New keywords arrive quarterly; the functions do not.<br>
+  Spawn Row Duel column from docs/unity/spec/cards.json and the Rules assembly as of commit c7a8d70. Companion pages: the structures reference and the 7 September playtest.
+</footer>
+
+</div>
+
+</head>
+<body>
+</body>
+</html>

@@ -404,11 +404,24 @@ namespace SpawnRowDuel.View
                 //
                 // Only when nothing ELSE is offering one. A campaign duel already ends on the
                 // shell's own result panel, with its own way back to the map.
-                var shell = FindShell();
-                if (shell == null || !shell.OffersExit)
+                var overShell = FindShell();
+                if (overShell == null || !overShell.OffersExit)
                 {
                     if (Btn(new Rect(w / 2f - 70, h / 2f + 28, 140, 30), "LEAVE", _button))
                         _quitRequested = true;
+                }
+
+                // ...AND THE QUIT IS HONOURED HERE, not four hundred lines down.
+                //
+                // The handler at the foot of OnGUI never ran for a finished match: this branch
+                // returns first. So LEAVE set a flag that was cleared on the next frame having
+                // done nothing, and a won match was a dead end with a button on it that looked
+                // like it worked. Reported 2026-09-07 ("when I won a match, I could not leave the
+                // game, even when I clicked the button").
+                if (_quitRequested)
+                {
+                    _quitRequested = false;
+                    if (overShell != null) overShell.Show(Shell.ShellScreen.MainMenu);
                 }
                 return;
             }
@@ -604,6 +617,19 @@ namespace SpawnRowDuel.View
             GUI.Label(new Rect(0, 40, w, 18),
                 "your commander decides your elements, your build menu and your deck", _center);
 
+            // BACK, top left, before anything else is drawn.
+            //
+            // This screen had no exit at all: the shell's own menu row is suppressed here
+            // (ShellSuppressed, GameShell.Show) precisely so the duel's select can own the
+            // screen, which left the only way out as the phone's back gesture. Show() ends any
+            // match in flight on the way, so there is nothing to tear down by hand.
+            if (Btn(new Rect(8, 12, 92, 26), "< BACK", _button))
+            {
+                var backShell = FindShell();
+                if (backShell != null) backShell.Show(Shell.ShellScreen.MainMenu);
+                return;
+            }
+
             var cat = _match.Catalog;
             var all = cat.Commanders;
 
@@ -659,10 +685,20 @@ namespace SpawnRowDuel.View
         /// </summary>
         void DrawArenaRow(float w, float h)
         {
-            GUI.Label(new Rect(0, h - 132, w, 16), "ARENA", _center);
-
             var all = World.Biomes.All;
             bool rolled = !MatchController.ArenaChosen;
+
+            // SAY WHICH GROUND THIS IS.
+            //
+            // The row lit the button you pressed and nothing else, so "ARENA" sat above eight
+            // names with no statement of what you had actually chosen - and RANDOM, the default,
+            // named no ground at all. The terrain behind this panel is the real one (the select
+            // runs on the Skirmish screen with the battle world live), so the label reads it off
+            // TerrainField rather than guessing: what is named here is what is under the panel.
+            string ground = World.Biomes.NameOf(World.TerrainField.Requested);
+            GUI.Label(new Rect(0, h - 132, w, 16),
+                rolled ? "ARENA   -   rolling   (showing " + ground + ")"
+                       : "ARENA   -   " + ground, _center);
 
             // Eight buttons at a fixed 84 ran off both edges the moment RANDOM joined the row.
             // The row is sized to the screen it is on instead - the labels are short and the

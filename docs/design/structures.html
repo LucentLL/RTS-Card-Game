@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Saved from https://claude.ai/code/artifact/ - self-contained except the Google Fonts
+     link below, which degrades to the declared Georgia/Times fallbacks when offline. -->
+<title>Spawn Row Duel Structures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#0b1018;
+  --ground-2:#0e1522;
+  --panel:#151e2c;
+  --edge:#26334a;
+  --edge-soft:#1d2839;
+  --ink:#e7ecf5;
+  --ink-2:#a2b0c6;
+  --ink-3:#6d7c96;
+  --mana:#57a8e8;
+  --gold:#e2b862;
+  --ember:#d45a3d;
+  --sage:#7fae8c;
+
+  --display:"Cinzel",Georgia,"Times New Roman",serif;
+  --body:"EB Garamond",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+
+  --measure:66ch;
+  --r:3px;
+}
+
+*{box-sizing:border-box}
+
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:17px;
+  line-height:1.62;
+  margin:0;
+  padding:0 20px 96px;
+  -webkit-font-smoothing:antialiased;
+}
+
+.wrap{max-width:1080px;margin:0 auto}
+
+.label{
+  font-family:var(--mono);
+  font-size:.68rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+p{margin:0}
+
+.masthead{
+  border-bottom:1px solid var(--edge);
+  padding:56px 0 28px;
+  margin-bottom:44px;
+}
+.masthead .label{color:var(--gold);margin-bottom:18px}
+h1{
+  font-size:clamp(2.1rem,5.4vw,3.5rem);
+  font-weight:900;
+  letter-spacing:.005em;
+  line-height:1.05;
+  margin-bottom:16px;
+}
+.dek{
+  font-size:1.12rem;
+  color:var(--ink-2);
+  max-width:var(--measure);
+  margin-bottom:26px;
+}
+.dek em{color:var(--ink);font-style:italic}
+.tally{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 28px;
+  font-family:var(--mono);
+  font-size:.78rem;
+  color:var(--ink-3);
+}
+.tally b{color:var(--ink);font-weight:500}
+
+section{margin-bottom:64px}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:16px;
+  border-bottom:1px solid var(--edge-soft);
+  padding-bottom:10px;
+  margin-bottom:26px;
+}
+h2{font-size:1.5rem;font-weight:700;letter-spacing:.02em}
+.sec-head .label{margin-left:auto;white-space:nowrap}
+.note{color:var(--ink-2);max-width:var(--measure);margin-bottom:26px}
+.inline-code{
+  font-family:var(--mono);
+  font-size:.85em;
+  color:var(--gold);
+}
+
+.opening{
+  background:var(--ground-2);
+  border:1px solid var(--edge-soft);
+  border-left:2px solid var(--gold);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:22px 26px;
+  margin-bottom:56px;
+  max-width:760px;
+}
+.opening h3{font-size:1.05rem;font-weight:700;letter-spacing:.05em;margin-bottom:8px}
+.opening p{color:var(--ink-2)}
+.opening b{color:var(--ink);font-weight:500}
+
+.tree{
+  font-family:var(--mono);
+  font-size:.83rem;
+  background:var(--ground-2);
+  border:1px solid var(--edge-soft);
+  border-radius:var(--r);
+  padding:24px 26px;
+  overflow-x:auto;
+}
+.tree ul{list-style:none;margin:0;padding:0}
+.tree ul ul{
+  margin-left:9px;
+  padding-left:22px;
+  border-left:1px solid var(--edge);
+}
+.tree li{padding:3px 0;position:relative;white-space:nowrap}
+.tree ul ul>li::before{
+  content:"";
+  position:absolute;
+  left:-22px;top:.85em;
+  width:15px;height:1px;
+  background:var(--edge);
+}
+.tree .nm{color:var(--ink);letter-spacing:.02em}
+.tree .root>.nm{color:var(--gold)}
+.tree .cost{color:var(--mana);margin-left:10px}
+.tree .why{color:var(--ink-3);margin-left:10px;font-size:.94em}
+.tree .why.flag{color:var(--ember)}
+
+.chain{
+  display:flex;
+  align-items:stretch;
+  flex-wrap:wrap;
+}
+.arrow{
+  flex:0 0 auto;
+  align-self:center;
+  color:var(--ink-3);
+  font-family:var(--mono);
+  font-size:1.1rem;
+  padding:0 14px;
+}
+.arrow::before{content:"\2192"}
+.branch{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  flex:1 1 300px;
+}
+
+.card{
+  flex:1 1 280px;
+  min-width:0;
+  background:var(--panel);
+  border:1px solid var(--edge-soft);
+  border-radius:var(--r);
+  padding:18px 20px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:11px;
+}
+.card.tier-menu{border-top:2px solid var(--mana)}
+.card.tier-up{border-top:2px solid var(--gold)}
+.card.tier-both{border-top:2px solid var(--ember)}
+
+.card-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card h3{
+  font-size:1.14rem;
+  font-weight:700;
+  letter-spacing:.03em;
+}
+.tag{
+  font-family:var(--mono);
+  font-size:.6rem;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  padding:3px 7px;
+  border-radius:2px;
+  white-space:nowrap;
+}
+.tag.menu{color:var(--mana);background:rgba(87,168,232,.11)}
+.tag.up{color:var(--gold);background:rgba(226,184,98,.11)}
+.tag.both{color:var(--ember);background:rgba(212,90,61,.13)}
+.tag.gate{color:var(--ink-2);background:rgba(162,176,198,.09)}
+
+.stats{
+  display:flex;
+  gap:16px;
+  font-family:var(--mono);
+  font-size:.86rem;
+  font-variant-numeric:tabular-nums;
+  padding-bottom:11px;
+  border-bottom:1px solid var(--edge-soft);
+}
+.s-mana{color:var(--mana)}
+.s-hp{color:var(--sage)}
+.s-work{color:var(--gold)}
+.s-work.neg{color:var(--ember)}
+
+.ability{color:var(--ink-2);font-size:.97rem;line-height:1.55;flex:1}
+.ability b{color:var(--ink);font-weight:500}
+.ability.nil{color:var(--ink-3);font-style:italic}
+.from{
+  font-family:var(--mono);
+  font-size:.68rem;
+  color:var(--ink-3);
+  letter-spacing:.03em;
+}
+.from b{color:var(--ink-2);font-weight:400}
+
+.table-scroll{overflow-x:auto;border:1px solid var(--edge-soft);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;min-width:660px;font-size:.92rem}
+th,td{padding:10px 16px;text-align:left;border-bottom:1px solid var(--edge-soft)}
+thead th{
+  font-family:var(--mono);
+  font-size:.64rem;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+  background:var(--ground-2);
+  font-weight:400;
+  white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td.name{font-family:var(--display);font-weight:700;letter-spacing:.02em;white-space:nowrap}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+td.yield{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--mana);font-weight:500}
+td.yield.zero{color:var(--ink-3)}
+td.yield.neg{color:var(--ember)}
+td.pay{font-family:var(--mono);font-size:.84rem;color:var(--ink-2);white-space:nowrap}
+td.pay.never{color:var(--ink-3);font-style:italic}
+caption{
+  caption-side:bottom;
+  text-align:left;
+  padding:14px 16px 0;
+  color:var(--ink-3);
+  font-size:.88rem;
+  line-height:1.5;
+}
+
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 40px}
+.rules div{padding:16px 0;border-top:1px solid var(--edge-soft)}
+.rules h3{
+  font-size:.8rem;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:7px;
+}
+.rules p{color:var(--ink-2);font-size:.95rem;line-height:1.55}
+
+.flags{display:flex;flex-direction:column;gap:2px}
+.flag{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  background:var(--ground-2);
+  border-left:2px solid var(--ember);
+  padding:20px 24px;
+}
+.flag.soft{border-left-color:var(--gold)}
+.flag-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.flag h3{font-size:1.05rem;font-weight:700;letter-spacing:.03em}
+.flag p{color:var(--ink-2);max-width:var(--measure)}
+.flag .src{
+  font-family:var(--mono);
+  font-size:.7rem;
+  color:var(--ink-3);
+  letter-spacing:.02em;
+}
+.sev{
+  font-family:var(--mono);
+  font-size:.6rem;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  padding:3px 7px;
+  border-radius:2px;
+  color:var(--ember);
+  background:rgba(212,90,61,.13);
+  white-space:nowrap;
+}
+.sev.soft{color:var(--gold);background:rgba(226,184,98,.11)}
+
+footer{
+  border-top:1px solid var(--edge);
+  padding-top:22px;
+  color:var(--ink-3);
+  font-family:var(--mono);
+  font-size:.72rem;
+  letter-spacing:.03em;
+  line-height:1.8;
+}
+
+@media (max-width:760px){
+  body{font-size:16px;padding:0 16px 72px}
+  .chain{flex-direction:column;gap:14px}
+  .arrow{align-self:flex-start;padding:0 0 0 22px}
+  .arrow::before{content:"\2193"}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="label">Spawn Row Duel &middot; Rules Reference</div>
+  <h1>Spawn Row Duel Structures</h1>
+  <p class="dek">Every structure you can raise, what it actually does in the rules engine, and what it&rsquo;s worth per turn. Ability text here is read from the C# handlers &mdash; <em>not</em> from the card&rsquo;s flavour string. Numbers reflect the 7 September passes: forges are pure mana, the Base is one of each, the Outpost stands on the middle row, and the Cannon Tower fires for half with a Bombard tier above it.</p>
+  <div class="tally">
+    <span><b>16</b> structures</span>
+    <span><b>32</b> card identities</span>
+    <span><b>10</b> menu slots &middot; 12 for a dual commander</span>
+    <span><b>5</b> upgrade chains</span>
+  </div>
+</header>
+
+<div class="opening">
+  <h3>Opening position</h3>
+  <p>The board starts <b>empty</b>. You have <b>&#9670;0</b>, your commander&rsquo;s <b>2&ndash;3 back-row workers</b> (not summoning-sick, so turn 1 harvests), and <b>4 cards</b>. Turn 1 you harvest &#9670;2 &mdash; and the Base is the only thing you can both afford and unlock.</p>
+</div>
+
+<section>
+  <div class="sec-head">
+    <h2>What unlocks what</h2>
+    <span class="label">Prerequisite tree</span>
+  </div>
+  <p class="note">Prerequisites are lineage-aware: an upgraded Keep still counts as a Foundry, so upgrading never locks you out of a branch. This tree is separate from the upgrade chains below &mdash; these ten entries are what the BUILD menu offers.</p>
+  <div class="tree">
+    <ul>
+      <li class="root"><span class="nm">BASE</span><span class="cost">&#9670;2</span><span class="why">no prerequisite</span>
+        <ul>
+          <li><span class="nm">FORGE</span><span class="cost">&#9670;3</span><span class="why">one per element you play</span>
+            <ul>
+              <li><span class="nm">OUTPOST</span><span class="cost">&#9670;2</span><span class="why">middle row only</span></li>
+              <li><span class="nm">BULWARK</span><span class="cost">&#9670;5</span></li>
+              <li><span class="nm">CANNON TOWER</span><span class="cost">&#9670;4</span><span class="why">upgrades to a Bombard Tower</span></li>
+              <li><span class="nm">GRAND FORGE</span><span class="cost">&#9670;6</span><span class="why flag">&larr; should not be buildable</span></li>
+            </ul>
+          </li>
+          <li><span class="nm">ENCAMPMENT</span><span class="cost">&#9670;2</span></li>
+          <li><span class="nm">LONGHOUSE</span><span class="cost">&#9670;4</span>
+            <ul>
+              <li><span class="nm">RELIQUARY</span><span class="cost">&#9670;5</span></li>
+            </ul>
+          </li>
+          <li><span class="nm">MANA VAULT</span><span class="cost">&#9670;4</span></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>The mana chain</h2>
+    <span class="label">Your seat of power</span>
+  </div>
+  <div class="chain">
+    <div class="card tier-menu">
+      <div class="card-top"><h3>Base</h3><span class="tag menu">Menu</span></div>
+      <div class="stats"><span class="s-mana">&#9670;2</span><span class="s-hp">&#9829;300</span><span class="s-work">&#9874;+1</span></div>
+      <p class="ability">Yields <b>&#9670;1</b> at the start of your turn &mdash; one mana and one worker, the balanced middle of the trade-off. The root of the tech tree: every other structure needs it. On the board it reads as its owner&rsquo;s &mdash; <em>Fire&rsquo;s Base</em>, or the player&rsquo;s name in a networked match.</p>
+      <p class="from">No prerequisite &middot; any row</p>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="card tier-up">
+      <div class="card-top"><h3>Keep</h3><span class="tag up">Upgrade</span><span class="tag gate">Back row</span></div>
+      <div class="stats"><span class="s-mana">&#9670;3</span><span class="s-hp">&#9829;500</span><span class="s-work">&#9874;+3</span></div>
+      <p class="ability">Yields <b>&#9670;1</b>. Same printed output as the Base, two more workers, and a body two-thirds tougher.</p>
+      <p class="from">From <b>Base</b> &middot; back row only</p>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="card tier-up">
+      <div class="card-top"><h3>Citadel</h3><span class="tag up">Upgrade</span><span class="tag gate">Back row</span></div>
+      <div class="stats"><span class="s-mana">&#9670;4</span><span class="s-hp">&#9829;750</span><span class="s-work">&#9874;+4</span></div>
+      <p class="ability">Yields <b>&#9670;2</b>. The best economic object in the game, and the toughest thing you own short of a Bastion.</p>
+      <p class="from">From <b>Keep</b> &middot; back row only</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Forges</h2>
+    <span class="label">One variant per element</span>
+  </div>
+  <p class="note">Nine named variants &mdash; Emberforge, Tidewell, Stonewell, Galewell, Thornwell, Stormforge, Dawnwell, Gloomwell, Empyreum &mdash; and the element is decoration. Mana is one generic pool, so a Tidewell and an Emberforge are the same card with different art. A forge&rsquo;s colour only matters in that it rides down its own upgrade chain.</p>
+  <div class="chain">
+    <div class="card tier-menu">
+      <div class="card-top"><h3>Forge</h3><span class="tag menu">Menu</span></div>
+      <div class="stats"><span class="s-mana">&#9670;3</span><span class="s-hp">&#9829;250</span><span class="s-work">&#9874;0</span></div>
+      <p class="ability">Yields <b>&#9670;2</b> at the start of your turn and <b>no workers</b> &mdash; pure mana, the opposite pole from the Encampment. Gates the whole military branch: Outpost, Bulwark and Cannon Tower all need one standing.</p>
+      <p class="from">Needs <b>Base</b> &middot; any row</p>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="card tier-both">
+      <div class="card-top"><h3>Grand Forge</h3><span class="tag both">Menu &amp; upgrade</span></div>
+      <div class="stats"><span class="s-mana">&#9670;6</span><span class="s-hp">&#9829;350</span><span class="s-work">&#9874;0</span></div>
+      <p class="ability">Yields <b>&#9670;4</b> and no workers &mdash; double a Forge, for double the price. Marked upgrade-only in the data, but it sits in every commander&rsquo;s build menu anyway, so you can raise it <em>beside</em> the Forge instead of consuming it.</p>
+      <p class="from">From <b>Forge</b>, or built for &#9670;6 &middot; any row</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Workforce</h2>
+    <span class="label">Pure &#9874;, no upkeep effect</span>
+  </div>
+  <div class="chain">
+    <div class="card tier-menu">
+      <div class="card-top"><h3>Encampment</h3><span class="tag menu">Menu</span></div>
+      <div class="stats"><span class="s-mana">&#9670;2</span><span class="s-hp">&#9829;250</span><span class="s-work">&#9874;+2</span></div>
+      <p class="ability nil">No upkeep effect. Two workers for &#9670;2 &mdash; the cheapest workforce in the game.</p>
+      <p class="from">Needs <b>Base</b> &middot; any row</p>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="card tier-menu">
+      <div class="card-top"><h3>Longhouse</h3><span class="tag menu">Menu</span><span class="tag gate">Front row</span></div>
+      <div class="stats"><span class="s-mana">&#9670;4</span><span class="s-hp">&#9829;300</span><span class="s-work">&#9874;+3</span></div>
+      <p class="ability nil">No upkeep effect, despite what the inspector says. Its worth is &#9874;+3 and unlocking the Reliquary.</p>
+      <p class="from">Needs <b>Base</b> &middot; front row only</p>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="card tier-up">
+      <div class="card-top"><h3>Barracks</h3><span class="tag up">Upgrade</span><span class="tag gate">Front row</span></div>
+      <div class="stats"><span class="s-mana">&#9670;3</span><span class="s-hp">&#9829;500</span><span class="s-work">&#9874;+4</span></div>
+      <p class="ability nil">No upkeep effect. &#9874;+4 on a &#9829;500 body for &#9670;3 &mdash; the best worker rate in the game.</p>
+      <p class="from">From <b>Longhouse</b> &middot; front row only</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Vaults</h2>
+    <span class="label">The only mana that survives your turn</span>
+  </div>
+  <div class="chain">
+    <div class="card tier-menu">
+      <div class="card-top"><h3>Mana Vault</h3><span class="tag menu">Menu</span></div>
+      <div class="stats"><span class="s-mana">&#9670;4</span><span class="s-hp">&#9829;300</span><span class="s-work">&#9874;0</span></div>
+      <p class="ability">Unspent mana drains at the end of your turn; your vaults keep up to <b>&#9670;4</b> of it. Capacity <b>stacks additively</b> across every vault you own, wherever they stand.</p>
+      <p class="from">Needs <b>Base</b> &middot; any row</p>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="card tier-up">
+      <div class="card-top"><h3>Grand Vault</h3><span class="tag up">Upgrade</span></div>
+      <div class="stats"><span class="s-mana">&#9670;5</span><span class="s-hp">&#9829;450</span><span class="s-work">&#9874;0</span></div>
+      <p class="ability">Keeps up to <b>&#9670;10</b> across the turn.</p>
+      <p class="from">From <b>Mana Vault</b> &middot; any row</p>
+    </div>
+  </div>
+  <p class="note" style="margin-top:24px;margin-bottom:0">Vaults are the only structures at <span class="inline-code">&#9874;0</span> &mdash; they take no workers and give none. Banked mana is also the only mana that exists <em>before</em> you harvest, so it is what pays an upkeep shortfall. Raze an opponent&rsquo;s vault before their end of turn and you destroy the mana it would have kept, not just the building.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Military</h2>
+    <span class="label">One branch, two ends</span>
+  </div>
+  <div class="chain">
+    <div class="card tier-menu">
+      <div class="card-top"><h3>Outpost</h3><span class="tag menu">Menu</span><span class="tag gate">Middle row</span></div>
+      <div class="stats"><span class="s-mana">&#9670;2</span><span class="s-hp">&#9829;300</span><span class="s-work">&#9874;+1</span></div>
+      <p class="ability nil">No upkeep effect. A &#9670;2 seed that branches either way on upgrade &mdash; and it must stand on the contested middle row, so a forward post is actually forward.</p>
+      <p class="from">Needs a <b>Forge</b> &middot; middle row only</p>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="branch">
+      <div class="chain">
+        <div class="card tier-both">
+          <div class="card-top"><h3>Cannon Tower</h3><span class="tag both">Menu &amp; upgrade</span></div>
+          <div class="stats"><span class="s-mana">&#9670;4</span><span class="s-hp">&#9829;400</span><span class="s-work neg">&#9874;&minus;1</span></div>
+          <p class="ability">At your <b>harvest</b> &mdash; after Move, Pay and Sacrifice, before the workers dig &mdash; deals <b>&#9876;50</b> to one enemy creature, <em>if its row can crew it</em>: a tower in a row whose shortfall is still unsettled stays silent. It does not pick the nearest &mdash; it scans their front row left to right, then the centre, then their back row, and hits the <b>first non-worker creature</b> it finds. Never structures, never workers, never the life pool. Built this turn, it fires at your next harvest, so it has to survive a full enemy turn first.</p>
+          <p class="from">Needs a <b>Forge</b> &middot; takes &#9874;1 from its row</p>
+        </div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="card tier-up">
+          <div class="card-top"><h3>Bombard Tower</h3><span class="tag up">Upgrade</span></div>
+          <div class="stats"><span class="s-mana">&#9670;5</span><span class="s-hp">&#9829;300</span><span class="s-work neg">&#9874;&minus;2</span></div>
+          <p class="ability">The old tower&rsquo;s full shot &mdash; <b>&#9876;100</b> at your harvest, same scan, same crew gate &mdash; for a second worker, thinner walls than the tower it grew from, and a decision: the row must have one more to spare at the moment you upgrade.</p>
+          <p class="from">From <b>Cannon Tower</b> &middot; takes &#9874;2 from its row</p>
+        </div>
+      </div>
+      <div class="card tier-up">
+        <div class="card-top"><h3>Bastion</h3><span class="tag up">Upgrade</span></div>
+        <div class="stats"><span class="s-mana">&#9670;3</span><span class="s-hp">&#9829;900</span><span class="s-work">&#9874;+2</span></div>
+        <p class="ability nil">No mechanical effect. The toughest object in the game &mdash; &#9829;900 and &#9874;+2, and nothing else.</p>
+        <p class="from">From <b>Outpost</b> &middot; any row</p>
+      </div>
+    </div>
+  </div>
+  <div class="chain" style="margin-top:14px">
+    <div class="card tier-menu" style="flex:0 1 360px">
+      <div class="card-top"><h3>Bulwark</h3><span class="tag menu">Menu</span></div>
+      <div class="stats"><span class="s-mana">&#9670;5</span><span class="s-hp">&#9829;600</span><span class="s-work">&#9874;+1</span></div>
+      <p class="ability nil">No mechanical effect. &#9670;5 for a &#9829;600 body worth &#9874;+1 &mdash; strictly worse than Outpost then Bastion, which costs &#9670;5 and lands at &#9829;900.</p>
+      <p class="from">Needs a <b>Forge</b> &middot; any row &middot; does not upgrade</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Reliquary</h2>
+    <span class="label">The only card-advantage engine</span>
+  </div>
+  <div class="chain">
+    <div class="card tier-menu" style="flex:0 1 440px">
+      <div class="card-top"><h3>Reliquary</h3><span class="tag menu">Menu</span></div>
+      <div class="stats"><span class="s-mana">&#9670;5</span><span class="s-hp">&#9829;350</span><span class="s-work">&#9874;+1</span></div>
+      <p class="ability">Each upkeep, your <b>most recently fallen creature returns to your hand</b>, undamaged &mdash; the graveyard record stores max HP. Never tokens, never workers, never structures.</p>
+      <p class="from">Needs <b>Longhouse</b> &middot; any row &middot; does not upgrade</p>
+    </div>
+  </div>
+  <p class="note" style="margin-top:24px;margin-bottom:0">Once per turn no matter how many you own &mdash; but the latch only arms on a <em>success</em>. With an empty graveyard the first Reliquary fails and a second one still gets its own attempt.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>What each one is really worth</h2>
+    <span class="label">Per-turn yield</span>
+  </div>
+  <p class="note">The printed &#9670; yield is only half the income. Worker pools are <em>derived</em> from the sum of &#9874; support in each row, and every ready worker harvests &#9670;1. So a structure&rsquo;s true output is <span class="inline-code">support + printed yield</span> &mdash; and the economy pass made that the design: at the same price a Forge is all mana, an Encampment is all workers, and the Base is one of each.</p>
+  <div class="table-scroll">
+    <table>
+      <caption>Assumes the row&rsquo;s worker figure stays non-negative and its workers are untapped. Workers arrive summoning-sick, so a structure raised this turn first harvests next turn. The two towers are the only structures with negative support &mdash; a Cannon Tower takes one worker out of its row for as long as it stands, a Bombard two.</caption>
+      <thead>
+        <tr>
+          <th>Structure</th>
+          <th style="text-align:right">Cost</th>
+          <th style="text-align:right">HP</th>
+          <th style="text-align:right">&#9874;</th>
+          <th>Printed effect</th>
+          <th style="text-align:right">True &#9670;/turn</th>
+          <th>Pays back</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="name">Citadel</td><td class="num">&#9670;4</td><td class="num">750</td><td class="num">+4</td><td>&#9670;2 each upkeep</td><td class="yield">6</td><td class="pay">1 turn</td></tr>
+        <tr><td class="name">Grand Forge</td><td class="num">&#9670;6</td><td class="num">350</td><td class="num">0</td><td>&#9670;4 each upkeep</td><td class="yield">4</td><td class="pay">2 turns</td></tr>
+        <tr><td class="name">Keep</td><td class="num">&#9670;3</td><td class="num">500</td><td class="num">+3</td><td>&#9670;1 each upkeep</td><td class="yield">4</td><td class="pay">1 turn</td></tr>
+        <tr><td class="name">Barracks</td><td class="num">&#9670;3</td><td class="num">500</td><td class="num">+4</td><td>&mdash;</td><td class="yield">4</td><td class="pay">1 turn</td></tr>
+        <tr><td class="name">Longhouse</td><td class="num">&#9670;4</td><td class="num">300</td><td class="num">+3</td><td>&mdash;</td><td class="yield">3</td><td class="pay">2 turns</td></tr>
+        <tr><td class="name">Base</td><td class="num">&#9670;2</td><td class="num">300</td><td class="num">+1</td><td>&#9670;1 each upkeep</td><td class="yield">2</td><td class="pay">1 turn</td></tr>
+        <tr><td class="name">Forge</td><td class="num">&#9670;3</td><td class="num">250</td><td class="num">0</td><td>&#9670;2 each upkeep</td><td class="yield">2</td><td class="pay">2 turns</td></tr>
+        <tr><td class="name">Encampment</td><td class="num">&#9670;2</td><td class="num">250</td><td class="num">+2</td><td>&mdash;</td><td class="yield">2</td><td class="pay">1 turn</td></tr>
+        <tr><td class="name">Bastion</td><td class="num">&#9670;3</td><td class="num">900</td><td class="num">+2</td><td>&mdash;</td><td class="yield">2</td><td class="pay">2 turns</td></tr>
+        <tr><td class="name">Outpost</td><td class="num">&#9670;2</td><td class="num">300</td><td class="num">+1</td><td>&mdash;</td><td class="yield">1</td><td class="pay">2 turns</td></tr>
+        <tr><td class="name">Bulwark</td><td class="num">&#9670;5</td><td class="num">600</td><td class="num">+1</td><td>&mdash;</td><td class="yield">1</td><td class="pay">5 turns</td></tr>
+        <tr><td class="name">Reliquary</td><td class="num">&#9670;5</td><td class="num">350</td><td class="num">+1</td><td>1 creature &rarr; hand</td><td class="yield">1</td><td class="pay">5 turns, plus the cards</td></tr>
+        <tr><td class="name">Mana Vault</td><td class="num">&#9670;4</td><td class="num">300</td><td class="num">0</td><td>banks &#9670;4</td><td class="yield zero">0</td><td class="pay never">carries, never earns</td></tr>
+        <tr><td class="name">Grand Vault</td><td class="num">&#9670;5</td><td class="num">450</td><td class="num">0</td><td>banks &#9670;10</td><td class="yield zero">0</td><td class="pay never">carries, never earns</td></tr>
+        <tr><td class="name">Cannon Tower</td><td class="num">&#9670;4</td><td class="num">400</td><td class="num">&minus;1</td><td>&#9876;50 each upkeep</td><td class="yield neg">&minus;1</td><td class="pay never">costs &#9670;1 a turn to hold</td></tr>
+        <tr><td class="name">Bombard Tower</td><td class="num">&#9670;5</td><td class="num">300</td><td class="num">&minus;2</td><td>&#9876;100 each upkeep</td><td class="yield neg">&minus;2</td><td class="pay never">costs &#9670;2 a turn to hold</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Rules that apply to all of them</h2>
+    <span class="label">Engine behaviour</span>
+  </div>
+  <div class="rules">
+    <div>
+      <h3>Never played from hand</h3>
+      <p>Structures are not deck cards. They are raised from the commander&rsquo;s BUILD menu during the Action phase, paid in generic &#9670;. Every commander&rsquo;s menu holds the same ten slots &mdash; twelve for a dual.</p>
+    </div>
+    <div>
+      <h3>Where they can stand</h3>
+      <p>Twenty-one of the thirty-five cells: your back row, your front row, and the whole contested centre row. Never on enemy ground. The cell must be empty, and a tier&rsquo;s row gate now applies to the build as well as the upgrade &mdash; Longhouse front, Outpost middle.</p>
+    </div>
+    <div>
+      <h3>Upgrading is in place</h3>
+      <p>Same tile, same object, same banked &#9670;. It costs the <em>full price</em> of the new tier, carries damage through, repairs nothing, and does not re-check prerequisites &mdash; razing your Base will not stop a Keep becoming a Citadel.</p>
+    </div>
+    <div>
+      <h3>They never fight</h3>
+      <p>Structures never move, attack, block or retaliate. They are always legal attack targets and take damage without hitting back. Nothing heals or repairs a structure anywhere in the codebase.</p>
+    </div>
+    <div>
+      <h3>Menu order is AI priority</h3>
+      <p>The scripted opponent builds down the list in order &mdash; Base, Forge, Encampment, Longhouse, Vault, Outpost, Bulwark, Cannon Tower, Reliquary, Grand Forge &mdash; and takes the <em>first</em> listed upgrade target, so its Outposts always become Towers and never Bastions.</p>
+    </div>
+    <div>
+      <h3>Effects fire before anything else</h3>
+      <p>Mana and the Reliquary resolve at the very start of your turn, scanning your front row, back row, then centre, columns left to right. Towers fire later, at your harvest, once the upkeep is settled and only from a row that can crew them. Kills wait for the sweep immediately after.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Under review</h2>
+    <span class="label">Data vs. engine</span>
+  </div>
+  <div class="flags">
+    <div class="flag">
+      <div class="flag-top"><h3>Grand Forge is in every build menu</h3><span class="sev">Balance</span></div>
+      <p>The build gate checks menu membership, not the <span class="inline-code">buildable</span> flag &mdash; and all 36 commanders list <span class="inline-code">grandforge:&lt;element&gt;</span> last. Once you own any Forge you can spend &#9670;6 to raise a second Grand Forge on a fresh cell and keep the Forge, which strictly beats upgrading for the same &#9670;6. No cap on how many. The AI is written around it and only limits itself to one per colour.</p>
+      <p class="src">Placement.IsInBuildList &mdash; nothing in the rules engine reads StructureDef.Buildable</p>
+    </div>
+    <div class="flag">
+      <div class="flag-top"><h3>The Wall effect does nothing</h3><span class="sev">Dead code</span></div>
+      <p>Bulwark and Bastion carry <span class="inline-code">StructEffect.Wall</span>, and no line in the rules engine branches on it &mdash; only two view files that print flavour. They are big bodies with support and nothing more. The inspector claims a Bulwark &ldquo;can intercept and be raided&rdquo;; interception collects creatures and workers only.</p>
+      <p class="src">CardEnums.cs:52 declares it &middot; the only other hits are the string parser and CardTextService</p>
+    </div>
+    <div class="flag">
+      <div class="flag-top"><h3>The Villager effect is a no-op</h3><span class="sev">Dead code</span></div>
+      <p>It adds <span class="inline-code">structValue</span> to the row&rsquo;s worker figure &mdash; and Longhouse and Barracks both ship <span class="inline-code">structValue: 0</span>. All their workforce comes from plain support, exactly like the Encampment&rsquo;s. The inspector says a Longhouse &ldquo;trains a free Minion (0/100 &#9874;) into its owner&rsquo;s base pool each turn&rdquo;; that code does not exist.</p>
+      <p class="src">WorkerMath.cs:34 is the only consumer &middot; text at CardTextService.cs:119</p>
+    </div>
+    <div class="flag soft">
+      <div class="flag-top"><h3>Cannon Tower is both a build and an upgrade</h3><span class="sev soft">Asymmetry</span></div>
+      <p>It sits in every menu at &#9670;4 <em>and</em> is an Outpost upgrade target, but its own <span class="inline-code">upgradedFrom</span> is empty. So the Outpost route costs &#9670;6 for the same building, and a Cannon Tower does not count as an Outpost for prerequisite purposes. The catalog validator flags this and names the Tower as the known offender &mdash; as a warning only. The Bombard tier above it is upgrade-only and properly linked.</p>
+      <p class="src">CatalogValidator &middot; upgrade-graph symmetry check V8, warn-only</p>
+    </div>
+    <div class="flag soft">
+      <div class="flag-top"><h3>Back-row Encampments are a dead end</h3><span class="sev soft">Trap</span></div>
+      <p>Encampment has no row gate, but Longhouse is front-row-only and the upgrade handler re-checks the <em>target</em> tier&rsquo;s gate. An Encampment raised in the back row can never be grown, and nothing in the UI warns you before you spend the &#9670;2.</p>
+      <p class="src">StructureHandlers.cs:89&ndash;90 &middot; rejected as WrongRowForTier</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Read from the C# rules engine, not from card text &middot; unity/Assets/SpawnRowDuel/Rules<br>
+  HP and damage shown as the game prints them; the engine stores 10&times; on the &times;500 stat scale.
+</footer>
+
+</div>
+
+</head>
+<body>
+</body>
+</html>

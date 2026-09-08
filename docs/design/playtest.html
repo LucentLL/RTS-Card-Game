@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Saved from https://claude.ai/code/artifact/ - self-contained except the Google Fonts
+     link below, which degrades to the declared Georgia/Times fallbacks when offline. -->
+<title>Spawn Row Duel Playtest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#0b1018; --ground-2:#0e1522; --panel:#151e2c; --edge:#26334a; --edge-soft:#1d2839;
+  --ink:#e7ecf5; --ink-2:#a2b0c6; --ink-3:#6d7c96;
+  --mana:#57a8e8; --gold:#e2b862; --ember:#d45a3d; --sage:#7fae8c;
+  --display:"Cinzel",Georgia,"Times New Roman",serif;
+  --body:"EB Garamond",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  --measure:68ch; --r:3px;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.62;margin:0;padding:0 20px 96px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto}
+.label{font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+p{margin:0}
+.masthead{border-bottom:1px solid var(--edge);padding:56px 0 28px;margin-bottom:44px}
+.masthead .label{color:var(--gold);margin-bottom:18px}
+h1{font-size:clamp(2.1rem,5.4vw,3.5rem);font-weight:900;letter-spacing:.005em;line-height:1.05;margin-bottom:16px}
+.dek{font-size:1.12rem;color:var(--ink-2);max-width:var(--measure);margin-bottom:26px}
+.dek em{color:var(--ink);font-style:italic}
+.tally{display:flex;flex-wrap:wrap;gap:10px 28px;font-family:var(--mono);font-size:.78rem;color:var(--ink-3)}
+.tally b{color:var(--ink);font-weight:500}
+section{margin-bottom:64px}
+.sec-head{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--edge-soft);padding-bottom:10px;margin-bottom:26px}
+h2{font-size:1.5rem;font-weight:700;letter-spacing:.02em}
+.sec-head .label{margin-left:auto;white-space:nowrap}
+.note{color:var(--ink-2);max-width:var(--measure);margin-bottom:22px}
+.note b{color:var(--ink);font-weight:500}
+.inline-code{font-family:var(--mono);font-size:.85em;color:var(--gold)}
+
+.verdict{background:var(--ground-2);border:1px solid var(--edge-soft);border-left:2px solid var(--gold);border-radius:0 var(--r) var(--r) 0;padding:22px 26px;margin-bottom:56px;max-width:820px}
+.verdict h3{font-size:1.05rem;font-weight:700;letter-spacing:.05em;margin-bottom:10px}
+.verdict p{color:var(--ink-2);max-width:var(--measure)}
+.verdict p+p{margin-top:10px}
+.verdict b{color:var(--ink);font-weight:500}
+
+.lenses{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.lens{background:var(--panel);border:1px solid var(--edge-soft);border-top:2px solid var(--mana);border-radius:var(--r);padding:18px 20px}
+.lens.b{border-top-color:var(--gold)}
+.lens h3{font-size:1.1rem;font-weight:700;letter-spacing:.03em;margin-bottom:8px}
+.lens p{color:var(--ink-2);font-size:.95rem;line-height:1.55}
+.lens .stat{font-family:var(--mono);font-size:.78rem;color:var(--ink-3);margin-top:10px}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:26px}
+.tile{background:var(--ground-2);border:1px solid var(--edge-soft);border-radius:var(--r);padding:14px 16px}
+.tile .n{font-family:var(--display);font-size:1.7rem;font-weight:700;color:var(--gold);line-height:1.1;font-variant-numeric:tabular-nums}
+.tile .n.bad{color:var(--ember)}
+.tile .n.good{color:var(--sage)}
+.tile .k{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+
+.table-scroll{overflow-x:auto;border:1px solid var(--edge-soft);border-radius:var(--r);margin-bottom:22px}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:.92rem}
+th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--edge-soft);vertical-align:top}
+thead th{font-family:var(--mono);font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);background:var(--ground-2);font-weight:400;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.name{font-family:var(--display);font-weight:700;letter-spacing:.02em;white-space:nowrap}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+td.num.hi{color:var(--sage)} td.num.lo{color:var(--ember)} td.num.mid{color:var(--gold)}
+td.txt{color:var(--ink-2);font-size:.92rem}
+caption{caption-side:bottom;text-align:left;padding:12px 14px 0;color:var(--ink-3);font-size:.86rem;line-height:1.5}
+
+.strats{display:flex;flex-direction:column;gap:2px}
+.strat{background:var(--ground-2);border-left:2px solid var(--mana);padding:18px 24px;display:flex;flex-direction:column;gap:6px}
+.strat.deg{border-left-color:var(--ember)}
+.strat.dead{border-left-color:var(--ink-3)}
+.strat-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.strat h3{font-size:1.05rem;font-weight:700;letter-spacing:.03em}
+.strat p{color:var(--ink-2);max-width:var(--measure)}
+.strat .ev{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);letter-spacing:.02em}
+.sev{font-family:var(--mono);font-size:.6rem;letter-spacing:.13em;text-transform:uppercase;padding:3px 7px;border-radius:2px;white-space:nowrap}
+.sev.win{color:var(--sage);background:rgba(127,174,140,.12)}
+.sev.deg{color:var(--ember);background:rgba(212,90,61,.13)}
+.sev.dead{color:var(--ink-2);background:rgba(162,176,198,.09)}
+
+.cmp td:first-child{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.cmp td.srd{color:var(--ink);background:rgba(87,168,232,.05)}
+
+.sw{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 40px}
+.sw div{padding:16px 0;border-top:1px solid var(--edge-soft)}
+.sw h3{font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
+.sw .s h3{color:var(--sage)} .sw .w h3{color:var(--ember)}
+.sw p{color:var(--ink-2);font-size:.95rem;line-height:1.55}
+.sw p b{color:var(--ink);font-weight:500}
+
+.recs{counter-reset:r;display:flex;flex-direction:column;gap:2px}
+.rec{background:var(--ground-2);border-left:2px solid var(--gold);padding:18px 24px;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;align-items:baseline}
+.rec::before{counter-increment:r;content:counter(r);font-family:var(--display);font-weight:900;font-size:1.4rem;color:var(--gold);grid-row:span 3}
+.rec h3{font-size:1.05rem;font-weight:700;letter-spacing:.03em}
+.rec p{color:var(--ink-2);max-width:var(--measure)}
+.rec .ev{font-family:var(--mono);font-size:.7rem;color:var(--ink-3)}
+footer{border-top:1px solid var(--edge);padding-top:22px;color:var(--ink-3);font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;line-height:1.8}
+@media (max-width:760px){body{font-size:16px;padding:0 16px 72px}}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="label">Spawn Row Duel &middot; Playtest &middot; 7 September 2026 &middot; revised twice the same day</div>
+  <h1>Spawn Row Duel Playtest</h1>
+  <p class="dek">Six hundred and forty headless matches after the economy pass, through two lenses: eight scripted playstyles piloting the game like a person would, and the shipped C# rules played against themselves. What wins, what stalls, and how it stands against <em>Hearthstone</em>, <em>MTG Arena</em> and <em>Master Duel</em>.</p>
+  <div class="tally">
+    <span><b>320</b> pilot matches &middot; 8 playstyles &times; 12 decks</span>
+    <span><b>320</b> self-play matches &middot; 8&times;8 commanders &times; 5 seeds</span>
+    <span><b>16</b> A/B variants &times; 96</span>
+    <span><b>320</b> more self-play, with deck-out</span>
+    <span><b>0</b> crashes or invariant failures</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <h3>The verdict in three lines</h3>
+  <p><b>The game has a genuinely new middle</b> &mdash; a build-order economy and a positional board that none of the three comparison games have &mdash; and a first-player split of 49/51, which most of them would envy.</p>
+  <p><b>It had a broken late game.</b> An unblockable ranged building and an infinite free revive made a treadmill that 14% of self-play matches never left, because nothing ended a game but the wall. <b>Deck-out is a loss as of this evening</b>: every stall now ends &mdash; and 40% of AI-vs-AI games end that way, the first player losing all of them, which is the treadmill still standing underneath. In human play deck-out never fires.</p>
+  <p><b>Rushing the wall is the dominant human strategy</b> at 68&ndash;73%, winning in thirteen plies. The single biggest lever the A/B found was the one you named: <b>halve structure HP and a siege pilot goes from 17% to 83%</b> while the rush does not move. A hard mana cap made things worse. Going second still costs a pilot half its wins.</p>
+</div>
+
+<section>
+  <div class="sec-head"><h2>Two lenses</h2><span class="label">Method</span></div>
+  <div class="lenses">
+    <div class="lens">
+      <h3>Pilots vs the AI &middot; the strategy lens</h3>
+      <p><span class="inline-code">tools/playtest/</span> boots the living JS game in jsdom and plays it through a human&rsquo;s entry points: eight playstyles (aggro, wallrush, multiattack, balanced, turtle, hunter, sapper, raider) with matching deck shapes, against the shipped scripted AI. This is the richer read on <em>what a person would do</em>. Caveat: the JS is the ruleset the port left behind &mdash; three centre lanes, no row gate on builds, no sacrifice gate &mdash; so it describes a close cousin of the game on Pages, on identical card data.</p>
+      <p class="stat">320 matches &middot; 8 playstyles &times; 8 mono + 4 dual decks &times; 3 seeds &middot; 160-ply cap</p>
+    </div>
+    <div class="lens b">
+      <h3>Self-play &middot; the shipped-rules lens</h3>
+      <p><span class="inline-code">PlaytestCli</span> (new today) runs the C# engine the player actually gets &mdash; open middle row, row gates, sacrifice gate, this morning&rsquo;s economy &mdash; every mono commander against every other, both sides driven by the scripted AI, draining engine events after each command. It cannot show human strategy, but it is the only honest source for game length, stalls, and where the mana comes from.</p>
+      <p class="stat">320 matches &middot; 8&times;8 pairings &times; 5 seeds &middot; 300-turn cap &middot; 3.1 s total</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>What the numbers say</h2><span class="label">Shipped rules, self-play</span></div>
+  <div class="tiles">
+    <div class="tile"><div class="n">49% &rarr; 31%</div><div class="k">first player wins &middot; before / after deck-out</div></div>
+    <div class="tile"><div class="n">59</div><div class="k">median turns to a result</div></div>
+    <div class="tile"><div class="n good">14% &rarr; 0%</div><div class="k">never end &middot; before / after deck-out</div></div>
+    <div class="tile"><div class="n bad">40%</div><div class="k">AI games ending by deck-out</div></div>
+    <div class="tile"><div class="n bad">157</div><div class="k">tower shots per match</div></div>
+    <div class="tile"><div class="n bad">40</div><div class="k">revives per side</div></div>
+    <div class="tile"><div class="n">17</div><div class="k">mana per side per turn</div></div>
+    <div class="tile"><div class="n bad">533</div><div class="k">mana drained per side</div></div>
+    <div class="tile"><div class="n">275/275</div><div class="k">results by wall kill</div></div>
+  </div>
+
+  <p class="note">Every decided game ends the same way: the loser&rsquo;s board is empty (0.1 creatures standing) and hand is empty (1.3 cards) while the winner holds <b>4.3 creatures and 7.9 cards</b> with 74% life left. Nobody loses on mana &mdash; both sides print 16&ndash;18 a turn from the tenth turn on and throw away hundreds. <b>The late game is a card-count race with an unlimited budget.</b></p>
+
+  <div class="table-scroll">
+    <table>
+      <caption>Non-mirror matches only. Harvest and structure mana are per-match totals; note the three losing commanders&rsquo; economies are half the size &mdash; they die before they build them.</caption>
+      <thead><tr><th>Commander</th><th style="text-align:right">Win rate</th><th style="text-align:right">W&ndash;L&ndash;stall</th><th style="text-align:right">Wall dmg dealt</th><th style="text-align:right">Wall dmg taken</th><th style="text-align:right">Harvested</th><th style="text-align:right">Structure mana</th><th style="text-align:right">Median turns</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Dark</td><td class="num hi">79%</td><td class="num">55&ndash;4&ndash;11</td><td class="num">9986</td><td class="num">2357</td><td class="num">447</td><td class="num">389</td><td class="num">59</td></tr>
+        <tr><td class="name">Fire</td><td class="num hi">61%</td><td class="num">43&ndash;16&ndash;11</td><td class="num">7493</td><td class="num">4543</td><td class="num">422</td><td class="num">415</td><td class="num">64</td></tr>
+        <tr><td class="name">Light</td><td class="num hi">60%</td><td class="num">42&ndash;10&ndash;18</td><td class="num">7779</td><td class="num">3071</td><td class="num">644</td><td class="num">521</td><td class="num">76</td></tr>
+        <tr><td class="name">Forest</td><td class="num mid">49%</td><td class="num">34&ndash;27&ndash;9</td><td class="num">6407</td><td class="num">6507</td><td class="num">426</td><td class="num">425</td><td class="num">72</td></tr>
+        <tr><td class="name">Earth</td><td class="num mid">37%</td><td class="num">26&ndash;27&ndash;17</td><td class="num">5000</td><td class="num">6186</td><td class="num">603</td><td class="num">558</td><td class="num">75</td></tr>
+        <tr><td class="name">Water</td><td class="num lo">23%</td><td class="num">16&ndash;53&ndash;1</td><td class="num">4479</td><td class="num">9743</td><td class="num">304</td><td class="num">264</td><td class="num">61</td></tr>
+        <tr><td class="name">Electric</td><td class="num lo">23%</td><td class="num">16&ndash;54&ndash;0</td><td class="num">5179</td><td class="num">9714</td><td class="num">244</td><td class="num">185</td><td class="num">47</td></tr>
+        <tr><td class="name">Wind</td><td class="num lo">20%</td><td class="num">14&ndash;55&ndash;1</td><td class="num">5293</td><td class="num">9493</td><td class="num">244</td><td class="num">185</td><td class="num">41</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-scroll">
+    <table>
+      <caption>Every element has eight creatures at an average cost of 3, upkeep 1.75, and roughly a thousand stat points per mana &mdash; the pools are balanced on <em>total</em> stats. What differs is the attack/health split, and that split decides both lenses in opposite directions: glass cannons win the human rush, but an average body under 1000 HP dies to one Cannon Tower shot in the AI grind.</caption>
+      <thead><tr><th>Element</th><th style="text-align:right">Avg attack</th><th style="text-align:right">Avg HP</th><th style="text-align:right">Attack / mana</th><th>Keyword</th><th style="text-align:right">Self-play</th><th style="text-align:right">Piloted</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Dark</td><td class="num">2188</td><td class="num lo">688</td><td class="num hi">729</td><td class="txt">Reap &mdash; a 200/200 token on death</td><td class="num hi">79%</td><td class="num hi">59%</td></tr>
+        <tr><td class="name">Wind</td><td class="num">1938</td><td class="num lo">938</td><td class="num hi">646</td><td class="txt">Scour &mdash; razes a back-row face-down or building</td><td class="num lo">20%</td><td class="num hi">55%</td></tr>
+        <tr><td class="name">Electric</td><td class="num">1938</td><td class="num lo">938</td><td class="num hi">646</td><td class="txt">Overcharge</td><td class="num lo">23%</td><td class="num hi">66%</td></tr>
+        <tr><td class="name">Fire</td><td class="num">1500</td><td class="num">1250</td><td class="num">500</td><td class="txt">Detonate</td><td class="num hi">61%</td><td class="num lo">20%</td></tr>
+        <tr><td class="name">Light</td><td class="num">1188</td><td class="num">1688</td><td class="num">396</td><td class="txt">Ward</td><td class="num hi">60%</td><td class="num mid">44%</td></tr>
+        <tr><td class="name">Forest</td><td class="num">1125</td><td class="num">1563</td><td class="num">375</td><td class="txt">Chrysalis</td><td class="num mid">49%</td><td class="num">31%</td></tr>
+        <tr><td class="name">Water</td><td class="num">1063</td><td class="num">1750</td><td class="num">354</td><td class="txt">Undertow</td><td class="num lo">23%</td><td class="num">38%</td></tr>
+        <tr><td class="name">Earth</td><td class="num">875</td><td class="num hi">2125</td><td class="num lo">292</td><td class="txt">Entrench</td><td class="num mid">37%</td><td class="num lo">10%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="note"><b>Dark wins both lenses</b> for two reasons that compound: the highest attack per mana in the game, and Reap turning every tower kill into a free body. Wind and Electric have the same attack and the same 938-HP bodies, but no death value &mdash; so they rush well and grind terribly.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>What the pilots found</h2><span class="label">Playstyles vs the AI</span></div>
+  <div class="table-scroll">
+    <table>
+      <caption>Same harness, same AI, before and after the economy pass. Player win rate overall went 25% &rarr; 40%; timeouts 6 &rarr; 0; the median winning game is still 13 plies.</caption>
+      <thead><tr><th>Playstyle</th><th>What it does</th><th style="text-align:right">Before</th><th style="text-align:right">Now</th><th style="text-align:right">Median plies</th><th style="text-align:right">Wall dmg dealt / taken</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Aggro</td><td class="txt">three structures, cheap creatures, the wall always</td><td class="num">53%</td><td class="num hi">73%</td><td class="num">13</td><td class="num">10763 / 3463</td></tr>
+        <tr><td class="name">Wallrush</td><td class="txt">biggest creatures, only ever the wall</td><td class="num">50%</td><td class="num hi">68%</td><td class="num">13</td><td class="num">10438 / 4088</td></tr>
+        <tr><td class="name">Multiattack</td><td class="txt">the whole army onto one target</td><td class="num">30%</td><td class="num hi">58%</td><td class="num">17</td><td class="num">10188 / 5925</td></tr>
+        <tr><td class="name">Balanced</td><td class="txt">full build order, kills what it can</td><td class="num">15%</td><td class="num mid">48%</td><td class="num">20</td><td class="num">9150 / 7200</td></tr>
+        <tr><td class="name">Hunter</td><td class="txt">enemy creatures first</td><td class="num">0%</td><td class="num mid">38%</td><td class="num">22</td><td class="num">8013 / 7763</td></tr>
+        <tr><td class="name">Turtle</td><td class="txt">everything, upgrades, traps, attacks from turn 14</td><td class="num">30%</td><td class="num">35%</td><td class="num">32</td><td class="num">6613 / 8350</td></tr>
+        <tr><td class="name">Siege</td><td class="txt">structures while they have two or more and it&rsquo;s early, then the wall &middot; <em>new this evening</em></td><td class="num">&mdash;</td><td class="num">17%</td><td class="num">28</td><td class="num">&mdash;</td></tr>
+        <tr><td class="name">Sapper</td><td class="txt">enemy structures first, always &mdash; never the wall</td><td class="num lo">0%</td><td class="num lo">0%</td><td class="num">32</td><td class="num">200 / 13263</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The sapper&rsquo;s 0% turned out to be the pilot, not the rules: every one of its matches ended with the enemy at 10000 life, because it never attacks the wall at all. The <b>siege</b> pilot &mdash; raze while they still have an economy, then convert &mdash; is what the question needed, and it is 17% under the shipped numbers. What moves it is in the levers table below. The raider persona is retired: workers are a resource in the design, not units to kill.</p>
+  <p class="note">The economy pass made <b>rushing better, not worse</b>: the Base&rsquo;s ⚒+1 slowed everyone&rsquo;s early workers, which raised the relative value of a cheap creature on turn two. 57% of all declared attacks deal no wall damage and blocks are taken 83% of the time they&rsquo;re offered &mdash; and the wall still falls in six rounds, because a joint attack averages 1432 against a single attack&rsquo;s 815 and only the attacker chooses the row.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>The levers, measured</h2><span class="label">A/B &middot; 96 pilot matches per variant</span></div>
+  <p class="note">Each variant is the shipped game with one rule changed, played by every pilot against the AI. Read the columns, not the total: a lever that helps one plan and sinks another is telling you what it really does.</p>
+  <div class="table-scroll">
+    <table>
+      <caption>Half-HP structures is the only lever that helps every non-rush plan at once and leaves the rush alone. The mana cap does the opposite &mdash; wallrush climbs, everything slower collapses &mdash; because a ceiling punishes the player who was building. Deck-out changes nothing for pilots: nobody reaches an empty deck in a game that ends in 24 plies.</caption>
+      <thead><tr><th>Variant</th><th style="text-align:right">Aggro</th><th style="text-align:right">Wallrush</th><th style="text-align:right">Balanced</th><th style="text-align:right">Hunter</th><th style="text-align:right">Turtle</th><th style="text-align:right">Siege</th><th style="text-align:right">Sapper</th><th style="text-align:right">All</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Baseline</td><td class="num">75%</td><td class="num">58%</td><td class="num">58%</td><td class="num">50%</td><td class="num">8%</td><td class="num">17%</td><td class="num lo">0%</td><td class="num">31%</td></tr>
+        <tr><td class="name">Structures at half HP</td><td class="num">75%</td><td class="num">58%</td><td class="num hi">75%</td><td class="num hi">75%</td><td class="num hi">50%</td><td class="num hi">83%</td><td class="num hi">50%</td><td class="num hi">54%</td></tr>
+        <tr><td class="name">Mana capped at 10</td><td class="num">75%</td><td class="num hi">83%</td><td class="num lo">8%</td><td class="num lo">0%</td><td class="num lo">0%</td><td class="num">25%</td><td class="num lo">0%</td><td class="num lo">22%</td></tr>
+        <tr><td class="name">Deck-out is a loss</td><td class="num">75%</td><td class="num">58%</td><td class="num">58%</td><td class="num">50%</td><td class="num">8%</td><td class="num">17%</td><td class="num lo">0%</td><td class="num">31%</td></tr>
+        <tr><td class="name">Cap and deck-out</td><td class="num">75%</td><td class="num hi">83%</td><td class="num lo">8%</td><td class="num lo">0%</td><td class="num lo">0%</td><td class="num">25%</td><td class="num lo">0%</td><td class="num lo">22%</td></tr>
+        <tr><td class="name">Life 5000</td><td class="num hi">100%</td><td class="num hi">92%</td><td class="num">67%</td><td class="num hi">83%</td><td class="num">50%</td><td class="num">&mdash;</td><td class="num lo">0%</td><td class="num hi">54%</td></tr>
+        <tr><td class="name">Tower fires for 500</td><td class="num">83%</td><td class="num hi">83%</td><td class="num">58%</td><td class="num">58%</td><td class="num">17%</td><td class="num">&mdash;</td><td class="num lo">0%</td><td class="num">42%</td></tr>
+        <tr><td class="name">Tower removed</td><td class="num lo">50%</td><td class="num lo">42%</td><td class="num lo">17%</td><td class="num lo">25%</td><td class="num">33%</td><td class="num">&mdash;</td><td class="num lo">0%</td><td class="num lo">22%</td></tr>
+        <tr><td class="name">Go second</td><td class="num lo">42%</td><td class="num lo">33%</td><td class="num lo">25%</td><td class="num lo">17%</td><td class="num lo">0%</td><td class="num">&mdash;</td><td class="num lo">0%</td><td class="num lo">16%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <caption>The same rule in the shipped engine, AI against AI. Deck-out ends every stall. It also decides 40% of these games outright, and because the first player draws first it loses every one of them &mdash; the wall games underneath are still 51/49. That is the tower&ndash;reliquary treadmill measured a second way: in 40% of AI games nobody ever reaches the wall.</caption>
+      <thead><tr><th>Self-play, 320 matches</th><th style="text-align:right">Before deck-out</th><th style="text-align:right">After deck-out</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Matches that never end</td><td class="num lo">45 (14%)</td><td class="num hi">0</td></tr>
+        <tr><td class="name">Ended by deck-out</td><td class="num">&mdash;</td><td class="num lo">128 (40%)</td></tr>
+        <tr><td class="name">First player wins</td><td class="num">49%</td><td class="num lo">31%</td></tr>
+        <tr><td class="name">First player wins, wall games only</td><td class="num">49%</td><td class="num">52%</td></tr>
+        <tr><td class="name">Tower shots per match</td><td class="num">157</td><td class="num">85</td></tr>
+        <tr><td class="name">Revives per side</td><td class="num">40</td><td class="num">22</td></tr>
+        <tr><td class="name">Mana drained per side</td><td class="num">533</td><td class="num">232</td></tr>
+        <tr><td class="name">90th-percentile length</td><td class="num">89 turns</td><td class="num">72 turns</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Emergent strategies</h2><span class="label">Ranked by what they win</span></div>
+  <div class="strats">
+    <div class="strat">
+      <div class="strat-top"><h3>The rush</h3><span class="sev win">68&ndash;73% &middot; 13 plies</span></div>
+      <p>Base, forge, a third building, then cheap bodies at the wall every turn. The economy never matters because the game is over before it exists. Joint attacks are the multiplier; blocks slow it, retaliation taxes it, nothing stops it. This is the human meta.</p>
+      <p class="ev">pilots: aggro 73%, wallrush 68%, multiattack 58% &middot; wins median 13 plies &middot; blocks 83%, zero-damage attacks 57%</p>
+    </div>
+    <div class="strat deg">
+      <div class="strat-top"><h3>The tower&ndash;reliquary treadmill</h3><span class="sev deg">degenerate &middot; 14% never end</span></div>
+      <p>Cannon Towers shoot the first enemy creature every upkeep, unblockably. The Reliquary hands back the most recent dead creature every upkeep, for free, forever. Summon &rarr; shot &rarr; returned &rarr; summon. Games with above-median tower fire run twice as long (79 turns vs 40). <b>All 45 stalls have a Reliquary standing</b>, average four towers on the board, 140 revives per side, both decks empty and both walls above 70% &mdash; and there is no deck-out rule to end it.</p>
+      <p class="ev">self-play: 157 tower shots/match, 40 revives/side; stalls 45/45 with reliquary, 4.0 towers, 139.6 revives/side, deck 0</p>
+    </div>
+    <div class="strat deg">
+      <div class="strat-top"><h3>Mana flood</h3><span class="sev deg">from turn ~10</span></div>
+      <p>Both sides settle at 16&ndash;18 mana a turn and cannot spend it: 80 mana drained per side in short games, 447 in long ones. The Vault&rsquo;s ◈4/◈10 is noise against that. Once mana is unlimited the only scarce thing is cards, which is why the Reliquary &mdash; the sole card-advantage engine &mdash; is on every stalled board. The trade-off you set this morning holds at the low end (harvest 53% / structures 47%); it is the ceiling that&rsquo;s missing.</p>
+      <p class="ev">self-play: 17.0 mana/side/turn; drained 79 (&lt;40t) &rarr; 225 (40&ndash;70t) &rarr; 447 (70t+); winner hand 7.9</p>
+    </div>
+    <div class="strat">
+      <div class="strat-top"><h3>Glass cannons rush, tanks grind</h3><span class="sev win">element identity</span></div>
+      <p>Attack-per-mana predicts the pilot lens (Dark, Wind, Electric on top); the 1000-damage tower threshold predicts the grind (a 938-HP body dies to one shot, so Wind and Electric collapse to 20%). Dark sits on top of both because Reap turns each tower kill into a token. Earth&rsquo;s 2125-HP walls win nothing anywhere: they can&rsquo;t race and there&rsquo;s nothing to outlast.</p>
+      <p class="ev">atk/mana: dark 729, wind/electric 646, earth 292 &middot; self-play dark 79%, wind 20% &middot; piloted electric 66%, earth 10%</p>
+    </div>
+    <div class="strat">
+      <div class="strat-top"><h3>Go first</h3><span class="sev deg">2 : 1 in the pilot lens</span></div>
+      <p>A pilot that concedes the opening turn drops from 33% to 16%. In symmetric self-play the split is 49/51 &mdash; the scripted AI doesn&rsquo;t press tempo, a person does. The coin-flip opener in ruleset v3 randomises who suffers this; it doesn&rsquo;t compensate for it.</p>
+      <p class="ev">A/B go-second: 33% &rarr; 16% &middot; self-play first-player 136 of 275</p>
+    </div>
+    <div class="strat">
+      <div class="strat-top"><h3>Siege: sap, then convert</h3><span class="sev win">17% now &middot; 83% at half structure HP</span></div>
+      <p>Raze while the enemy still has an economy standing, then take the wall with the board you built while they rebuilt. Under the shipped numbers it wins 17%: a 2500&ndash;3000 HP building costs two creature-turns to fell, the AI rebuilds at 17 mana a turn, and every turn spent on a forge is a turn not spent on the wall. <b>Halve structure HP and it becomes the best plan in the game</b> &mdash; 83%, median 23 plies, enemy at 0 life &mdash; and the rush does not move, because the rush never attacks a building anyway. The blocker was HP, exactly as suspected.</p>
+      <p class="ev">A/B struct-half-hp: siege 17% &rarr; 83%, sapper 0% &rarr; 50%, balanced 58 &rarr; 75, hunter 50 &rarr; 75, turtle 8 &rarr; 50, aggro 75 &rarr; 75</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Against the field</h2><span class="label">Hearthstone &middot; MTG Arena &middot; Master Duel</span></div>
+  <div class="table-scroll">
+    <table class="cmp">
+      <caption>The nearest genre relatives are actually the board card games &mdash; Duelyst, Faeria, Duel of Champions &mdash; not these three. That is the point: Spawn Row Duel&rsquo;s middle is a different game from theirs. Its endgame problems, though, are exactly the ones those three solved with a rule each.</caption>
+      <thead><tr><th></th><th>Hearthstone</th><th>MTG Arena</th><th>Master Duel</th><th>Spawn Row Duel</th></tr></thead>
+      <tbody>
+        <tr><td>Resource</td><td class="txt">+1 crystal a turn, cap 10. Zero variance; the deck&rsquo;s curve is the strategy.</td><td class="txt">Lands in the deck. Variance is the design: screw and flood create swings and comebacks.</td><td class="txt">No mana. Summoning rules and card economy are the resource.</td><td class="txt srd">Buildings and workers you place, reset each turn unless vaulted. A real build-order layer none of the three have &mdash; and no ceiling, so it saturates at 17 a turn.</td></tr>
+        <tr><td>Board</td><td class="txt">One row, seven slots, no position.</td><td class="txt">No position.</td><td class="txt">Zones, no position.</td><td class="txt srd">5&times;7 grid, movement, rows-crossed blocking, ranged buildings. Deeper than all three &mdash; but &ldquo;only the wall wins&rdquo; collapses it into a race to the back row.</td></tr>
+        <tr><td>Combat</td><td class="txt">Attacker chooses; no blocking (Taunt only). Simple, tempo-heavy.</td><td class="txt">Defender blocks; instant-speed tricks. The richest.</td><td class="txt">Attacker chooses; chains and traps as the reaction layer.</td><td class="txt srd">Defender blocks by row interval, universal retaliation, traps and a response window. Closest to Magic in feel; 83% block rate. Then the Cannon Tower ignores all of it.</td></tr>
+        <tr><td>Win conditions</td><td class="txt">Life, fatigue (deck-out damage).</td><td class="txt">Life, decking, poison, alternates.</td><td class="txt">LP, deck-out, a handful of alternates.</td><td class="txt srd">Life, and &mdash; as of this evening &mdash; deck-out. The wall is the game; deck-out is the rule that stops a game refusing to end.</td></tr>
+        <tr><td>Card advantage</td><td class="txt">Everywhere.</td><td class="txt">Everywhere.</td><td class="txt">The whole game.</td><td class="txt srd">One engine, the Reliquary, free and infinite. Present on every stalled board.</td></tr>
+        <tr><td>Game length</td><td class="txt">~8 turns each, 3&ndash;5 decisions a turn, 10&ndash;15 min.</td><td class="txt">~10 turns each, 15&ndash;25 min.</td><td class="txt">3&ndash;6 turns each, long turns, ~10 min.</td><td class="txt srd">Rush: 6&ndash;7 rounds. Grind: 30 rounds at ~9 commands a turn. That is an RTS turn, on a phone.</td></tr>
+        <tr><td>Deck</td><td class="txt">30 cards, 2 copies (1 legendary).</td><td class="txt">60 cards, 4 copies.</td><td class="txt">40&ndash;60 cards, 3 copies.</td><td class="txt srd">40 cards, 3 copies &mdash; Yu-Gi-Oh&rsquo;s format &mdash; from a pool of 64 creatures and 14 spells. Structures live outside the deck, like a hero power: always available.</td></tr>
+        <tr><td>Turn order</td><td class="txt">The Coin: second gets a card and a mana.</td><td class="txt">First skips the draw.</td><td class="txt">First skips the draw.</td><td class="txt srd">A coin flip decides who suffers it. Going second costs a pilot half its wins &mdash; and with deck-out, drawing first means decking first. The others&rsquo; first-player draw skip would answer both.</td></tr>
+        <tr><td>Balance state</td><td class="txt">Archetypes held within ~45&ndash;55%.</td><td class="txt">Same, by a full-time team.</td><td class="txt">Same.</td><td class="txt srd">20&ndash;79% by commander, 0&ndash;73% by playstyle. Pre-tuning.</td></tr>
+        <tr><td>Legibility</td><td class="txt">The benchmark: big numbers, one row, one resource.</td><td class="txt">Dense, famously.</td><td class="txt">Dense, notoriously.</td><td class="txt srd">Four phases, three worker zones, an upkeep settlement, a &times;500 scale printed &divide;10. Heavier than Hearthstone, lighter than Master Duel &mdash; and until yesterday the HUD dropped the symbols.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Where it stands</h2><span class="label">Strong &middot; weak</span></div>
+  <div class="sw">
+    <div class="s"><h3>Strong &middot; the economy is a game</h3><p>Build order, worker placement, upkeep, which row a building stands in &mdash; <b>a strategic layer with real decisions</b> that no mainstream CCG offers. This morning&rsquo;s trade-off makes the opening three buildings three different plans.</p></div>
+    <div class="w"><h3>Weak &middot; the economy has no ceiling</h3><p>By turn ten it prints 17 a turn and drains hundreds. <b>Nothing you do with mana matters after the opening.</b> A hard cap is not the answer &mdash; it collapsed every slow plan in the A/B. Making buildings killable is: then the ceiling is your opponent.</p></div>
+    <div class="s"><h3>Strong &middot; the board is real</h3><p>Rows, columns, movement, blocking by interval, retaliation, ranged fire. <b>Position is a resource</b>, and the 83% block rate says the defender is playing too.</p></div>
+    <div class="w"><h3>Weak &middot; the economy cannot be attacked</h3><p>The wall is rightly the win; the problem is that the <em>route</em> through the enemy&rsquo;s economy is closed. Buildings take two creature-turns to fell and are rebuilt in one. <b>A siege wins 17%</b>; at half HP, 83%.</p></div>
+    <div class="s"><h3>Strong &middot; consistency</h3><p>Structures outside the deck mean every game has its engine; 40/3 keeps decks honest. <b>No &ldquo;didn&rsquo;t draw it&rdquo; games.</b> Symmetric play splits 49/51 on turn order.</p></div>
+    <div class="w"><h3>Weak &middot; the tower</h3><p>◆4 for 1000 unblockable damage every upkeep, forever, from a building that never has to attack. <b>157 shots a match.</b> Doubles game length, defines the grind, and makes half the roster unplayable in it. Removing it makes things <em>worse</em> (the AI&rsquo;s economy explodes); halving it helps.</p></div>
+    <div class="s"><h3>Strong &middot; it can be fast</h3><p>A rush ends in six rounds. <b>The game has a tempo mode</b> that fits a phone.</p></div>
+    <div class="w"><h3>Weak &middot; it can be very slow</h3><p>A grind is thirty rounds at nine commands each. <b>That is an RTS turn</b>, and the interface is a phone in landscape.</p></div>
+    <div class="s"><h3>Strong &middot; element identity</h3><p>Eight keywords, eight stat profiles, balanced on total stats per mana. <b>The elements play differently</b> and the data shows it.</p></div>
+    <div class="w"><h3>Weak &middot; element balance and pool depth</h3><p>20&ndash;79% by commander. Eight creatures an element means <b>the element is the deck</b>; there is no room for two Dark decks to differ.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>What to change, in order</h2><span class="label">Each with its A/B number</span></div>
+  <div class="recs">
+    <div class="rec"><h3>Deck-out is a loss &mdash; shipped</h3><p>Done this evening; every stall ends. It also revealed that in 40% of AI-vs-AI games nobody reaches the wall, and that the first player loses all of those because it draws first. Pair it with the standard first-player draw skip, which also answers the go-second problem below; or soften it to Hearthstone fatigue (escalating damage per empty draw) so the wall still decides. Your call &mdash; both are a few lines.</p><p class="ev">self-play: stalls 45 &rarr; 0 &middot; deck-out decides 128/320 &middot; first player 49% &rarr; 31% (wall games alone: 52%)</p></div>
+    <div class="rec"><h3>Cut structure HP &mdash; the biggest lever measured</h3><p>Half made the siege the best plan in the game and lifted every non-rush pilot, without touching the rush. Try a third off first, or make the economy buildings (forges, encampments) fragile and the Base sturdy. This is also the mana ceiling: an economy that can be razed is an economy that is not unlimited.</p><p class="ev">A/B struct-half-hp: overall 31% &rarr; 54%, siege 17 &rarr; 83, sapper 0 &rarr; 50, aggro 75 &rarr; 75, median 24 &rarr; 20 plies</p></div>
+    <div class="rec"><h3>Cannon Tower at 50, Bombard tier at 100 &mdash; shipped</h3><p>Done: the tower fires for 500 and crews one worker; a Bombard Tower (◆5, ♥300, ⚒&minus;2) is the upgrade back to the full shot behind thinner walls. Measured in self-play: the AI upgrades 2.8 towers a side into Bombards and the grind barely moves (85 &rarr; 82 shots a match) &mdash; at 17 mana a turn ◆5 is not a decision. That is the case for the rule that would actually bite: <b>tower fire that can be blocked</b>, with towers auto-declaring in combat and the defender interposing by the row-interval rule. About a day in the resolver; on the table. For now, the user&rsquo;s timing rule is in: towers fire at <b>harvest</b>, after Move/Pay/Sacrifice, and only from a row that can crew them &mdash; a tower must be built, survive an enemy turn, and be paid for before its first shot.</p><p class="ev">A/B towers-500: 33% &rarr; 42% &middot; self-play after: shots 85 &rarr; 82, first player 31% &rarr; 45%, deck-out endings 40% &rarr; 36%</p></div>
+    <div class="rec"><h3>Do not hard-cap mana</h3><p>A ceiling of 10 took the pilot from 31% to 22%: wallrush rose, and balanced, hunter and turtle collapsed to nothing. A cap punishes whoever was building. Let the flood be answered by sieges instead.</p><p class="ev">A/B mana-cap-10: balanced 58 &rarr; 8, hunter 50 &rarr; 0, turtle 8 &rarr; 0, wallrush 58 &rarr; 83</p></div>
+    <div class="rec"><h3>Compensate going second</h3><p>The first-player draw skip is the one the comparison games use and it now does double duty with deck-out. A free Encampment on turn one is the RTS-flavoured alternative.</p><p class="ev">A/B go-second: 33% &rarr; 16%</p></div>
+    <div class="rec"><h3>Bring Wind and Electric up, Dark down</h3><p>Reap is worth ~20 points in the grind. Give Wind and Electric a death value, or bodies over the tower line, and put Dark&rsquo;s token on a cost.</p><p class="ev">self-play after deck-out: dark 80%, wind 23%, electric 26%</p></div>
+  </div>
+</section>
+
+<footer>
+  Pilots: node tools/playtest/run.mjs --matrix full --seeds 3 &middot; A/B: experiments.mjs --seeds 3, then --only baseline,mana-cap-10,deckout,struct-half-hp,cap-and-deckout &middot; Self-play: bash tools/playtest/run-csharp.sh (SRD_PLAYTEST_SEEDS=5) then analyze-csharp.mjs, before and after the deck-out rule<br>
+  Results in tools/playtest/out/post-economy.* and csharp-selfplay.json &middot; all numbers post the 7 September economy pass (Forge ◆2 ⚒0, Base ◆1 ⚒+1, Grand Forge ◆4 ⚒0)
+</footer>
+
+</div>
+
+</head>
+<body>
+</body>
+</html>

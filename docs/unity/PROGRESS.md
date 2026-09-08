@@ -34,6 +34,35 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-07 (late) — a won match you could not leave, and a picker with no way out
+
+Three from one screenshot, all view-layer.
+
+**LEAVE did nothing on a finished match**, and it was the bug its own comment warned about. The
+`s.IsOver` branch of `DrawHud` draws the banner, offers LEAVE, sets `_quitRequested = true` and
+then **returns** — while the code that acts on that flag sits at the foot of `OnGUI`, sixty lines
+past the return, deliberately last because "leaving tears the match down, and every panel above
+holds a reference to it". So the flag was set and cleared on the next frame having done nothing,
+every frame, forever. A won match was a dead end with a button on it that looked like it worked.
+The quit is now honoured inside that branch, before the return. (The same flag set from the
+settings panel always worked, because that path does reach the foot of OnGUI — which is why this
+survived: the exit existed and was tested, just not from the one screen that returns early.)
+
+**The arena row named no ground.** It lit the button you pressed and nothing else, so eight names
+sat under the word ARENA with no statement of the choice, and RANDOM — the default — named
+nothing at all. It reads `ARENA - meadow`, or `ARENA - rolling (showing meadow)` on RANDOM. The
+name is read off `TerrainField.Requested` rather than tracked separately, and that is exact: the
+select runs on the Skirmish screen with the battle world live, `TerrainField.LateUpdate` applies
+`Requested`, so the label names the ground actually under the panel. On RANDOM the match re-rolls
+from the engine hash at `StartMatch`, which is why the two wordings differ.
+
+**The commander select had no exit.** By design: `GameShell.Show` sets `MatchHud.ShellSuppressed`
+for every screen but Skirmish, precisely so the duel's own IMGUI select can own the screen — which
+left the phone's back gesture as the only way out. A `< BACK` button, top left, calls
+`Show(MainMenu)`; `Show` already ends any match in flight, so there is nothing to tear down.
+
+366 green, no rules change. Staged to `play/`.
+
 ### 2026-09-07 (night) — the tower fires for half, at harvest, crewed; grows a Bombard; the importer stops shipping blanks
 
 **Cannon Tower** ⚔1000 ⚒−2 → **⚔500 ⚒−1**, and a new upgrade-only tier, **Bombard Tower**
