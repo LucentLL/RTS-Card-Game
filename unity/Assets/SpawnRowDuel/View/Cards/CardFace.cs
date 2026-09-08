@@ -69,6 +69,20 @@ namespace SpawnRowDuel.View.Cards
         float _rulesSize;     // ...and the same pair for the ability box, which wraps
         string _rulesFittedFor;
 
+        /// <summary>What is currently on the face, so a NEW card can start from its own wanted
+        /// size instead of inheriting the last one's fit. See Bind.</summary>
+        string _boundSubject;
+
+        /// <summary>
+        /// How many size adjustments this subject is allowed. The two fits are convergent by
+        /// construction and memoised, but they run from GeometryChangedEvent inside a repaint -
+        /// so if either ever fails to settle it does not degrade, it hangs the frame loop. A card
+        /// needs one step, occasionally two; anything past this is a bug, and the right behaviour
+        /// for a bug in a text fitter is slightly wrong text, not a frozen game.
+        /// </summary>
+        int _fitBudget;
+        const int MaxFits = 6;
+
         public CardFace()
         {
             AddToClassList("srd-card");
@@ -211,6 +225,16 @@ namespace SpawnRowDuel.View.Cards
             _rulesBox = new VisualElement { pickingMode = PickingMode.Ignore };
             _rulesBox.style.flexGrow = 1.45f;
             _rulesBox.style.flexShrink = 1;
+            // flexBasis 0, for the same reason the name column has it - and this one closed a
+            // LOOP. With the default `auto` the box's base size is its CONTENT, so the height it
+            // resolves to depends on the text inside it. FitRules sets that text's font size off
+            // the box's height; the height then moves; the memo is keyed on the height, so it no
+            // longer matches; FitRules runs again. A card whose paragraph lands near the boundary
+            // oscillates every frame instead of settling, which is a relayout storm in the middle
+            // of a repaint - the freeze and the torn glyphs reported 2026-09-08 after selecting
+            // two cards in a row. Zero basis means the box is its flex SHARE and nothing else, so
+            // availH is a constant and the fit converges in one step.
+            _rulesBox.style.flexBasis = 0;
             _rulesBox.style.overflow = Overflow.Hidden;
             _rulesBox.style.backgroundImage = Background.FromTexture2D(CardTextures.Paper);
             _rulesBox.style.unityBackgroundImageTintColor = new Color(1.06f, 1.06f, 1.04f);
@@ -330,6 +354,21 @@ namespace SpawnRowDuel.View.Cards
 
             _name.text = m.Name;
             _nameSize = Mathf.Clamp(width * NameSize, 8f * px, 14f * px);
+            // A DIFFERENT CARD FITS ITSELF. The inspect face is one reused element, so binding a
+            // second card kept the memos - and the font sizes - from the first, and the new text
+            // was solved starting from a size chosen for different words. Selecting Riptide and
+            // then Magmaw is exactly that, and it is the reported repro. Keyed on the TEXT rather
+            // than reset on every Bind, because the same card rebinds constantly and resetting
+            // there would re-fit from scratch every frame - which is what the note below guards.
+            string subject = m.Name + "|" + m.Rules;
+            if (subject != _boundSubject)
+            {
+                _boundSubject = subject;
+                _fittedFor = null;
+                _rulesFittedFor = null;
+                _fitBudget = MaxFits;
+            }
+
             // Only seed the size before the first fit; after that FitName owns it, or re-binding
             // the same card would reset it to the unfitted size on every rebuild and the memo
             // below would decline to put it back.
@@ -446,12 +485,13 @@ namespace SpawnRowDuel.View.Cards
             string key = label.text + "|" + wanted.ToString("F2") + "|" + avail.ToString("F1");
             if (key == memo) return;
             memo = key;
+            if (_fitBudget <= 0) return;
 
             // 0.98 of the column, not all of it: the last glyph should not sit on the clip edge.
             float target = Mathf.Min(wanted, cur * (avail * 0.98f) / actual);
             target = Mathf.Max(floor, target);
 
-            if (Mathf.Abs(target - cur) > 0.15f) label.style.fontSize = target;
+            if (Mathf.Abs(target - cur) > 0.15f) { _fitBudget--; label.style.fontSize = target; }
         }
 
         /// <summary>
@@ -484,6 +524,7 @@ namespace SpawnRowDuel.View.Cards
                        + "|" + availW.ToString("F1") + "|" + availH.ToString("F1");
             if (key == _rulesFittedFor) return;
             _rulesFittedFor = key;
+            if (_fitBudget <= 0) return;
 
             // ONE measurement, solved rather than stepped. MeasureTextSize reads the element's
             // RESOLVED font size, and a style set this frame has not resolved yet - so a loop that
@@ -501,7 +542,7 @@ namespace SpawnRowDuel.View.Cards
             float at = size.y * (_rulesSize / cur) * (_rulesSize / cur);   // height at the wanted size
             if (at > availH) target = Mathf.Max(6f, _rulesSize * Mathf.Sqrt(availH / at) * 0.94f);
 
-            if (Mathf.Abs(target - cur) > 0.05f) _rules.style.fontSize = target;
+            if (Mathf.Abs(target - cur) > 0.05f) { _fitBudget--; _rules.style.fontSize = target; }
         }
 
         /// <summary>Sick / tapped / moved / banked, as small chips over the art (spec 09 §3.7).</summary>

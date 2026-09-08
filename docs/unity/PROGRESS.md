@@ -34,6 +34,49 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-08 (night) — the card fitter could not settle, and the glyph theory is dead
+
+Reported repro: new match, select Riptide, then Magmaw, torn glyphs, freeze.
+
+**The leading theory was measured and RULED OUT.** `FontPipeline`'s own comment blames runtime
+glyph population for a WebGL `free()` crash, and torn text plus a crash in `free` fits it exactly.
+So it got measured rather than assumed: `tools/` scratch script extracted every non-ASCII character
+the shipped game can put on screen — all string values in `cards.json`, plus every string literal in
+the runtime assemblies, comments stripped — and diffed it against `glyphs.txt` plus ASCII.
+**44 characters, all baked, no gap.** Worth recording because the crash note has carried that
+theory for two reports. (Note for later: `export_glyphs.mjs` still scans only `src/js`, so the list
+is generated from the JS while the game is C#. It happens to cover today; it is not guaranteed to
+cover tomorrow, and a C#-side scan belongs in that tool.)
+
+**The actual mechanism is a layout feedback loop.** `_rulesBox` had `flexGrow` and `flexShrink` and
+no `flexBasis`, so it defaulted to `auto` — base size = CONTENT. That closes a cycle: `FitRules`
+sets the ability text's font size from the box's height, the content height moves, the box's flex
+base moves with it, the resolved height moves, and the memo is keyed on that height so it stops
+matching and the fit runs again. Every frame, inside a repaint. A relayout storm reads as a frozen
+game with torn text.
+
+Two things made it this repro in particular. The inspect card is ONE reused element and the memos
+and font sizes persisted across binds, so the second card selected was solved starting from a size
+chosen for the first card's words — "Riptide, then Magmaw". And this morning's band rebalance moved
+the ability box's share from 0.194 to 0.258 of the card width, which is what put some cards near the
+boundary where it oscillates instead of always overflowing and pinning to the floor.
+
+Three changes: `flexBasis = 0` on the rules box, which is the same fix line 138 already applies to
+the name column for the same class of bug and makes `availH` a constant; a per-SUBJECT reset so each
+card fits from its own wanted size (keyed on name + rules text, not on Bind, because the same card
+rebinds constantly); and a hard budget of six adjustments per subject, because a text fitter that
+misbehaves should produce slightly wrong text, never a frozen frame.
+
+**Not verified in play.** The mechanism is demonstrable in the code; the fix is not something this
+session could watch work, since the WebGL build cannot be driven from here. If it still freezes,
+the crash panel shipped in 3027062 should now carry a full report — and a HANG with no report would
+itself be evidence, because it would mean a hard loop rather than this one.
+
+A scripted edit put a real newline inside a C# string literal on the way (CS1010), caught by the
+compile gate. `scratchpad/quotecheck.js` now checks that every literal closes on its own line.
+
+366 green, no rules change. Staged to `play/`.
+
 ### 2026-09-08 (later) — a stat divided twice, buttons with no ground, and a crash you can finally send
 
 **Board-inspected cards showed a tenth of their stats.** `CardFaceModel` carries RAW engine units
