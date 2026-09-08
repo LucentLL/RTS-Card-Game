@@ -255,6 +255,22 @@ namespace SpawnRowDuel.View
             // for a style that never changes.
             _wrap = new GUIStyle(_small) { wordWrap = true };
 
+            // EVERY BUTTON GETS A BACK. GUI.skin's button face is translucent, so a button over
+            // the field is a watermark and a button over a dark panel is only half there - which
+            // is what "all buttons like Leave should be opaque" meant. Patching call sites was
+            // never going to finish: there are thirty of them across the rail, the menus, the
+            // charge panel, the choice panels and the match-over banner. The STYLE is the one
+            // place that reaches all of them.
+            _button.normal.background = _bigButton.normal.background =
+                _small.normal.background = _tiny.normal.background = ButtonFace(CardBack);
+            _button.hover.background = _bigButton.hover.background =
+                _small.hover.background = _tiny.hover.background = ButtonFace(PanelHi);
+            _button.active.background = _bigButton.active.background =
+                _small.active.background = _tiny.active.background = ButtonFace(PanelHi);
+            // A disabled button must still read as a button, or an unaffordable option looks like
+            // a label. Same plate, dimmer - GUI.color already fades the text on top of it.
+            _button.onNormal.background = _bigButton.onNormal.background = ButtonFace(CardBack);
+
             // ── build-tree styles ────────────────────────────────────────────────────
             // Built ONCE. OnGUI runs every frame and the tree draws up to fourteen nodes, so a
             // per-node "new GUIStyle" was fourteen allocations a frame for styles that never change.
@@ -316,6 +332,29 @@ namespace SpawnRowDuel.View
             GUI.Label(new Rect(x, y, w, h), text, st);
             return h;
         }
+
+        /// <summary>
+        /// A 1x1 opaque plate for a GUIStyle background, cached by colour.
+        ///
+        /// Built once per colour and kept: a Texture2D allocated inside OnGUI would be a new
+        /// texture every frame, which is a leak the profiler blames on the GUI and the phone
+        /// blames on the battery.
+        /// </summary>
+        static readonly System.Collections.Generic.Dictionary<Color, Texture2D> _faces =
+            new System.Collections.Generic.Dictionary<Color, Texture2D>();
+
+        static Texture2D ButtonFace(Color c)
+        {
+            Texture2D t;
+            if (_faces.TryGetValue(c, out t) && t != null) return t;
+            t = new Texture2D(1, 1, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+            t.SetPixel(0, 0, c);
+            t.Apply();
+            _faces[c] = t;
+            return t;
+        }
+
+        static readonly Color PanelHi = new Color(0.16f, 0.18f, 0.24f, 1f);
 
         static void Panel(Rect r, Color c)
         {

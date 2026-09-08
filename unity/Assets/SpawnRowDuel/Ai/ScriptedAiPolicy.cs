@@ -386,10 +386,27 @@ namespace SpawnRowDuel.Ai
         /// Longhouses, and lineage-aware counting means an upgraded Keep still counts against the
         /// Foundry cap.
         /// </summary>
+        /// <summary>Structures this side has standing, its base included.</summary>
+        int StructureCount(GameState s)
+        {
+            int n = 0;
+            foreach (var kv in s.ObjectsOf(_side))
+                if (kv.Value is StructureUnit) n++;
+            return n;
+        }
+
         ICommand FindBuild(DuelEngine engine)
         {
             var s = engine.State;
             var cat = engine.Catalog;
+
+            // STOP LAYING FOUNDATIONS AND FIELD AN ARMY. Nothing stopped the AI developing, so
+            // it developed all game - 10.8 structures standing at the end, against a human
+            // opening of a base, two encampments and then creatures. It was not slot-locked;
+            // a creature may legally cover a structure you own. It simply always had one more
+            // building it wanted more than a body, and lost holding the bodies.
+            if (StructureCount(s) >= _tuning.MaxStructures) return null;
+
             var list = cat.BuildList(s.P(_side).Commander);
 
             for (int i = 0; i < list.Count; i++)

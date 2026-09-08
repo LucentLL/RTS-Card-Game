@@ -50,7 +50,11 @@ namespace SpawnRowDuel.Ai
             foreach (var kv in s.ObjectsOf(owner))
             {
                 var c = kv.Value as CreatureUnit;
+                // Chrysalis excluded for the same reason the declare handler refuses it: a cocoon
+                // cannot attack. Without this the policy would propose a command the engine now
+                // rejects, which the self-play gate counts as a policy bug.
                 if (c == null || c.IsWorker || c.Sick || c.Tapped || c.Hp <= 0) continue;
+                if (c.Keyword == Keyword.Chrysalis) continue;
                 outp.Add(new KeyValuePair<CellRef, CreatureUnit>(kv.Key, c));
             }
             return outp;

@@ -23,6 +23,15 @@ namespace SpawnRowDuel.Rules
             if (a.IsWorker) return Rejection.AttackerIsWorker;
             if (a.Sick) return Rejection.AttackerSick;
             if (a.Tapped) return Rejection.AttackerTapped;
+
+            // A COCOON CANNOT ATTACK. The keyword's own card text has promised this since it
+            // shipped - "Chrysalis n/3. Cannot attack; swells +1 each of your turns" - and nothing
+            // enforced it. It went unnoticed because a growing cocoon is re-sicked every upkeep
+            // (ChrysalisHandler.OnUpkeep), so the sickness gate above hid it; a cocoon FLIPPED
+            // face-up from a charge has never been through an upkeep, so it swung the turn it
+            // arrived. Reported 2026-09-08 with Hive Cradle. Hatching sets Keyword.None, so this
+            // test is exactly "still a cocoon".
+            if (a.Keyword == Keyword.Chrysalis) return Rejection.AttackerCocooned;
             if (a.Hp <= 0) return Rejection.NoSuchUnit;
 
             var ut = m.Target as UnitTarget;

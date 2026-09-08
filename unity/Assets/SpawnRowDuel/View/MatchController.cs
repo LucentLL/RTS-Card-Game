@@ -960,6 +960,7 @@ namespace SpawnRowDuel.View
                 case Rejection.RowLacksWorkers: return "That row has no workers to spare";
                 case Rejection.WrongRowForTier: return "This tier cannot stand in that row";
                 case Rejection.NoShortfall: return "No shortfall in that row to settle";
+                case Rejection.AttackerCocooned: return "A cocoon cannot attack until it hatches";
                 case Rejection.MoveAlreadySpent: return "Its move is spent";
                 case Rejection.ChargeUnderfunded: return "Pour more mana before flipping";
                 case Rejection.DeclarationsPending:

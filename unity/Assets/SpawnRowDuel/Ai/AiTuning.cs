@@ -28,6 +28,19 @@ namespace SpawnRowDuel.Ai
         /// <summary>The JS summon loop's `guard++ > 6` escape.</summary>
         public int MaxSummonsPerTurn;
 
+        /// <summary>
+        /// Structures the AI will raise before it stops STARTING new ones. Upgrades are not
+        /// capped, because they replace a building in place and cost no extra square - so the
+        /// AI still grows its economy after the cap, it just stops laying new foundations and
+        /// starts fielding an army instead.
+        ///
+        /// Measured 2026-09-08: uncapped, the AI ended games with 10.8 structures standing,
+        /// ~16 mana unspent and 5.6 cards still in hand, which is what "rarely plays monsters,
+        /// I win while they have a full hand" looks like from the inside. A human opening is a
+        /// base, two encampments, then creatures from turn three.
+        /// </summary>
+        public int MaxStructures;
+
         /// <summary>The JS lays at most one trap per turn, and only from the first it holds.</summary>
         public int MaxTrapsPerTurn;
 
@@ -44,6 +57,7 @@ namespace SpawnRowDuel.Ai
                 t.MaxBuildsPerTurn = 2;
                 t.MaxUpgradesPerTurn = 1;
                 t.MaxSummonsPerTurn = 7;
+                t.MaxStructures = 5;
                 t.MaxTrapsPerTurn = 1;
                 t.MaxSpellsPerTurn = 1;
                 return t;

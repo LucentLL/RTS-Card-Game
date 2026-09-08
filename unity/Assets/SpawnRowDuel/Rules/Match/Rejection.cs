@@ -49,6 +49,10 @@ namespace SpawnRowDuel.Rules
 
         /// <summary>A sacrifice offered where the row has no worker shortfall to settle.</summary>
         NoShortfall,
+
+        /// <summary>A cocoon cannot attack. Its card has said so since the keyword shipped;
+        /// nothing enforced it until 2026-09-08.</summary>
+        AttackerCocooned,
     }
 
     public enum CommandStatus : byte

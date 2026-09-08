@@ -55,6 +55,20 @@ namespace SpawnRowDuel.View.Shell
 
         void Start()
         {
+            // CAP THE FRAME RATE. Reported 2026-09-08: five minutes on a Galaxy S24 and the phone
+            // was extremely hot.
+            //
+            // Nothing had ever set this, and Unity's WebGL default (-1) means "render on every
+            // requestAnimationFrame callback" - which on a 120 Hz phone is 120 frames a second of
+            // a full 3D scene, a terrain, two UI Toolkit documents and an IMGUI pass, for a game
+            // where the board changes a few times a MINUTE. The device has no reason to work that
+            // hard and no way to know that, so it runs the SoC flat out and the battery pays.
+            //
+            // 60 rather than 30: dragging a card and the camera tilt are the only continuous
+            // motion in the game and both feel worse halved. On a 120 Hz panel this is already
+            // half the work; on a 60 Hz one it changes nothing and costs nothing.
+            Application.targetFrameRate = 60;
+
             Campaign.Load();
             EnsurePanel();
             Show(ShellScreen.MainMenu);
