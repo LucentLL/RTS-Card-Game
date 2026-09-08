@@ -34,6 +34,39 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-08 — the card frame gives the picture's width back to the numbers
+
+Two complaints off the deck builder, both arithmetic rather than taste.
+
+**The badge and the gem could not fit the header.** `CostSize` 0.185 and `GemSize` 0.145 against a
+`BannerH` of 0.135: nothing that size fits in that band, so `Bind` positioned them to straddle the
+banner's lower edge and hang into the picture. That is the reference card's arrangement and the
+old comment defended it — but it reads as an overflow rather than a design, which is what was
+reported. The banner is 0.170 now, the badge 0.140, the gem 0.118, both centred inside it.
+
+**The stat line was clipped**, and not because the strip was crowded: `PowerSize` is 0.200 of the
+card's WIDTH while `StatsH` was 0.115, so the power number was nearly twice the height of the band
+holding it, and the card's own `Overflow.Hidden` took the difference. The strip is 0.200 (+74%) and
+the number 0.165.
+
+**The art paid for both**, which is what the user proposed: 0.944 → 0.760 of the width, square,
+centred, with 12% of the card's width of real frame either side. The four bands are a budget that
+must sum to Aspect, so width the picture gives up becomes height for the bands that were starved —
+the ability box gained 33% on the same trade. An earlier pass had called that inset "a fifth of
+the card's width wasted on nothing"; the comment now says what it actually buys.
+
+Two things beyond the report. The stat fonts are capped by the band as well as by the scale
+clamps — the clamps are floors and ceilings, and on a small card the FLOOR wins, which is how a
+hand card on a phone clips while the same card is perfect on a monitor; checked from 46px to 320px
+wide. And the type lozenge now starts at the art window's left edge instead of 4px from the card's,
+which were the same point only while the picture was full width.
+
+Verified arithmetically rather than visually (screenshots time out on this build): the bands sum
+to 1.388 exactly, both circles fit their banner, and neither stat font exceeds its strip at any
+card size. `CardPlateLayer` — the 3D board plates — has its own inset and is untouched.
+
+366 green, no rules change. Staged to `play/`.
+
 ### 2026-09-07 (late) — a won match you could not leave, and a picker with no way out
 
 Three from one screenshot, all view-layer.

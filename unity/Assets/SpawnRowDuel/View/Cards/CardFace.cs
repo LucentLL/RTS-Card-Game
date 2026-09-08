@@ -30,28 +30,33 @@ namespace SpawnRowDuel.View.Cards
         /// The card's bands, as fractions of its WIDTH, and they are a budget rather than four
         /// independent numbers: banner + art + rules + stats has to come to Aspect, 1.388.
         ///
-        ///   0.135 + 0.944 + 0.194 + 0.115 = 1.388
+        ///   0.170 + 0.760 + 0.258 + 0.200 = 1.388
         ///
-        /// The art is the one that is fixed. It runs the full width of the card less a hair of
-        /// frame either side, and it is SQUARE because every illustration in this project is - so
-        /// its height follows from its width and the other three take what is left. That is the
-        /// reference card's own arrangement: a thin name banner with the cost badge hanging off
-        /// it into the picture, a picture that dominates, a modest ability box, a stat strip.
+        /// THE ART GAVE THE SPACE BACK (2026-09-08). It used to run the full width less a hair of
+        /// frame - 0.944 - which left 0.115 for the stat strip while the power number alone is set
+        /// at 0.165 of the card's width. A glyph half again as tall as the band it sits in, inside
+        /// a card that clips its overflow, is a stat line with its feet cut off, and that is what
+        /// the deck builder was showing. The badge and the gem had the same problem one band up:
+        /// at 0.185 and 0.145 against a 0.135 banner, neither could fit inside it, so both were
+        /// positioned to hang out of it into the picture.
         ///
-        /// The art box was 0.68 for a moment - square, but INSET, with frame showing either side.
-        /// It fitted, and it wasted a fifth of the card's width on nothing.
+        /// So the picture is inset now - square still, centred, with real frame either side - and
+        /// the width it gives up becomes height for the three bands that were starved. An earlier
+        /// pass called that inset "a fifth of the card's width wasted on nothing"; it is not
+        /// nothing, it is the ability text and the stat line, and the reference card spends it
+        /// the same way.
         /// </summary>
-        const float BannerH = 0.135f;
-        const float ArtInset = 0.028f;
-        const float ArtSide = 1f - 2f * ArtInset;
-        const float StatsH = 0.115f;
-        const float CostSize = 0.185f;
-        const float GemSize = 0.145f;
+        const float BannerH = 0.170f;
+        /// <summary>Square, centred, and NOT the full width - the side frame is the point.</summary>
+        const float ArtSide = 0.760f;
+        const float StatsH = 0.200f;
+        const float CostSize = 0.140f;
+        const float GemSize = 0.118f;
         const float NameSize = 0.108f;
         const float RibbonSize = 0.072f;
         const float RulesSize = 0.100f;
-        const float PowerSize = 0.200f;
-        const float HpSize = 0.135f;
+        const float PowerSize = 0.165f;
+        const float HpSize = 0.120f;
         const float ChipSize = 0.070f;
 
         readonly VisualElement _banner, _costCircle, _gem, _artWin, _art, _vignette, _ribbon, _rulesBox, _stats;
@@ -81,10 +86,11 @@ namespace SpawnRowDuel.View.Cards
             _banner.style.borderBottomWidth = 1.5f;
             Add(_banner);
 
-            // The cost badge HANGS OFF the banner into the picture, which is what lets the banner
-            // be a third of its old height without the badge shrinking with it. It is the
-            // reference card's arrangement and it is the only way the numbers add up: a banner
-            // tall enough to contain a 0.185 badge is a banner that costs the art its width.
+            // The cost badge and the element gem are absolute so they can be placed against the
+            // banner's own box rather than flowing in its row - see Bind, where they are centred
+            // inside it. They used to hang off its lower edge into the picture because they were
+            // bigger than the banner was tall; the banner pays for their height now, and the art
+            // pays the banner (see the band budget).
             _costCircle = new VisualElement { pickingMode = PickingMode.Ignore };
             _costCircle.style.position = Position.Absolute;
             _costCircle.style.backgroundImage = Background.FromTexture2D(CardTextures.Radial);
@@ -290,12 +296,15 @@ namespace SpawnRowDuel.View.Cards
             _artWin.style.height = art;
             _banner.style.borderBottomColor = ec;
 
-            // The badge straddles the banner's lower edge. Two thirds of it sits in the banner
-            // and the last third hangs into the picture, which is where the reference puts it.
+            // The badge sits INSIDE the banner, centred in it. It used to straddle the lower edge
+            // with a third of itself hanging into the picture - which is the reference card's
+            // arrangement, and looked like an overflow rather than a design, because a 0.185 badge
+            // on a 0.135 banner cannot do anything else. The banner is 0.170 now and the badge
+            // 0.140, so it fits with frame above and below and the header reads as one bar.
             float cost = width * CostSize;
             _costCircle.style.width = cost; _costCircle.style.height = cost;
             _costCircle.style.left = width * 0.022f;
-            _costCircle.style.top = width * BannerH - cost * 0.62f;
+            _costCircle.style.top = (width * BannerH - cost) * 0.5f;
             SetRadius(_costCircle, cost * 0.5f);
             _costCircle.style.unityBackgroundImageTintColor = ElementPalette.Mix(ec, Color.white, 0.72f);
             _cost.text = m.Cost.ToString();
@@ -309,7 +318,7 @@ namespace SpawnRowDuel.View.Cards
             float gem = width * GemSize;
             _gem.style.width = gem; _gem.style.height = gem;
             _gem.style.left = width * 0.022f + cost + width * 0.012f;
-            _gem.style.top = width * BannerH - gem * 0.58f;
+            _gem.style.top = (width * BannerH - gem) * 0.5f;
             _gem.style.unityBackgroundImageTintColor = sw.Accent;
             _gemGlyph.text = sw.Glyph;
             _gemGlyph.style.fontSize = gem * 0.62f;
@@ -343,7 +352,10 @@ namespace SpawnRowDuel.View.Cards
             _ribbonText.style.fontSize = Mathf.Clamp(width * RibbonSize, 6f * px, 12f * px);
             _ribbon.style.unityBackgroundImageTintColor = ec;
             _ribbon.style.marginTop = -(width * 0.055f);
-            _ribbon.style.marginLeft = 4;
+            // Flush with the art window's left edge. It was a flat 4px from the CARD's edge, which
+            // was the same thing while the picture was full width; now the picture is inset, a
+            // lozenge riding the seam has to ride it from where the seam actually starts.
+            _ribbon.style.marginLeft = width * (1f - ArtSide) * 0.5f;
 
             // rules
             _rules.text = m.Rules;
@@ -355,10 +367,17 @@ namespace SpawnRowDuel.View.Cards
             // stats
             _stats.style.display = m.ShowStats ? DisplayStyle.Flex : DisplayStyle.None;
             _stats.style.height = width * StatsH;
+            // NEVER TALLER THAN THE BAND. The clamps below are scale floors and ceilings, and on a
+            // small enough card the FLOOR wins - which is how a stat line ends up taller than the
+            // strip it lives in on a phone, clipped by the card's own overflow, while the same
+            // card is perfect on a monitor. The band height is the last word either way.
+            float band = width * StatsH;
             _power.text = m.Attack > 0 ? Stat.Num(m.Attack) : "";
-            _power.style.fontSize = Mathf.Clamp(width * PowerSize, 11f * px, 26f * px);
+            _power.style.fontSize = Mathf.Min(Mathf.Clamp(width * PowerSize, 11f * px, 26f * px),
+                                              band * 0.86f);
             _hp.text = Stat.Hp(m.Hp);
-            _hp.style.fontSize = Mathf.Clamp(width * HpSize, 9f * px, 18f * px);
+            _hp.style.fontSize = Mathf.Min(Mathf.Clamp(width * HpSize, 9f * px, 18f * px),
+                                           band * 0.68f);
 
             if (m.HasWorkerChip)
             {
