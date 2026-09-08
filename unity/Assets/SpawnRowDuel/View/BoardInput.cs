@@ -607,6 +607,51 @@ namespace SpawnRowDuel.View
                 return;
             }
 
+            // 3c. ANOTHER READY ATTACKER JOINS THE SELECTION, BEFORE ANY TARGET EXISTS.
+            //
+            // Tapping a second attacker used to replace the first, so the only way to swing as
+            // a group by tap was to attack with one, aim it, and then feed the rest into the
+            // assault one at a time - "select an attacker, select target, then select other
+            // attackers, then confirm", reported 2026-09-08 as clunky. Drag has always built its
+            // group up front; tap now does the same, and tapping a member again drops it out.
+            //
+            // Only while no assault is aimed. Once one is, 3b above is the right door: those
+            // creatures are joining a declaration, not forming a selection.
+            var st = _match.Engine != null ? _match.Engine.State : null;
+            if (st != null && _match.Assault == null
+                && MatchController.IsReadyAttacker(st, cell.Value))
+            {
+                if (_group.Count > 0)
+                {
+                    for (int i = 0; i < _group.Count; i++)
+                        if (_group[i] == cell.Value)
+                        {
+                            _board.Restore(cell.Value);
+                            _group.RemoveAt(i);
+                            if (_group.Count == 0) { ClearSelection(); return; }
+                            AfterGroupChanged();
+                            return;
+                        }
+
+                    _group.Add(cell.Value);
+                    AfterGroupChanged();
+                    return;
+                }
+
+                // the first tap picked a lone attacker; this second one makes the two a group.
+                // The anchor is read BEFORE BeginGroup, which clears _selected along with it.
+                if (_selected.HasValue && _selected.Value != cell.Value
+                    && MatchController.IsReadyAttacker(st, _selected.Value))
+                {
+                    var anchor = _selected.Value;
+                    BeginGroup();
+                    _group.Add(anchor);
+                    _group.Add(cell.Value);
+                    AfterGroupChanged();
+                    return;
+                }
+            }
+
             // 4. otherwise select, and light what the engine says this unit may do
             ClearSelection();
             _selected = cell;
