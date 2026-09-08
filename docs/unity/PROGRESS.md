@@ -34,6 +34,43 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 
 ## Session log
 
+### 2026-09-08 (later) — a stat divided twice, buttons with no ground, and a crash you can finally send
+
+**Board-inspected cards showed a tenth of their stats.** `CardFaceModel` carries RAW engine units
+and `CardFace` scales when it PRINTS (`Stat.Num` / `Stat.Hp`) — but four sites in `HandBar` scaled
+again on the way in, so anything inspected on the BOARD was divided twice: Mistling 500 → 50 → 5,
+which is how it was reported. The hand never had it, because that path goes through
+`CardFaceModel.OfCreature` and assigns `c.Attack` raw — so the same creature read 50 in hand and 5
+on the board. Three of the four predate this session; the fourth was the build-menu inspect added
+earlier today, carrying a comment that claimed the opposite of what the code did. All four pass raw
+now. `CardPlateLayer` (the 3D plates) scales correctly and is untouched.
+
+**Eleven buttons drawn over the field had no ground under them.** The skin's button face is
+translucent: over the rail it reads as a button, over lit grass as a watermark. ATTACK and CANCEL
+were fixed one at a time last week; this adds `SolidBtn` — plate, edge, then the button — and
+routes every control in the mode row through it: SUMMON, SET, SET TRAP, CAST, the group cancel,
+WALL, the worker-stack targets, SEND, PAY, SACRIFICE.
+
+**A NEW crash signature, and a way to actually report it.** Not the one in the notes:
+`RuntimeError: memory access out of bounds` inside `emscripten_builtin_free` /
+`MemoryManager::LowLevelFree`, where the recorded one is `null function` in
+`MemoryManager::Reallocate` under the GPU buffer path. Out of bounds inside `free` is the signature
+of HEAP CORRUPTION — an earlier overrun damaged the allocator metadata and the fault surfaces
+whenever that block is released, so the failing frame is the victim and the stack does not name the
+culprit.
+
+Not fixable from a photograph, so what got fixed is why it stays unfixable. The old `errorHandler`
+logged its diagnostics to the CONSOLE — unreachable on an Android phone without a USB cable and
+chrome://inspect, which is why two requests for a console log went unanswered — and left Unity to
+show the stack in an `alert()`, which clips; the report arrived as a photograph cut off three lines
+in. The handler now renders the whole thing INTO THE PAGE: build stamp, heap size, device RAM,
+screen and DPR, user agent, seconds since load, and the untruncated stack, in a selectable textarea
+with a Copy button. It returns true to replace Unity's clipped modal, and falls back to that modal
+if building the panel throws. Edited in the TEMPLATE (`Assets/WebGLTemplates/Fullscreen/index.html`),
+since the build copies it over `play/index.html`.
+
+366 green, no rules change. Staged to `play/`.
+
 ### 2026-09-08 — the card frame gives the picture's width back to the numbers
 
 Two complaints off the deck builder, both arithmetic rather than taste.

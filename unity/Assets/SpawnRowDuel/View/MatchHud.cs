@@ -993,21 +993,21 @@ namespace SpawnRowDuel.View
                 SpellCard sp;
                 if (_match.Engine.Catalog.TryCreature(id, out c))
                 {
-                    if (Btn(new Rect(w / 2f - 125, by, 120, 24), "SUMMON " + c.Cost + " mana", _button))
+                    if (SolidBtn(new Rect(w / 2f - 125, by, 120, 24), "SUMMON " + c.Cost + " mana", _button))
                         Arm(Rules.PlayMode.Summon);
-                    if (Btn(new Rect(w / 2f + 5, by, 120, 24), "SET 1 mana", _button))
+                    if (SolidBtn(new Rect(w / 2f + 5, by, 120, 24), "SET 1 mana", _button))
                         Arm(Rules.PlayMode.Set);
                 }
                 else if (_match.Engine.Catalog.TrySpell(id, out sp))
                 {
                     if (sp.IsTrap)
                     {
-                        if (Btn(new Rect(w / 2f - 60, by, 120, 24), "SET TRAP 1 mana", _button))
+                        if (SolidBtn(new Rect(w / 2f - 60, by, 120, 24), "SET TRAP 1 mana", _button))
                             Arm(Rules.PlayMode.SetTrap);
                     }
                     else if (!SpellTargeting.HasAnyTarget(s, sp, Seat.Local))
                         GUI.Label(new Rect(0, by, w, 24), "no legal target for " + sp.Name, _center);
-                    else if (Btn(new Rect(w / 2f - 60, by, 120, 24), "CAST " + sp.Cost + " mana", _button))
+                    else if (SolidBtn(new Rect(w / 2f - 60, by, 120, 24), "CAST " + sp.Cost + " mana", _button))
                         Arm(Rules.PlayMode.Cast);
                 }
                 return;
@@ -1035,7 +1035,7 @@ namespace SpawnRowDuel.View
                     float gx = (w - gw) / 2f;
                     GUI.Label(new Rect(gx, by, gw - 40f, 24),
                         _input.Group.Count + " attacking  -  tap a target, or WALL", _center);
-                    if (Btn(new Rect(gx + gw - 34f, by, 34f, 24), "X", _button))
+                    if (SolidBtn(new Rect(gx + gw - 34f, by, 34f, 24), "X", _button))
                         _input.ClearSelectionFromUi();
                     return;
                 }
@@ -1080,7 +1080,7 @@ namespace SpawnRowDuel.View
                         if (wallOk)
                         {
                             float ww = legalZones.Count > 0 ? 130 : 250;
-                            if (Btn(new Rect(x, by, ww, 24), "WALL", _button))
+                            if (SolidBtn(new Rect(x, by, ww, 24), "WALL", _button))
                                 Declare(cell, new WallTarget(Seat.Remote), "the wall");
                             x += ww + 5;
                         }
@@ -1090,7 +1090,7 @@ namespace SpawnRowDuel.View
                         {
                             var z = legalZones[i];
                             int n = s.P(Seat.Remote).Workers[(int)z].Count;
-                            if (Btn(new Rect(x, by, zw, 24), ZoneTag(z) + n + " wkr", _button))
+                            if (SolidBtn(new Rect(x, by, zw, 24), ZoneTag(z) + n + " wkr", _button))
                                 Declare(cell, new WorkerStackTarget(Seat.Remote, z),
                                         "the " + ZoneName(z) + " workers");
                             x += zw + 4;
@@ -1112,12 +1112,12 @@ namespace SpawnRowDuel.View
                     float x = w / 2f - 125;
                     if (canUpgrade)
                     {
-                        if (Btn(new Rect(x, by, bw, 24),
+                        if (SolidBtn(new Rect(x, by, bw, 24),
                                 _upgradeMenuOpen ? "CLOSE" : "UPGRADE", _button))
                             _upgradeMenuOpen = !_upgradeMenuOpen;
                         x += bw + 6;
                     }
-                    if (canSend && Btn(new Rect(x, by, bw, 24),
+                    if (canSend && SolidBtn(new Rect(x, by, bw, 24),
                             "SEND " + owned.Bank + " mana", _button))
                     {
                         _upgradeMenuOpen = false;
@@ -1142,10 +1142,10 @@ namespace SpawnRowDuel.View
 
                     int pay = Mathf.Min(cr.Upkeep, deficit);
                     GUI.enabled = pay > 0 && !cr.PaidUpkeep && s.P(Seat.Local).Mana >= pay;
-                    if (Btn(new Rect(w / 2f - 125, by, 120, 24), "PAY " + pay + " mana", _button))
+                    if (SolidBtn(new Rect(w / 2f - 125, by, 120, 24), "PAY " + pay + " mana", _button))
                         Try(new UpkeepPayCommand(Seat.Local, cell, cr.Id));
                     GUI.enabled = true;
-                    if (Btn(new Rect(w / 2f + 5, by, 120, 24), "SACRIFICE", _button))
+                    if (SolidBtn(new Rect(w / 2f + 5, by, 120, 24), "SACRIFICE", _button))
                         Try(new UpkeepSacrificeCommand(Seat.Local, cell, cr.Id));
                     return;
                 }
@@ -1991,6 +1991,22 @@ namespace SpawnRowDuel.View
         {
             HudLayout.Control(r);
             return GUI.Button(r, text, style);
+        }
+
+        /// <summary>
+        /// A button with GROUND UNDER IT, for the controls that are drawn straight onto the field.
+        ///
+        /// GUI.skin's button face is translucent. Over the rail's dark panel or a menu that reads
+        /// as a button; over lit grass it reads as a watermark, which is what "some commands or
+        /// options midgame are still transparent" meant (2026-09-08, after the same fix landed on
+        /// ATTACK and CANCEL). Everything in the mode row hangs over the board, so everything in
+        /// the mode row goes through here: a dark plate, a thin edge, then the button itself.
+        /// </summary>
+        bool SolidBtn(Rect r, string text, GUIStyle style)
+        {
+            Panel(new Rect(r.x - 2f, r.y - 2f, r.width + 4f, r.height + 4f), PanelColor);
+            Panel(r, CardBack);
+            return Btn(r, text, style);
         }
 
         void Try(ICommand cmd)

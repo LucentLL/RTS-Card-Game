@@ -107,23 +107,98 @@
             return true;
           }
 
-          // WHAT THE HEAP WAS WHEN IT DIED. "RuntimeError: null function" under
-          // MemoryManager::Reallocate has now been reported twice, and the modal that carries it
-          // says nothing about memory - so the 512MB in WebGLBuild.cs was chosen against a guess
-          // and the same crash came back. This is the missing number. It goes to the CONSOLE, not
-          // the banner: `return false` below is deliberate, so Unity still shows its own modal
-          // with the copyable stack, and a banner would HTML-inject a multi-line trace into a div.
+          // A CRASH REPORT THE PLAYER CAN ACTUALLY SEND.
+          //
+          // This used to log the diagnostics to the CONSOLE and return false, leaving Unity's own
+          // modal to carry the stack. Two problems, both proven in the field. The console is
+          // unreachable: the build is played on an Android phone, and reading its console needs a
+          // USB cable and chrome://inspect - which is why the note asking for a console log went
+          // unanswered twice. And Unity's modal is an alert(), which CLIPS: the 2026-09-08 report
+          // arrived as a photograph of a dialog cut off mid-frame, three lines into the stack.
+          //
+          // So the report is rendered into the PAGE instead: whole stack, scrollable, selectable,
+          // with a copy button. If building it throws we fall through to Unity's modal rather than
+          // leaving the player with a black screen and nothing at all.
           try {
             var m = window.unityInstance && window.unityInstance.Module;
-            console.error("[srd] crash @ heap "
-              + (m && m.HEAPU8 ? (m.HEAPU8.length / 1048576 | 0) + "MB" : "unknown")
-              + ", deviceMemory " + (navigator.deviceMemory || "?") + "GB"
-              + ", dpr " + window.devicePixelRatio
-              + ", build " + (window.srdBuildVersion || "?")
-              + " — " + text);
-          } catch (e) { /* never let the reporter be the thing that throws */ }
+            var report = [
+              "SPAWN ROW DUEL - CRASH REPORT",
+              "build      " + (window.srdBuildVersion || "?"),
+              "when       " + new Date().toISOString()
+                            + "  (" + ((performance.now() / 1000) | 0) + "s after load)",
+              "heap       " + (m && m.HEAPU8 ? (m.HEAPU8.length / 1048576 | 0) + " MB" : "unknown"),
+              "device RAM " + (navigator.deviceMemory || "?") + " GB",
+              "screen     " + screen.width + "x" + screen.height
+                            + "  dpr " + window.devicePixelRatio
+                            + "  window " + window.innerWidth + "x" + window.innerHeight,
+              "agent      " + navigator.userAgent,
+              "",
+              text,
+            ].join("\n");
 
-          return false;
+            console.error("[srd] " + report);
+
+            if (!window.srdCrashShown) {
+              window.srdCrashShown = true;
+
+              var wrap = document.createElement("div");
+              wrap.style.cssText = "position:fixed;left:0;top:0;right:0;bottom:0;z-index:99999;"
+                + "background:rgba(6,9,14,.97);color:#e7ecf5;padding:14px;overflow:auto;"
+                + "font:13px/1.5 ui-monospace,Consolas,monospace;-webkit-user-select:text;user-select:text";
+
+              var head = document.createElement("div");
+              head.textContent = "The game crashed. Copy this report and send it.";
+              head.style.cssText = "font:700 16px/1.4 system-ui,sans-serif;color:#e2b862;margin-bottom:10px";
+              wrap.appendChild(head);
+
+              // A textarea, not a <pre>: on mobile it is the one element that reliably offers
+              // select-all and a paste target, and it scrolls its own overflow.
+              var box = document.createElement("textarea");
+              box.readOnly = true;
+              box.value = report;
+              box.style.cssText = "width:100%;height:58vh;box-sizing:border-box;background:#0b1018;"
+                + "color:#e7ecf5;border:1px solid #26334a;border-radius:3px;padding:8px;"
+                + "font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre;-webkit-user-select:text;user-select:text";
+              wrap.appendChild(box);
+
+              var row = document.createElement("div");
+              row.style.cssText = "display:flex;gap:8px;margin-top:10px;flex-wrap:wrap";
+
+              function button(label, fn) {
+                var b = document.createElement("button");
+                b.textContent = label;
+                b.style.cssText = "flex:1 1 140px;padding:12px 16px;background:#151e2c;color:#e7ecf5;"
+                  + "border:1px solid #26334a;border-radius:3px;font:600 14px/1 system-ui,sans-serif";
+                b.onclick = fn;
+                row.appendChild(b);
+                return b;
+              }
+
+              var copyBtn = button("Copy report", function () {
+                try {
+                  box.select();
+                  box.setSelectionRange(0, report.length);   // iOS ignores select() alone
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(report);
+                  } else {
+                    document.execCommand("copy");
+                  }
+                  copyBtn.textContent = "Copied";
+                } catch (e) {
+                  copyBtn.textContent = "Select the text above and copy";
+                }
+              });
+              button("Reload", function () { location.reload(); });
+
+              wrap.appendChild(row);
+              document.body.appendChild(wrap);
+            }
+
+            return true;      // ours is strictly more than Unity's clipped alert
+          } catch (e) {
+            // the reporter must never be the thing that hides the crash
+            return false;
+          }
         },
       };
 

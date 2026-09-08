@@ -256,8 +256,6 @@ namespace SpawnRowDuel.View.Cards
             if (menuPick != null)
             {
                 model = CardFaceModel.OfStructure(menuPick, _text, _art);
-                // OfStructure carries the RAW max HP; every other number on screen is scaled.
-                model.Hp = model.MaxHp = Stat.Show(menuPick.MaxHp);
                 model.Rules = _text.StructureFull(menuPick.Effect, menuPick.Value, menuPick.Support);
                 has = true;
             }
@@ -311,10 +309,16 @@ namespace SpawnRowDuel.View.Cards
             {
                 if (cre.IsWorker) return false;
                 if (!TryHandModel(cre.Card, out model)) return false;
-                // the LIVE unit, not the printed card - what is standing there has taken damage
-                model.Attack = Stat.Show(cre.EffectiveAttack);
-                model.Hp = Stat.Show(cre.Hp);
-                model.MaxHp = Stat.Show(cre.MaxHp);
+                // The LIVE unit, not the printed card - what is standing there has taken damage.
+                //
+                // RAW engine units, because CardFaceModel carries raw and CardFace scales when it
+                // PRINTS (Stat.Num / Stat.Hp). Scaling here as well divided everything twice, so
+                // a Mistling with 500 attack read as 5 on the inspect card while the same creature
+                // read 50 in the hand - reported 2026-09-08. The hand path never had the bug
+                // because it goes through CardFaceModel.OfCreature, which assigns c.Attack raw.
+                model.Attack = cre.EffectiveAttack;
+                model.Hp = cre.Hp;
+                model.MaxHp = cre.MaxHp;
 
                 // ...and its keyword sentence off the unit too, so a cocoon on the board reads
                 // "Chrysalis 2/3" - how close it actually is - instead of the printed 0/3.
@@ -330,8 +334,8 @@ namespace SpawnRowDuel.View.Cards
             {
                 var def = _match.Engine.Catalog.Structure(bld.DefId, bld.Color);
                 model = CardFaceModel.OfStructure(def, _text, _art);
-                model.Hp = Stat.Show(bld.Hp);
-                model.MaxHp = Stat.Show(bld.MaxHp);
+                model.Hp = bld.Hp;                 // raw - CardFace scales at print time
+                model.MaxHp = bld.MaxHp;
                 // the PARAGRAPH, not the one-line brief: what a Vault or a Reliquary actually
                 // does is a rule nothing else on the screen says out loud
                 model.Rules = _text.StructureFull(bld.Effect, bld.Value, bld.Support);
