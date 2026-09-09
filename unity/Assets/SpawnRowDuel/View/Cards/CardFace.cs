@@ -65,12 +65,12 @@ namespace SpawnRowDuel.View.Cards
         public static float CrystalShine = 0.45f;
 
         /// <summary>
-        /// How far the point hangs BELOW this card's own box, in pixels; zero on paper.
+        /// How much of this element's height is the point rather than the card, in pixels; zero on
+        /// paper. The element measures `width * Aspect + TangPixels`, and the CARD inside it is
+        /// still exactly `width * Aspect` - which is the whole of "the tang is additional".
         ///
-        /// The card's height deliberately does not include it, so any layout that stacks something
-        /// underneath a face has to reserve this itself or the point lands on top of it. The
-        /// inspect panel has open space below and needs nothing; the deck builder's detail column
-        /// puts a stepper directly under the card and does.
+        /// Reported rather than reserved by the caller: the point is inside this element's own
+        /// box, so nothing stacked underneath a face has to make room for it.
         /// </summary>
         public float TangPixels { get; private set; }
 
@@ -99,7 +99,8 @@ namespace SpawnRowDuel.View.Cards
         readonly VisualElement _banner, _costCircle, _gem, _artWin, _art, _vignette, _ribbon, _rulesBox, _stats;
         readonly Label _cost, _gemGlyph, _name, _ribbonText, _rules, _power, _hp, _chip;
         readonly VisualElement _stateChips, _names;
-        readonly CrystalChrome _chrome;
+        readonly CrystalChrome _chrome, _gloss;
+        readonly VisualElement _tangBand;
 
         float _width;
         float _nameSize;      // the size the name WANTS, before it is shrunk to fit its column
@@ -306,12 +307,29 @@ namespace SpawnRowDuel.View.Cards
             _stats.style.flexShrink = 0;
             Add(_stats);
 
+            // THE TANG'S OWN BAND, and it holds nothing.
+            //
+            // This is what keeps the point "additional" without a single element overflowing its
+            // parent: the card grows by the tang, and this reserves exactly that much at the
+            // bottom so the ability box's flex share is computed against the card's real height
+            // and every band above lands where it always did.
+            _tangBand = new VisualElement { pickingMode = PickingMode.Ignore };
+            _tangBand.style.flexShrink = 0;
+            _tangBand.style.display = DisplayStyle.None;
+            Add(_tangBand);
+
             // THE BADGE AND THE GEM GO ON LAST, because in UI Toolkit a sibling drawn later is
             // drawn on top. They are positioned to hang off the banner into the picture, and
             // added before the art window they were hanging BEHIND it - the picture clipped the
             // mana cost and the element clean off the card.
             Add(_costCircle);
             Add(_gem);
+
+            // ...and the front face goes on after even those, because it is the glass everything
+            // else is seen through.
+            _gloss = new CrystalChrome(front: true);
+            _gloss.style.display = DisplayStyle.None;
+            Add(_gloss);
 
             _power = Text("", UiFont.DisplayBlack);
             _power.style.color = Color.white;
@@ -350,22 +368,6 @@ namespace SpawnRowDuel.View.Cards
 
             _width = width;
             style.width = width;
-            // THE CARD IS THE HEIGHT IT ALWAYS WAS, in both skins. The crystal's point is drawn
-            // by CrystalChrome, which hangs below this box rather than inside it, so the hand
-            // strip, the tile fit and the deck-builder grid never learn that the skin changed.
-            style.height = width * Aspect;
-
-            var edge = crystal ? ElementPalette.Mix(sw.Deep, Color.black, 0.45f)
-                               : ElementPalette.Mix(ec, Color.black, 0.55f);
-            style.borderTopColor = edge;
-            style.borderBottomColor = edge;
-            style.borderLeftColor = edge;
-            style.borderRightColor = edge;
-            // Square, and unclipped, so the tang can hang past the bottom edge. A rounded corner
-            // on a cut stone reads as a rounded stone.
-            SetRadius(this, crystal ? 0f : 6f);
-            style.overflow = crystal ? Overflow.Visible : Overflow.Hidden;
-            style.backgroundColor = crystal ? Color.clear : new Color(0.09f, 0.08f, 0.07f);
 
             if (crystal)
             {
@@ -377,15 +379,36 @@ namespace SpawnRowDuel.View.Cards
                             : point == CrystalChrome.Point.Spell ? CrystalChrome.TangSpell
                             : CrystalChrome.TangCreature;
                 TangPixels = width * tangF;
+
+                var deep = ElementPalette.Mix(sw.Deep, Color.black, 0.30f);
                 _chrome.style.display = DisplayStyle.Flex;
-                _chrome.Set(ec, sw.Accent, ElementPalette.Mix(sw.Deep, Color.black, 0.30f),
-                            point, TangPixels, CrystalShine);
+                _chrome.Set(ec, sw.Accent, deep, point, TangPixels, CrystalShine);
+                _gloss.style.display = DisplayStyle.Flex;
+                _gloss.Set(ec, sw.Accent, deep, point, TangPixels, CrystalShine);
+                _tangBand.style.display = DisplayStyle.Flex;
+                _tangBand.style.height = TangPixels;
             }
             else
             {
                 TangPixels = 0f;
                 _chrome.style.display = DisplayStyle.None;
+                _gloss.style.display = DisplayStyle.None;
+                _tangBand.style.display = DisplayStyle.None;
             }
+
+            // THE CARD IS THE HEIGHT IT ALWAYS WAS; the ELEMENT grows by the tang, which is what
+            // "the point is additional" means in layout terms. _tangBand reserves that growth at
+            // the bottom, so the ability box's flex share is computed against the card's real
+            // height and every band above it lands exactly where it does on paper.
+            style.height = width * Aspect + TangPixels;
+
+            // No border at all on the crystal: the bezel IS the edge, and a UI Toolkit border is a
+            // rectangle - it would box the tang in as well and undo the whole silhouette.
+            var edge = ElementPalette.Mix(ec, Color.black, 0.55f);
+            SetBorder(this, crystal ? 0f : 1f, edge);
+            // A rounded corner on a cut stone reads as a rounded stone.
+            SetRadius(this, crystal ? 0f : 6f);
+            style.backgroundColor = crystal ? Color.clear : new Color(0.09f, 0.08f, 0.07f);
 
             // banner
             _banner.style.height = width * BannerH;
@@ -394,7 +417,9 @@ namespace SpawnRowDuel.View.Cards
             _banner.style.backgroundImage = crystal
                 ? new StyleBackground(StyleKeyword.None)
                 : Background.FromTexture2D(CardTextures.Paper);
-            _banner.style.backgroundColor = crystal ? new Color(0f, 0.03f, 0.05f, 0.42f) : Color.clear;
+            // Barely there. The stone is the header's ground; this is only enough shadow to keep
+            // white lettering off a pale element like Light or Wind.
+            _banner.style.backgroundColor = crystal ? new Color(0f, 0.02f, 0.04f, 0.22f) : Color.clear;
 
             // the art box: SQUARE, so a square illustration lands in it whole. The crystal skin
             // insets it further and hands the difference to the ability box.
@@ -474,7 +499,9 @@ namespace SpawnRowDuel.View.Cards
             _art.style.backgroundColor = m.Art != null
                 ? Color.clear
                 : ElementPalette.Mix(sw.Deep, Color.black, 0.55f);       // the placeholder wash (G1)
-            var ring = ElementPalette.Mix(ec, Color.black, 0.6f);
+            // The vitrine's rim takes the accent on crystal - it is a cut edge in the stone, not a
+            // printed border.
+            var ring = crystal ? sw.Accent : ElementPalette.Mix(ec, Color.black, 0.6f);
             _artWin.style.borderTopColor = ring; _artWin.style.borderBottomColor = ring;
             _artWin.style.borderLeftColor = ring; _artWin.style.borderRightColor = ring;
 
@@ -497,8 +524,15 @@ namespace SpawnRowDuel.View.Cards
             _rulesBox.style.backgroundImage = crystal
                 ? new StyleBackground(StyleKeyword.None)
                 : Background.FromTexture2D(CardTextures.Paper);
-            _rulesBox.style.backgroundColor = crystal ? new Color(0f, 0.04f, 0.06f, 0.55f) : Color.clear;
+            _rulesBox.style.backgroundColor = crystal ? new Color(0f, 0.03f, 0.05f, 0.40f) : Color.clear;
             SetRadius(_rulesBox, crystal ? 2f : 6f);
+            // Inset to the picture's own margin, so the stone frames the ability box the way it
+            // frames the art and the card reads as ONE piece with things suspended in it - rather
+            // than as paper panels laid on a coloured background, which is what the first cut
+            // looked like.
+            float inset = crystal ? width * (1f - CrystalArtSide) * 0.5f : 3f;
+            _rulesBox.style.marginLeft = inset;
+            _rulesBox.style.marginRight = inset;
             var rulesEdge = crystal ? new Color(sw.Accent.r, sw.Accent.g, sw.Accent.b, 0.55f)
                                     : new Color(0f, 0f, 0f, 0.75f);
             _rulesBox.style.borderTopColor = rulesEdge; _rulesBox.style.borderBottomColor = rulesEdge;

@@ -177,10 +177,6 @@ namespace SpawnRowDuel.View.Shell
                                 ? _detail.resolvedStyle.width - 24f * UiKit.S : 210f * UiKit.S);
             face.Bind(model, _palette, w);
             face.style.marginTop = 8f * UiKit.S;
-            // The crystal skin's point hangs below the card's own box, and the copy stepper sits
-            // directly underneath - so the column has to reserve the overhang or the two overlap.
-            // Zero on the paper skin, which has no point.
-            face.style.marginBottom = face.TangPixels;
             face.style.alignSelf = Align.Center;
             _detail.Add(face);
 

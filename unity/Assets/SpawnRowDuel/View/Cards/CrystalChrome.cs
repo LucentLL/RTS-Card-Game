@@ -29,23 +29,41 @@ namespace SpawnRowDuel.View.Cards
         Point _point = Point.Creature;
         float _tang;          // pixels
         float _shine = 0.45f;
+        readonly bool _front;
 
-        public CrystalChrome()
+        /// <param name="front">
+        /// A front pass draws only the bezel, the glint and the fringe, and is added to the card
+        /// LAST so it lies over the bands. Without it the whole stone sat behind opaque paper
+        /// windows and the only crystal you could see was the point - reported 2026-09-09, "they
+        /// look quite different than what you proposed".
+        /// </param>
+        public CrystalChrome(bool front = false)
         {
+            _front = front;
             pickingMode = PickingMode.Ignore;      // the card's own children own every press
+            // INSET TO THE CARD, and nothing else. An earlier build hung this element past the
+            // card's bottom edge with a negative `bottom` and switched the card's own overflow to
+            // Visible to let the point show. That put an element outside its parent's box inside
+            // two ancestors that also overflow, and the game froze on summon. The card is TALLER
+            // by the tang now (CardFace reserves it with a spacer band), so the point is drawn
+            // inside this element and nothing overflows anything.
             style.position = Position.Absolute;
             style.left = 0;
             style.right = 0;
             style.top = 0;
+            style.bottom = 0;
             generateVisualContent += Paint;
         }
 
-        /// <summary>Re-tint and re-shape. Cheap enough to call on every Bind.</summary>
+        /// <summary>Re-tint and re-shape. Only touches the painter when something actually moved.</summary>
         public void Set(Color body, Color accent, Color deep, Point point, float tangPx, float shine)
         {
+            if (_body == body && _accent == accent && _deep == deep
+                && _point == point && Mathf.Approximately(_tang, tangPx)
+                && Mathf.Approximately(_shine, shine)) return;
+
             _body = body; _accent = accent; _deep = deep;
             _point = point; _tang = tangPx; _shine = shine;
-            style.bottom = -tangPx;                // the point hangs past the card's own box
             MarkDirtyRepaint();
         }
 
@@ -64,12 +82,16 @@ namespace SpawnRowDuel.View.Cards
         {
             var r = contentRect;
             float w = r.width, h = r.height;
-            if (w <= 1f || h <= 1f) return;
+            // A degenerate or not-yet-resolved rect produces NaN geometry, and NaN in a painter
+            // path is not a visual bug, it is a hang.
+            if (float.IsNaN(w) || float.IsNaN(h) || w <= 1f || h <= 1f) return;
 
             float bodyH = h - _tang;               // where the card ends and the flavour begins
-            if (bodyH <= 1f) return;
+            if (float.IsNaN(bodyH) || bodyH <= 1f) return;
 
             var p = ctx.painter2D;
+
+            if (_front) { PaintFront(p, w, bodyH); return; }
 
             // ── the stone ──────────────────────────────────────────────────────────────────
             // Body first, in the element's shadow tone. Everything above this is either a
@@ -121,32 +143,47 @@ namespace SpawnRowDuel.View.Cards
                 Poly(p, right, new Vector2(midR, bodyH), new Vector2(w, bodyH), new Vector2(tipR, shelf));
             }
 
-            // ── the front face ─────────────────────────────────────────────────────────────
-            // Encasement is DEPTH, not gloss. The dark pass below costs no saturation; the white
-            // one is the only thing that dulls a card, so it is a corner glint and nothing else,
-            // and it answers to the shine setting. Full-height prism seams were tried in the
-            // frame study and cut - they read as two white lines down the middle.
+            // Body shade, lower right. Depth, and it belongs BEHIND the bands - it is the stone
+            // turning away from the light, not something laid over the card.
             var shade = _deep; shade.a = 0.34f;
             Poly(p, shade, new Vector2(w, 0f), new Vector2(w, bodyH), new Vector2(w * 0.42f, bodyH));
+        }
 
+        /// <summary>
+        /// The pass that lies OVER the bands, so the picture and the ability box read as things
+        /// suspended in the stone rather than paper windows stuck on top of it.
+        ///
+        /// Encasement is depth, not gloss: the dark work is all in the back pass, and the only
+        /// white here is a corner glint that answers to the shine setting, because white over
+        /// colour is exactly what dulls a card. Full-height prism seams were tried in the frame
+        /// study and cut - they read as two white lines down the middle.
+        /// </summary>
+        void PaintFront(Painter2D p, float w, float bodyH)
+        {
             if (_shine > 0.004f)
             {
-                var glint = Color.white; glint.a = 0.20f * _shine;
-                Poly(p, glint, new Vector2(0f, 0f), new Vector2(w * 0.42f, 0f), new Vector2(0f, bodyH * 0.46f));
+                var glint = Color.white; glint.a = 0.16f * _shine;
+                Poly(p, glint, new Vector2(0f, 0f), new Vector2(w * 0.46f, 0f), new Vector2(0f, bodyH * 0.44f));
+
+                var fringe = _accent; fringe.a = 0.5f * _shine;
+                float t = Mathf.Max(1f, w * 0.012f);
+                Poly(p, fringe, new Vector2(0f, 0f), new Vector2(w, 0f),
+                                new Vector2(w, t), new Vector2(0f, t));
             }
 
-            // ── bezel ──────────────────────────────────────────────────────────────────────
-            // The glass edge, and the one place the accent runs at full strength. Stroked inside
-            // the body only: a bezel that followed the tang would draw a bright outline around
-            // the point and make it read as a second, separate object.
+            // The bezel: the glass edge, and the one place the accent runs at full strength.
+            // Stroked around the BODY only - a bezel that followed the tang would outline the
+            // point and make it read as a second, separate object bolted to the card.
+            float lw = Mathf.Max(1.5f, w * 0.018f);
+            float i = lw * 0.5f;
             p.BeginPath();
-            p.MoveTo(new Vector2(1f, 1f));
-            p.LineTo(new Vector2(w - 1f, 1f));
-            p.LineTo(new Vector2(w - 1f, bodyH - 1f));
-            p.LineTo(new Vector2(1f, bodyH - 1f));
+            p.MoveTo(new Vector2(i, i));
+            p.LineTo(new Vector2(w - i, i));
+            p.LineTo(new Vector2(w - i, bodyH - i));
+            p.LineTo(new Vector2(i, bodyH - i));
             p.ClosePath();
             p.strokeColor = _accent;
-            p.lineWidth = Mathf.Max(1.5f, w * 0.014f);
+            p.lineWidth = lw;
             p.Stroke();
         }
     }
