@@ -125,6 +125,8 @@ namespace SpawnRowDuel.View.Cards
                     return "<b>Mana Vault.</b> Unspent mana <b>drains at the end of your turn</b> — your vaults keep up to <b>◆" + val + "</b> of it banked. Upgrade it to hold more." + supTxt;
                 case StructEffect.Revive:
                     return "<b>Reliquary.</b> Once per turn at upkeep, returns your most recently fallen creature to your hand." + supTxt;
+                case StructEffect.Heal:
+                    return "<b>Sanctuary.</b> At upkeep, mends <b>♥" + Stat.Num(val) + "</b> onto your most wounded creature standing in <b>its own row</b>." + supTxt;
                 default:
                     return "Structure with no upkeep effect." + supTxt;
             }

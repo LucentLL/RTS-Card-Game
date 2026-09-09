@@ -86,6 +86,15 @@ namespace SpawnRowDuel.Rules
         public CreatureRevived(Side side, CardId card) { Side = side; Card = card; }
     }
 
+    public sealed class CreatureMended : GameEvent
+    {
+        public readonly int SanctuaryId;
+        public readonly int TargetId;
+        public readonly int Amount;
+        public CreatureMended(int sanctuaryId, int targetId, int amount)
+        { SanctuaryId = sanctuaryId; TargetId = targetId; Amount = amount; }
+    }
+
     public sealed class WorkerShortfallSettled : GameEvent
     {
         public readonly Side Side;

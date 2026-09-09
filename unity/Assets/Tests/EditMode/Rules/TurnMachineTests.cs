@@ -266,40 +266,46 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         [Test]
-        public void Reliquary_RevivesTheMostRecentRealCreature_OncePerTurn()
+        public void Sanctuary_MendsTheWorstHurtCreatureInItsOwnRow()
         {
             var e = Engine(7);
             var s = e.State;
             var cat = TestData.Catalog;
 
-            var reliquary = cat.Structure(new StructId("reliquary"), Element.None);
-            s.Put(new CellRef(RowKey.YouBack, 0), UnitFactory.MakeStructure(s, Side.You, reliquary));
-            s.Put(new CellRef(RowKey.YouBack, 1), UnitFactory.MakeStructure(s, Side.You, reliquary));
+            // A Sanctuary in the BACK row, and three hurt creatures: two beside it and one in the
+            // front row. The front one is the worst hurt of the three and must be ignored - the
+            // mend is bound to the Sanctuary's own row, which is what makes where you put it a
+            // decision rather than a formality.
+            var sanctuary = cat.Structure(new StructId("reliquary"), Element.None);
+            s.Put(new CellRef(RowKey.YouBack, 0), UnitFactory.MakeStructure(s, Side.You, sanctuary));
 
-            s.P(Side.You).Grave.Add(new GraveRecord(new CardId("Sparkimp"), "Sparkimp",
-                Element.Fire, UnitKind.Creature, false, false, 1));
-            s.P(Side.You).Grave.Add(new GraveRecord(new CardId("Worker"), "Worker",
-                Element.Fire, UnitKind.Creature, false, true, 1));
-            s.P(Side.You).Grave.Add(new GraveRecord(new CardId("Magmaw"), "Magmaw",
-                Element.Fire, UnitKind.Creature, false, false, 2));
+            var near = Hurt(s, cat, new CellRef(RowKey.YouBack, 2), 200);   // 200 missing
+            var worst = Hurt(s, cat, new CellRef(RowKey.YouBack, 3), 900);  // 900 missing - wins
+            var offRow = Hurt(s, cat, new CellRef(RowKey.YouFront, 3), 1500);
 
-            int handBefore = s.P(Side.You).Hand.Count;
+            int nearHp = near.Hp, worstHp = worst.Hp, offHp = offRow.Hp;
 
-            MustApply(e, new HarvestCommand(Side.You));
-            MustApply(e, new DrawForTurnCommand(Side.You));
-            MustApply(e, new EndTurnCommand(Side.You));
-            MustApply(e, new BeginTurnCommand(Side.Foe));
-            MustApply(e, new HarvestCommand(Side.Foe));
-            MustApply(e, new DrawForTurnCommand(Side.Foe));
-            MustApply(e, new EndTurnCommand(Side.Foe));
-            MustApply(e, new BeginTurnCommand(Side.You));
+            // The upkeep tick DIRECTLY, not a whole turn. Three Magmaws is ⚒9 of upkeep, so a
+            // turn taken the long way is refused at Harvest for an unsettled shortfall - which
+            // tests the worker economy, not the mend. This is the step the rule lives in.
+            StructureUpkeep.Tick(s, Side.You, cat, new EventSink());
 
-            // one revive despite two Reliquaries: Magmaw (most recent), skipping the worker
-            var hand = s.P(Side.You).Hand;
-            Assert.AreEqual(handBefore + 1 + 1, hand.Count, "one draw + ONE revive");
-            Assert.AreEqual("Magmaw", hand[hand.Count - 1].Id.Value,
-                "the most recently fallen real creature comes back");
-            Assert.AreEqual(2, s.P(Side.You).Grave.Count, "the worker record stays");
+            Assert.AreEqual(worstHp + 500, worst.Hp,
+                "the worst-hurt creature in the Sanctuary's row is mended by its value");
+            Assert.AreEqual(nearHp, near.Hp, "and only one of them - the mend is not a row heal");
+            Assert.AreEqual(offHp, offRow.Hp,
+                "a creature in another row is never touched, however badly hurt");
+        }
+
+        /// <summary>A creature standing at full health less <paramref name="missing"/>.
+        /// Magmaw prints ♥2500, so every wound here has to stay well inside that.</summary>
+        static CreatureUnit Hurt(GameState s, ICardCatalog cat, CellRef at, int missing)
+        {
+            var c = UnitFactory.MakeCreature(s, Side.You, cat.Creature(new CardId("Magmaw")),
+                                             Element.Fire);
+            c.Hp = c.MaxHp - missing;
+            s.Put(at, c);
+            return c;
         }
 
         [Test]

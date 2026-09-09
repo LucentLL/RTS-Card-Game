@@ -140,12 +140,15 @@ namespace SpawnRowDuel.Rules.Tests
         {
             var cat = TestData.Catalog;
             var list = cat.BuildList(new CommanderId("fire"));
-            Assert.AreEqual(10, list.Count);
+            // Eight, not ten: the Cannon Tower and the Grand Forge left the MENU when they became
+            // upgrade-only tiers (2026-09-09). Both are still reachable - through a Scout Tower and
+            // through a Forge - they just cannot be placed from nothing any more.
+            Assert.AreEqual(8, list.Count);
             Assert.AreEqual("foundry", list[0].Bid.Value, "the Foundry heads every build menu");
             Assert.AreEqual("Emberforge", list[1].Name, "a fire commander's forge is the Emberforge");
 
             var dual = cat.BuildList(new CommanderId("fire_water"));
-            Assert.AreEqual(12, dual.Count, "duals get both forges and both grand forges");
+            Assert.AreEqual(9, dual.Count, "a dual gets both forges, and the grand ones by upgrade");
         }
 
         [Test]
@@ -163,9 +166,12 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(2, grand.Count);
             Assert.AreEqual("forge", grand[1].Value);
 
-            // tower is the known data defect: no from link, so its lineage is just itself.
+            // The tower had no `from` link, so its lineage used to be just itself - called out
+            // here as a known data defect. Making it an upgrade of the Scout Tower fixed that.
             var tower = cat.Lineage(new StructId("tower"));
-            Assert.AreEqual(1, tower.Count);
+            Assert.AreEqual(2, tower.Count);
+            Assert.AreEqual("tower", tower[0].Value);
+            Assert.AreEqual("outpost", tower[1].Value, "a Cannon Tower is a grown Scout Tower");
 
             // a bid the catalog has never heard of still terminates
             var unknown = cat.Lineage(new StructId("mystery"));

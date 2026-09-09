@@ -1216,6 +1216,11 @@ namespace SpawnRowDuel.View
             var revived = ev as CreatureRevived;
             if (revived != null) return "The Reliquary returns " + revived.Card.Value;
 
+            var mended = ev as CreatureMended;
+            if (mended != null)
+                return "The Sanctuary mends " + NameOf(mended.TargetId) + " for "
+                     + Stat.Show(mended.Amount) + Remaining(mended.TargetId);
+
             // What a blow actually did - the number that floats over the card and then, until
             // now, existed nowhere else. The main combat path sums a whole gang's damage into one
             // batch before applying it, so it carries no single source; the trigger sites (a

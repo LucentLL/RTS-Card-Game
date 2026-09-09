@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: SpawnRowDuel.Data::SpawnRowDuel.Data.CardDefinition
   exportKey: outpost
   kind: 2
-  displayName: Outpost
-  slug: outpost
+  displayName: Scout Tower
+  slug: scouttower
   element: 0
   isNeutral: 1
   isPlayable: 1
@@ -66,7 +66,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "A forward post on the contested middle row \u2014 raises \u2692+1.
-    Branches on upgrade into a Cannon Tower (offense) or a Bastion (defense)."
+  description: "A watchpost on the contested middle row \u2014 raises \u2692+1. Upgrades
+    into a Cannon Tower (offense) or a Bastion (defense)."
   cardArt: {fileID: 21300000, guid: 65d9ee3e5cd8a644a9aabb1eb16cd46e, type: 3}
   fieldArt: {fileID: 21300000, guid: 6fe87f16cdc0007499c5326f304328e5, type: 3}

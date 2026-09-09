@@ -18,7 +18,7 @@ MonoBehaviour:
   slug: cannontower
   element: 0
   isNeutral: 1
-  isPlayable: 1
+  isPlayable: 0
   registryIndex: 6
   cost: 4
   poolIndex: -1
@@ -50,11 +50,11 @@ MonoBehaviour:
   support: -1
   prereq:
   - forge
-  upgradedFrom: 
+  upgradedFrom: outpost
   upgradesTo:
   - bombard
   rowGate: 0
-  buildable: 1
+  buildable: 0
   life: 0
   baseWorkers: 0
   colors: 
@@ -65,7 +65,7 @@ MonoBehaviour:
   accentHex: 
   deepHex: 
   bgStops: []
-  description: "Guns that never sleep \u2014 strikes the first enemy creature in
+  description: "A scout post grown guns \u2014 strikes the first enemy creature in
     range for 500 each turn. Needs \u26921 to crew. Upgrades to a Bombard Tower."
   cardArt: {fileID: 21300000, guid: 3d8a83e154c026d43a1bd03e45e4bdd3, type: 3}
   fieldArt: {fileID: 21300000, guid: a1c8e609632c5b04882d2dd69711c126, type: 3}

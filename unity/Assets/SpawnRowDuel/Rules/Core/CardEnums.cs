@@ -52,6 +52,9 @@ namespace SpawnRowDuel.Rules
         Wall = 4,
         Damage = 5,
         Revive = 6,
+
+        /// <summary>Sanctuary: mends a wounded creature standing in its own row.</summary>
+        Heal = 7,
     }
 
     public enum MatchOutcome : byte

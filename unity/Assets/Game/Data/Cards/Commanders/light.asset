@@ -64,9 +64,7 @@ MonoBehaviour:
   - vault
   - outpost
   - bulwark
-  - tower
   - reliquary
-  - grandforge:light
   dual: 0
   glyphKanji: 
   colorHex: 

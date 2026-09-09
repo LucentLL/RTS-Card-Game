@@ -201,6 +201,7 @@ namespace SpawnRowDuel.Rules
                 case "wall": return StructEffect.Wall;
                 case "damage": return StructEffect.Damage;
                 case "revive": return StructEffect.Revive;
+                case "heal": return StructEffect.Heal;
                 default:
                     throw new CardsJsonException(ctx + ": unknown structure effect '" + raw + "'");
             }

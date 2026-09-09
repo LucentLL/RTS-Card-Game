@@ -44,8 +44,47 @@ namespace SpawnRowDuel.Rules
                     {
                         if (!revived) revived = ReviveFromGrave(s, owner, ev);
                     }
+                    else if (b.Effect == StructEffect.Heal)
+                    {
+                        MendInRow(s, owner, rows[r], b, ev);
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// The Sanctuary's mend: the most wounded creature of its owner's, standing in the
+        /// Sanctuary's OWN row, is healed by its value and never past its printed health.
+        ///
+        /// Row-bound on purpose, and it is what makes the building a placement decision rather
+        /// than a passive: a Sanctuary in the back row mends the line that is not being hit. Ties
+        /// go to the lowest column, so two equally hurt creatures heal in board order and the
+        /// result stays deterministic for replay.
+        ///
+        /// A structure is never a target. Walls and buildings do not heal here - the card says
+        /// creature, and a Sanctuary that quietly repaired a Bulwark would be a different card.
+        /// </summary>
+        static void MendInRow(GameState s, Side owner, RowKey row, StructureUnit sanctuary,
+                              EventSink ev)
+        {
+            if (sanctuary.Value <= 0) return;
+
+            CreatureUnit best = null;
+            int worst = 0;
+            for (int col = 0; col < Board.Columns; col++)
+            {
+                var c = s.At(new CellRef(row, col)) as CreatureUnit;
+                if (c == null || c.Owner != owner || c.Hp <= 0) continue;
+
+                int missing = c.MaxHp - c.Hp;
+                if (missing <= 0) continue;
+                if (missing > worst) { worst = missing; best = c; }
+            }
+            if (best == null) return;                       // nothing hurt: the mend is wasted
+
+            int mend = System.Math.Min(sanctuary.Value, worst);
+            best.Hp += mend;
+            ev.Add(new CreatureMended(sanctuary.Id, best.Id, mend));
         }
 
         /// <summary>

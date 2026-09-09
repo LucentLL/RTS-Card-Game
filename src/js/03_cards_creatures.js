@@ -71,9 +71,9 @@ const STRUCT_DEFS={
   longhouse:{bid:'longhouse',nm:'Longhouse',   c:4, h:3000,  eff:'villager', val:0, sup:3, ic:'⌂', prereq:['foundry'], color:null, row:'front', up2:['barracks'],art:ART.longhouse, desc:'Hearth and full benches — quarters ⚒+3 of workforce. Your main workforce. Upgrades (in the front row) to a Barracks.'},
   vault:    {bid:'vault',    nm:'Mana Vault',  c:4, h:3000,  eff:'vault',    val:4, sup:0, ic:'◈', prereq:['foundry'], color:null, up2:['grandvault'], art:BLD_ART.vault, desc:'Cisterns that hold the surplus — unspent mana drains at end of turn, but a vault keeps up to ◆4 of it. Upgrades to a Grand Vault. ⚒0.'},
   bulwark:  {bid:'bulwark',  nm:'Bulwark',     c:5, h:6000, eff:'wall',     val:0, sup:1, ic:'▣', prereq:['forge'],   color:null, art:BLD_ART.bulwark, desc:'A heavy wall of stone — a huge body that soaks raids aimed at your line, and raises ⚒+1.'},
-  outpost:  {bid:'outpost',  nm:'Outpost',     c:2, h:3000,  eff:'none',     val:0, sup:1, ic:'⛨', prereq:['forge'],   color:null, row:'center', up2:['tower','bastion'], art:BLD_ART.outpost, desc:'A forward post on the contested middle row — raises ⚒+1. Branches on upgrade into a Cannon Tower (offense) or a Bastion (defense).'},
-  tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:4000,  eff:'damage',   val:500, sup:-1, ic:'⤢', prereq:['forge'],   color:null, up2:['bombard'], art:BLD_ART.tower,  desc:'Guns that never sleep — strikes the first enemy creature in range for 500 each turn. Needs ⚒1 to crew. Upgrades to a Bombard Tower.'},
-  reliquary:{bid:'reliquary',nm:'Reliquary',  c:5, h:3500,  eff:'revive',    val:0, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:BLD_ART.reliquary,  desc:'Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.'},
+  outpost:  {bid:'outpost',  nm:'Scout Tower', c:2, h:3000,  eff:'none',     val:0, sup:1, ic:'⛨', prereq:['forge'],   color:null, row:'center', up2:['tower','bastion'], art:BLD_ART.outpost, desc:'A watchpost on the contested middle row — raises ⚒+1. Upgrades into a Cannon Tower (offense) or a Bastion (defense).'},
+  tower:    {bid:'tower',    nm:'Cannon Tower',c:4, h:4000,  eff:'damage',   val:500, sup:-1, ic:'⤢', prereq:['forge'],   from:'outpost', color:null, up2:['bombard'], art:BLD_ART.tower,  desc:'A scout post grown guns — strikes the first enemy creature in range for 500 each turn. Needs ⚒1 to crew. Upgrades to a Bombard Tower.'},
+  reliquary:{bid:'reliquary',nm:'Sanctuary',  c:5, h:3500,  eff:'heal',      val:500, sup:1, ic:'☩', prereq:['longhouse'],color:null, art:BLD_ART.reliquary,  desc:'Sanctified ground — at upkeep, mends ♥50 onto your most wounded creature in its own row. ⚒+1.'},
   // UPGRADE-ONLY tiers (reached by upgrading the structure named in `from`; `row` gates where the tier may live).
   keep:     {bid:'keep',     nm:'Keep',        c:3, h:5000,  eff:'mana',     val:1, sup:3, ic:'♜', prereq:[], from:'foundry', row:'back',  up2:['citadel'], color:null, art:BLD_ART.keep, desc:'The Base grown into a Keep — ◆1 a turn, ⚒+3, far sturdier walls. Upgrades to a Citadel.'},
   citadel:  {bid:'citadel',  nm:'Citadel',     c:4, h:7500,  eff:'mana',     val:2, sup:4, ic:'♛', prereq:[], from:'keep',    row:'back',  color:null, art:BLD_ART.citadel, desc:'The seat of your realm — ◆2 a turn, ⚒+4, and a mighty rampart of stone.'},
@@ -88,8 +88,7 @@ function grandForgeDef(el){ return {bid:'grandforge', nm:'Grand '+FORGE_NAMES[el
 function buildList(ccId){
   const cols=ccColors(ccId), out=[STRUCT_DEFS.foundry];
   cols.forEach(el=>out.push(forgeDef(el)));
-  out.push(STRUCT_DEFS.encampment, STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.outpost, STRUCT_DEFS.bulwark, STRUCT_DEFS.tower, STRUCT_DEFS.reliquary);
-  cols.forEach(el=>out.push(grandForgeDef(el)));
+  out.push(STRUCT_DEFS.encampment, STRUCT_DEFS.longhouse, STRUCT_DEFS.vault, STRUCT_DEFS.outpost, STRUCT_DEFS.bulwark, STRUCT_DEFS.reliquary);
   return out;
 }
 // Spells & traps are ELEMENT-NEUTRAL — no color, generic-mana cost, legal in any deck.

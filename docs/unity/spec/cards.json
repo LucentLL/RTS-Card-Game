@@ -1,6 +1,6 @@
 {
   "$schemaNote": "Spawn Row Duel card registry, exported by tools/export_cards.mjs from the live JS registry (node:vm sandbox). Every value here is what the game computes at runtime.",
-  "generatedAt": "2026-09-07T16:05:45.923Z",
+  "generatedAt": "2026-09-09T02:20:47.982Z",
   "sourceFiles": [
     "src/js/01_core_defs.js",
     "src/js/02_art.js",
@@ -312,9 +312,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire"
+        "reliquary"
       ]
     },
     {
@@ -335,9 +333,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:water"
+        "reliquary"
       ]
     },
     {
@@ -358,9 +354,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:earth"
+        "reliquary"
       ]
     },
     {
@@ -381,9 +375,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:wind"
+        "reliquary"
       ]
     },
     {
@@ -404,9 +396,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:forest"
+        "reliquary"
       ]
     },
     {
@@ -427,9 +417,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:electric"
+        "reliquary"
       ]
     },
     {
@@ -450,9 +438,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:light"
+        "reliquary"
       ]
     },
     {
@@ -473,9 +459,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:dark"
+        "reliquary"
       ]
     },
     {
@@ -498,10 +482,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire",
-        "grandforge:water"
+        "reliquary"
       ]
     },
     {
@@ -524,10 +505,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire",
-        "grandforge:earth"
+        "reliquary"
       ]
     },
     {
@@ -550,10 +528,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire",
-        "grandforge:wind"
+        "reliquary"
       ]
     },
     {
@@ -576,10 +551,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire",
-        "grandforge:forest"
+        "reliquary"
       ]
     },
     {
@@ -602,10 +574,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire",
-        "grandforge:electric"
+        "reliquary"
       ]
     },
     {
@@ -628,10 +597,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire",
-        "grandforge:light"
+        "reliquary"
       ]
     },
     {
@@ -654,10 +620,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:fire",
-        "grandforge:dark"
+        "reliquary"
       ]
     },
     {
@@ -680,10 +643,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:water",
-        "grandforge:earth"
+        "reliquary"
       ]
     },
     {
@@ -706,10 +666,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:water",
-        "grandforge:wind"
+        "reliquary"
       ]
     },
     {
@@ -732,10 +689,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:water",
-        "grandforge:forest"
+        "reliquary"
       ]
     },
     {
@@ -758,10 +712,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:water",
-        "grandforge:electric"
+        "reliquary"
       ]
     },
     {
@@ -784,10 +735,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:water",
-        "grandforge:light"
+        "reliquary"
       ]
     },
     {
@@ -810,10 +758,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:water",
-        "grandforge:dark"
+        "reliquary"
       ]
     },
     {
@@ -836,10 +781,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:earth",
-        "grandforge:wind"
+        "reliquary"
       ]
     },
     {
@@ -862,10 +804,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:earth",
-        "grandforge:forest"
+        "reliquary"
       ]
     },
     {
@@ -888,10 +827,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:earth",
-        "grandforge:electric"
+        "reliquary"
       ]
     },
     {
@@ -914,10 +850,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:earth",
-        "grandforge:light"
+        "reliquary"
       ]
     },
     {
@@ -940,10 +873,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:earth",
-        "grandforge:dark"
+        "reliquary"
       ]
     },
     {
@@ -966,10 +896,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:wind",
-        "grandforge:forest"
+        "reliquary"
       ]
     },
     {
@@ -992,10 +919,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:wind",
-        "grandforge:electric"
+        "reliquary"
       ]
     },
     {
@@ -1018,10 +942,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:wind",
-        "grandforge:light"
+        "reliquary"
       ]
     },
     {
@@ -1044,10 +965,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:wind",
-        "grandforge:dark"
+        "reliquary"
       ]
     },
     {
@@ -1070,10 +988,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:forest",
-        "grandforge:electric"
+        "reliquary"
       ]
     },
     {
@@ -1096,10 +1011,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:forest",
-        "grandforge:light"
+        "reliquary"
       ]
     },
     {
@@ -1122,10 +1034,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:forest",
-        "grandforge:dark"
+        "reliquary"
       ]
     },
     {
@@ -1148,10 +1057,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:electric",
-        "grandforge:light"
+        "reliquary"
       ]
     },
     {
@@ -1174,10 +1080,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:electric",
-        "grandforge:dark"
+        "reliquary"
       ]
     },
     {
@@ -1200,10 +1103,7 @@
         "vault",
         "outpost",
         "bulwark",
-        "tower",
-        "reliquary",
-        "grandforge:light",
-        "grandforge:dark"
+        "reliquary"
       ]
     }
   ],
@@ -5046,7 +4946,7 @@
       "key": "outpost",
       "type": "structure",
       "bid": "outpost",
-      "nm": "Outpost",
+      "nm": "Scout Tower",
       "c": 2,
       "h": 3000,
       "eff": "none",
@@ -5063,29 +4963,29 @@
       ],
       "row": "center",
       "color": null,
-      "desc": "A forward post on the contested middle row — raises ⚒+1. Branches on upgrade into a Cannon Tower (offense) or a Bastion (defense).",
+      "desc": "A watchpost on the contested middle row — raises ⚒+1. Upgrades into a Cannon Tower (offense) or a Bastion (defense).",
       "buildable": true,
       "art": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22bg%22%20cx%3D%2250%25%22%20cy%3D%2238%25%22%20r%3D%2282%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%233a2c14%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%23241a0a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230a0704%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20fill%3D%22url(%23bg)%22%2F%3E%3Crect%20x%3D%2246%22%20y%3D%2242%22%20width%3D%2228%22%20height%3D%2222%22%20fill%3D%22%236a5238%22%20stroke%3D%22%23241a0a%22%20stroke-width%3D%221.5%22%2F%3E%3Cpath%20d%3D%22M42%2042%20h36%20l-6%20-10%20h-24z%22%20fill%3D%22%237a3a2a%22%2F%3E%3Crect%20x%3D%2252%22%20y%3D%2247%22%20width%3D%227%22%20height%3D%229%22%20fill%3D%22%2320130a%22%2F%3E%3Crect%20x%3D%2261%22%20y%3D%2247%22%20width%3D%227%22%20height%3D%229%22%20fill%3D%22%2320130a%22%2F%3E%3Crect%20x%3D%2249%22%20y%3D%2264%22%20width%3D%226%22%20height%3D%2230%22%20fill%3D%22%234a3826%22%2F%3E%3Crect%20x%3D%2265%22%20y%3D%2264%22%20width%3D%226%22%20height%3D%2230%22%20fill%3D%22%234a3826%22%2F%3E%3Cpath%20d%3D%22M52%2070%20l16%2016%20M52%2086%20l16%20-16%22%20stroke%3D%22%235a4632%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M60%2032%20v-10%22%20stroke%3D%22%236a5a46%22%20stroke-width%3D%221.4%22%2F%3E%3Cpath%20d%3D%22M60%2022%20l12%204%20l-12%204z%22%20fill%3D%22%23c0863c%22%2F%3E%3C%2Fsvg%3E",
-      "slug": "outpost",
+      "slug": "scouttower",
       "cardArtUrls": [
-        "assets/cards/Structures/outpost_cardart.png",
-        "assets/cards/Structures/outpost_cardart.jpg",
-        "assets/cards/Structures/outpost_cardart.jpeg",
-        "assets/cards/Structures/outpost_cardart.webp",
-        "assets/cards/outpost_cardart.png",
-        "assets/cards/outpost_cardart.jpg",
-        "assets/cards/outpost_cardart.jpeg",
-        "assets/cards/outpost_cardart.webp"
+        "assets/cards/Structures/scouttower_cardart.png",
+        "assets/cards/Structures/scouttower_cardart.jpg",
+        "assets/cards/Structures/scouttower_cardart.jpeg",
+        "assets/cards/Structures/scouttower_cardart.webp",
+        "assets/cards/scouttower_cardart.png",
+        "assets/cards/scouttower_cardart.jpg",
+        "assets/cards/scouttower_cardart.jpeg",
+        "assets/cards/scouttower_cardart.webp"
       ],
       "fieldArtUrls": [
-        "assets/cards/Structures/outpost_fieldart.png",
-        "assets/cards/Structures/outpost_fieldart.webp",
-        "assets/cards/Structures/outpost_fieldart.jpg",
-        "assets/cards/outpost_fieldart.png",
-        "assets/cards/outpost_fieldart.webp",
-        "assets/cards/outpost_fieldart.jpg"
+        "assets/cards/Structures/scouttower_fieldart.png",
+        "assets/cards/Structures/scouttower_fieldart.webp",
+        "assets/cards/Structures/scouttower_fieldart.jpg",
+        "assets/cards/scouttower_fieldart.png",
+        "assets/cards/scouttower_fieldart.webp",
+        "assets/cards/scouttower_fieldart.jpg"
       ],
-      "spriteBase": "assets/sprites/outpost_sprite"
+      "spriteBase": "assets/sprites/scouttower_sprite"
     },
     {
       "key": "tower",
@@ -5101,14 +5001,14 @@
       "prereq": [
         "forge"
       ],
-      "from": null,
+      "from": "outpost",
       "up2": [
         "bombard"
       ],
       "row": null,
       "color": null,
-      "desc": "Guns that never sleep — strikes the first enemy creature in range for 500 each turn. Needs ⚒1 to crew. Upgrades to a Bombard Tower.",
-      "buildable": true,
+      "desc": "A scout post grown guns — strikes the first enemy creature in range for 500 each turn. Needs ⚒1 to crew. Upgrades to a Bombard Tower.",
+      "buildable": false,
       "art": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22bg%22%20cx%3D%2250%25%22%20cy%3D%2238%25%22%20r%3D%2282%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234a3413%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%232a1c0a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230a0704%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20fill%3D%22url(%23bg)%22%2F%3E%3Crect%20x%3D%2244%22%20y%3D%2246%22%20width%3D%2230%22%20height%3D%2248%22%20rx%3D%223%22%20fill%3D%22%236a6a72%22%20stroke%3D%22%232a2a32%22%20stroke-width%3D%221.5%22%2F%3E%3Cpath%20d%3D%22M42%2046%20v-7%20h6%20v7%20h4%20v-7%20h6%20v7%20h4%20v-7%20h6%20v7%20h4%22%20fill%3D%22%235a5a62%22%20stroke%3D%22%232a2a32%22%20stroke-width%3D%221.4%22%2F%3E%3Crect%20x%3D%2244%22%20y%3D%2261%22%20width%3D%2230%22%20height%3D%223%22%20fill%3D%22%234a4a52%22%2F%3E%3Crect%20x%3D%2244%22%20y%3D%2277%22%20width%3D%2230%22%20height%3D%223%22%20fill%3D%22%234a4a52%22%2F%3E%3Crect%20x%3D%2255%22%20y%3D%2280%22%20width%3D%228%22%20height%3D%2214%22%20fill%3D%22%2320130a%22%2F%3E%3Cg%20transform%3D%22rotate(-13%2074%2055)%22%3E%3Crect%20x%3D%2270%22%20y%3D%2250%22%20width%3D%2224%22%20height%3D%229%22%20rx%3D%223.5%22%20fill%3D%22%233a3a44%22%20stroke%3D%22%2316161c%22%20stroke-width%3D%221%22%2F%3E%3Ccircle%20cx%3D%2294%22%20cy%3D%2254.5%22%20r%3D%222.6%22%20fill%3D%22%23ff8a1f%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
       "slug": "cannontower",
       "cardArtUrls": [
@@ -5135,11 +5035,11 @@
       "key": "reliquary",
       "type": "structure",
       "bid": "reliquary",
-      "nm": "Reliquary",
+      "nm": "Sanctuary",
       "c": 5,
       "h": 3500,
-      "eff": "revive",
-      "val": 0,
+      "eff": "heal",
+      "val": 500,
       "sup": 1,
       "ic": "☩",
       "prereq": [
@@ -5149,29 +5049,29 @@
       "up2": [],
       "row": null,
       "color": null,
-      "desc": "Sanctified vault — once per turn at upkeep, returns your most recently fallen creature to your hand. ⚒+1.",
+      "desc": "Sanctified ground — at upkeep, mends ♥50 onto your most wounded creature in its own row. ⚒+1.",
       "buildable": true,
       "art": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22bg%22%20cx%3D%2250%25%22%20cy%3D%2238%25%22%20r%3D%2282%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%232e1a40%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%231a0f26%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23080510%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20fill%3D%22url(%23bg)%22%2F%3E%3Cpath%20d%3D%22M48%2092%20h24%20l-3%20-42%20h-18z%22%20fill%3D%22%235a4a6a%22%20stroke%3D%22%231a0f26%22%20stroke-width%3D%221.5%22%2F%3E%3Cpath%20d%3D%22M48%2050%20l12%20-12%20l12%2012z%22%20fill%3D%22%236a5a7a%22%20stroke%3D%22%231a0f26%22%20stroke-width%3D%221.4%22%2F%3E%3Ccircle%20cx%3D%2260%22%20cy%3D%2264%22%20r%3D%2216%22%20fill%3D%22none%22%20stroke%3D%22%23caa0ec%22%20stroke-width%3D%221%22%20opacity%3D%22.45%22%2F%3E%3Ccircle%20cx%3D%2260%22%20cy%3D%2262%22%20r%3D%229%22%20fill%3D%22none%22%20stroke%3D%22%23caa0ec%22%20stroke-width%3D%222.6%22%2F%3E%3Cpath%20d%3D%22M60%2062%20v22%20M52%2071%20h16%22%20stroke%3D%22%23caa0ec%22%20stroke-width%3D%222.6%22%2F%3E%3C%2Fsvg%3E",
-      "slug": "reliquary",
+      "slug": "sanctuary",
       "cardArtUrls": [
-        "assets/cards/Structures/reliquary_cardart.png",
-        "assets/cards/Structures/reliquary_cardart.jpg",
-        "assets/cards/Structures/reliquary_cardart.jpeg",
-        "assets/cards/Structures/reliquary_cardart.webp",
-        "assets/cards/reliquary_cardart.png",
-        "assets/cards/reliquary_cardart.jpg",
-        "assets/cards/reliquary_cardart.jpeg",
-        "assets/cards/reliquary_cardart.webp"
+        "assets/cards/Structures/sanctuary_cardart.png",
+        "assets/cards/Structures/sanctuary_cardart.jpg",
+        "assets/cards/Structures/sanctuary_cardart.jpeg",
+        "assets/cards/Structures/sanctuary_cardart.webp",
+        "assets/cards/sanctuary_cardart.png",
+        "assets/cards/sanctuary_cardart.jpg",
+        "assets/cards/sanctuary_cardart.jpeg",
+        "assets/cards/sanctuary_cardart.webp"
       ],
       "fieldArtUrls": [
-        "assets/cards/Structures/reliquary_fieldart.png",
-        "assets/cards/Structures/reliquary_fieldart.webp",
-        "assets/cards/Structures/reliquary_fieldart.jpg",
-        "assets/cards/reliquary_fieldart.png",
-        "assets/cards/reliquary_fieldart.webp",
-        "assets/cards/reliquary_fieldart.jpg"
+        "assets/cards/Structures/sanctuary_fieldart.png",
+        "assets/cards/Structures/sanctuary_fieldart.webp",
+        "assets/cards/Structures/sanctuary_fieldart.jpg",
+        "assets/cards/sanctuary_fieldart.png",
+        "assets/cards/sanctuary_fieldart.webp",
+        "assets/cards/sanctuary_fieldart.jpg"
       ],
-      "spriteBase": "assets/sprites/reliquary_sprite"
+      "spriteBase": "assets/sprites/sanctuary_sprite"
     },
     {
       "key": "keep",

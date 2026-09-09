@@ -141,17 +141,44 @@ namespace SpawnRowDuel.Rules.Tests
                 e.CanApply(new BuildStructureCommand(Side.You, new StructId("encampment"),
                     Element.None, new CellRef(RowKey.FoeBack, 0))));
 
-            // the tower's -1 support: legal where the figure can bear it, refused where not.
-            // (prereq: forge -> foundry chain first)
+            // THE TOWER'S -1 SUPPORT, now reached the only way it can be.
+            //
+            // A Cannon Tower stopped being placeable in 2026-09-09 - it is an upgrade of a Scout
+            // Tower - so the direct build this used to make is MissingPrereq before it ever gets
+            // near the worker gate, which would have quietly stopped testing the gate at all.
+            // The upgrade path carries the same check (UpgradeStructureHandler), so the rule is
+            // asserted where it now lives.
             s.Put(new CellRef(RowKey.YouBack, 6), UnitFactory.MakeStructure(s, Side.You,
                 TestData.Catalog.Structure(new StructId("forge"), Element.Fire)));
-            Assert.AreEqual(Rejection.RowLacksWorkers,
+            Assert.AreEqual(Rejection.MissingPrereq,
                 e.CanApply(new BuildStructureCommand(Side.You, new StructId("tower"),
                     Element.None, new CellRef(RowKey.YouFront, 0))),
-                "an empty front row has no ⚒ to spare for a -1 tower");
-            Assert.IsTrue(e.Apply(new BuildStructureCommand(Side.You, new StructId("tower"),
-                Element.None, new CellRef(RowKey.YouBack, 1))).Applied,
-                "the back row's free workforce absorbs the -1");
+                "a Cannon Tower cannot be placed from nothing");
+
+            // A Scout Tower carries ⚒+1 of its own, so a row holding nothing else can afford the
+            // swap. The deficit has to be made real: a Magmaw standing beside it eats ⚒3, and the
+            // row can no longer crew a tower that costs another ⚒1.
+            var scoutCell = new CellRef(RowKey.Center, 3);
+            var scout = UnitFactory.MakeStructure(s, Side.You,
+                TestData.Catalog.Structure(new StructId("outpost"), Element.None));
+            s.Put(scoutCell, scout);
+            s.Put(new CellRef(RowKey.Center, 1), UnitFactory.MakeCreature(s, Side.You,
+                TestData.Catalog.Creature(new CardId("Magmaw")), Element.Fire));
+
+            Assert.AreEqual(Rejection.RowLacksWorkers,
+                e.CanApply(new UpgradeStructureCommand(Side.You, scoutCell, scout.Id,
+                    new StructId("tower"))),
+                "a row already short of ⚒ cannot crew a -1 tower");
+            // The positive half of the same gate. It used to be a tower BUILT into the back row,
+            // whose free workforce absorbed the -1; a Cannon Tower can no longer be placed at all,
+            // and the Scout Tower it now grows from is centre-only, so no tower will ever stand in
+            // the back row again. Clearing the row's debt is the test that survives the change:
+            // take the Magmaw away and the same upgrade is legal.
+            s.Put(new CellRef(RowKey.Center, 1), null);
+            Assert.AreEqual(Rejection.None,
+                e.CanApply(new UpgradeStructureCommand(Side.You, scoutCell, scout.Id,
+                    new StructId("tower"))),
+                "with the row's debt gone, the Scout Tower's own ⚒+1 crews the tower");
         }
 
         [Test]
