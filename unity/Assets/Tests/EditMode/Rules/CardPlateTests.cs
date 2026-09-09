@@ -101,41 +101,70 @@ namespace SpawnRowDuel.Rules.Tests
         }
 
         /// <summary>
-        /// The statline texture is laid straight over the ability box, so it has to BE that box's
-        /// shape - anything else stretches the numbers by the difference.
+        /// Each plaque is laid straight over its own band, so each has to BE that band's shape -
+        /// anything else stretches its contents by the difference. They are two different shapes:
+        /// the ability box is 0.211 of the card's height and the stat strip 0.155.
+        ///
+        /// Checked in TEXELS rather than as an aspect ratio, because an aspect is a quotient and
+        /// the height is an integer: the same half-texel of rounding is 0.008 of the ability box's
+        /// aspect and 0.028 of the strip's, so one tolerance cannot mean one thing for both. A
+        /// texel is the error, so a texel is what to bound.
+        ///
+        /// And the two bands are not the same WIDTH. The stat strip runs the card's full width
+        /// less its border; the ability box is inset by ArtInsetX on each side, the same as the
+        /// art window above it - a plaque rastered at the card's width overhangs it by a third.
         /// </summary>
         [Test]
-        public void StatLineRaster_HasTheAbilityBoxAspect()
+        public void EachPlaque_HasTheAspectOfTheBandItLandsIn()
         {
-            float box = CardPlateTextures.W / (CardPlateTextures.H * CardPlateTextures.RulesH);
-            float raster = CardPlateTextures.RuleBoxW / (float)CardPlateTextures.RuleBoxH;
-            Assert.AreEqual(box, raster, 0.02f, "the statline plaque is not the shape of its band");
+            Assert.AreEqual(CardPlateTextures.RuleBoxW * CardPlateTextures.RulesH
+                            * CardPlateTextures.H
+                            / (CardPlateTextures.W * (1f - 2f * CardPlateTextures.ArtInsetX)),
+                CardPlateTextures.RuleBoxH, 0.5f, "the ability plaque is not the shape of its band");
+
+            Assert.AreEqual(CardPlateTextures.StatBoxW * CardPlateTextures.StatsH
+                            * CardPlateTextures.H / (float)CardPlateTextures.W,
+                CardPlateTextures.StatBoxH, 0.5f, "the stat plaque is not the shape of its band");
         }
 
         /// <summary>
         /// It prints, and it prints INSIDE the plaque. A layout slip puts the whole line past the
         /// right edge, where every clipped draw is silently dropped and the texture comes out as
-        /// blank parchment - which looks like a card with no stats rather than like a bug.
+        /// a bare strip - which looks like a card with no stats rather than like a bug.
         /// </summary>
         [Test]
         public void StatLineRaster_PrintsInkInsideItsOwnBox()
         {
-            var sprite = CardPlateTextures.StatLine(300, -2, 450, true, true);
+            var sprite = CardPlateTextures.StatLine(300, -2, 450, true, true, Color.white);
             var px = sprite.texture.GetPixels();
             int w = sprite.texture.width, h = sprite.texture.height;
 
-            // INSIDE the plaque's own border, which is ink by any colour test and would pass this
-            // on its own while the numbers were drawn into the void
-            int ink = Ink(px, w, 4, w - 4, 4, h - 4);
+            // The strip is BLACK now rather than parchment, so its ink is what is lighter than
+            // it - and the worker chip's pill is dark, which would pass a dark-pixel test on its
+            // own while every number was drawn into the void.
+            int ink = Lit(px, w, 4, w - 4, 4, h - 4);
             Assert.Greater(ink, 400, "the statline drew (almost) nothing");
 
             // and it did not all end up jammed against the right edge
-            Assert.Less(Ink(px, w, w - 5, w - 1, 2, h - 2), 4,
+            Assert.Less(Lit(px, w, w - 5, w - 1, 2, h - 2), 4,
                 "the statline is running off the edge of its plaque");
         }
 
-        /// <summary>Dark, opaque texels in a window - the plaque is parchment, so ink is what is
-        /// darker than it.</summary>
+        /// <summary>Light, opaque texels in a window - the strip is the card's black footer, so
+        /// what is printed on it is what is brighter than it.</summary>
+        static int Lit(Color[] px, int w, int x0, int x1, int y0, int y1)
+        {
+            int n = 0;
+            for (int y = y0; y < y1; y++)
+                for (int x = x0; x < x1; x++)
+                {
+                    var c = px[y * w + x];
+                    if (c.a > 0.5f && c.r + c.g + c.b > 1.5f) n++;
+                }
+            return n;
+        }
+
+        /// <summary>Dark, opaque texels in a window - for the plaques that ARE parchment.</summary>
         static int Ink(Color[] px, int w, int x0, int x1, int y0, int y1)
         {
             int n = 0;
@@ -153,47 +182,104 @@ namespace SpawnRowDuel.Rules.Tests
         [Test]
         public void StatLineRaster_DropsTheFieldsAUnitDoesNotHave()
         {
-            var three = CardPlateTextures.StatLine(300, -2, 450, true, true);
-            var two = CardPlateTextures.StatLine(0, 0, 450, false, false);
+            var three = CardPlateTextures.StatLine(300, -2, 450, true, true, Color.white);
+            var two = CardPlateTextures.StatLine(0, 0, 450, false, false, Color.white);
 
             Assert.AreNotSame(three, two, "the two statlines share a cache entry");
-            Assert.AreSame(two, CardPlateTextures.StatLine(0, 0, 450, false, false),
+            Assert.AreSame(two, CardPlateTextures.StatLine(0, 0, 450, false, false, Color.white),
                 "the same statline rastered twice");
         }
 
         /// <summary>
-        /// The health number is cached by VALUE - which is what keeps the meter from costing a
-        /// texture for every (hp, max) pair a long fight reaches.
+        /// The health TINT is part of the cache key. It is what the meter's colour became, so a
+        /// unit that drops past a threshold has to re-raster - and a unit that does not must not,
+        /// or a long fight costs a texture per point of damage.
         /// </summary>
         [Test]
-        public void HealthNumber_IsRingedAndCachedByValue()
+        public void StatLineRaster_KeysOnTheHealthTint()
         {
-            var num = CardPlateTextures.Num(275);
-            Assert.AreSame(num, CardPlateTextures.Num(275));
-            Assert.AreNotSame(num, CardPlateTextures.Num(276));
+            var hot = CardPlateTextures.StatLine(300, 0, 450, true, false, Color.red);
+            var cool = CardPlateTextures.StatLine(300, 0, 450, true, false, Color.green);
 
-            var px = num.texture.GetPixels();
+            Assert.AreNotSame(hot, cool, "the two tints share a cache entry");
+            Assert.AreSame(hot, CardPlateTextures.StatLine(300, 0, 450, true, false, Color.red));
+        }
+
+        /// <summary>
+        /// The ability line prints on parchment, and an empty one is NO SPRITE - a blank plaque
+        /// laid over the frame's own ability box is a visible seam saying nothing.
+        /// </summary>
+        [Test]
+        public void BriefRaster_PrintsOnParchment_AndIsNothingWhenEmpty()
+        {
+            Assert.IsNull(CardPlateTextures.Brief(""), "an empty ability line rastered a plaque");
+            Assert.IsNull(CardPlateTextures.Brief(null));
+
+            var one = CardPlateTextures.Brief("UPKEEP -3");
+            Assert.AreSame(one, CardPlateTextures.Brief("UPKEEP -3"), "rastered the same line twice");
+
+            var px = one.texture.GetPixels();
+            int w = one.texture.width, h = one.texture.height;
+            Assert.Greater(Ink(px, w, 4, w - 4, 4, h - 4), 200, "the ability line drew nothing");
+            Assert.Less(Ink(px, w, w - 5, w - 1, 2, h - 2), 4,
+                "the ability line is running off the edge of its plaque");
+        }
+
+        /// <summary>
+        /// Two lines have to fit the box one line fits - the raster is a fixed size, so the only
+        /// thing that can give is the cell. A second row that overflows is silently clipped, and
+        /// a rule read half way is a different rule.
+        /// </summary>
+        [Test]
+        public void BriefRaster_ShrinksToFitASecondRow()
+        {
+            var two = CardPlateTextures.Brief("UPKEEP -3\nOVERCHARGE");
+            var px = two.texture.GetPixels();
+            int w = two.texture.width, h = two.texture.height;
+
+            // ink in BOTH halves of the plaque, and none of it in the margins
+            Assert.Greater(Ink(px, w, 4, w - 4, 4, h / 2), 100, "the first row is missing");
+            Assert.Greater(Ink(px, w, 4, w - 4, h / 2, h - 4), 100, "the second row is missing");
+            Assert.Less(Ink(px, w, w - 5, w - 1, 2, h - 2), 4, "a row ran off the right edge");
+        }
+
+        /// <summary>
+        /// The mana cost prints DARK on a PALE ring - the disc it lands in is a light tint of the
+        /// element, and the board's other numbers are white ringed black, which would sink into
+        /// it. Cached by value, since the ring rather than the element carries the contrast.
+        /// </summary>
+        [Test]
+        public void CostPip_IsDarkOnALightRing_AndCachedByValue()
+        {
+            var pip = CardPlateTextures.Pip(5);
+            Assert.AreSame(pip, CardPlateTextures.Pip(5));
+            Assert.AreNotSame(pip, CardPlateTextures.Pip(6));
+
+            var px = pip.texture.GetPixels();
             int light = 0, dark = 0;
             for (int i = 0; i < px.Length; i++)
             {
                 if (px[i].a < 0.5f) continue;
                 if (px[i].r > 0.8f) light++; else dark++;
             }
-            Assert.Greater(light, 40, "the number itself never got drawn");
-            Assert.Greater(dark, 40, "the number has no ring, so it vanishes over a green fill");
+            Assert.Greater(dark, 40, "the figure itself never got drawn");
+            Assert.Greater(light, 40, "the figure has no ring, so it vanishes into the disc");
         }
 
-        /// <summary>The three fill colours are the three the vitals chips have always used, and
-        /// they change at the quarter and the half - not at some other pair of numbers.</summary>
+        /// <summary>The health figure's three colours turn at the quarter and the half - not at
+        /// some other pair of numbers - and the healthy one is the hand card's own salmon, so a
+        /// card at full health reads the same in both places.</summary>
         [Test]
-        public void HealthTint_TurnsAtAQuarterAndAHalf()
+        public void HpInk_TurnsAtAQuarterAndAHalf()
         {
-            Assert.AreEqual(CardPlateTextures.HealthTint(1f), CardPlateTextures.HealthTint(0.51f));
-            Assert.AreNotEqual(CardPlateTextures.HealthTint(0.51f), CardPlateTextures.HealthTint(0.5f));
-            Assert.AreEqual(CardPlateTextures.HealthTint(0.5f), CardPlateTextures.HealthTint(0.26f));
-            Assert.AreNotEqual(CardPlateTextures.HealthTint(0.26f), CardPlateTextures.HealthTint(0.25f));
-        }
+            Assert.AreEqual(CardPlateTextures.HpInk(100, 100), CardPlateTextures.HpInk(51, 100));
+            Assert.AreNotEqual(CardPlateTextures.HpInk(51, 100), CardPlateTextures.HpInk(50, 100));
+            Assert.AreEqual(CardPlateTextures.HpInk(50, 100), CardPlateTextures.HpInk(26, 100));
+            Assert.AreNotEqual(CardPlateTextures.HpInk(26, 100), CardPlateTextures.HpInk(25, 100));
 
+            Assert.AreEqual(new Color(1f, 0.60f, 0.54f), CardPlateTextures.HpInk(100, 100),
+                "a healthy card no longer matches the hand card's heart");
+        }
         static System.Collections.IComparer V3()
         {
             return new Vector3Within(0.0005f);

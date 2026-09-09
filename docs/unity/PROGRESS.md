@@ -26,13 +26,58 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 6 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Slice 6: the stats printed ON the card (a health meter in the stat bar, attack/workers/printed health in the ability box), the foe half turned round so each side reads its own edge, tap-to-join attack groups, and a cut-in three times the size that stacks a joint attack into one clash. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
+| M13 — presentation pass | 🟡 slice 7 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Slice 6: the stats printed ON the card, the foe half turned round so each side reads its own edge, tap-to-join attack groups, and a cut-in three times the size that stacks a joint attack into one clash. Slice 7 (2026-09-08): the board card IS the hand card - cost in its disc, name in the banner, one short ability line in the box, attack/workers/LIVE health in the black strip, no health meter (the figure's colour carries it), and the row worker counts finally off the tiles. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
 | M14 — campaign | 🟡 first pass | 2026-08-24 — the hexsphere globe (162 tiles), map generation, absorb cascade, end-turn AI, the 4-line challenge dialogue and the save, all pure C# and tested; globe view with drag-spin and raycast picking, world-map HUD, attack confirm and battle handoff. Open: garrison affects nothing, AI never absorbs, no custom deck in campaign |
 | M15 — menus, deck builder, save/load | 🟡 first pass | 2026-08-24 — main menu, banner select and a screen router that switches the battle world off; three-column deck builder with search/filter/sort, mana curve, 5 slots and a duel-with-it path. Open: no solo deck-pick screen, no settings |
 | M16 — parity flags resolved, ship prep | ⬜ | **+ D42: gate SendBankedMana on phase, re-cut the goldens, delete NetSession.LocalGate's phase clause** |
 | M17 — multiplayer (password-linked 1v1) | ✅ done | 2026-08-30 — deterministic command LOCKSTEP over MQTT-to-three-public-brokers, sealed with a key derived from the shared password. 62 EditMode tests: whole matches stay bit-identical across a relay that loses, duplicates and reorders; desync is caught at the ply; both directions of reconnect replay from the other peer's log. Verified live over the open internet. The view now takes a SEAT (~90 sites), so the guest plays from the far side of the board |
 
 ## Session log
+
+### 2026-09-08 (late night) — the board card became the hand card, and the meter went
+
+Two complaints off one top-down screenshot: the worker counts were sitting on top of cards, and
+"I don't like how cards look on the board — they should look just like cards in hand, minimal
+description, remove health bar, just keep track of current HP on the card."
+
+**The worker chips were never outside the tiles.** `UnitVitals.PlaceWorkerFigures` projects the
+end columns of a row and pads outward from them, and the pad was `|b.x - a.x| * 0.06` — six column
+pitches times 0.06, so about a THIRD of one pitch, against a half pitch just to reach the tile's
+edge. Every chip has always landed inside its end tile; the tilted view hides it because the board
+is framed to fill the width and the clamp put them there anyway. Top-down is where the board is
+narrower than the window, there is real ground either side, and the bug is visible. The pad is
+measured now: half a pitch to clear the tile, the chip's own half-width to clear its box, six
+pixels to keep them apart. The clamp stays as the last resort for the tilted near rows, where
+there genuinely is nowhere outside.
+
+**The card was wearing its anatomy inside out.** The ability box held the STATLINE and the stat
+strip held a health METER, so the band a real card spends on what the card does had its numbers in
+it and the black footer had a progress bar. Swapped: a short ability line in the box, attack /
+worker chip / health in the strip, and the strip's heart is the LIVE health rather than the printed
+total. The meter is gone outright — it spent a fifth of the card saying, less precisely, what the
+number beside it already said. What it did better than a figure was read without arithmetic, and
+that survives as the figure's COLOUR (`HpInk`): the hand card's salmon while healthy, then amber,
+then red, at the same quarter and half the old fill turned at.
+
+The rest of the band budget got filled in the same pass, because the frame had been drawing
+placeholders for all of them: the cost disc has had no number in it since the plate existed, and
+the ability box was ruled with three ink lines standing in for text that never came. Both are the
+real thing now. Three fits followed from actually looking at the render — the ability plaque was
+rastered at the card's full width when the frame insets that box by `ArtInsetX` (a white slab
+overhanging the frame on both sides); a one-word line like "WARD" ballooned to three times the
+type of "OVERCHARGE" because the cell was fitted to width alone, so it is capped as well as
+fitted; and the name was printing SMALLER than the ability caption two bands below it, in outlined
+white on ivory — the lowest-contrast thing the frame can print. Dark ink on a pale ring now, at
+0.80 of the banner.
+
+Ability lines are the hand card's own labels ("UPKEEP -3", "DETONATE 150", "FORGE 2"), read off the
+LIVE unit rather than the definition, because tokens and hatched forms and upgraded tiers are all
+on the board and none can be looked up by the name in their banner. A structure whose only job is
+its workforce has no effect at all and printed a blank plaque; it prints its worker clause instead,
+which is what the hand card does for exactly those.
+
+Verified by screenshot rather than argued: `CaptureTopDownPlates` and `CaptureAttackGroup` at
+`unity/Build/Probe/`. 369 green, no rules change. Staged to `play/`.
 
 ### 2026-09-08 (night) — the card fitter could not settle, and the glyph theory is dead
 

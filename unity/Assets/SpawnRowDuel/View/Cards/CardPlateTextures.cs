@@ -7,13 +7,20 @@ namespace SpawnRowDuel.View.Cards
     /// The board plate's frame, rastered - the same DM card anatomy as <see cref="CardFace"/>, at
     /// the size a card actually occupies lying on a tile.
     ///
-    /// Why a raster and not the real CardFace: a plate is ~80 screen pixels tall in the tilted
-    /// view, where the banner is 12 px and the ability box 17. No text in that band is legible, so
-    /// the frame carries the card's SHAPE - ivory banner, element ring, art window, ruled ability
-    /// box, dark stat bar - and the name and stats stay where they can be read, in the overlay
-    /// above the unit. Nothing here duplicates CardFace's typography, only its proportions, and
-    /// those come from the same numbers (spec 09 6.1): banner .155 of the height, art .479,
-    /// rules .211, stats .155 - which is what CardFace's 3.3 : 1.45 flex split resolves to.
+    /// Why a raster and not the real CardFace: a plate is a world-space sprite lying on a tile,
+    /// and UI Toolkit does not go there. So the anatomy is rebuilt out of texels - ivory banner
+    /// with its cost disc, element ring, art window, ability box, dark stat strip - from the same
+    /// numbers CardFace uses (spec 09 6.1): banner .155 of the height, art .479, rules .211,
+    /// stats .155, which is what its 3.3 : 1.45 flex split resolves to.
+    ///
+    /// EVERY BAND IS FILLED, and that is the 2026-09-08 change. The frame used to carry the card's
+    /// SHAPE only - a blank cost disc, three ruled lines standing in for ability text, a bare
+    /// strip - on the argument that nothing at ~80 screen pixels is legible anyway, and the real
+    /// numbers lived on an overlay hovering above the unit. Both halves of that turned out to be
+    /// wrong: a plate covers its whole tile now, so it is the biggest thing on the board rather
+    /// than a stamp under a figure, and the 3x5 bitmap font below reads perfectly well at the size
+    /// a tile actually gives it. The cost, the name, one short ability line and the live statline
+    /// are all printed here, in the bands a card in the hand prints them in.
     ///
     /// One texture per element, not per card: the art is a separate quad laid into the window, so
     /// nine textures cover the whole registry. The face-down sleeve is the reference build's
@@ -114,7 +121,7 @@ namespace SpawnRowDuel.View.Cards
             var edge = ElementPalette.Mix(ec, Color.black, 0.55f);      // the outer border
             var ring = ElementPalette.Mix(ec, Color.black, 0.6f);       // the art window's ring
             var wash = ElementPalette.Mix(sw.Deep, Color.black, 0.55f); // behind missing art (G1)
-            var bar = new Color(0.078f, 0.066f, 0.051f);                // the stat bar
+            var bar = StatBar;                                          // the stat bar
 
             Fill(px, edge);
 
@@ -140,18 +147,14 @@ namespace SpawnRowDuel.View.Cards
             Box(px, inset, bannerBot, W - inset, artBot, wash);
             Outline(px, inset, bannerBot, W - inset, artBot, ring);
 
-            // ability box: ivory, with the ruled lines that make it read as text from a distance
+            // ability box: ivory, and EMPTY.
+            //
+            // It used to be ruled with three ink lines - a stand-in for text, drawn because no
+            // text was coming. Text is coming now: the layer lays a Brief plaque into this band
+            // with the card's own ability line on it, the same short labels the hand card prints.
+            // Leaving the lines under it would print a rule over a fake of one.
             Box(px, inset, artBot + 1, W - inset, rulesBot, Paper(0.5f));
             Outline(px, inset, artBot + 1, W - inset, rulesBot, new Color(0f, 0f, 0f, 1f));
-
-            var ink = new Color(0.42f, 0.39f, 0.34f);
-            const int lines = 3;
-            for (int l = 0; l < lines; l++)
-            {
-                int y = artBot + 4 + Mathf.RoundToInt((rulesBot - artBot - 8) * l / (float)lines);
-                int x1 = W - inset - 3 - (l == lines - 1 ? W / 4 : 0);   // a ragged last line
-                for (int x = inset + 3; x < x1 && y < H; x++) px[I(x, y)] = ink;
-            }
 
             // stat bar
             Box(px, 2, rulesBot, W - 2, H - 2, bar);
@@ -559,8 +562,7 @@ namespace SpawnRowDuel.View.Cards
         const int NameSy = 6, NameSx = 4, NameRing = 1;
 
         /// <summary>
-        /// The card's name as a strip, WHITE on transparent with a dark ring, for the layer to
-        /// tint and lay into the banner.
+        /// The card's name as a strip, DARK on a pale ring, for the layer to lay into the banner.
         ///
         /// This exists because the name had nowhere honest to go. It was a UI Toolkit chip hung
         /// off the tile's front, which is a label floating on the grass belonging to nothing; then
@@ -570,8 +572,11 @@ namespace SpawnRowDuel.View.Cards
         /// sorts under the standee (CardPlateLayer.OrderName), and where the cut-out is opaque the
         /// ART WINS - which is the whole of what was asked for.
         ///
-        /// White and ringed so one texture serves both seats: the ring is what lets it read over
-        /// a pale banner and a dark one, and the tint is the renderer's, not the raster's.
+        /// It was white-on-black-ring, on the argument that one texture then serves a pale banner
+        /// and a dark one. There is no dark one: the banner is Paper on every card of every
+        /// element, and outlined white letters on ivory are the lowest-contrast thing the frame
+        /// can print. So it is the hand card's ink (#1a140a) with a pale ring, which is what dark
+        /// type on light stock looks like at eight pixels.
         /// </summary>
         public static Sprite Name(string text)
         {
@@ -593,7 +598,7 @@ namespace SpawnRowDuel.View.Cards
 
             var px = new Color[w * h];
             TextRinged(px, w, h, text, NameRing + 1, NameRing + 1, NameSx, NameSy,
-                       Color.white, new Color(0f, 0f, 0f, 0.85f), NameRing);
+                       new Color(0.10f, 0.078f, 0.04f), new Color(1f, 0.98f, 0.92f, 0.85f), NameRing);
 
             var tex = New(w, h, "SRD Name " + text);
             tex.SetPixels(px);
@@ -608,161 +613,287 @@ namespace SpawnRowDuel.View.Cards
         // -- what a card on the board is worth ----------------------------------------------
 
         /// <summary>
-        /// The two bands that carry numbers, at their own aspects - so the layer lays each
+        /// The two bands that carry printing, at their own aspects - so the layer lays each
         /// texture straight over its band and does no arithmetic of its own.
+        ///
+        /// They swapped contents on 2026-09-08. The statline used to be rastered onto parchment
+        /// and laid into the ABILITY BOX while a health meter filled the stat bar, which is a card
+        /// wearing its own anatomy inside out: the box a real card spends on what the card DOES
+        /// held its numbers, and the black strip a real card spends on numbers held a progress
+        /// bar. A board card is the hand card it came from now - a short ability line in the box,
+        /// the statline in the strip - and the strip's health figure is the LIVE one, which is
+        /// the whole of what the meter was for.
+        /// </summary>
+        /// <summary>
+        /// The ability plaque, at the shape of the box it lands in - which is the ART WINDOW's
+        /// width, not the card's. The frame insets that box by ArtInsetX on both sides (BuildFront
+        /// draws them with the same number), so a plaque rastered at the card's full width comes
+        /// out a third too wide and overhangs the frame it is supposed to sit inside.
         /// </summary>
         public const int RuleBoxW = 384;
-        public static readonly int RuleBoxH = Mathf.RoundToInt(RuleBoxW * RulesH * H / (float)W);
+        public static readonly int RuleBoxH =
+            Mathf.RoundToInt(RuleBoxW * RulesH * H / (W * (1f - 2f * ArtInsetX)));
+
+        public const int StatBoxW = 384;
+        public static readonly int StatBoxH = Mathf.RoundToInt(StatBoxW * StatsH * H / (float)W);
 
         static readonly Dictionary<string, Texture2D> _lines = new Dictionary<string, Texture2D>();
-        static readonly Dictionary<int, Texture2D> _nums = new Dictionary<int, Texture2D>();
-        static Sprite _solid;
+        static readonly Dictionary<string, Texture2D> _briefs = new Dictionary<string, Texture2D>();
+        static readonly Dictionary<int, Texture2D> _pips = new Dictionary<int, Texture2D>();
+
+        /// <summary>The stat strip's black. Shared with the frame so a plaque laid into the band
+        /// and the band under it are one continuous bar rather than two nearly-equal darks.
+        /// </summary>
+        public static readonly Color StatBar = new Color(0.078f, 0.066f, 0.051f);
+
+        // -- the mana cost, in the circle the frame already draws for it --------------------
+
+        const int PipSx = 7, PipSy = 10, PipRing = 1;
 
         /// <summary>
-        /// One white texel. The health meter's trough and its fill are this, scaled: a meter
-        /// rastered whole would cost a texture for every (hp, max) pair a match reaches, and a
-        /// fill that is a scaled quad moves continuously instead of in texture-sized steps.
+        /// The card's printed COST, for the disc on the banner's left edge.
+        ///
+        /// The frame has drawn that disc since the plate existed and has never put anything in
+        /// it, so every card on the board wore a blank token where the hand card wears a number.
+        /// Dark ink with a pale ring, because the disc under it is a light tint of the element
+        /// and the board's other numbers - white, ringed black - would sink into it.
+        ///
+        /// Cached by value and not by element: the ring carries the contrast, so one raster
+        /// serves all nine.
         /// </summary>
-        public static Sprite Solid()
-        {
-            if (_solid != null) return _solid;
-            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-            {
-                name = "SRD Solid",
-                hideFlags = HideFlags.HideAndDontSave,
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            tex.SetPixel(0, 0, Color.white);
-            tex.Apply(false, false);
-            _solid = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
-            _solid.name = "SRD Solid";
-            _solid.hideFlags = HideFlags.HideAndDontSave;
-            return _solid;
-        }
-
-        const int NumSx = 8, NumSy = 11, NumRing = 2;
-
-        /// <summary>
-        /// A number, ringed, cached by VALUE alone - which is what keeps the health meter from
-        /// costing a texture per (hp, max) pair. The raster size decides crispness only: the
-        /// layer scales it into whatever band it lands in.
-        /// </summary>
-        public static Sprite Num(int value)
+        public static Sprite Pip(int value)
         {
             Texture2D tex;
-            if (!_nums.TryGetValue(value, out tex) || tex == null)
+            if (!_pips.TryGetValue(value, out tex) || tex == null)
             {
-                tex = BuildNum(value);
-                _nums[value] = tex;
+                tex = BuildPip(value);
+                _pips[value] = tex;
             }
             return SpriteOf(tex);
         }
 
-        static Texture2D BuildNum(int value)
+        static Texture2D BuildPip(int value)
         {
-            string text = value.ToString();
-            int w = TextW(text, NumSx) + NumRing * 2;
-            int h = Rows * NumSy + NumRing * 2;
+            string text = Mathf.Clamp(value, 0, 99).ToString();
+            int w = TextW(text, PipSx) + PipRing * 2;
+            int h = Rows * PipSy + PipRing * 2;
 
-            var tex = New(w, h, "SRD Num " + value);
+            var tex = New(w, h, "SRD Pip " + value);
             var px = new Color[w * h];
-            TextRinged(px, w, h, text, NumRing, NumRing, NumSx, NumSy,
-                       Color.white, new Color(0f, 0f, 0f, 0.92f), NumRing);
+            TextRinged(px, w, h, text, PipRing, PipRing, PipSx, PipSy,
+                       new Color(0.07f, 0.055f, 0.03f), new Color(1f, 0.98f, 0.92f, 0.90f), PipRing);
             tex.SetPixels(px);
             tex.Apply(false, false);
             return tex;
         }
 
-        /// <summary>How full a meter is, as the colour its fill takes. The same three steps the
-        /// vitals chips have always used, so one unit never reads two ways.</summary>
-        public static Color HealthTint(float frac)
-        {
-            return frac > 0.5f ? new Color(0.42f, 0.86f, 0.48f)
-                 : frac > 0.25f ? new Color(0.98f, 0.78f, 0.30f)
-                                : new Color(0.95f, 0.34f, 0.28f);
-        }
-
-        /// <summary>The meter's ground: the stat bar's own colour, a shade darker.</summary>
-        public static Color MeterTrough { get { return new Color(0.050f, 0.044f, 0.036f, 0.97f); } }
+        // -- the ability box, and the one short line it holds -------------------------------
 
         /// <summary>
-        /// The ABILITY BOX, filled with what the card is worth: attack, the worker draw or upkeep
-        /// it carries, and the health it was printed with.
+        /// The card's ability line, on the parchment the ability box is made of - at most two
+        /// short rows of it, newline separated.
         ///
-        /// A plaque rather than three loose marks, because it has to survive being drawn over a
-        /// standee: the figure stands at the FRONT of its own tile, so its shins cross this band,
-        /// and dark ink over a dark cut-out is nothing at all. The plaque brings its own
-        /// parchment - the same parchment the frame under it already draws - so what the change
-        /// really does is replace the frame's three ruled lines (a stand-in for text) with the
-        /// text they were standing in for.
+        /// MINIMAL, deliberately, and the same LABELS the hand card prints in the same box:
+        /// "UPKEEP -3", "DETONATE 150", "FORGE 2". The sentences behind those labels live on the
+        /// inspect card, which is where a player goes when they want to know what a rule does; a
+        /// plate is about eighty screen pixels tall and a paragraph rastered into one is grey
+        /// noise. What the box held before was three ruled ink lines - a stand-in for text that
+        /// never arrived - with the statline plaque laid over the top of them.
         ///
-        /// The cell size is FITTED, not fixed: a four-digit attack has to fit the box a two-digit
-        /// one does, and shrinking the cell is better than clipping the number.
+        /// Empty text is NO SPRITE rather than a blank plaque, so a vanilla creature shows the
+        /// frame's own parchment and nothing else.
         /// </summary>
-        public static Sprite StatLine(int attack, int worker, int baseHp,
-                                      bool hasAttack, bool hasWorker)
+        public static Sprite Brief(string text)
         {
-            string key = (hasAttack ? attack.ToString() : "-") + "|"
-                       + (hasWorker ? worker.ToString() : "-") + "|" + baseHp;
+            if (string.IsNullOrEmpty(text)) return null;
+
             Texture2D tex;
-            if (!_lines.TryGetValue(key, out tex) || tex == null)
+            if (!_briefs.TryGetValue(text, out tex) || tex == null)
             {
-                tex = BuildStatLine(attack, worker, baseHp, hasAttack, hasWorker);
-                _lines[key] = tex;
+                tex = BuildBrief(text);
+                _briefs[text] = tex;
             }
             return SpriteOf(tex);
         }
 
-        static Texture2D BuildStatLine(int attack, int worker, int baseHp,
-                                       bool hasAttack, bool hasWorker)
+        static Texture2D BuildBrief(string text)
         {
             int w = RuleBoxW, h = RuleBoxH;
-            var tex = New(w, h, "SRD Stats");
+            var tex = New(w, h, "SRD Brief");
             var px = new Color[w * h];
 
             for (int y = 0; y < h; y++) PBox(px, w, h, 0, y, w, y + 1, Paper(y / (float)h));
             POutline(px, w, h, 0, 0, w, h, new Color(0.10f, 0.09f, 0.07f, 0.85f));
 
+            var rows = text.Split(NewLine);
+            int pad = 12, gap = 6;
+
+            // The cell the box can afford in BOTH directions, at the font's own 2 : 3 proportion.
+            //
+            // A cap and not just a fit. Fitting to the WIDTH alone is what a one-word line does to
+            // this box if you let it: "WARD" has room for a cell three times the size "OVERCHARGE"
+            // gets, so the two cards end up with wildly different type and the short one shouts.
+            // Thirteen is what a seven-character line resolves to, which is about three fifths of
+            // the box's height - a caption, which is what an ability line on a tile is.
+            int sx = 13;
+            while (sx > 2 && Widest(rows, sx) > w - 2 * pad) sx--;
+
+            int room = Mathf.FloorToInt((h - 10 - (rows.Length - 1) * gap)
+                                        / (float)(rows.Length * Rows) / 1.5f);
+            if (sx > room) sx = Mathf.Max(1, room);
+
+            int sy = Mathf.Max(1, Mathf.RoundToInt(sx * 1.5f));
+            while (sy > 1 && rows.Length * Rows * sy + (rows.Length - 1) * gap > h - 10) sy--;
+
+            var ink = ElementPalette.Hex("#1b1610");
+            int block = rows.Length * Rows * sy + (rows.Length - 1) * gap;
+            int y0 = (h - block) / 2;
+
+            for (int i = 0; i < rows.Length; i++)
+                Text(px, w, h, rows[i], (w - TextW(rows[i], sx)) / 2,
+                     y0 + i * (Rows * sy + gap), sx, sy, ink);
+
+            tex.SetPixels(px);
+            tex.Apply(false, false);
+            return tex;
+        }
+
+        static readonly char[] NewLine = { '\n' };
+
+        static int Widest(string[] rows, int sx)
+        {
+            int max = 0;
+            for (int i = 0; i < rows.Length; i++)
+            {
+                int n = TextW(rows[i], sx);
+                if (n > max) max = n;
+            }
+            return max;
+        }
+
+        // -- the stat strip -----------------------------------------------------------------
+
+        /// <summary>
+        /// How hurt a unit is, as the colour its health figure takes: the hand card's salmon
+        /// while it is healthy, then amber, then red.
+        ///
+        /// This is the health METER's whole job done in a glyph that was going to be printed
+        /// anyway. A bar spends a fifth of the card saying what a colour says, and it says it
+        /// about a card that is already printing the number - "the same health in two places a
+        /// finger's width apart is not redundancy, it is two things to check", which is the
+        /// argument that took the numbers off the overlay and put them on the card to begin with.
+        ///
+        /// Salmon rather than green at the top, so a card at full health reads the same on the
+        /// board as it does in the hand. The two lower steps are the departure, and departing is
+        /// what they are for.
+        /// </summary>
+        public static Color HpInk(int hp, int max)
+        {
+            float frac = max <= 0 ? 1f : Mathf.Clamp01(hp / (float)max);
+            return frac > 0.5f ? new Color(1f, 0.60f, 0.54f)        // #ff9a8a, the hand card's
+                 : frac > 0.25f ? new Color(0.98f, 0.78f, 0.30f)
+                                : new Color(0.95f, 0.34f, 0.28f);
+        }
+
+        /// <summary>
+        /// The STAT STRIP, filled the way the hand card fills its footer: attack, the worker
+        /// chip, and the health the unit has LEFT.
+        ///
+        /// Rastered on the strip's own black rather than on parchment. The parchment was bought
+        /// by an argument that has since expired - the plaque used to land in the ability box and
+        /// had to survive a standee's shins crossing it, and the shins win outright now
+        /// (StandeeLayer sorts above every part of the plate). Here it is the card's black
+        /// footer, so it brings the footer's colour and the two read as one band.
+        ///
+        /// The health figure is the LIVE one, tinted by how much of the printed total is left.
+        /// Cached on that three-step tint rather than on the fraction, so a long fight costs
+        /// three rasters per (attack, worker, health) and not one per point of damage.
+        ///
+        /// The cell size is FITTED, not fixed: a four-digit attack has to fit the strip a
+        /// two-digit one does, and shrinking the cell beats clipping the number.
+        /// </summary>
+        public static Sprite StatLine(int attack, int worker, int hp,
+                                      bool hasAttack, bool hasWorker, Color hpInk)
+        {
+            string key = (hasAttack ? attack.ToString() : "-") + "|"
+                       + (hasWorker ? worker.ToString() : "-") + "|" + hp
+                       + "|" + ((Color32)hpInk).GetHashCode();
+            Texture2D tex;
+            if (!_lines.TryGetValue(key, out tex) || tex == null)
+            {
+                tex = BuildStatLine(attack, worker, hp, hasAttack, hasWorker, hpInk);
+                _lines[key] = tex;
+            }
+            return SpriteOf(tex);
+        }
+
+        static Texture2D BuildStatLine(int attack, int worker, int hp,
+                                       bool hasAttack, bool hasWorker, Color hpInk)
+        {
+            int w = StatBoxW, h = StatBoxH;
+            var tex = New(w, h, "SRD Stats");
+            var px = new Color[w * h];
+
+            for (int i = 0; i < px.Length; i++) px[i] = StatBar;
+
             var marks = new Mark[3];
             var texts = new string[3];
-            var inks = new Color[3];
+            var inks = new Color[3];        // the number
+            var glyphs = new Color[3];      // the mark in front of it
+            var pill = new bool[3];
             int n = 0;
 
             if (hasAttack)
             {
                 marks[n] = Mark.Sword;
                 texts[n] = attack.ToString();
-                inks[n++] = ElementPalette.Hex("#39415c");
+                glyphs[n] = new Color(0.72f, 0.78f, 0.92f);
+                inks[n++] = Color.white;                      // the DM power number
             }
             if (hasWorker)
             {
                 marks[n] = Mark.Hammer;
                 texts[n] = (worker > 0 ? "+" : "-") + Mathf.Abs(worker);
-                inks[n++] = ElementPalette.Hex("#7c5a1f");
+                glyphs[n] = new Color(0.88f, 0.72f, 0.40f);
+                inks[n] = new Color(0.96f, 0.90f, 0.76f);     // the hand card's chip
+                pill[n++] = true;
             }
             marks[n] = Mark.Heart;
-            texts[n] = baseHp.ToString();
-            inks[n++] = ElementPalette.Hex("#93262a");
+            texts[n] = hp.ToString();
+            glyphs[n] = hpInk;
+            inks[n++] = hpInk;
 
-            // The widest cell the content still fits in. The raster is deliberately twice the
-            // band it lands in: the cell size is an INTEGER, and at 192 texels the step from one
-            // that fits to one that does not threw away a fifth of the width - which comes
-            // straight off the size of the digits on screen.
+            // The raster is deliberately wider than the band it lands in: the cell size is an
+            // INTEGER, and at 192 texels the step from one that fits to one that does not threw
+            // away a fifth of the width - which comes straight off the size on screen.
             int pad = 10, sx = 12;
             while (sx > 2 && Layout(texts, n, sx) > w - 2 * pad) sx--;
             int sy = Mathf.Max(1, Mathf.RoundToInt(sx * 1.4f));
-            while (sy > 1 && Rows * sy > h - 16) sy--;
+            while (sy > 1 && Rows * sy > h - 10) sy--;
 
             int x = (w - Layout(texts, n, sx)) / 2;
             int y0 = (h - Rows * sy) / 2;
-            var ink = ElementPalette.Hex("#1b1610");
 
             for (int i = 0; i < n; i++)
             {
-                Icon(px, w, h, marks[i], x, y0, (Cols + Tracking) * sx, Rows * sy, inks[i]);
-                x += (Cols + Tracking) * sx + sx;
-                Text(px, w, h, texts[i], x, y0, sx, sy, ink);
+                int iw = (Cols + Tracking) * sx, ih = Rows * sy;
+
+                // The worker chip's PILL - the one piece of the hand card's footer that is a
+                // shape rather than a glyph, and the thing that lets a worker draw read as a
+                // badge at the size a plate is actually drawn at. Green when the row gains
+                // bodies, brown when it holds them off the harvest, exactly as CardFace tints it.
+                if (pill[i])
+                {
+                    int end = x + iw + sx + TextW(texts[i], sx);
+                    PBox(px, w, h, x - sx, Mathf.Max(1, y0 - sy / 2),
+                         end + sx, Mathf.Min(h - 1, y0 + ih + sy / 2),
+                         worker > 0 ? new Color(0.08f, 0.22f, 0.10f, 1f)
+                                    : new Color(0.24f, 0.15f, 0.06f, 1f));
+                }
+
+                Icon(px, w, h, marks[i], x, y0, iw, ih, glyphs[i]);
+                x += iw + sx;
+                Text(px, w, h, texts[i], x, y0, sx, sy, inks[i]);
                 x += TextW(texts[i], sx) + 3 * sx;
             }
 
@@ -785,7 +916,6 @@ namespace SpawnRowDuel.View.Cards
             }
             return total;
         }
-
         static Texture2D New(string name) { return New(W, H, name); }
 
         static Texture2D New(int w, int h, string name)

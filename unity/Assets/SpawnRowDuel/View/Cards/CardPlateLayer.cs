@@ -19,11 +19,17 @@ namespace SpawnRowDuel.View.Cards
     /// tile.
     ///
     /// The foe's cards are UPSIDE DOWN, the way they are across a table. That is what puts each
-    /// side's health meter on its own edge of the board - yours along the near edge of your tiles,
+    /// side's stat strip on its own edge of the board - yours along the near edge of your tiles,
     /// theirs along the far edge of theirs - so the two never sit in the same place and a glance
     /// down the board is never reading someone else's numbers. What does NOT turn over is any
-    /// number: the plate is rotated and every readout on it is counter-rotated, because a figure
-    /// nobody can read is not information (D34).
+    /// figure or word: the plate is rotated and every readout on it is counter-rotated, because
+    /// text nobody can read is not information (D34).
+    ///
+    /// WHAT IS PRINTED ON IT is the hand card's own list, in the hand card's own bands (asked for
+    /// 2026-09-08, "they should look just like cards in hand"): the cost in its disc, the name in
+    /// the banner, one short ability line in the box, and attack / workers / the health it has
+    /// LEFT in the black strip. There is no health bar - see PlaceStats for why the meter went and
+    /// what took over its job.
     /// </summary>
     public sealed class CardPlateLayer : MonoBehaviour
     {
@@ -112,11 +118,10 @@ namespace SpawnRowDuel.View.Cards
             public SpriteRenderer Frame;
             public SpriteRenderer Art;
             public SpriteRenderer Bank;
-            public SpriteRenderer Stats;      // attack / workers / printed health
-            public SpriteRenderer Trough;     // the health meter's ground ...
-            public SpriteRenderer Fill;       // ... and what is left of it
-            public SpriteRenderer Hp;         // the number printed across the meter
+            public SpriteRenderer Cost;       // the figure in the banner's disc
             public SpriteRenderer Name;       // the card's own title, in its banner
+            public SpriteRenderer Rules;      // the one short ability line
+            public SpriteRenderer Stats;      // attack / workers / health LEFT
         }
 
         /// <summary>
@@ -135,8 +140,8 @@ namespace SpawnRowDuel.View.Cards
         /// where an unusually wide cut-out still does, the art wins - which is also the right
         /// answer to a far row's numbers being drawn across a near figure's head.
         /// </summary>
-        const int OrderFrame = 4, OrderName = 5, OrderArt = 6, OrderTrough = 12, OrderFill = 13,
-                  OrderStats = 14, OrderNum = 15, OrderBank = 16;
+        const int OrderFrame = 4, OrderName = 5, OrderArt = 6,
+                  OrderRules = 12, OrderStats = 14, OrderCost = 15, OrderBank = 16;
 
         void Awake()
         {
@@ -196,10 +201,9 @@ namespace SpawnRowDuel.View.Cards
                 Root = root,
                 Frame = NewRenderer(root.transform, "frame", OrderFrame),
                 Art = NewRenderer(root.transform, "art", OrderArt),
-                Trough = NewRenderer(root.transform, "meter", OrderTrough),
-                Fill = NewRenderer(root.transform, "fill", OrderFill),
+                Rules = NewRenderer(root.transform, "rules", OrderRules),
                 Stats = NewRenderer(root.transform, "stats", OrderStats),
-                Hp = NewRenderer(root.transform, "hp", OrderNum),
+                Cost = NewRenderer(root.transform, "cost", OrderCost),
                 Bank = NewRenderer(root.transform, "bank", OrderBank),
                 Name = NewRenderer(root.transform, "name", OrderName),
             };
@@ -237,10 +241,11 @@ namespace SpawnRowDuel.View.Cards
             p.Root.transform.position = _match.Board.WorldOf(cell) + new Vector3(0f, Lift, 0f);
             p.Root.transform.rotation = RotationFor(o.Owner);
 
-            // everything with a number on it turns back the right way up
+            // everything with a figure or a word on it turns back the right way up
             var upright = foe ? UprightOnFoeCard : Quaternion.identity;
             p.Stats.transform.localRotation = upright;
-            p.Hp.transform.localRotation = upright;
+            p.Rules.transform.localRotation = upright;
+            p.Cost.transform.localRotation = upright;
             p.Bank.transform.localRotation = upright;
             p.Name.transform.localRotation = upright;   // a foe name still reads the right way up
 
@@ -298,9 +303,11 @@ namespace SpawnRowDuel.View.Cards
                           : picked ? Picked
                           : swinging ? Swinging : tint;
 
+            PlaceCost(p, o, faceDown, plateW, plateH);
             PlaceName(p, def, faceDown, plateW, plateH);
             PlaceBank(p, o, s, plateW, plateH, faceDown);
-            PlaceNumbers(p, o, plateW, plateH, faceDown, foe);
+            PlaceRules(p, o, plateW, plateH, faceDown);
+            PlaceStats(p, o, plateW, plateH, faceDown);
         }
 
         /// <summary>
@@ -325,9 +332,19 @@ namespace SpawnRowDuel.View.Cards
             p.Name.enabled = strip != null;
             if (strip == null) return;
 
-            // inside the banner, with the frame's own margin either side
-            float boxW = plateW * (1f - 10f / CardPlateTextures.W);
-            float boxH = plateH * CardPlateTextures.BannerH * 0.62f;
+            // Inside the banner and CLEAR OF THE DISC. The cost circle is drawn against the
+            // banner's left edge and now has a figure in it (PlaceCost), so a name box centred on
+            // the whole width would print the first letter or two straight over the number. The
+            // hand card solves it the same way - the badge is absolute and the name column is
+            // padded past it (CardFace's `names`).
+            float boxW = (0.95f - DiscRight) * plateW;         // ...to a margin off the right edge
+
+            // 0.80 of the banner, up from 0.62. The name is the card's headline and it was
+            // printing smaller than the ability caption two bands below it, which is the wrong way
+            // round on any card ever made - and at eight screen pixels the difference between
+            // legible and nearly is exactly this much.
+            float boxH = plateH * CardPlateTextures.BannerH * 0.80f;
+            float boxX = ((DiscRight + 0.95f) * 0.5f - 0.5f) * plateW;
 
             // FIT, not fill. Every other readout on this card is stretched to its band because
             // it was rastered at the band's own aspect; a name is rastered at whatever aspect its
@@ -338,7 +355,52 @@ namespace SpawnRowDuel.View.Cards
                                 boxH / Mathf.Max(0.0001f, size.y));
             p.Name.transform.localScale = new Vector3(k, k, 1f);
             p.Name.transform.localPosition =
-                new Vector3(0f, BandY(0f, CardPlateTextures.BannerH, plateH), -0.0005f);
+                new Vector3(boxX, BandY(0f, CardPlateTextures.BannerH, plateH), -0.0005f);
+        }
+
+        /// <summary>
+        /// Where the banner's cost disc ends, as a fraction of the card's width from its left
+        /// edge. The frame draws it centred at 3 + r with r = 0.092 * W (BuildFront), so it runs
+        /// out to 3/W + 2 * 0.092 - and both the disc's own figure and the name that has to dodge
+        /// it are placed off this one number rather than off two copies of the same arithmetic.
+        /// </summary>
+        const float DiscRight = 3f / CardPlateTextures.W + 0.184f;
+
+        /// <summary>
+        /// The card's printed COST, in the disc the frame has always drawn for it and never
+        /// filled.
+        ///
+        /// The live unit's cost rather than the definition's, because an upgraded structure IS
+        /// its tier - a Bombard that grew out of a Cannon Tower is worth what the Bombard costs,
+        /// and the card underneath it went into the ground two upgrades ago.
+        ///
+        /// A face-down card prints nothing here: what it cost to set is a fixed one, and what was
+        /// poured into it afterwards is the bank badge's business (PlaceBank). The card's own cost
+        /// is the secret.
+        /// </summary>
+        void PlaceCost(Plate p, BoardObject o, bool faceDown, float plateW, float plateH)
+        {
+            var cre = o as CreatureUnit;
+            var bld = o as StructureUnit;
+            int cost = cre != null ? cre.Cost : bld != null ? bld.Cost : -1;
+
+            if (faceDown || cost < 0)
+            {
+                p.Cost.enabled = false;
+                return;
+            }
+
+            var pip = CardPlateTextures.Pip(cost);
+            p.Cost.sprite = pip;
+            p.Cost.enabled = pip != null;
+            if (pip == null) return;
+
+            float h = plateH * CardPlateTextures.BannerH * 0.53f;
+            float k = h / Mathf.Max(0.0001f, pip.bounds.size.y);
+            p.Cost.transform.localScale = new Vector3(k, k, k);
+            p.Cost.transform.localPosition =
+                new Vector3((DiscRight * 0.5f - 0.5f) * plateW,
+                            BandY(0f, CardPlateTextures.BannerH, plateH), -0.0055f);
         }
 
         /// <summary>
@@ -352,22 +414,57 @@ namespace SpawnRowDuel.View.Cards
         }
 
         /// <summary>
-        /// What a card on the board is worth, printed on the card: the health METER in the stat
-        /// bar, and the statline - attack, worker draw or upkeep, printed health - in the ability
-        /// box directly above it.
+        /// THE ABILITY BOX, holding one short line of what the card does.
         ///
-        /// It answers "the black bars under the card should display health, a meter with a number
-        /// in it, and above the black bar the Attack, Worker Amount and Base HP" - and it answers
-        /// the older complaint underneath that one, which is that a board's numbers belong to the
-        /// pieces rather than to labels floating near them. The frame was drawing a black bar and
-        /// three ruled lines: a stat bar with no stats in it and a stand-in for text. Both are now
-        /// the thing they were standing in for.
+        /// Asked for 2026-09-08: the cards on the board "should look just like cards in hand -
+        /// minimal description". This is the minimal description. It is the same LABELS the hand
+        /// card prints in the same band - "UPKEEP -3", "DETONATE 150", "FORGE 2" - because a
+        /// label is what fits, and because a board card that says a different thing from the card
+        /// that was in your hand a turn ago is two cards.
         ///
-        /// The meter is quads rather than a raster: one texture per (hp, max) pair the match
-        /// reaches is a cache that grows with the fight, and a scaled quad drains continuously
-        /// where a texture drains in texel steps. Only the NUMBER is rastered, keyed by its value.
+        /// Read off the LIVE unit rather than the definition. An upgraded structure is its own
+        /// tier, a hatched cocoon is its hatch form, and a token has no card at all - all three
+        /// are on the board and none of them can be looked up by the name in the banner.
         /// </summary>
-        void PlaceNumbers(Plate p, BoardObject o, float plateW, float plateH, bool faceDown, bool foe)
+        void PlaceRules(Plate p, BoardObject o, float plateW, float plateH, bool faceDown)
+        {
+            var strip = faceDown ? null : CardPlateTextures.Brief(Brief(o));
+            p.Rules.sprite = strip;
+            p.Rules.enabled = strip != null;
+            if (strip == null) return;
+
+            float rulesTop = CardPlateTextures.BannerH + CardPlateTextures.ArtH;
+
+            // THE FRAME'S OWN BOX, exactly - the same inset the art window uses one band up,
+            // because BuildFront draws both off ArtInsetX. The plaque used to be laid at the
+            // card's near-full width, so a white slab overhung the ivory box on both sides and
+            // ran out to the card's border.
+            float boxW = plateW * (1f - 2f * CardPlateTextures.ArtInsetX);
+            float boxH = plateH * CardPlateTextures.RulesH * 0.98f;
+
+            p.Rules.transform.localScale = FillScale(strip, boxW, boxH);
+            p.Rules.transform.localPosition =
+                new Vector3(0f, BandY(rulesTop, CardPlateTextures.RulesH, plateH), -0.003f);
+        }
+
+        /// <summary>
+        /// THE STAT STRIP: attack, the worker chip, and the health this unit has LEFT - laid into
+        /// the black footer band, which is where a card carries its numbers.
+        ///
+        /// This is the other half of the same request, and the half with a subtraction in it. The
+        /// strip used to hold a health METER - a trough, a draining fill and the number printed
+        /// across it - while the statline sat one band up in the ability box. So the card wore its
+        /// own anatomy inside out, and it spent a fifth of its face on a bar that said, less
+        /// precisely, exactly what the number beside it already said. "Remove health bar. Just
+        /// keep track of current HP of cards on the card": the meter is gone, the statline came
+        /// down to the band it belongs in, and its heart carries the CURRENT health rather than
+        /// the printed total.
+        ///
+        /// What the bar did better than a figure was read at a glance, without arithmetic, and
+        /// that survives as the figure's COLOUR (CardPlateTextures.HpInk) - salmon while healthy,
+        /// then amber, then red. Same three steps, one glyph, no band.
+        /// </summary>
+        void PlaceStats(Plate p, BoardObject o, float plateW, float plateH, bool faceDown)
         {
             var cre = o as CreatureUnit;
             var bld = o as StructureUnit;
@@ -376,69 +473,116 @@ namespace SpawnRowDuel.View.Cards
             if (faceDown || (cre == null && bld == null))
             {
                 p.Stats.enabled = false;
-                p.Trough.enabled = false;
-                p.Fill.enabled = false;
-                p.Hp.enabled = false;
                 return;
             }
 
             int hp = cre != null ? cre.Hp : bld.Hp;
             int max = Mathf.Max(1, cre != null ? cre.MaxHp : bld.MaxHp);
-            float frac = Mathf.Clamp01(hp / (float)max);
             int worker = cre != null ? -cre.Upkeep : bld.Support;
 
-            // ---- the statline, filling the ability box
-            float rulesTop = CardPlateTextures.BannerH + CardPlateTextures.ArtH;
             var line = CardPlateTextures.StatLine(
                 cre != null ? Stat.Show(cre.EffectiveAttack) : 0,
-                worker, Stat.Show(max), cre != null, worker != 0);
+                worker, Stat.Show(hp), cre != null, worker != 0,
+                CardPlateTextures.HpInk(hp, max));
 
-            float boxW = plateW * (1f - 8f / CardPlateTextures.W);      // inside inset + outline
-            float boxH = plateH * CardPlateTextures.RulesH * 0.98f;
-            p.Stats.sprite = line;
-            p.Stats.enabled = line != null;
-            p.Stats.transform.localScale = FillScale(line, boxW, boxH);
-            p.Stats.transform.localPosition =
-                new Vector3(0f, BandY(rulesTop, CardPlateTextures.RulesH, plateH), -0.003f);
-
-            // ---- the meter, filling the stat bar
+            float y = BandY(1f - CardPlateTextures.StatsH, CardPlateTextures.StatsH, plateH);
             float barW = plateW * (1f - 4f / CardPlateTextures.W);      // inside the frame's border
             float barH = plateH * CardPlateTextures.StatsH;
-            float y = BandY(rulesTop + CardPlateTextures.RulesH, CardPlateTextures.StatsH, plateH);
-            var solid = CardPlateTextures.Solid();
 
-            float troughH = barH * 0.82f;
-            p.Trough.sprite = solid;
-            p.Trough.enabled = solid != null;
-            p.Trough.color = CardPlateTextures.MeterTrough;
-            p.Trough.transform.localScale = new Vector3(barW, troughH, 1f);
-            p.Trough.transform.localPosition = new Vector3(0f, y, -0.003f);
-
-            // The fill grows the same way ON SCREEN for both sides. It is the one thing on the
-            // card that is not turned over with it: a meter has no up, and two boards draining in
-            // opposite directions is a thing to decode rather than to read.
-            float m = troughH * 0.13f;
-            float runW = barW - 2f * m;
-            float fillW = runW * frac;
-            float dir = foe ? -1f : 1f;
-
-            p.Fill.sprite = solid;
-            p.Fill.enabled = solid != null && fillW > 0.0001f;
-            p.Fill.color = CardPlateTextures.HealthTint(frac);
-            p.Fill.transform.localScale = new Vector3(fillW, troughH - 2f * m, 1f);
-            p.Fill.transform.localPosition =
-                new Vector3(dir * (fillW * 0.5f - runW * 0.5f), y, -0.004f);
-
-            var num = CardPlateTextures.Num(Stat.Show(hp));
-            var size = num.bounds.size;
-            float k = Mathf.Min(barH * 0.76f / Mathf.Max(0.0001f, size.y),
-                                barW * 0.62f / Mathf.Max(0.0001f, size.x));
-            p.Hp.sprite = num;
-            p.Hp.enabled = num != null;
-            p.Hp.transform.localScale = new Vector3(k, k, k);
-            p.Hp.transform.localPosition = new Vector3(0f, y, -0.005f);
+            p.Stats.sprite = line;
+            p.Stats.enabled = line != null;
+            p.Stats.transform.localScale = FillScale(line, barW, barH);
+            p.Stats.transform.localPosition = new Vector3(0f, y, -0.003f);
         }
 
+        /// <summary>
+        /// The card's ability line, in at most two short rows - and in the order a player needs
+        /// them, because only two fit.
+        ///
+        /// Upkeep leads: it is the one clause that costs something every single turn, and a row
+        /// that cannot pay it locks its own harvest. The keyword comes next because it is what the
+        /// card is FOR, and the two bare flags bring up the rear. A creature carrying all four is
+        /// rare and its inspect card still has the lot.
+        /// </summary>
+        static string Brief(BoardObject o)
+        {
+            string one = null, two = null;
+            var cre = o as CreatureUnit;
+            var bld = o as StructureUnit;
+
+            if (cre != null)
+            {
+                Row(ref one, ref two, cre.Upkeep > 0 ? "UPKEEP -" + cre.Upkeep : null);
+                Row(ref one, ref two, KeywordLine(cre));
+                Row(ref one, ref two, cre.FirstStrike ? "FIRST STRIKE" : null);
+                // the flag and the keyword are two things wearing one name; the keyword already
+                // printed its own row above
+                Row(ref one, ref two,
+                    cre.Entrench && cre.Keyword != Keyword.Entrench ? "ENTRENCH" : null);
+            }
+            else if (bld != null)
+            {
+                Row(ref one, ref two, EffectLine(bld));
+
+                // A structure whose whole job IS its workforce - an Encampment - has no upkeep
+                // effect at all, and printed an empty ivory box. The hand card prints the worker
+                // clause on its own for exactly those (CardTextService.StructureBrief), so this
+                // does too. It repeats the strip's chip only on the cards that have nothing else
+                // to say, which is better than a blank plaque that reads as missing content.
+                if (one == null && bld.Support != 0)
+                    one = "WORKERS " + (bld.Support > 0 ? "+" : "") + bld.Support;
+            }
+
+            if (one == null) return "";
+            return two == null ? one : one + "\n" + two;
+        }
+
+        static void Row(ref string one, ref string two, string s)
+        {
+            if (string.IsNullOrEmpty(s) || two != null) return;
+            if (one == null) one = s; else two = s;
+        }
+
+        /// <summary>
+        /// The keyword's short label, off the LIVE unit - which is why this is not
+        /// CardTextService.KeywordLabel: that one takes a CreatureCard, and half the creatures on
+        /// this board (tokens, hatched forms) do not have one. Same words, no lookup.
+        /// </summary>
+        static string KeywordLine(CreatureUnit c)
+        {
+            switch (c.Keyword)
+            {
+                case Keyword.Detonate: return "DETONATE " + Stat.Num(c.Detonate);
+                case Keyword.Reap: return "REAP " + Stat.Num(c.Reap);
+                case Keyword.Ward: return "WARD";
+                case Keyword.Undertow: return "UNDERTOW";
+                case Keyword.Entrench: return "ENTRENCH";
+                case Keyword.Chrysalis: return "CHRYSALIS";
+                case Keyword.Scour: return "SCOUR";
+                case Keyword.Overcharge: return "OVERCHARGE";
+                default: return "";
+            }
+        }
+
+        /// <summary>
+        /// What a structure does, in the fewest words that still name it. The worker clause the
+        /// hand card appends is dropped: the ⚒ chip in the strip two bands down is that same
+        /// number, and it is the only thing on the card that would be said twice.
+        /// </summary>
+        static string EffectLine(StructureUnit b)
+        {
+            switch (b.Effect)
+            {
+                case StructEffect.Mana: return "FORGE " + b.Value;
+                case StructEffect.Villager: return "TRAINS WORKERS";
+                case StructEffect.Damage: return "TOWER " + Stat.Num(b.Value);
+                case StructEffect.Wall: return "BULWARK";
+                case StructEffect.Revive: return "RECALLS FALLEN";
+                case StructEffect.Vault: return "BANKS " + b.Value;
+                case StructEffect.Heal: return "MENDS " + Stat.Num(b.Value);
+                default: return "";
+            }
+        }
         /// <summary>
         /// The mana riding on this card, ON the card.
         ///

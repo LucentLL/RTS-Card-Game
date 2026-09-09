@@ -172,9 +172,27 @@ namespace SpawnRowDuel.View.Cards
                     }
 
                     bool mine = who == Seat.Local;
-                    float pad = Mathf.Max(24f, Mathf.Abs(b.x - a.x) * 0.06f);
-                    float x = mine ? Mathf.Min(a.x, b.x) - pad : Mathf.Max(a.x, b.x) + pad;
                     float half = 20f * HudLayout.Scale;
+
+                    // OFF THE TILES, measured rather than guessed.
+                    //
+                    // a and b are the CENTRES of the end columns, so the row's outer edge is half
+                    // a cell further out again - and the old pad, six pitches times 0.06, came to
+                    // about a third of ONE pitch. Every chip landed inside its end tile. In the
+                    // tilted view that is hidden by the board filling the screen, so the clamp
+                    // below was doing the same thing anyway; in TOP-DOWN, where the board is
+                    // narrower than the window and there is real ground either side of it, it put
+                    // a worker count squarely on top of a card.
+                    //
+                    // Half a pitch clears the tile, the chip's own half-width clears its box, and
+                    // a few pixels keep the two from touching.
+                    float pitch = Mathf.Abs(b.x - a.x) / Mathf.Max(1, Board.Columns - 1);
+                    float pad = pitch * 0.5f + half + 6f * HudLayout.Scale;
+                    float x = mine ? Mathf.Min(a.x, b.x) - pad : Mathf.Max(a.x, b.x) + pad;
+
+                    // Last resort, and it bites only where there is genuinely no ground left
+                    // outside the board - the near rows of the tilted view, which are framed to
+                    // fill the width. Overlapping a card beats sliding off the screen.
                     x = Mathf.Clamp(x, half, panel.x - half);
 
                     int n = _match.WorkerFigure(who, zone);
