@@ -641,6 +641,31 @@ namespace SpawnRowDuel.View.Cards
         static readonly Dictionary<string, Texture2D> _briefs = new Dictionary<string, Texture2D>();
         static readonly Dictionary<int, Texture2D> _pips = new Dictionary<int, Texture2D>();
 
+        static Sprite _solid;
+
+        /// <summary>
+        /// One white texel, for anything that is a scaled rectangle rather than a picture. The
+        /// selection GLOW is what wants it: a quad a few percent larger than the plate, sitting
+        /// behind an opaque card, so only a rim of it shows.
+        /// </summary>
+        public static Sprite Solid()
+        {
+            if (_solid != null) return _solid;
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+            {
+                name = "SRD Solid",
+                hideFlags = HideFlags.HideAndDontSave,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            tex.SetPixel(0, 0, Color.white);
+            tex.Apply(false, false);
+            _solid = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
+            _solid.name = "SRD Solid";
+            _solid.hideFlags = HideFlags.HideAndDontSave;
+            return _solid;
+        }
+
         /// <summary>The stat strip's black. Shared with the frame so a plaque laid into the band
         /// and the band under it are one continuous bar rather than two nearly-equal darks.
         /// </summary>

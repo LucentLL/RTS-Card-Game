@@ -64,20 +64,32 @@ namespace SpawnRowDuel.View.Cards
             Quaternion.LookRotation(Vector3.down, Vector3.forward);
 
         /// <summary>
-        /// The same card, turned to face the other seat: a half turn about the board's up axis,
-        /// which for a card lying flat is a half turn IN ITS OWN PLANE. A rotation, not a
-        /// reflection - the art is the right way round, it is only the wrong way up.
+        /// The same card turned to face the other SEAT: a half turn about the board's up axis,
+        /// which for a card lying flat is a half turn in its own plane. A rotation, not a
+        /// reflection - the art is the right way round, it is only the other way up.
         /// </summary>
-        public static readonly Quaternion FoeOnTile =
+        public static readonly Quaternion HalfTurnOnTile =
             Quaternion.Euler(0f, 180f, 0f) * FlatOnTile;
 
-        /// <summary>Undoes that half turn for one child, so a readout on a foe card comes out the
-        /// same way up as one on yours. Local +Z is the plate's normal, so this is in-plane.</summary>
-        public static readonly Quaternion UprightOnFoeCard = Quaternion.Euler(0f, 0f, 180f);
-
-        public static Quaternion RotationFor(Side owner)
+        /// <summary>
+        /// Which way up EVERY plate on the board lies - and it is a question about the seat, not
+        /// about who owns the card.
+        ///
+        /// It used to be about the owner: your cards one way up, the foe's turned round the way
+        /// they would be across a table, with every readout on them counter-rotated so no number
+        /// came out upside down (D34). That arrangement needs the numbers to be separate objects
+        /// from the card, and they are not any more - the plate is one texture with the whole face
+        /// composited into it. So the choice became a foe card that reads or one that does not,
+        /// and D34's own rule settles it: text nobody can read is not information.
+        ///
+        /// What is left still has to answer to the SEAT. The guest's camera is yawed a half turn
+        /// (Seat.CameraYaw), so a plate pinned to the board's absolute geometry lies upright for
+        /// the host and upside down for the guest - the whole board of them, which is what the
+        /// first version of this shipped. The card faces whoever is looking at it.
+        /// </summary>
+        public static Quaternion FacingTheSeat
         {
-            return owner == Side.You ? FlatOnTile : FoeOnTile;
+            get { return Seat.Flipped ? HalfTurnOnTile : FlatOnTile; }
         }
 
         // the CSS sleeve fallbacks, for a player whose element never resolved
@@ -115,6 +127,19 @@ namespace SpawnRowDuel.View.Cards
         sealed class Plate
         {
             public GameObject Root;
+
+            /// <summary>The REAL card face, as a quad sampling its cell of the sheet. This is the
+            /// plate for every face-up card the atlas can hold.</summary>
+            public MeshFilter Face;
+            public MeshRenderer FaceRend;
+            public Mesh Quad;
+            public Rect FaceUv;
+
+            /// <summary>What you are acting with, as a rim behind the card.</summary>
+            public SpriteRenderer Glow;
+
+            // ── the rastered frame: the face-DOWN sleeve, and the fallback for a face-up card
+            //    when the sheet is full or could not be built at all ──────────────────────────
             public SpriteRenderer Frame;
             public SpriteRenderer Art;
             public SpriteRenderer Bank;
@@ -140,7 +165,7 @@ namespace SpawnRowDuel.View.Cards
         /// where an unusually wide cut-out still does, the art wins - which is also the right
         /// answer to a far row's numbers being drawn across a near figure's head.
         /// </summary>
-        const int OrderFrame = 4, OrderName = 5, OrderArt = 6,
+        const int OrderGlow = 3, OrderFrame = 4, OrderName = 5, OrderArt = 6,
                   OrderRules = 12, OrderStats = 14, OrderCost = 15, OrderBank = 16;
 
         void Awake()
@@ -148,7 +173,14 @@ namespace SpawnRowDuel.View.Cards
             _match = GetComponent<MatchController>();
             _input = GetComponent<BoardInput>();
             _hud = GetComponent<MatchHud>();       // who you have put in front of the blow
+
+            _atlas = GetComponent<PlateFaceAtlas>();
+            if (_atlas == null) _atlas = gameObject.AddComponent<PlateFaceAtlas>();
         }
+
+        PlateFaceAtlas _atlas;
+        CardTextService _text;
+        CardArtIndex _art;
 
         void LateUpdate()
         {
@@ -166,7 +198,12 @@ namespace SpawnRowDuel.View.Cards
                 return;
             }
 
-            if (_palette == null) _palette = new ElementPalette(_match.Engine.Catalog);
+            if (_palette == null)
+            {
+                _palette = new ElementPalette(_match.Engine.Catalog);
+                _text = new CardTextService(_match.Engine.Catalog);
+                _art = new CardArtIndex(_match.Database);
+            }
 
             var s = _match.Engine.State;
             _seen.Clear();
@@ -184,6 +221,7 @@ namespace SpawnRowDuel.View.Cards
                 }
             }
 
+            if (_atlas != null) _atlas.Sweep(_seen);
             Prune();
         }
 
@@ -199,6 +237,7 @@ namespace SpawnRowDuel.View.Cards
             p = new Plate
             {
                 Root = root,
+                Glow = NewRenderer(root.transform, "glow", OrderGlow),
                 Frame = NewRenderer(root.transform, "frame", OrderFrame),
                 Art = NewRenderer(root.transform, "art", OrderArt),
                 Rules = NewRenderer(root.transform, "rules", OrderRules),
@@ -207,8 +246,53 @@ namespace SpawnRowDuel.View.Cards
                 Bank = NewRenderer(root.transform, "bank", OrderBank),
                 Name = NewRenderer(root.transform, "name", OrderName),
             };
+
+            NewFace(p, root.transform);
             _live[o.Id] = p;
             return p;
+        }
+
+        /// <summary>
+        /// The quad that samples the card sheet. A MESH rather than a sprite, because a Sprite can
+        /// only be cut out of a Texture2D and the sheet is a RenderTexture - so the cell is chosen
+        /// by the four UVs instead, and every plate on the board shares one material and one
+        /// texture. Renderer.sortingOrder works the same here as on a SpriteRenderer, which is what
+        /// keeps the standee above it.
+        /// </summary>
+        void NewFace(Plate p, Transform parent)
+        {
+            var go = new GameObject("face");
+            go.transform.SetParent(parent, false);
+
+            p.Quad = new Mesh { name = "SRD Plate Face", hideFlags = HideFlags.HideAndDontSave };
+            p.Quad.vertices = new[]
+            {
+                new Vector3(-0.5f, -0.5f, 0f), new Vector3(0.5f, -0.5f, 0f),
+                new Vector3(0.5f, 0.5f, 0f), new Vector3(-0.5f, 0.5f, 0f),
+            };
+            p.Quad.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            // Sprites/Default multiplies by the vertex colour, and a mesh with no colour stream
+            // is undefined on some backends rather than white.
+            p.Quad.colors = new[] { Color.white, Color.white, Color.white, Color.white };
+            SetUv(p, new Rect(0f, 0f, 1f, 1f));
+
+            p.Face = go.AddComponent<MeshFilter>();
+            p.Face.sharedMesh = p.Quad;
+            p.FaceRend = go.AddComponent<MeshRenderer>();
+            p.FaceRend.sortingOrder = OrderFrame;
+            p.FaceRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            p.FaceRend.receiveShadows = false;
+            p.FaceRend.enabled = false;
+        }
+
+        static void SetUv(Plate p, Rect uv)
+        {
+            p.FaceUv = uv;
+            p.Quad.uv = new[]
+            {
+                new Vector2(uv.xMin, uv.yMin), new Vector2(uv.xMax, uv.yMin),
+                new Vector2(uv.xMax, uv.yMax), new Vector2(uv.xMin, uv.yMax),
+            };
         }
 
         static SpriteRenderer NewRenderer(Transform parent, string name, int order)
@@ -237,19 +321,159 @@ namespace SpawnRowDuel.View.Cards
             float plateW = foot.x;
             float plateH = foot.y;
 
-            bool foe = o.Owner != Seat.Local;
+            // EVERY CARD THE RIGHT WAY UP, both halves of the board - and "up" is the seat's, not
+            // the world's. See FacingTheSeat.
             p.Root.transform.position = _match.Board.WorldOf(cell) + new Vector3(0f, Lift, 0f);
-            p.Root.transform.rotation = RotationFor(o.Owner);
-
-            // everything with a figure or a word on it turns back the right way up
-            var upright = foe ? UprightOnFoeCard : Quaternion.identity;
-            p.Stats.transform.localRotation = upright;
-            p.Rules.transform.localRotation = upright;
-            p.Cost.transform.localRotation = upright;
-            p.Bank.transform.localRotation = upright;
-            p.Name.transform.localRotation = upright;   // a foe name still reads the right way up
+            p.Root.transform.rotation = FacingTheSeat;
 
             bool faceDown = o is ChargeUnit || o is TrapUnit;
+
+            // ── the real card face, off the sheet ─────────────────────────────────────────
+            bool onSheet = false;
+            if (!faceDown && _atlas != null && _text != null)
+            {
+                CardFaceModel model;
+                string key;
+                if (TryFaceModel(o, out model, out key))
+                {
+                    Rect uv;
+                    if (_atlas.TryBind(o.Id, model, _palette, key, out uv))
+                    {
+                        if (p.FaceUv != uv) SetUv(p, uv);
+                        p.FaceRend.sharedMaterial = _atlas.Sheet;
+                        p.FaceRend.enabled = true;
+                        p.Face.transform.localScale = new Vector3(plateW, plateH, 1f);
+                        p.Face.transform.localPosition = Vector3.zero;
+                        onSheet = true;
+                    }
+                }
+            }
+
+            // The rastered frame is the face-DOWN sleeve, and the understudy for a face-up card
+            // the sheet had no room for (or could not be built for at all). Everything it draws
+            // goes dark the moment the real face is up, or the two print over each other.
+            if (onSheet)
+            {
+                p.FaceRend.enabled = true;
+                p.Frame.enabled = false;
+                p.Art.enabled = false;
+                p.Name.enabled = false;
+                p.Rules.enabled = false;
+                p.Stats.enabled = false;
+                p.Cost.enabled = false;
+                p.Bank.enabled = false;         // CardFace prints its own banked-mana chip
+            }
+            else
+            {
+                p.FaceRend.enabled = false;
+                PlaceRaster(p, o, cell, s, plateW, plateH, faceDown);
+            }
+
+            PlaceGlow(p, o, cell, plateW, plateH);
+        }
+
+        /// <summary>
+        /// What a card cannot say for itself: whether it is a card you are acting WITH.
+        ///
+        /// A RIM behind the plate rather than a tint on it. The tint was fine when the frame and
+        /// the art were separate renderers and only the frame took the colour; a composited face
+        /// is one texture, so multiplying it washes the illustration along with everything else.
+        /// The card is opaque, so a quad a few percent larger sitting under it shows as an edge -
+        /// which is what a highlight on a card in a real game is.
+        ///
+        /// Cyan for the one under the cursor, amber for every creature already declared into the
+        /// attack, green for every one committed to a block and a dim green for one merely
+        /// offered it. Defending outranks the selection: while a blocker choice is parked, the
+        /// ticks ARE what the board is being asked about, and a stale cyan from before the attack
+        /// landed would be the loudest thing on the screen saying nothing.
+        /// </summary>
+        void PlaceGlow(Plate p, BoardObject o, CellRef cell, float plateW, float plateH)
+        {
+            bool picked = _input != null && _input.IsPicked(cell);
+            bool swinging = o.Owner == Seat.Local && _match.IsAttacking(cell);
+            bool defending = _hud != null && _hud.IsDefending(cell);
+            bool offered = !defending && _hud != null && _hud.IsOfferedBlocker(cell);
+
+            if (!picked && !swinging && !defending && !offered)
+            {
+                p.Glow.enabled = false;
+                return;
+            }
+
+            var solid = CardPlateTextures.Solid();
+            p.Glow.sprite = solid;
+            p.Glow.enabled = solid != null;
+            p.Glow.color = defending ? Defending
+                         : offered ? Offered
+                         : picked ? Picked : Swinging;
+
+            // wider than tall in proportion, so the rim is the same thickness on all four sides
+            float rim = plateW * 0.055f;
+            p.Glow.transform.localScale = new Vector3(plateW + rim, plateH + rim, 1f);
+            p.Glow.transform.localPosition = new Vector3(0f, 0f, 0.001f);   // local -Z is up
+        }
+
+        /// <summary>
+        /// The face-up card as CardFace would draw it, from the LIVE unit - and the key that says
+        /// whether anything about it has moved since the last paint.
+        ///
+        /// It borrows the hand's own model builders, so the ability line is the ABBREVIATED one a
+        /// card in hand carries ("Upkeep ⚒-2"), not the inspect card's paragraph. Then the printed
+        /// numbers are replaced by what is actually standing there. Raw engine units throughout:
+        /// CardFaceModel carries raw and CardFace scales when it prints, and dividing here as well
+        /// is how a 500-attack creature once read as 5 on one surface and 50 on another.
+        ///
+        /// A creature the catalog has never heard of - a token, a hatched form - falls through to
+        /// the rastered frame, which reads its stats off the unit and needs no card at all.
+        /// </summary>
+        bool TryFaceModel(BoardObject o, out CardFaceModel m, out string key)
+        {
+            m = default(CardFaceModel);
+            key = null;
+            var catalog = _match.Engine.Catalog;
+
+            var cre = o as CreatureUnit;
+            if (cre != null)
+            {
+                if (!CardFaceModel.TryOfCard(cre.Card, catalog, _text, _art, out m)) return false;
+                m.Attack = cre.EffectiveAttack;
+                m.Hp = cre.Hp;
+                m.MaxHp = cre.MaxHp;
+                m.Sick = cre.Sick;
+                m.Tapped = cre.Tapped;
+                m.Moved = cre.Moved;
+            }
+            else
+            {
+                var bld = o as StructureUnit;
+                if (bld == null) return false;
+
+                var def = catalog.Structure(bld.DefId, bld.Color);
+                if (def == null) return false;
+                m = CardFaceModel.OfStructure(def, _text, _art);
+                m.Hp = bld.Hp;
+                m.MaxHp = bld.MaxHp;
+            }
+
+            m.Foe = o.Owner != Seat.Local;
+            m.Bank = o.Bank;
+
+            key = m.Name + "|" + m.Hp + "/" + m.MaxHp + "|" + m.Attack + "|" + m.WorkerChip
+                + "|" + m.Bank + "|" + (m.Sick ? "s" : "") + (m.Tapped ? "t" : "")
+                + (m.Moved ? "m" : "") + (m.Foe ? "f" : "") + (CardFace.Crystal ? "x" : "");
+            return true;
+        }
+
+        /// <summary>
+        /// The rastered frame, unchanged: the procedural sleeve for a face-down card, and the
+        /// stand-in frame for a face-up one the sheet could not take.
+        ///
+        /// A set card is a card back and that secret is a rule, so a charge or a trap is tinted by
+        /// its OWNER's element and never by the card underneath it.
+        /// </summary>
+        void PlaceRaster(Plate p, BoardObject o, CellRef cell, GameState s,
+                         float plateW, float plateH, bool faceDown)
+        {
             var frame = faceDown ? CardPlateTextures.Back(Sleeve(s, o.Owner))
                                  : CardPlateTextures.Front(_palette.Of(o.Color));
 
@@ -282,26 +506,7 @@ namespace SpawnRowDuel.View.Cards
             // the foe's half already reads cold from its row tint; the plate keeps the same rule
             var tint = o.Owner == Seat.Local ? Color.white : new Color(0.86f, 0.88f, 1f);
             p.Art.color = tint;
-
-            // ...and the FRAME carries the one thing a card cannot say for itself: whether it is a
-            // card you are acting WITH. The tile underneath is painted for exactly this and the
-            // card covers the tile, so the light has to be on the card. Cyan for the one under the
-            // cursor, amber for every creature already declared into the attack, green for every
-            // one you have committed to a block - which is the thing that was being carried
-            // entirely by the player's memory, and could not be carried at all between two copies
-            // of one card with different health left.
-            bool picked = _input != null && _input.IsPicked(cell);
-            bool swinging = o.Owner == Seat.Local && _match.IsAttacking(cell);
-            bool defending = _hud != null && _hud.IsDefending(cell);
-            bool offered = !defending && _hud != null && _hud.IsOfferedBlocker(cell);
-
-            // Defending outranks the selection: while a blocker choice is parked, the ticks ARE
-            // what the board is being asked about, and a stale cyan from before the attack landed
-            // would be the loudest thing on the screen saying nothing.
-            p.Frame.color = defending ? Defending
-                          : offered ? Offered
-                          : picked ? Picked
-                          : swinging ? Swinging : tint;
+            p.Frame.color = tint;
 
             PlaceCost(p, o, faceDown, plateW, plateH);
             PlaceName(p, def, faceDown, plateW, plateH);
@@ -697,6 +902,9 @@ namespace SpawnRowDuel.View.Cards
             for (int i = 0; i < _dead.Count; i++)
             {
                 var p = _live[_dead[i]];
+                // the quad's mesh is built per plate, and destroying a GameObject does not
+                // destroy a mesh that was assigned to it
+                if (p.Quad != null) Destroy(p.Quad);
                 if (p.Root != null) Destroy(p.Root);
                 _live.Remove(_dead[i]);
             }

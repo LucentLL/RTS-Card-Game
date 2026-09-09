@@ -26,13 +26,58 @@ public MQTT brokers. The only test that can tell you the relays are down rather 
 | M10 — keywords, spells, traps, response window | ✅ done | 2026-08-21 (`1c200fe`+) — `IKeywordHandler` registry with the six hooks and all eight keywords (ward/detonate/reap were unimplemented); spells cast through one `CanTarget` predicate; both summon-trap halves and every attack-trap spring site become a parked `ResponseWindowRequest`; `CreatureSnapshot` closes the bounce/revive debt. 206 tests; the 29-agent audit raised 11, confirmed 7, all fixed |
 | M11 — scripted AI (vertical slice) | ✅ done | 2026-08-21 — `ScriptedAiPolicy` is the ported 11-step foeTurn as a COMMAND SOURCE (D13): aiFixDeficit/aiBuild/aiUpgrade/aiPickTarget/aiPickDeploySlot/the absorber pick, plus `AiTuning` (D14) and `AiDriver`. Self-play: 8/8 seeds reach a real win or loss, zero illegal commands, same seed = same hash. 216 tests |
 | M12 — differential harness vs the JS | ✅ done | 2026-08-21 — all three tiers green. Tier 0/1: three whole matches (477, 492, 342 plies) replay ply-for-ply against the living JS. Tier 3: **10,000 random legal commands across 25 fuzz matches and 6 commander pairings, zero divergence**, plus a delta-debugging shrinker proven against a poisoned engine (400 plies → a 9-ply minimal reproducer). The projection is now tight enough that widening it further has no candidates left (D19) |
-| M13 — presentation pass | 🟡 slice 7 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Slice 6: the stats printed ON the card, the foe half turned round so each side reads its own edge, tap-to-join attack groups, and a cut-in three times the size that stacks a joint attack into one clash. Slice 7 (2026-09-08): the board card IS the hand card - cost in its disc, name in the banner, one short ability line in the box, attack/workers/LIVE health in the black strip, no health meter (the figure's colour carries it), and the row worker counts finally off the tiles. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
+| M13 — presentation pass | 🟡 slice 7 | 2026-08-24 — real DM card frames, the 76-glyph font chain closed and GATED, the hand in UI Toolkit, the card lying flat on its tile with the cut-out standing on it, owner-tinted rows, a living terrain island (4 biomes, wind-blown grass, lump-built cloud shadows), and the two castle walls as the screen top and bottom edges: they slide open when looked at, carry each side vitals and their hand of backs, and the field runs behind them wall to wall. Slice 4: the cards filling their tiles with the figures planted at the front of them, the numbers on one scale, unit vitals with health bars, and the DS-Yu-Gi-Oh battle cut-in. Slice 6: the stats printed ON the card, the foe half turned round so each side reads its own edge, tap-to-join attack groups, and a cut-in three times the size that stacks a joint attack into one clash. Slice 7 (2026-09-09): the board card IS the hand card - literally, a real CardFace rendered into a texture atlas and sampled by a quad on the tile (PlateFaceAtlas), so the fonts, the mana disc, the type lozenge, the worker chip and the abbreviated ability line are the hand card's own; no health meter (the heart is the LIVE figure), every plate facing the seat rather than its owner, and the row worker counts finally off the tiles. Remaining: tower deck/GY piles, horizon + sky, more FX, audio |
 | M14 — campaign | 🟡 first pass | 2026-08-24 — the hexsphere globe (162 tiles), map generation, absorb cascade, end-turn AI, the 4-line challenge dialogue and the save, all pure C# and tested; globe view with drag-spin and raycast picking, world-map HUD, attack confirm and battle handoff. Open: garrison affects nothing, AI never absorbs, no custom deck in campaign |
 | M15 — menus, deck builder, save/load | 🟡 first pass | 2026-08-24 — main menu, banner select and a screen router that switches the battle world off; three-column deck builder with search/filter/sort, mana curve, 5 slots and a duel-with-it path. Open: no solo deck-pick screen, no settings |
 | M16 — parity flags resolved, ship prep | ⬜ | **+ D42: gate SendBankedMana on phase, re-cut the goldens, delete NetSession.LocalGate's phase clause** |
 | M17 — multiplayer (password-linked 1v1) | ✅ done | 2026-08-30 — deterministic command LOCKSTEP over MQTT-to-three-public-brokers, sealed with a key derived from the shared password. 62 EditMode tests: whole matches stay bit-identical across a relay that loses, duplicates and reorders; desync is caught at the ply; both directions of reconnect replay from the other peer's log. Verified live over the open internet. The view now takes a SEAT (~90 sites), so the guest plays from the far side of the board |
 
 ## Session log
+
+### 2026-09-09 — the board card IS the hand card now: CardFace on a render texture
+
+The previous entry rebuilt the plate's contents and left the plate a hand-rolled RASTER. Sent back:
+"you're still showing cards on the field with the weird title text and key symbol for resources. I
+said they should look exactly like cards in hand with abbreviation ability text." Fair - a 3x5
+bitmap alphabet is weird title text and a hammer drawn out of two rectangles is a key.
+
+**A PanelSettings with a targetTexture removes the constraint the raster existed for.** A plate is
+a world-space sprite and UI Toolkit does not go there; but UI Toolkit will paint into a
+RenderTexture, and a RenderTexture is a texture a quad can sample. `PlateFaceAtlas` is one panel
+holding a GRID of real `CardFace` elements, one cell per unit, and each plate is a quad whose UVs
+are that cell. Same class, same fonts, same ⚒, same generated ability line - the abbreviated one a
+card in hand carries, since the model comes from the hand's own `CardFaceModel.TryOfCard` with the
+live numbers written over the printed ones.
+
+A Sprite can only be cut out of a Texture2D, which is why the plate is a MESH now rather than a
+SpriteRenderer: four verts, UVs chosen per cell, `Renderer.sortingOrder` behaving exactly as it did
+so the standee still sorts above. One material and one texture for the whole board.
+
+**Three things had to be found by looking rather than by reasoning.**
+
+1. `UIDocument.panelSettings` ASSERTS when the document's GameObject descends from another one
+   carrying a UIDocument - a nested document must share its parent's panel. The sheet's host is a
+   root object, with OnEnable/OnDisable mirroring the board.
+2. The sheet rendered thirty blank white cards with an element-coloured border - the card's
+   outermost box and nothing inside it. The render texture was created with **0 depth bits**, and
+   UI Toolkit clips `overflow: hidden` with the STENCIL buffer. CardFace has overflow hidden on its
+   root, its art window, its name column and its ability box, so every masked subtree dropped out.
+   24 bits fixed it. (`ViewProbe.Render` has always asked for 24; that is why the probe's card
+   sheet looked right while the board did not, and comparing the two is what found it.)
+3. Shipped once with the plate pinned to `FlatOnTile` and the guest's whole board was upside down.
+   Which way up a card lies is a question about the SEAT, not about who owns it - the guest's
+   camera is yawed a half turn. `FacingTheSeat`.
+
+**The foe's half turn is gone**, and that is a deliberate loss. Slice 6 turned the foe's cards round
+the way they face across a table, with every readout counter-rotated so no figure came out upside
+down (D34). That needs the numbers to be separate objects from the card and they are not any more,
+so the choice was a foe card that reads or one that does not - and D34's own rule settles it.
+
+The rastered frame stays for the face-DOWN sleeve (a card back is not a card face) and as the
+fallback if the panel cannot be built at all. It can no longer appear because the board got busy:
+the sheet is 6 x 6 = 36 cells against `Board.Cells` = 35, with a test pinning that.
+
+370 green. Verified at `unity/Build/Probe`: top-down, attack group, set card, guest seat.
 
 ### 2026-09-08 (late night) — the board card became the hand card, and the meter went
 

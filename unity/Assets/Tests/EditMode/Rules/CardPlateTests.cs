@@ -56,50 +56,89 @@ namespace SpawnRowDuel.Rules.Tests
             Assert.AreEqual(rest * 3.3f / 4.75f, CardPlateTextures.ArtH, 0.006f);
             Assert.AreEqual(rest * 1.45f / 4.75f, CardPlateTextures.RulesH, 0.006f);
         }
-
         /// <summary>
-        /// The foe's card is UPSIDE DOWN, not mirrored. Those two differ by a determinant and by
-        /// nothing you can see on a symmetrical frame - a reflected plate reads as a rotated one
-        /// until an asymmetric illustration lands in it, which is a bug found in a screenshot
-        /// weeks later.
+        /// The sheet has a cell for every square a face-up card can stand on. If it did not, a
+        /// busy board would start handing units the rastered fallback frame - which is the look
+        /// this whole change exists to get rid of, appearing only in the late game, on some cards,
+        /// which is the worst way for it to come back.
         /// </summary>
         [Test]
-        public void FoePlate_IsAHalfTurnOfYours_NotAMirror()
+        public void TheCardSheet_CannotRunOutOfCells()
         {
-            var you = CardPlateLayer.FlatOnTile;
-            var foe = CardPlateLayer.FoeOnTile;
+            Assert.GreaterOrEqual(PlateFaceAtlas.Cells, SpawnRowDuel.Rules.Board.Cells,
+                "the card sheet is smaller than the board it has to cover");
+        }
 
-            // the card's own top now points at the near edge of the board: upside down from here
-            Assert.That(foe * Vector3.up, Is.EqualTo(Vector3.back).Using(V3()),
-                "the foe's card is not turned round");
-            Assert.That(foe * Vector3.right, Is.EqualTo(Vector3.left).Using(V3()));
+        /// <summary>Each cell's UV rectangle is its own, inside the sheet, and tiles with its
+        /// neighbours - one transposed row or column and every card wears another card's face.
+        /// </summary>
+        [Test]
+        public void EachSheetCell_HasItsOwnPatchOfTheTexture()
+        {
+            for (int i = 0; i < PlateFaceAtlas.Cells; i++)
+            {
+                var uv = PlateFaceAtlas.UvOf(i);
+                Assert.AreEqual(1f / PlateFaceAtlas.Cols, uv.width, 0.0001f);
+                Assert.AreEqual(1f / PlateFaceAtlas.Rows, uv.height, 0.0001f);
+                Assert.GreaterOrEqual(uv.xMin, -0.0001f);
+                Assert.GreaterOrEqual(uv.yMin, -0.0001f);
+                Assert.LessOrEqual(uv.xMax, 1.0001f);
+                Assert.LessOrEqual(uv.yMax, 1.0001f);
 
-            // a rotation preserves the basis's handedness; a mirror flips it
-            Assert.That(Vector3.Dot(Vector3.Cross(foe * Vector3.right, foe * Vector3.up),
-                                    foe * Vector3.forward),
-                        Is.EqualTo(Vector3.Dot(Vector3.Cross(you * Vector3.right, you * Vector3.up),
-                                               you * Vector3.forward)).Within(0.001f),
-                "the foe's plate is mirrored, not rotated");
+                // by CENTRES, not by Rect.Overlaps: neighbouring cells share an edge exactly, and
+                // whether a shared edge counts as an overlap is a question about float rounding
+                // rather than about the sheet
+                var mid = uv.center;
+                for (int j = 0; j < i; j++)
+                    Assert.IsFalse(PlateFaceAtlas.UvOf(j).Contains(mid),
+                        "cells " + j + " and " + i + " sample the same patch");
+            }
 
-            // and it is still lying flat, facing the same way as yours
-            Assert.That(foe * Vector3.forward, Is.EqualTo(you * Vector3.forward).Using(V3()));
+            // row 0 is the TOP of the sheet, because UI Toolkit measures down from the top left
+            // and a texture measures up from the bottom left
+            Assert.AreEqual(1f, PlateFaceAtlas.UvOf(0).yMax, 0.0001f,
+                "the first row is not at the top of the sheet");
         }
 
         /// <summary>
-        /// The whole point of the counter-rotation: a health meter on a foe card is the same way
-        /// up as one on yours. A card can be upside down; a number cannot.
+        /// THE SAME ROTATION FOR BOTH SEATS, which is the 2026-09-08 change and the one worth a
+        /// test of its own, because "the foe's cards are upside down" was a deliberate feature for
+        /// two weeks and its removal looks like a regression.
+        ///
+        /// It was bought by a pair of quaternions: the foe's plate turned a half circle, every
+        /// readout on it counter-rotated so no figure came out upside down. That needs the numbers
+        /// to be separate objects from the card, and the plate is one composited texture now - so
+        /// the only choice left was a foe card that reads or one that does not.
         /// </summary>
         [Test]
-        public void AReadoutOnAFoePlate_ComesOutTheSameWayUpAsOnYours()
+        public void EveryPlate_LiesTheSameWayUp_WhoeverOwnsIt()
         {
-            var readout = CardPlateLayer.FoeOnTile * CardPlateLayer.UprightOnFoeCard;
+            Assert.IsNull(typeof(CardPlateLayer).GetMethod("RotationFor"),
+                "something is still choosing a plate's rotation by who OWNS the card");
 
-            Assert.That(readout * Vector3.up,
-                        Is.EqualTo(CardPlateLayer.FlatOnTile * Vector3.up).Using(V3()));
-            Assert.That(readout * Vector3.right,
-                        Is.EqualTo(CardPlateLayer.FlatOnTile * Vector3.right).Using(V3()));
+            SpawnRowDuel.View.Seat.Take(Side.You);
+            Assert.AreEqual(CardPlateLayer.FlatOnTile, CardPlateLayer.FacingTheSeat);
+
+            // ...but it still answers to the SEAT. The guest's camera is yawed a half turn, so a
+            // plate pinned to the board's absolute geometry lies upside down for them - the whole
+            // board of them, which is exactly what the first version of this shipped.
+            SpawnRowDuel.View.Seat.Take(Side.Foe);
+            Assert.AreEqual(CardPlateLayer.HalfTurnOnTile, CardPlateLayer.FacingTheSeat);
+            Assert.That(CardPlateLayer.HalfTurnOnTile * Vector3.up,
+                        Is.EqualTo(Vector3.back).Using(V3()), "the far seat's card is not turned round");
+
+            // a rotation preserves handedness; a mirror flips it - and a mirrored card reads as a
+            // rotated one until an asymmetric illustration lands in it
+            Assert.That(Vector3.Dot(Vector3.Cross(CardPlateLayer.HalfTurnOnTile * Vector3.right,
+                                                  CardPlateLayer.HalfTurnOnTile * Vector3.up),
+                                    CardPlateLayer.HalfTurnOnTile * Vector3.forward),
+                        Is.EqualTo(Vector3.Dot(Vector3.Cross(CardPlateLayer.FlatOnTile * Vector3.right,
+                                                             CardPlateLayer.FlatOnTile * Vector3.up),
+                                               CardPlateLayer.FlatOnTile * Vector3.forward)).Within(0.001f),
+                        "the far seat's plate is mirrored, not rotated");
+
+            SpawnRowDuel.View.Seat.Take(Side.You);
         }
-
         /// <summary>
         /// Each plaque is laid straight over its own band, so each has to BE that band's shape -
         /// anything else stretches its contents by the difference. They are two different shapes:
