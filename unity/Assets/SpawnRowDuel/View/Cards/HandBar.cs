@@ -160,7 +160,10 @@ namespace SpawnRowDuel.View.Cards
         {
             var sb = new System.Text.StringBuilder();
             sb.Append(Mathf.RoundToInt(peek)).Append('/').Append(Screen.width)
-              .Append('|').Append(_hud != null ? _hud.SelectedHandIndex : -1);
+              .Append('|').Append(_hud != null ? _hud.SelectedHandIndex : -1)
+              // The card skin belongs in the signature: a face is bound once, when the strip is
+              // rebuilt, so without this the setting would not show until the hand next changed.
+              .Append('|').Append(CardFace.Crystal ? 'x' : 'p');
             for (int i = 0; i < hand.Count; i++) sb.Append('|').Append(hand[i].Id.Value);
             return sb.ToString();
         }

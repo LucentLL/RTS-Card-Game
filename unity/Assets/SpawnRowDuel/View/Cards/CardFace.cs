@@ -50,6 +50,43 @@ namespace SpawnRowDuel.View.Cards
         /// <summary>Square, centred, and NOT the full width - the side frame is the point.</summary>
         const float ArtSide = 0.760f;
         const float StatsH = 0.200f;
+
+        /// <summary>
+        /// THE CRYSTAL SKIN. Off by default; the paper frame above is untouched by it.
+        ///
+        /// A static rather than a per-face field because it is one global presentation choice, and
+        /// every surface that builds a CardFace - the hand, the inspect panel, the deck builder -
+        /// has to agree on it without any of them being told. HandBar folds it into its rebuild
+        /// signature so flipping it takes effect on the next frame rather than the next draw.
+        /// </summary>
+        public static bool Crystal;
+
+        /// <summary>How bright the crystal's front-face glint is, 0 to 1. See CrystalChrome.</summary>
+        public static float CrystalShine = 0.45f;
+
+        /// <summary>
+        /// How far the point hangs BELOW this card's own box, in pixels; zero on paper.
+        ///
+        /// The card's height deliberately does not include it, so any layout that stacks something
+        /// underneath a face has to reserve this itself or the point lands on top of it. The
+        /// inspect panel has open space below and needs nothing; the deck builder's detail column
+        /// puts a stepper directly under the card and does.
+        /// </summary>
+        public float TangPixels { get; private set; }
+
+        /// <summary>
+        /// THE CRYSTAL SKIN'S BUDGET. The same total: the card is exactly the height it has always
+        /// been, because the tang is drawn OUTSIDE the card's box (CrystalChrome) and so costs the
+        /// layout nothing at all.
+        ///
+        ///   0.170 + 0.660 + 0.200 = 1.030, leaving 0.358 for the ability box
+        ///
+        /// against paper's 0.258. The picture pays for it - a tenth of the card's width comes off
+        /// the art square and becomes ability text, a box 39% taller. Asked for 2026-09-08: "they
+        /// need more space for effects to be displayed". The art is the only band with slack; the
+        /// banner and the stat strip are both already sized to the glyphs they hold.
+        /// </summary>
+        const float CrystalArtSide = 0.660f;
         const float CostSize = 0.140f;
         const float GemSize = 0.118f;
         const float NameSize = 0.108f;
@@ -62,6 +99,7 @@ namespace SpawnRowDuel.View.Cards
         readonly VisualElement _banner, _costCircle, _gem, _artWin, _art, _vignette, _ribbon, _rulesBox, _stats;
         readonly Label _cost, _gemGlyph, _name, _ribbonText, _rules, _power, _hp, _chip;
         readonly VisualElement _stateChips, _names;
+        readonly CrystalChrome _chrome;
 
         float _width;
         float _nameSize;      // the size the name WANTS, before it is shrunk to fit its column
@@ -91,6 +129,12 @@ namespace SpawnRowDuel.View.Cards
             SetBorder(this, 1f, new Color(0.05f, 0.04f, 0.03f));
             SetRadius(this, 6f);
             style.backgroundColor = new Color(0.09f, 0.08f, 0.07f);
+
+            // FIRST CHILD, so it is behind every band. In UI Toolkit a sibling added later draws
+            // later, which is the same reason the cost badge and the gem go on last.
+            _chrome = new CrystalChrome();
+            _chrome.style.display = DisplayStyle.None;
+            Add(_chrome);
 
             // ── name banner ────────────────────────────────────────────────────────────────
             _banner = Row();
@@ -302,23 +346,62 @@ namespace SpawnRowDuel.View.Cards
             // thing - "never smaller than this looks on a 480-tall reference screen".
             float px = HudLayout.Scale;
 
+            bool crystal = Crystal;
+
             _width = width;
             style.width = width;
+            // THE CARD IS THE HEIGHT IT ALWAYS WAS, in both skins. The crystal's point is drawn
+            // by CrystalChrome, which hangs below this box rather than inside it, so the hand
+            // strip, the tile fit and the deck-builder grid never learn that the skin changed.
             style.height = width * Aspect;
-            style.borderTopColor = ElementPalette.Mix(ec, Color.black, 0.55f);
-            style.borderBottomColor = ElementPalette.Mix(ec, Color.black, 0.55f);
-            style.borderLeftColor = ElementPalette.Mix(ec, Color.black, 0.55f);
-            style.borderRightColor = ElementPalette.Mix(ec, Color.black, 0.55f);
+
+            var edge = crystal ? ElementPalette.Mix(sw.Deep, Color.black, 0.45f)
+                               : ElementPalette.Mix(ec, Color.black, 0.55f);
+            style.borderTopColor = edge;
+            style.borderBottomColor = edge;
+            style.borderLeftColor = edge;
+            style.borderRightColor = edge;
+            // Square, and unclipped, so the tang can hang past the bottom edge. A rounded corner
+            // on a cut stone reads as a rounded stone.
+            SetRadius(this, crystal ? 0f : 6f);
+            style.overflow = crystal ? Overflow.Visible : Overflow.Hidden;
+            style.backgroundColor = crystal ? Color.clear : new Color(0.09f, 0.08f, 0.07f);
+
+            if (crystal)
+            {
+                var point = m.Kind == CardKindFace.Structure ? CrystalChrome.Point.Structure
+                          : (m.Kind == CardKindFace.Spell || m.Kind == CardKindFace.Trap)
+                              ? CrystalChrome.Point.Spell
+                              : CrystalChrome.Point.Creature;
+                float tangF = point == CrystalChrome.Point.Structure ? CrystalChrome.TangStructure
+                            : point == CrystalChrome.Point.Spell ? CrystalChrome.TangSpell
+                            : CrystalChrome.TangCreature;
+                TangPixels = width * tangF;
+                _chrome.style.display = DisplayStyle.Flex;
+                _chrome.Set(ec, sw.Accent, ElementPalette.Mix(sw.Deep, Color.black, 0.30f),
+                            point, TangPixels, CrystalShine);
+            }
+            else
+            {
+                TangPixels = 0f;
+                _chrome.style.display = DisplayStyle.None;
+            }
 
             // banner
             _banner.style.height = width * BannerH;
+            // The crystal draws its own header ground, so the paper goes. Tinting it away is not
+            // enough - the paper texture's grain still reads through a flat colour.
+            _banner.style.backgroundImage = crystal
+                ? new StyleBackground(StyleKeyword.None)
+                : Background.FromTexture2D(CardTextures.Paper);
+            _banner.style.backgroundColor = crystal ? new Color(0f, 0.03f, 0.05f, 0.42f) : Color.clear;
 
-            // the art box: full width less a hair of frame, and SQUARE, so a square illustration
-            // lands in it whole and fills the card across
-            float art = width * ArtSide;
+            // the art box: SQUARE, so a square illustration lands in it whole. The crystal skin
+            // insets it further and hands the difference to the ability box.
+            float art = width * (crystal ? CrystalArtSide : ArtSide);
             _artWin.style.width = art;
             _artWin.style.height = art;
-            _banner.style.borderBottomColor = ec;
+            _banner.style.borderBottomColor = crystal ? sw.Accent : ec;
 
             // The badge sits INSIDE the banner, centred in it. It used to straddle the lower edge
             // with a third of itself hanging into the picture - which is the reference card's
@@ -337,7 +420,12 @@ namespace SpawnRowDuel.View.Cards
             // A card with NO element draws no gem, and must not be charged for one either - that
             // was a seventh of the card's width held empty on every spell and every neutral
             // structure, taken straight off the name.
-            bool hasGem = m.Element != Rules.Element.None;
+            //
+            // THE CRYSTAL NEVER DRAWS ONE. The whole stone is already the element's colour, so the
+            // kanji is the same fact twice and the name is what pays for it. Decided 2026-09-08:
+            // "don't need the japanese element displayed since the card is the color of the
+            // element". The name gets that seventh of the width back on every card.
+            bool hasGem = !crystal && m.Element != Rules.Element.None;
 
             float gem = width * GemSize;
             _gem.style.width = gem; _gem.style.height = gem;
@@ -353,6 +441,10 @@ namespace SpawnRowDuel.View.Cards
             _banner.style.paddingLeft = width * 0.022f + cost + (hasGem ? gem : 0f) + width * 0.03f;
 
             _name.text = m.Name;
+            // Ink on paper, light on stone. Every colour in this frame is one or the other.
+            _name.style.color = crystal ? Color.white : new Color(0.10f, 0.078f, 0.04f);
+            _name.style.unityTextOutlineWidth = crystal ? 0.10f : 0f;
+            _name.style.unityTextOutlineColor = new Color(0f, 0f, 0f, 0.8f);
             _nameSize = Mathf.Clamp(width * NameSize, 8f * px, 14f * px);
             // A DIFFERENT CARD FITS ITSELF. The inspect face is one reused element, so binding a
             // second card kept the memos - and the font sizes - from the first, and the new text
@@ -394,10 +486,27 @@ namespace SpawnRowDuel.View.Cards
             // Flush with the art window's left edge. It was a flat 4px from the CARD's edge, which
             // was the same thing while the picture was full width; now the picture is inset, a
             // lozenge riding the seam has to ride it from where the seam actually starts.
-            _ribbon.style.marginLeft = width * (1f - ArtSide) * 0.5f;
+            _ribbon.style.marginLeft = width * (1f - (crystal ? CrystalArtSide : ArtSide)) * 0.5f;
 
             // rules
+            //
+            // The ability box is the band the crystal skin exists to grow: it takes the width the
+            // art gave up, and because it is the only flex-grow child in the column it collects
+            // that space without anybody dividing it up. 0.258 of the card's width on paper,
+            // 0.358 on crystal.
+            _rulesBox.style.backgroundImage = crystal
+                ? new StyleBackground(StyleKeyword.None)
+                : Background.FromTexture2D(CardTextures.Paper);
+            _rulesBox.style.backgroundColor = crystal ? new Color(0f, 0.04f, 0.06f, 0.55f) : Color.clear;
+            SetRadius(_rulesBox, crystal ? 2f : 6f);
+            var rulesEdge = crystal ? new Color(sw.Accent.r, sw.Accent.g, sw.Accent.b, 0.55f)
+                                    : new Color(0f, 0f, 0f, 0.75f);
+            _rulesBox.style.borderTopColor = rulesEdge; _rulesBox.style.borderBottomColor = rulesEdge;
+            _rulesBox.style.borderLeftColor = rulesEdge; _rulesBox.style.borderRightColor = rulesEdge;
+
             _rules.text = m.Rules;
+            _rules.style.color = crystal ? new Color(0.94f, 0.97f, 0.99f)
+                                         : new Color(0.13f, 0.11f, 0.08f);
             _rulesSize = Mathf.Clamp(width * RulesSize, 7f * px, 13f * px);
             if (_rulesFittedFor == null) _rules.style.fontSize = _rulesSize;
             _rulesBox.style.display = string.IsNullOrEmpty(m.Rules) ? DisplayStyle.None : DisplayStyle.Flex;
@@ -418,16 +527,38 @@ namespace SpawnRowDuel.View.Cards
             _hp.style.fontSize = Mathf.Min(Mathf.Clamp(width * HpSize, 9f * px, 18f * px),
                                            band * 0.68f);
 
-            if (m.HasWorkerChip)
+            // THE CRYSTAL ALWAYS PRINTS THE WORKER NUMBER, zero included.
+            //
+            // Paper hides the chip when the figure is 0, which is defensible as ink saved but
+            // means "this costs no workforce" and "this card has no workforce line at all" look
+            // identical - and on a board where every structure is competing for the same ⚒ pool,
+            // a blank is the one answer the reader cannot act on. Asked for 2026-09-08: "show
+            // worker/resource number". Still nothing on a spell, which has no upkeep to print.
+            bool showChip = m.HasWorkerChip || (crystal && m.ShowStats);
+            if (showChip)
             {
                 _chip.style.display = DisplayStyle.Flex;
                 _chip.text = "⚒" + (m.WorkerChip > 0 ? "+" : "") + m.WorkerChip;
                 _chip.style.fontSize = Mathf.Clamp(width * ChipSize, 6f * px, 11f * px);
-                bool plus = m.WorkerChip > 0;
-                _chip.style.color = plus ? new Color(0.72f, 0.98f, 0.72f) : new Color(0.96f, 0.90f, 0.76f);
-                _chip.style.backgroundColor = plus
-                    ? new Color(0.08f, 0.22f, 0.10f, 0.95f)
-                    : new Color(0.24f, 0.15f, 0.06f, 0.95f);
+                // Three readings, not two. A zero is neither a gain nor a drain, and colouring it
+                // like a drain - which is what the two-way test did the moment zeros became
+                // printable - would tell the reader this card costs them workforce when it does
+                // not. Green raises the pool, amber spends it, grey neither.
+                if (m.WorkerChip > 0)
+                {
+                    _chip.style.color = new Color(0.72f, 0.98f, 0.72f);
+                    _chip.style.backgroundColor = new Color(0.08f, 0.22f, 0.10f, 0.95f);
+                }
+                else if (m.WorkerChip < 0)
+                {
+                    _chip.style.color = new Color(0.96f, 0.90f, 0.76f);
+                    _chip.style.backgroundColor = new Color(0.24f, 0.15f, 0.06f, 0.95f);
+                }
+                else
+                {
+                    _chip.style.color = new Color(0.80f, 0.84f, 0.86f);
+                    _chip.style.backgroundColor = new Color(0.10f, 0.13f, 0.15f, 0.92f);
+                }
             }
             else _chip.style.display = DisplayStyle.None;
 

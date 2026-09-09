@@ -928,7 +928,7 @@ namespace SpawnRowDuel.View
         /// </summary>
         void DrawSettings(float w, float h)
         {
-            const float panelW = 190f, panelH = 218f;
+            const float panelW = 190f, panelH = 248f;
             var panel = new Rect(w * 0.5f - panelW * 0.5f, h * 0.5f - panelH * 0.5f, panelW, panelH);
             Panel(panel, PanelColor);
             HudLayout.MenuPx = new Rect(panel.x * _scale, panel.y * _scale,
@@ -959,6 +959,16 @@ namespace SpawnRowDuel.View
             if (Btn(new Rect(x, y, cw, 24), BoardView.OverlayName(BoardView.Overlay), _button))
                 BoardView.Overlay = (BoardView.BoardOverlay)
                     (((int)BoardView.Overlay + 1) % 5);
+            y += 30;
+
+            // THE CARD FRAME, and it is presentation only - not one rule, cost or stat differs
+            // between the two. The crystal skin drops the element kanji (the stone is already the
+            // element's colour), always prints the worker figure, and hands a tenth of the card's
+            // width from the picture to the ability box.
+            GUI.Label(new Rect(x, y, cw, 14), "Card frame", _small);
+            y += 16;
+            if (Btn(new Rect(x, y, cw, 24), Cards.CardFace.Crystal ? "CRYSTAL" : "PAPER", _button))
+                Cards.CardFace.Crystal = !Cards.CardFace.Crystal;
             y += 30;
 
             if (Btn(new Rect(x, y, cw, 24), "RESUME", _button))
